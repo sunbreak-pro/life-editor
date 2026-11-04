@@ -193,6 +193,75 @@ const LINK_CHIP_ICON = "size-lumen-icon-sm max-md:size-lumen-icon-md";
 const FOCUS_RING =
   "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent";
 
+/** Which edge of its trigger a popover hangs from. */
+type PopoverAlign = "end" | "start";
+
+/** The popovers' `w-60`, in rem, for the room check below. */
+const POPOVER_WIDTH_REM = 15;
+
+/*
+ * #2618: the popovers used to hang from the trigger's RIGHT edge and grow
+ * left. When the link row wraps under the tags, the "+" sits at the left of
+ * the header, so a 15rem panel grew past the detail pane and its left part —
+ * search field included — went under the nav. Right-aligned stays the default
+ * (it is what keeps a panel opened near the right edge on screen); only when
+ * there is not a full panel's width to the left does it flip to hang from the
+ * left edge and grow right.
+ *
+ * Kept a pure function of numbers so the rule reads on its own; the reading
+ * of the DOM is in `measurePopoverAlign`.
+ */
+function popoverAlignFor(room: {
+  triggerRight: number;
+  panelWidth: number;
+  boundaryLeft: number;
+}): PopoverAlign {
+  return room.triggerRight - room.panelWidth >= room.boundaryLeft
+    ? "end"
+    : "start";
+}
+
+/*
+ * The left edge the panel must not cross is the nearest ancestor that clips
+ * (the detail pane's scroller), not the viewport: the nav occupies the
+ * viewport's left, and a panel that only clears the viewport still lands
+ * under it.
+ */
+function measurePopoverAlign(trigger: HTMLElement | null): PopoverAlign {
+  if (!trigger) return "end";
+  let boundaryLeft = 0;
+  for (let el = trigger.parentElement; el; el = el.parentElement) {
+    const { overflowX } = getComputedStyle(el);
+    if (overflowX && overflowX !== "visible") {
+      boundaryLeft = el.getBoundingClientRect().left;
+      break;
+    }
+  }
+  const rootFontSize =
+    parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  return popoverAlignFor({
+    triggerRight: trigger.getBoundingClientRect().right,
+    panelWidth: POPOVER_WIDTH_REM * rootFontSize,
+    boundaryLeft,
+  });
+}
+
+/*
+ * Static class strings per side (a built `${side}-0` is invisible to
+ * Tailwind's scanner). The picker's "start" keeps `max-md:right-0` because
+ * below the breakpoint it spans the header row edge to edge with
+ * `max-md:left-0 max-md:w-auto`, which the "end" side gets from `right-0`.
+ */
+const PICKER_ALIGN_CLASSES: Record<PopoverAlign, string> = {
+  end: "right-0",
+  start: "left-0 max-md:right-0",
+};
+
+const RELATED_ALIGN_CLASSES: Record<PopoverAlign, string> = {
+  end: "right-0",
+  start: "left-0",
+};
+
 export function LinkPanel({
   itemId,
   resolveTitle,
@@ -207,6 +276,8 @@ export function LinkPanel({
   const chipPopover = useLinkChipPopover(itemId);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [relatedOpen, setRelatedOpen] = useState(false);
+  const [pickerAlign, setPickerAlign] = useState<PopoverAlign>("end");
+  const [relatedAlign, setRelatedAlign] = useState<PopoverAlign>("end");
   const [query, setQuery] = useState("");
   const [highlightIndex, setHighlightIndex] = useState(0);
   const [targets, setTargets] = useState<LinkPanelTarget[]>([]);
@@ -215,6 +286,7 @@ export function LinkPanel({
   const pickerTriggerRef = useRef<HTMLButtonElement | null>(null);
   const pickerInputRef = useRef<HTMLInputElement | null>(null);
   const relatedRef = useRef<HTMLDivElement | null>(null);
+  const relatedTriggerRef = useRef<HTMLButtonElement | null>(null);
   // Last-write-wins for the pool: an open racing the mount load must not let
   // the older answer overwrite the newer one.
   const requestRef = useRef(0);
@@ -349,6 +421,9 @@ export function LinkPanel({
   const openPicker = () => {
     setError(null);
     setQuery("");
+    // Measured on open, not on every render: the row only moves when the
+    // header reflows, and a panel that jumped sides while open would be worse.
+    setPickerAlign(measurePopoverAlign(pickerTriggerRef.current));
     setPickerOpen(true);
     void refreshTargets();
   };
@@ -713,7 +788,7 @@ export function LinkPanel({
               closePicker();
               pickerTriggerRef.current?.focus();
             }}
-            className="absolute right-0 top-full z-20 mt-1 w-60 max-w-[calc(100vw-2rem)] rounded-lumen-md border border-lumen-border bg-lumen-bg p-2 shadow-lumen-md max-md:left-0 max-md:w-auto"
+            className={`absolute ${PICKER_ALIGN_CLASSES[pickerAlign]} top-full z-20 mt-1 w-60 max-w-[calc(100vw-2rem)] rounded-lumen-md border border-lumen-border bg-lumen-bg p-2 shadow-lumen-md max-md:left-0 max-md:w-auto`}
           >
             <input
               ref={pickerInputRef}
@@ -802,8 +877,14 @@ export function LinkPanel({
           Desktop only (see the header note on #2391). */}
       <div ref={relatedRef} className="relative max-md:hidden">
         <button
+          ref={relatedTriggerRef}
           type="button"
-          onClick={() => setRelatedOpen((v) => !v)}
+          onClick={() => {
+            if (!relatedOpen) {
+              setRelatedAlign(measurePopoverAlign(relatedTriggerRef.current));
+            }
+            setRelatedOpen(!relatedOpen);
+          }}
           aria-label={t("materials.related.open")}
           aria-expanded={relatedOpen}
           className="inline-flex items-center gap-1 rounded-md border border-dashed border-lumen-border px-2 py-1 text-xs text-lumen-text-secondary hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
@@ -816,7 +897,7 @@ export function LinkPanel({
           <div
             role="dialog"
             aria-label={t("materials.related.dialog")}
-            className="absolute right-0 top-full z-20 mt-1 max-h-80 w-60 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-lumen-md border border-lumen-border bg-lumen-bg p-2 shadow-lumen-md"
+            className={`absolute ${RELATED_ALIGN_CLASSES[relatedAlign]} top-full z-20 mt-1 max-h-80 w-60 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-lumen-md border border-lumen-border bg-lumen-bg p-2 shadow-lumen-md`}
           >
             {relatedCount === 0 ? (
               <p className="px-1.5 py-1 text-xs font-normal text-lumen-text-tertiary">

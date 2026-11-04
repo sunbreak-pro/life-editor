@@ -651,7 +651,7 @@
       "add": "Add link",
       "pickerDialog": "Link picker",
       "searchLabel": "Search items to link",
-      "searchPlaceholder": "Search by title…",
+      "searchPlaceholder": "Search notes, dailies, events and todos",
       "noCandidates": "No items match",
       "selfLink": "An item cannot link to itself.",
       "countLabel": "Links: {{total}}",
