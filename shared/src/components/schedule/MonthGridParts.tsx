@@ -1,5 +1,5 @@
 import { useCallback, useState, type DragEvent } from "react";
-import { CheckSquare, Plus } from "lucide-react";
+import { Calendar, CheckSquare, Plus, Repeat } from "lucide-react";
 import { cn } from "../cn";
 import { tagFaceStyle } from "../../utils/scheduleTagColor";
 import { type ScheduleItemVariant } from "./scheduleVariantVisuals";
@@ -101,6 +101,49 @@ export function chipFaceClasses(variant: ScheduleItemVariant): string {
   }
 }
 
+/** Already-translated names of the three chip kinds (#2551, §6.4). */
+export interface MonthChipKindLabels {
+  event: string;
+  task: string;
+  routine: string;
+}
+
+/*
+ * The kind mark at the head of a chip (#2551). Until then only a todo carried
+ * one (#593), so an event and a routine told apart by colour alone — which
+ * fails for a reader who cannot see the difference, and fails for everyone
+ * once a tag colour (#1580) replaces the variant face. Holidays keep no mark:
+ * they are not operated and their row says what they are.
+ *
+ * Named (`role="img"`) when the host passes the labels, so a screen reader
+ * hears the kind before the title; decorative otherwise.
+ */
+export function MonthChipKindIcon({
+  variant,
+  labels,
+}: {
+  variant: Exclude<ScheduleItemVariant, "holiday">;
+  labels?: MonthChipKindLabels;
+}) {
+  const Icon =
+    variant === "task"
+      ? CheckSquare
+      : variant === "routine"
+        ? Repeat
+        : Calendar;
+  const label = labels?.[variant];
+  return (
+    <Icon
+      data-chip-kind={variant}
+      className="size-3 shrink-0"
+      strokeWidth={2.5}
+      {...(label
+        ? { role: "img", "aria-label": label }
+        : { "aria-hidden": true })}
+    />
+  );
+}
+
 interface CellBodyProps {
   items: MonthGridItem[];
   shown: number;
@@ -184,6 +227,8 @@ interface FullChipsProps extends CellBodyProps {
   onShowMore?: (anchor: HTMLElement) => void;
   /** Already-translated accessible name for that button (§6.4). */
   showMoreLabel?: string;
+  /** Names for the kind marks (#2551). Omitted, the marks are decorative. */
+  kindLabels?: MonthChipKindLabels;
   onSelectItem?: (id: string) => void;
   onItemActivate?: (id: string, pos: { x: number; y: number }) => void;
   onItemDoubleClick?: (id: string) => void;
@@ -197,6 +242,7 @@ export function MonthFullChips({
   formatMoreCount,
   onShowMore,
   showMoreLabel,
+  kindLabels,
   onSelectItem,
   onItemActivate,
   onItemDoubleClick,
@@ -259,13 +305,9 @@ export function MonthFullChips({
               // #1584: `cursor-pointer` says it out loud. Tailwind
               // preflight resets every <button> to the arrow, so a
               // chip read as decoration until it was clicked.
-              "pointer-events-auto cursor-pointer rounded px-1 py-0.5 text-left text-xs font-medium",
-              // #593: todo chips carry the CheckSquare todo mark,
-              // matching the week grid, so the cue does not vanish
-              // when the same item is viewed by month.
-              it.variant === "task"
-                ? "flex items-center gap-1"
-                : "block truncate",
+              // #2551: every kind carries its mark now (#593 gave
+              // only todos one), so every chip is the same row.
+              "pointer-events-auto flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-left text-xs font-medium",
               CELL_FOCUS,
               !it.tagColor && chipFaceClasses(it.variant ?? "event"),
               // Gated on the variant (#1373): the MCP tool still
@@ -277,18 +319,11 @@ export function MonthFullChips({
                 "line-through opacity-55",
             )}
           >
-            {it.variant === "task" ? (
-              <>
-                <CheckSquare
-                  aria-hidden
-                  className="size-3 shrink-0"
-                  strokeWidth={2.5}
-                />
-                <span className="truncate">{it.title || " "}</span>
-              </>
-            ) : (
-              it.title || " "
-            )}
+            <MonthChipKindIcon
+              variant={it.variant ?? "event"}
+              labels={kindLabels}
+            />
+            <span className="truncate">{it.title || " "}</span>
           </button>
         ),
       )}

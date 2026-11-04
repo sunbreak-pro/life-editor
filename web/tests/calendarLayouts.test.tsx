@@ -109,6 +109,9 @@ const TOOLBAR_LABELS = {
  * would make "the grid is showing it" and "the list is showing it"
  * indistinguishable.
  */
+// #2551: the Desktop chip's kind mark is named, so its key leads the chip's
+// accessible name (the stubbed `t` echoes keys).
+const EVENT_KIND = "scheduleScreen.chipKindEvent";
 const MONTH_ITEM: MonthGridItem = {
   id: "event-1",
   date: ANCHOR,
@@ -468,9 +471,12 @@ describe("CalendarDesktopLayout — the month's 他 N 件 panel (#2049)", () => 
   it("hands a pressed row to the bubble and closes, asking for focus only from the keyboard", () => {
     const { handlers } = renderDesktop({ data: { monthItems: busy(6) } });
     fireEvent.click(moreButton());
-    fireEvent.click(screen.getByRole("button", { name: `予定 ${ANCHOR} #5` }), {
-      detail: 0,
-    });
+    fireEvent.click(
+      screen.getByRole("button", { name: `${EVENT_KIND} 予定 ${ANCHOR} #5` }),
+      {
+        detail: 0,
+      },
+    );
     expect(panel()).toBeNull();
     expect(handlers.onItemActivate).toHaveBeenCalledWith(
       `busy-${ANCHOR}-5`,
@@ -479,11 +485,14 @@ describe("CalendarDesktopLayout — the month's 他 N 件 panel (#2049)", () => 
     );
 
     fireEvent.click(moreButton());
-    fireEvent.click(screen.getByRole("button", { name: `予定 ${ANCHOR} #5` }), {
-      detail: 1,
-      clientX: 30,
-      clientY: 40,
-    });
+    fireEvent.click(
+      screen.getByRole("button", { name: `${EVENT_KIND} 予定 ${ANCHOR} #5` }),
+      {
+        detail: 1,
+        clientX: 30,
+        clientY: 40,
+      },
+    );
     expect(handlers.onItemActivate).toHaveBeenLastCalledWith(
       `busy-${ANCHOR}-5`,
       { x: 30, y: 40 },
@@ -580,7 +589,10 @@ describe("the same month, two densities (#878)", () => {
    */
   it("Desktop names the items as chips; narrow as plain lines in fixed cells", () => {
     const wide = renderDesktop({ view: "month" });
-    expect(screen.getByRole("button", { name: MONTH_ITEM.title })).toBeTruthy();
+    // #2551: the chip's name opens with its kind, read off the kind mark.
+    expect(
+      screen.getByRole("button", { name: `${EVENT_KIND} ${MONTH_ITEM.title}` }),
+    ).toBeTruthy();
     wide.unmount();
 
     renderNarrow();
@@ -736,7 +748,9 @@ function pressAndRelease(el: Element, x: number, y: number) {
 describe("the item gestures — three presses, three handlers, per surface", () => {
   it("Desktop keeps a month chip's three apart (#224 stays out of them)", () => {
     const { handlers } = renderDesktop({ view: "month" });
-    const chip = screen.getByRole("button", { name: MONTH_ITEM.title });
+    const chip = screen.getByRole("button", {
+      name: `${EVENT_KIND} ${MONTH_ITEM.title}`,
+    });
 
     fireEvent.click(chip, { clientX: 5, clientY: 6 });
     fireEvent.doubleClick(chip);

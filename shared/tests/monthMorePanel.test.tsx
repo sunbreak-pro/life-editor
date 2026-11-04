@@ -117,6 +117,52 @@ describe("MonthMorePanel", () => {
     expect(screen.getByText("Marine Day")).toBeInTheDocument();
   });
 
+  it("marks each row with its kind, named like the month chips (#2551)", () => {
+    const cell = document.createElement("div");
+    cell.setAttribute("data-month-cell", "2026-07-09");
+    cell.setAttribute("data-month-column", "4");
+    const anchor = document.createElement("button");
+    cell.appendChild(anchor);
+    document.body.appendChild(cell);
+    render(
+      <MonthMorePanel
+        anchor={anchor}
+        items={[
+          ...ITEMS,
+          { id: "r1", date: "2026-07-09", title: "Gym", variant: "routine" },
+          {
+            id: "t2",
+            date: "2026-07-09",
+            title: "Done thing",
+            variant: "task",
+            completed: true,
+          },
+        ]}
+        title="The rest of Thu, Jul 9"
+        closeLabel="Close"
+        kindLabels={{ event: "Event", task: "Todo", routine: "Repeating" }}
+        onItemActivate={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    for (const [title, kind, label] of [
+      ["Standup", "event", "Event"],
+      ["Write report", "task", "Todo"],
+      ["Gym", "routine", "Repeating"],
+    ] as const) {
+      const row = screen.getByRole("button", { name: `${label} ${title}` });
+      const mark = row.querySelector("svg");
+      expect(mark?.getAttribute("data-chip-kind")).toBe(kind);
+      expect(mark?.getAttribute("role")).toBe("img");
+    }
+    // #1373 stays: a completed todo is still struck through and faded.
+    const done = screen.getByRole("button", { name: "Todo Done thing" });
+    expect(done.className).toContain("line-through");
+    expect(done.className).toContain("opacity-55");
+    // A holiday keeps no mark.
+    expect(screen.getByText("Marine Day").querySelector("svg")).toBeNull();
+  });
+
   it("takes focus on open — the first item", () => {
     renderPanel();
     expect(screen.getByRole("button", { name: "Standup" })).toHaveFocus();

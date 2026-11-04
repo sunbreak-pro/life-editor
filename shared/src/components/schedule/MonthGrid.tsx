@@ -8,6 +8,7 @@ import {
   MonthFullChips,
   monthCellFold,
   useMonthCellDrop,
+  type MonthChipKindLabels,
 } from "./MonthGridParts";
 import type { TodoCalendarDrop } from "./todoCalendarDrag";
 import {
@@ -168,6 +169,11 @@ export interface MonthGridProps {
    */
   formatCreateLabel?: (dateKey: string) => string;
   /**
+   * Already-translated names for the kind mark at the head of each Desktop
+   * chip (#2551). Pass a stable object — the grid is memoised (#1582).
+   */
+  chipKindLabels?: MonthChipKindLabels;
+  /**
    * Mobile density (#1401): fixed-height cells, a title list instead of chips
    * (up to 4 lines, the last one the remainder when there are more), a smaller
    * day badge, and no side borders or corner radius, so the grid can run edge
@@ -197,6 +203,7 @@ function MonthGridImpl({
   formatDayLabel = (k) => k,
   formatCreateLabel = (k) => k,
   formatShowMoreLabel = (k) => k,
+  chipKindLabels,
   compact = false,
   ariaLabel,
   className,
@@ -413,6 +420,7 @@ function MonthGridImpl({
                         ? formatShowMoreLabel(dateKey)
                         : undefined
                     }
+                    kindLabels={chipKindLabels}
                     onSelectItem={onSelectItem}
                     onItemActivate={onItemActivate}
                     onItemDoubleClick={onItemDoubleClick}
