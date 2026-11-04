@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   render,
   screen,
@@ -350,6 +350,57 @@ describe("WorkScreen — the controls that close the open session row", () => {
    * needs wall-clock time to pass — and they adjust the face for this run
    * alone, so there is no service call to route in the first place.
    */
+});
+
+/*
+ * #2542 — on the Mobile face, a reset after a pause must bring the main button
+ * back to Start. The label reads `progress > 0` while stopped, so the case only
+ * means something once a pause has held real elapsed time: `Date.now` is moved
+ * on by hand instead of waiting, which leaves the Provider's intervals alone.
+ */
+describe("WorkScreen — the Mobile main button after a reset (#2542)", () => {
+  let now = Date.parse("2026-11-04T09:00:00.000Z");
+
+  beforeEach(() => {
+    view.wide = false;
+    now = Date.parse("2026-11-04T09:00:00.000Z");
+    vi.spyOn(Date, "now").mockImplementation(() => now);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("pause → reset reads Start, not Resume", async () => {
+    const { fns } = await renderWork();
+    press("work.controls.start");
+    await waitFor(() => expect(fns.startTimerSession).toHaveBeenCalled());
+    now += 3_000;
+    press("work.controls.pause");
+    await screen.findByRole("button", { name: /work\.controls\.resume/ });
+
+    press("work.controls.reset");
+
+    await screen.findByRole("button", { name: /work\.controls\.start/ });
+    expect(
+      screen.queryByRole("button", { name: /work\.controls\.resume/ }),
+    ).toBeNull();
+    screen.getByText("25:00");
+  });
+
+  it("running → reset reads Start as well", async () => {
+    const { fns } = await renderWork();
+    press("work.controls.start");
+    await waitFor(() => expect(fns.startTimerSession).toHaveBeenCalled());
+    now += 3_000;
+
+    press("work.controls.reset");
+
+    await screen.findByRole("button", { name: /work\.controls\.start/ });
+    expect(
+      screen.queryByRole("button", { name: /work\.controls\.resume/ }),
+    ).toBeNull();
+  });
 });
 
 describe("WorkScreen — the settings panel in the detail sidebar", () => {
