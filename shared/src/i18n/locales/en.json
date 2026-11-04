@@ -937,6 +937,7 @@
     "todoRowDeleteHint": "Deletes this todo (you can restore it from Trash)",
     "todoFilterOpen": "Filter todos",
     "todoFilterButton": "Filter",
+    "todoFilterButtonName": "Filter todos",
     "todoFilterActive_one": "Filtered by {{count}} rule",
     "todoFilterActive_other": "Filtered by {{count}} rules",
     "todoFilterPanel": "Todo filter",

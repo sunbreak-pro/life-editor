@@ -932,6 +932,7 @@
     "todoRowDeleteHint": "この Todo を削除します（ゴミ箱から戻せます）",
     "todoFilterOpen": "Todo を絞り込む",
     "todoFilterButton": "絞り込み",
+    "todoFilterButtonName": "絞り込み（Todo）",
     "todoFilterActive_other": "絞り込み {{count}} 件",
     "todoFilterPanel": "Todo の絞り込み",
     "todoFilterScopeHeading": "表示するリスト",

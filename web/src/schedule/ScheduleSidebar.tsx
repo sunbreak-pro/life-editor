@@ -557,8 +557,9 @@ export function ScheduleSidebar({
        *
        * #2568: a full-width, left-aligned button with the word 絞り込み, and
        * the count after the word instead of over the icon's corner. The
-       * accessible name stays the sentence it was, which also carries the
-       * count; the visible word is the short form of it.
+       * accessible name starts with the visible word, so a voice command
+       * saying 絞り込み hits it (label in name); the older todoFilterOpen
+       * sentence ended in 絞り込む and did not contain it.
        */}
       <div data-todo-filter-row className="flex shrink-0 items-center">
         <button
@@ -568,7 +569,7 @@ export function ScheduleSidebar({
               ? t("scheduleScreen.todoFilterActive", {
                   count: filter.activeCount,
                 })
-              : t("scheduleScreen.todoFilterOpen")
+              : t("scheduleScreen.todoFilterButtonName")
           }
           aria-expanded={filterOpen}
           aria-pressed={filter.activeCount > 0}

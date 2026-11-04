@@ -3,6 +3,8 @@ import { render, screen, fireEvent, within } from "@testing-library/react";
 import { agendaRowHeightPx, type AgendaItem } from "@life-editor/shared";
 import { ScheduleSidebar } from "../src/schedule/ScheduleSidebar";
 import type { ScheduleSidebarProps } from "../src/schedule/ScheduleSidebar";
+import en from "../../shared/src/i18n/locales/en.json";
+import ja from "../../shared/src/i18n/locales/ja.json";
 
 /*
  * #889 — the Schedule rightSidebar, pulled out of CalendarTab.
@@ -851,7 +853,7 @@ describe("ScheduleSidebar — the Todo tab's day (#2281)", () => {
     render(<ScheduleSidebar {...makeProps({ tab: "todo", isWide: false })} />);
     for (const name of [
       "scheduleScreen.today",
-      "scheduleScreen.todoFilterOpen",
+      "scheduleScreen.todoFilterButtonName",
     ]) {
       const cls = screen.getByRole("button", { name }).className.split(/\s+/);
       expect(cls).toContain("max-md:min-h-11");
@@ -932,6 +934,16 @@ describe("ScheduleSidebar — the Todo tab's prototype shape (#2568)", () => {
     expect(row.className).not.toContain("justify-end");
   });
 
+  // A voice command reads the visible word, so the name must contain it.
+  it.each([
+    ["ja", ja],
+    ["en", en],
+  ])("keeps the filter button's visible word in its %s name", (_, cat) => {
+    const s = cat.scheduleScreen;
+    expect(s.todoFilterButtonName.startsWith(s.todoFilterButton)).toBe(true);
+    expect(s.todoFilterActive_other.startsWith(s.todoFilterButton)).toBe(true);
+  });
+
   it("draws both heading actions as unfilled text buttons", () => {
     render(
       <ScheduleSidebar
@@ -985,7 +997,9 @@ describe("ScheduleSidebar — the Todo tab's filter (#1641)", () => {
     render(
       <ScheduleSidebar {...makeProps({ tab: "todo", todo: { ...rows } })} />,
     );
-    screen.getByRole("button", { name: "scheduleScreen.todoFilterOpen" });
+    screen.getByRole("button", {
+      name: "scheduleScreen.todoFilterButtonName",
+    });
     expect(document.querySelector("[data-todo-filter-count]")).toBeNull();
   });
 
@@ -1009,7 +1023,7 @@ describe("ScheduleSidebar — the Todo tab's filter (#1641)", () => {
       <ScheduleSidebar {...makeProps({ tab: "todo", todo: { ...rows } })} />,
     );
     const btn = screen.getByRole("button", {
-      name: "scheduleScreen.todoFilterOpen",
+      name: "scheduleScreen.todoFilterButtonName",
     });
     expect(
       screen.queryByLabelText("scheduleScreen.todoFilterPanel"),
