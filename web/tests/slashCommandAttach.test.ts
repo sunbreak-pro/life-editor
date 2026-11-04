@@ -1,9 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
+import { createElement } from "react";
+import { render, screen } from "@testing-library/react";
+import { ListTodo } from "lucide-react";
 import type { Editor, Range } from "@tiptap/core";
 import {
   buildSlashItems,
   type SlashMenuLabels,
 } from "../src/notes/slashCommand";
+import { SlashMenu } from "../src/notes/SlashMenu";
 import type { AttachmentWiring } from "../src/notes/useAttachmentUpload";
 import type { AttachmentRef } from "@life-editor/shared";
 
@@ -165,5 +169,53 @@ describe("slash menu attach entries (#1404)", () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(inserted).toEqual([]);
+  });
+});
+
+/*
+ * #2586 — the "/" menu's look, matched to the prototype: a fixed 16rem
+ * width, a bare 0.9rem icon on each row (no bordered tile), the hover fill as
+ * the highlight, and ListTodo for the Todo entry.
+ */
+describe("slash menu look (#2586)", () => {
+  it("marks the Todo entry with ListTodo", () => {
+    const todo = buildSlashItems(LABELS).find((i) => i.id === "taskList");
+    expect(todo?.Icon).toBe(ListTodo);
+  });
+
+  it("is 16rem wide with bare icons and a hover-fill highlight", () => {
+    render(
+      createElement(SlashMenu, {
+        items: buildSlashItems(LABELS),
+        command: vi.fn(),
+        emptyLabel: LABELS.empty,
+      }),
+    );
+    const list = screen.getByRole("listbox");
+    expect(list.classList.contains("w-[16rem]")).toBe(true);
+    expect(list.classList.contains("max-h-72")).toBe(true);
+    expect(list.className).not.toContain("min-w-");
+
+    const options = screen.getAllByRole("option");
+    expect(options[0]!.classList.contains("bg-lumen-hover")).toBe(true);
+    expect(options[1]!.classList.contains("bg-lumen-hover")).toBe(false);
+    for (const option of options) {
+      const icon = option.querySelector("svg");
+      expect(icon?.parentElement).toBe(option);
+      expect(icon?.classList.contains("h-[0.9rem]")).toBe(true);
+      expect(icon?.classList.contains("w-[0.9rem]")).toBe(true);
+    }
+  });
+
+  it("keeps the 16rem width when nothing matches", () => {
+    render(
+      createElement(SlashMenu, {
+        items: [],
+        command: vi.fn(),
+        emptyLabel: LABELS.empty,
+      }),
+    );
+    const empty = screen.getByText(LABELS.empty);
+    expect(empty.classList.contains("w-[16rem]")).toBe(true);
   });
 });
