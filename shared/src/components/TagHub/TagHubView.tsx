@@ -1,9 +1,8 @@
 import { useRef } from "react";
 import type { ReactNode } from "react";
-import { ChevronLeft, Pencil, Tags } from "lucide-react";
-import { Button } from "../Button";
+import { ChevronLeft, Pencil, SquareCheck, Tags, X } from "lucide-react";
 import { cn } from "../cn";
-import { CARD_BTN_TAP } from "../styleTokens";
+import { CARD_BTN_TAP, FOCUS_RING_TIGHT } from "../styleTokens";
 import { EmptyState } from "../EmptyState";
 import { IconButton } from "../IconButton";
 import { SkeletonList } from "../SkeletonList";
@@ -255,7 +254,7 @@ export function TagHubView({
           <TagHeadingIcon icon={selected.icon} color={selected.color} />
           <h2
             className={cn(
-              "min-w-0 flex-1 truncate text-sm font-semibold",
+              "min-w-0 truncate text-sm font-semibold",
               selected.isUntagged
                 ? "text-lumen-text-secondary"
                 : "text-lumen-text",
@@ -266,18 +265,37 @@ export function TagHubView({
           <span className="shrink-0 text-xs tabular-nums text-lumen-text-tertiary">
             {formatCount(selected.count)}
           </span>
-          {onToggleSelecting && groups.length > 0 && (
+          {/* #2599 — the count reads as part of the name, so the slack sits
+              after it and the controls gather at the right end. */}
+          <div aria-hidden="true" className="min-w-0 flex-1" />
+          {onToggleSelecting && (
             // #2224 — the squares hide behind this. Ending the mode drops
             // whatever was checked (the host does that). The label says the
             // state ("Select" / "Done selecting"), so no aria-pressed on top.
-            <Button
-              variant={selecting ? "secondary" : "ghost"}
-              size="sm"
-              className={cn("shrink-0", CARD_BTN_TAP, !wide && "min-h-11")}
+            // #2599 — drawn even for a tag with nothing under it, so the
+            // header keeps one shape from tag to tag. A plain button rather
+            // than `Button`: `cn` is a string join, so the accent colours
+            // could not reliably override a variant's own bg / text.
+            <button
+              type="button"
+              className={cn(
+                "inline-flex h-7 shrink-0 items-center justify-center gap-1 rounded-md border px-2.5 text-xs font-medium transition-colors",
+                FOCUS_RING_TIGHT,
+                selecting
+                  ? "border-lumen-accent bg-lumen-accent-subtle text-lumen-accent"
+                  : "border-lumen-border text-lumen-text hover:bg-lumen-hover",
+                CARD_BTN_TAP,
+                !wide && "min-h-11",
+              )}
               onClick={onToggleSelecting}
             >
+              {selecting ? (
+                <X size={14} aria-hidden="true" />
+              ) : (
+                <SquareCheck size={14} aria-hidden="true" />
+              )}
               {selecting ? labels.selectEnd : labels.select}
-            </Button>
+            </button>
           )}
           {editable && (
             <IconButton
@@ -384,10 +402,18 @@ export function TagHubView({
   if (!wide)
     return <div className="flex h-full min-h-0 flex-col">{detail}</div>;
 
+  // #2599 — one bordered frame around both panes, inset from the page edge.
+  // The floor keeps a near-empty tag from collapsing the frame to a strip; the
+  // outer box scrolls when the window is shorter than that floor.
   return (
-    <div className="flex h-full min-h-0 w-full">
-      {rail}
-      {detail}
+    <div className="flex h-full min-h-0 w-full flex-col overflow-y-auto p-4">
+      <div
+        data-taghub-frame=""
+        className="flex min-h-[32rem] w-full flex-1 overflow-hidden rounded-lg border border-lumen-border"
+      >
+        {rail}
+        {detail}
+      </div>
     </div>
   );
 }
