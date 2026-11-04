@@ -118,11 +118,11 @@ export function useTodoAddDialog({
       onClose={() => setTodoAddTarget(null)}
       onSubmit={handleCreateTodo}
       labels={{
-        title: t("scheduleScreen.todoAddDialogTitle"),
+        title: t("scheduleScreen.todoAddDialogHeading"),
         titleLabel: t("scheduleScreen.todoAddTitleLabel"),
-        titlePlaceholder: t("scheduleScreen.todoAddTitlePlaceholder"),
         submit: t("scheduleScreen.todoAddSubmit"),
         cancel: t("scheduleScreen.todoAddCancel"),
+        close: t("common.close"),
       }}
     />
   );

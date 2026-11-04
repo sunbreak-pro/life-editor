@@ -26,9 +26,10 @@ export interface TodoAddDialogLabels {
   /** Dialog title. */
   title: string;
   titleLabel: string;
-  titlePlaceholder: string;
   submit: string;
   cancel: string;
+  /** Accessible name of the top-right ×, matching the other Schedule panels (#2219). */
+  close: string;
 }
 
 export interface TodoAddDialogProps {
@@ -75,7 +76,12 @@ export function TodoAddDialog({
   };
 
   return (
-    <Modal open={open} onClose={onClose} title={labels.title}>
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={labels.title}
+      closeLabel={labels.close}
+    >
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -92,7 +98,6 @@ export function TodoAddDialog({
             ref={inputRef}
             type="text"
             value={title}
-            placeholder={labels.titlePlaceholder}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => {
               // Never submit mid-IME-composition (§frontend gotcha).
@@ -104,7 +109,6 @@ export function TodoAddDialog({
             }}
             className={cn(
               "w-full rounded-md border border-lumen-border bg-lumen-bg px-3 py-1.5 text-sm text-lumen-text",
-              "placeholder:text-lumen-text-secondary",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
             )}
           />

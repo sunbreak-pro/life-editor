@@ -950,6 +950,7 @@
     "todoAddTodayCta": "Add to today",
     "todoAddDayCta": "Add to this day",
     "todoAddDialogTitle": "New todo",
+    "todoAddDialogHeading": "Add a Todo",
     "todoAddTitleLabel": "Title",
     "todoAddTitlePlaceholder": "Enter a title",
     "todoAddSubmit": "Add",

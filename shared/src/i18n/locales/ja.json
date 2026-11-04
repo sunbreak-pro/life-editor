@@ -944,6 +944,7 @@
     "todoAddTodayCta": "本日分に追加",
     "todoAddDayCta": "この日に追加",
     "todoAddDialogTitle": "Todo を追加",
+    "todoAddDialogHeading": "Todo の追加",
     "todoAddTitleLabel": "タイトル",
     "todoAddTitlePlaceholder": "タイトルを入力",
     "todoAddSubmit": "追加",
