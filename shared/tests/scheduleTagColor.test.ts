@@ -252,9 +252,8 @@ describe("tintedFaceStyle (#2623)", () => {
     expect(style?.backgroundImage).toContain(
       "color-mix(in srgb, #e03e3e 18%, var(--color-bg-primary))",
     );
-    // An engine without color-mix shows the neutral face the page's ink is
-    // made for, not the full colour under that ink.
-    expect(style?.backgroundColor).toBe("var(--color-bg-secondary)");
+    // The solid colour underneath is what an engine without color-mix shows.
+    expect(style?.backgroundColor).toBe("#e03e3e");
   });
 
   it("is undefined for no colour and for one that is not a hex", () => {

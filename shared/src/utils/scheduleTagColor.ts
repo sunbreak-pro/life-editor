@@ -233,11 +233,9 @@ export interface TintedFaceStyle extends TagLineStyle {
  *
  * The wash is mixed against the theme's background token rather than drawn
  * with opacity, so the face stays opaque in both themes (frontend.md: no
- * transparent faces). It is painted as a background IMAGE over the neutral
- * face token: an engine without `color-mix` drops the image and is left with
- * that token, the face the page's ink was chosen for, and the line still
- * carries the colour. A full-colour fallback would put that ink on a fill
- * nobody checked it against.
+ * transparent faces). It is painted as a background IMAGE over the solid
+ * colour: an engine without `color-mix` drops the image and is left with the
+ * full colour, which is what every holiday wore before, instead of no face.
  */
 export function tintedFaceStyle(
   color?: string | null,
@@ -247,7 +245,7 @@ export function tintedFaceStyle(
   const wash = `color-mix(in srgb, ${line.borderLeftColor} ${WASH_PERCENT}%, var(--color-bg-primary))`;
   return {
     ...line,
-    backgroundColor: "var(--color-bg-secondary)",
+    backgroundColor: line.borderLeftColor,
     backgroundImage: `linear-gradient(${wash}, ${wash})`,
   };
 }
