@@ -125,7 +125,7 @@
           "data": "Todos, notes, dailies, schedule, tags, timers and sounds are deleted from the server.",
           "login": "You will not be able to sign in with this address again.",
           "irreversible": "Nothing goes to Trash. This cannot be undone or restored.",
-          "outbox": "Todos on this device that were never sent: {{n}}. They are erased with the account."
+          "outbox": "Changes on this device that were never sent: {{n}}. They are erased with the account."
         },
         "typePrompt": "Type {{email}} to confirm",
         "inputLabel": "Email address confirmation",
@@ -651,7 +651,7 @@
       "add": "Add link",
       "pickerDialog": "Link picker",
       "searchLabel": "Search items to link",
-      "searchPlaceholder": "Search by title…",
+      "searchPlaceholder": "Search notes, dailies, events and todos",
       "noCandidates": "No items match",
       "selfLink": "An item cannot link to itself.",
       "countLabel": "Links: {{total}}",
@@ -1315,6 +1315,7 @@
     "redo": "Redo",
     "untitled": "Untitled",
     "loading": "Loading…",
+    "retry": "Retry",
     "unsavedCloseConfirm": "You have unsaved changes. Discard them and close?"
   },
   "commandPalette": {
@@ -1401,18 +1402,19 @@
     "profile": "Edit profile",
     "signOutPrompt": "Sign out?",
     "signOutFailed": "Could not sign out, so this device is still signed in. Check the connection and try again.",
-    "signOutPromptPending": "Todos waiting to be sent: {{n}}. They stay on this device and are sent when this account signs in again. Another account cannot see them. Sign out?"
+    "signOutPromptPending": "Changes waiting to be sent: {{n}}. They stay on this device and are sent when this account signs in again. Another account cannot see them. Sign out?"
   },
   "appUpdate": {
     "message": "A new version is available. Reload when you are ready.",
     "reload": "Reload"
   },
   "offline": {
-    "message": "Offline — view only. New Todos are the one exception: they stay on this device and are sent when you are back online. Other changes are not saved.",
-    "pending": "Todos waiting to be sent: {{n}}.",
-    "failed": "Todos that could not be sent: {{n}}. Copy the text to keep it.",
-    "failedCopyManual": "The text of {{n}} Todos that could not be sent was not copied automatically. Select it below and copy it by hand. You can then remove them from this device.",
-    "failedCopied": "Copied the text of the Todos that could not be sent: {{n}}. You can now remove them from this device.",
+    "message": "Offline — view only. New Todos and Daily edits are the exceptions: they stay on this device and are sent when you are back online. Other changes are not saved.",
+    "pending": "Changes waiting to be sent: {{n}}.",
+    "failed": "Changes that could not be sent: {{n}}. Copy the text to keep it.",
+    "failedCopyManual": "The text of {{n}} changes that could not be sent was not copied automatically. Select it below and copy it by hand. You can then remove them from this device.",
+    "failedCopied": "Copied the text of the changes that could not be sent: {{n}}. You can now remove them from this device.",
+    "dailyMerged": "The Daily for {{date}} was also changed elsewhere. The two versions were merged and both are kept.",
     "copy": "Copy text",
     "remove": "Remove from this device"
   },

@@ -1,4 +1,5 @@
 import {
+  Fragment,
   useCallback,
   useSyncExternalStore,
   type ReactElement,
@@ -92,6 +93,12 @@ interface FormatAction {
   isOffered?: (editor: Editor) => boolean;
   /** Whether it can run on the selection now. Absent → whenever editable. */
   canRun?: (editor: Editor) => boolean;
+  /**
+   * Which cluster the button belongs to (#2586): block formats, inline marks,
+   * then inserts. A vertical rule is drawn where the cluster changes, so the
+   * bar reads as three groups rather than seven look-alike squares.
+   */
+  group: 0 | 1 | 2;
 }
 
 /*
@@ -104,6 +111,7 @@ const ICON_SIZE = 14;
 const ACTIONS: readonly FormatAction[] = [
   {
     key: "heading1",
+    group: 0,
     label: (l) => l.heading1,
     icon: <Heading1 size={ICON_SIZE} />,
     apply: (chain) => chain.toggleHeading({ level: 1 }),
@@ -111,6 +119,7 @@ const ACTIONS: readonly FormatAction[] = [
   },
   {
     key: "heading2",
+    group: 0,
     label: (l) => l.heading2,
     icon: <Heading2 size={ICON_SIZE} />,
     apply: (chain) => chain.toggleHeading({ level: 2 }),
@@ -118,6 +127,7 @@ const ACTIONS: readonly FormatAction[] = [
   },
   {
     key: "bold",
+    group: 1,
     label: (l) => l.bold,
     icon: <Bold size={ICON_SIZE} />,
     apply: (chain) => chain.toggleBold(),
@@ -125,6 +135,7 @@ const ACTIONS: readonly FormatAction[] = [
   },
   {
     key: "italic",
+    group: 1,
     label: (l) => l.italic,
     icon: <Italic size={ICON_SIZE} />,
     apply: (chain) => chain.toggleItalic(),
@@ -132,6 +143,7 @@ const ACTIONS: readonly FormatAction[] = [
   },
   {
     key: "strike",
+    group: 1,
     label: (l) => l.strike,
     icon: <Strikethrough size={ICON_SIZE} />,
     apply: (chain) => chain.toggleStrike(),
@@ -139,12 +151,14 @@ const ACTIONS: readonly FormatAction[] = [
   },
   {
     key: "horizontalRule",
+    group: 2,
     label: (l) => l.horizontalRule,
     icon: <Minus size={ICON_SIZE} />,
     apply: (chain) => chain.setHorizontalRule(),
   },
   {
     key: "itemLink",
+    group: 2,
     label: (l) => l.itemLink,
     icon: <Link2 size={ICON_SIZE} />,
     apply: (chain) => chain.openItemLinkPicker(),
@@ -231,39 +245,50 @@ export function FormatToolbar({
         const blocked = off || (state & blockedBit(i)) !== 0;
         const pressed =
           action.isActive !== undefined ? (state & (1 << i)) !== 0 : undefined;
+        const startsGroup = i > 0 && ACTIONS[i - 1].group !== action.group;
         return (
-          <button
-            key={action.key}
-            type="button"
-            data-format-action={action.key}
-            aria-label={name}
-            title={name}
-            aria-pressed={pressed}
-            disabled={blocked}
-            onMouseDown={(event) => {
-              // Keep the focus (and the selection with it) in the body.
-              event.preventDefault();
-              if (!blocked) run(action);
-            }}
-            onClick={(event) => {
-              // A keyboard press: no mousedown came first.
-              if (event.detail === 0 && !blocked) run(action);
-            }}
-            className={cn(
-              "inline-grid h-6 w-6 place-items-center rounded-lumen-sm transition-colors",
-              // The 44px touch floor below the app's breakpoint (#1512).
-              "max-md:min-h-11 max-md:min-w-11",
-              pressed
-                ? "bg-lumen-accent-subtle text-lumen-accent"
-                : "text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
-              "disabled:cursor-not-allowed disabled:opacity-40",
-              FOCUS_RING,
+          <Fragment key={action.key}>
+            {startsGroup && (
+              <span
+                role="separator"
+                aria-orientation="vertical"
+                // Below the breakpoint the bar has no gaps (#2308), so the
+                // rule brings its own: 2 × 10px stays inside a 390px screen.
+                className="h-4 w-px shrink-0 bg-lumen-border max-md:mx-1 max-md:h-6"
+              />
             )}
-          >
-            <span aria-hidden className="inline-flex">
-              {action.icon}
-            </span>
-          </button>
+            <button
+              type="button"
+              data-format-action={action.key}
+              aria-label={name}
+              title={name}
+              aria-pressed={pressed}
+              disabled={blocked}
+              onMouseDown={(event) => {
+                // Keep the focus (and the selection with it) in the body.
+                event.preventDefault();
+                if (!blocked) run(action);
+              }}
+              onClick={(event) => {
+                // A keyboard press: no mousedown came first.
+                if (event.detail === 0 && !blocked) run(action);
+              }}
+              className={cn(
+                "inline-grid h-6 w-6 place-items-center rounded-lumen-sm transition-colors",
+                // The 44px touch floor below the app's breakpoint (#1512).
+                "max-md:min-h-11 max-md:min-w-11",
+                pressed
+                  ? "bg-lumen-accent-subtle text-lumen-accent"
+                  : "text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
+                "disabled:cursor-not-allowed disabled:opacity-40",
+                FOCUS_RING,
+              )}
+            >
+              <span aria-hidden className="inline-flex">
+                {action.icon}
+              </span>
+            </button>
+          </Fragment>
         );
       })}
     </div>

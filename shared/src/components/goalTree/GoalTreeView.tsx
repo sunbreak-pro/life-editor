@@ -319,13 +319,19 @@ function goalStatusText(node: GoalTreeNode, labels: StatusLabels): string {
   return labels.formatProgress(done, total);
 }
 
-/** Achieved / unconnected chip, or the n/m count with its bar. */
+/** Achieved / unconnected chip, or the n/m count, with or without its bar. */
 export function GoalStatus({
   node,
   labels,
+  bar = true,
 }: {
   node: GoalTreeNode;
   labels: StatusLabels;
+  /**
+   * The tree's rows show the count alone, as the prototype does (#2606). The
+   * detail panel keeps its bar, which that issue left as it is.
+   */
+  bar?: boolean;
 }): React.JSX.Element {
   const { achievement } = node;
   if (achievement.achieved) {
@@ -344,6 +350,15 @@ export function GoalStatus({
     );
   }
   const { done, total } = goalProgress(achievement);
+  const count = (
+    <span
+      data-goal-progress
+      className="shrink-0 text-xs tabular-nums text-lumen-text-secondary"
+    >
+      {labels.formatProgress(done, total)}
+    </span>
+  );
+  if (!bar) return count;
   return (
     <span className="flex shrink-0 items-center gap-2">
       <span
@@ -355,9 +370,7 @@ export function GoalStatus({
           style={{ width: `${total === 0 ? 0 : (done / total) * 100}%` }}
         />
       </span>
-      <span className="text-xs tabular-nums text-lumen-text-secondary">
-        {labels.formatProgress(done, total)}
-      </span>
+      {count}
     </span>
   );
 }
@@ -924,7 +937,7 @@ function GoalBranch({
                 {labels.formatDateRange(goal.startDate, goal.endDate)}
               </span>
             )}
-            <GoalStatus node={node} labels={labels} />
+            <GoalStatus node={node} labels={labels} bar={false} />
           </button>
         )}
         {/* On the hovered or the selected row; a keyboard reaches them while
@@ -1437,13 +1450,10 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
             </p>
           )}
           {model.roots.length > 0 && (
-            <Group heading={labels.treeHeading}>
-              <p className="mb-1 text-xs text-lumen-text-tertiary">
-                {GOAL_PERIOD_KINDS.map(
-                  (kind) =>
-                    `${labels.periods[kind]} ${labels.periodRanges[kind]}`,
-                ).join(" · ")}
-              </p>
+            // No visible heading or period legend: the tree starts right under
+            // the add field, as in the prototype (#2606). The name stays for
+            // screen readers, which still need the region told apart.
+            <section aria-label={labels.treeHeading}>
               <ul>
                 {model.roots.map((node) => (
                   <GoalBranch
@@ -1455,7 +1465,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
                   />
                 ))}
               </ul>
-            </Group>
+            </section>
           )}
           {model.unconnected.length > 0 && (
             <Group heading={labels.unconnectedHeading}>

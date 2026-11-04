@@ -4,6 +4,8 @@ import {
   pickDisplayAssignment,
   readableInkOn,
   tagFaceStyle,
+  tagLineStyle,
+  tintedFaceStyle,
 } from "../src/utils/scheduleTagColor";
 import type { WikiTag, WikiTagAssignment } from "../src/types/wikiTagUnified";
 
@@ -223,5 +225,39 @@ describe("buildItemTagColors — one pass over the whole assignment list", () =>
   it("is empty when no tag carries a colour", () => {
     const rows = [assign("a1", "event-1", "tag-a", "2026-01-01T00:00:00.000Z")];
     expect(buildItemTagColors(rows, [tag("tag-a", null)]).size).toBe(0);
+  });
+});
+
+describe("tagLineStyle (#2623)", () => {
+  it("puts the colour on the left line and nowhere else", () => {
+    // No fill and no ink: the face and the ink stay the kind's.
+    expect(tagLineStyle("#1e3a8a")).toEqual({ borderLeftColor: "#1e3a8a" });
+    expect(tagLineStyle("#fde68a")).toEqual({ borderLeftColor: "#fde68a" });
+  });
+
+  it("is undefined for no colour and for one that is not a hex", () => {
+    // The row then draws the line in its kind's colour.
+    expect(tagLineStyle(null)).toBeUndefined();
+    expect(tagLineStyle(undefined)).toBeUndefined();
+    expect(tagLineStyle("")).toBeUndefined();
+    expect(tagLineStyle("chartreuse")).toBeUndefined();
+  });
+});
+
+describe("tintedFaceStyle (#2623)", () => {
+  it("draws the colour as the line and a light wash of it as the face", () => {
+    const style = tintedFaceStyle("#e03e3e");
+    expect(style?.borderLeftColor).toBe("#e03e3e");
+    // The wash is mixed against the theme's background, so it stays opaque.
+    expect(style?.backgroundImage).toContain(
+      "color-mix(in srgb, #e03e3e 18%, var(--color-bg-primary))",
+    );
+    // The solid colour underneath is what an engine without color-mix shows.
+    expect(style?.backgroundColor).toBe("#e03e3e");
+  });
+
+  it("is undefined for no colour and for one that is not a hex", () => {
+    expect(tintedFaceStyle(null)).toBeUndefined();
+    expect(tintedFaceStyle("var(--x)")).toBeUndefined();
   });
 });

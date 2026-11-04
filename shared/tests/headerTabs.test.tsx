@@ -35,6 +35,18 @@ describe("HeaderTabs", () => {
     );
   });
 
+  it("draws the active tab in semibold and leaves the rest at the base weight (#2619)", () => {
+    renderTabs();
+    const active = screen.getByRole("tab", { name: /Todos/ });
+    expect(active).toHaveClass("font-semibold");
+    expect(active).not.toHaveClass("font-medium");
+    for (const name of ["Notes", "Daily"]) {
+      const tab = screen.getByRole("tab", { name });
+      expect(tab).not.toHaveClass("font-semibold");
+      expect(tab).not.toHaveClass("font-medium");
+    }
+  });
+
   it("renders a badge only for tabs that declare one", () => {
     renderTabs();
     // Todos carries a count; it is shown.

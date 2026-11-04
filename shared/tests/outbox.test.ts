@@ -9,6 +9,7 @@ import {
   OutboxSendError,
   classifySendFailure,
   deleteOutbox,
+  enqueueDailyUpsert,
   enqueueTodoCreate,
   failOutboxEntry,
   getOutboxCounts,
@@ -97,6 +98,29 @@ describe("outbox store", () => {
     expect(copy).toEqual({ text: "title a", opIds: [entry.opId] });
     await removeFailedOutboxEntries(copy.opIds);
     expect(getOutboxCounts()).toEqual({ pending: 0, failed: 0 });
+  });
+
+  it("copies a refused day as its date and readable text", async () => {
+    const paragraph = (text: string) => ({
+      type: "paragraph",
+      content: [{ type: "text", text }],
+    });
+    const entry = await enqueueDailyUpsert(
+      user,
+      "2026-11-02",
+      JSON.stringify({ type: "doc", content: [paragraph("a"), paragraph("b")] }),
+      null,
+    );
+    await failOutboxEntry(user, entry, "refused");
+    expect((await readFailedOutboxCopy()).text).toBe("2026-11-02\na\nb");
+  });
+
+  it("reads a kind this app does not know as present but not sendable", () => {
+    const entry = {
+      kind: "note.body",
+      schemaVersion: OUTBOX_SCHEMA_VERSION,
+    } as unknown as Parameters<typeof isSendable>[0];
+    expect(isSendable(entry)).toBe(false);
   });
 
   it("removes only what the copy read, not an entry refused after it", async () => {

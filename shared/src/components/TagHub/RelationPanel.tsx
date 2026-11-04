@@ -1,9 +1,17 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { ArrowLeft, ArrowUpRight, Plus, X } from "lucide-react";
+import { ArrowLeft, ExternalLink, Plus, X } from "lucide-react";
 import { cn } from "../cn";
 import { ItemRoleBadge } from "../items/ItemRoleBadge";
-import type { ItemRoleLabels } from "../items/itemRole";
+import {
+  ITEM_ROLE_ICON,
+  ITEM_ROLE_ICON_CLASS,
+  UNKNOWN_ITEM_ROLE_ICON,
+  UNKNOWN_ITEM_ROLE_ICON_CLASS,
+  itemRoleLabel,
+  resolveItemRole,
+  type ItemRoleLabels,
+} from "../items/itemRole";
 import { FOCUS_RING_TIGHT } from "../styleTokens";
 import { isImeComposing } from "../../utils/imeGuard";
 import type { TagHubItem } from "./types";
@@ -16,26 +24,32 @@ import type { TagHubItem } from "./types";
  * could only be made from a note's header before this, which is why only four
  * exist — this panel works the same for a todo, an event or a daily.
  *
- * Top to bottom (brief §4.1): back to the tag's breakdown, the item card with
- * "open in its section ↗", then three sections — links (each with a remove ×
- * on hover or focus), items sharing a tag, that day's daily — and a pinned
- * "+ Add a link" that opens a title search over the hub's own rows. The
- * relations are derived by the host through buildItemRelations, the same rule
- * the note header's "related" popover reads.
+ * Top to bottom (#2602, the prototype's order): the item's kind and title with
+ * no card, then three sections — links (each with a remove × on hover or
+ * focus, and "+ Add a link" under them, which opens a title search over the
+ * hub's own rows), items sharing a tag, that day's daily — and a bottom row
+ * with "open in its section" and "back to this tag". The prototype's links
+ * are read-only; adding and removing stay because they are the only place a
+ * todo, event or daily gets a link. The relations are derived by the host
+ * through buildItemRelations, the same rule the note header's "related"
+ * popover reads.
  *
  * Pure presentation: data and copy injected (§6.4), lumen-* tokens only,
  * opaque surfaces (§5).
  */
 
 export interface RelationPanelLabels {
-  /** "← Back to this tag's breakdown". */
+  /** "Back to this tag's breakdown" (the ArrowLeft icon is drawn beside it). */
   back: string;
   /** "Open in its section". */
   openItem: string;
   links: string;
   sharedTags: string;
   sameDayDaily: string;
-  /** "{label} ({count})". */
+  /**
+   * "{label} ({count})" — a section's accessible name and the picker's
+   * heading. The sections' visible headings carry the label alone.
+   */
   formatSection: (label: string, count: number) => string;
   /** Shown under a section with nothing in it. */
   sectionEmpty: string;
@@ -69,11 +83,13 @@ export interface RelationPanelProps {
   onRemoveLink: (linkIds: readonly string[]) => void;
   onAddLink: (target: TagHubItem) => void;
   /**
-   * Open the add-link chooser BELOW its button instead of above (#1846). The
-   * narrow host shows this panel in a bottom sheet whose body scrolls, and a
-   * scroller clips what overflows its top edge for good — a chooser opening
-   * upward from a short sheet lost its search field. Overflow at the bottom
-   * scrolls instead, and the field's autofocus scrolls it into view.
+   * Open the add-link chooser BELOW its button (the default) or above it.
+   * #1846 turned the phone's sheet downward: a scroller clips what overflows
+   * its top edge for good, and a chooser opening upward lost its search
+   * field. Since #2602 the button sits under the links, near the top of the
+   * Desktop sidebar too, so opening upward would clip there as well; overflow
+   * at the bottom scrolls instead, and the field's autofocus scrolls it into
+   * view.
    */
   addLinkOpensDown?: boolean;
   labels: RelationPanelLabels;
@@ -92,7 +108,7 @@ export function RelationPanel({
   onOpenItem,
   onRemoveLink,
   onAddLink,
-  addLinkOpensDown = false,
+  addLinkOpensDown = true,
   labels,
 }: RelationPanelProps) {
   const rowButton = (row: TagHubItem) => (
@@ -105,7 +121,7 @@ export function RelationPanel({
         FOCUS_RING_TIGHT,
       )}
     >
-      <ItemRoleBadge role={row.role} labels={labels.roles} compact />
+      <RoleIcon role={row.role} labels={labels.roles} announce />
       <span
         className="min-w-0 flex-1 truncate text-[13px] text-lumen-text"
         title={row.title}
@@ -115,10 +131,18 @@ export function RelationPanel({
     </button>
   );
 
-  const section = (label: string, count: number, body: ReactNode) => (
+  // The visible heading drops the count (#2602 — the prototype heads each
+  // section with its name alone); the region's accessible name keeps it so a
+  // screen reader still hears how many rows follow before entering them.
+  const section = (
+    label: string,
+    count: number,
+    body: ReactNode,
+    footer?: ReactNode,
+  ) => (
     <section aria-label={labels.formatSection(label, count)}>
-      <h3 className="mb-1.5 text-xs font-medium text-lumen-text-tertiary">
-        {labels.formatSection(label, count)}
+      <h3 className="mb-1.5 text-xs font-bold text-lumen-text-secondary">
+        {label}
       </h3>
       {count === 0 ? (
         <p className="px-2 text-xs text-lumen-text-tertiary">
@@ -127,47 +151,26 @@ export function RelationPanel({
       ) : (
         <ul className="flex flex-col">{body}</ul>
       )}
+      {footer}
     </section>
   );
 
   return (
     <div className="flex min-h-full flex-col gap-5">
-      <button
-        type="button"
-        onClick={onBack}
-        className={cn(
-          "flex items-center gap-1.5 self-start rounded-lumen-sm px-1 py-0.5 text-xs text-lumen-text-secondary",
-          "transition-colors hover:text-lumen-text",
-          FOCUS_RING_TIGHT,
-        )}
-      >
-        <ArrowLeft size={13} aria-hidden />
-        {labels.back}
-      </button>
-
-      <div className="flex flex-col gap-2 rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary p-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <ItemRoleBadge role={item.role} labels={labels.roles} compact />
-          <h2
-            className="min-w-0 flex-1 truncate text-sm font-semibold text-lumen-text"
-            title={item.title}
-          >
-            {item.title}
-          </h2>
-        </div>
-        <button
-          type="button"
-          onClick={() => onOpenItem(item)}
-          className={cn(
-            "flex items-center gap-1 self-start rounded-lumen-sm text-xs font-medium text-lumen-accent",
-            "hover:underline",
-            FOCUS_RING_TIGHT,
-          )}
+      <header className="flex min-w-0 flex-col gap-1">
+        <p className="flex min-w-0 items-center gap-1.5 text-xs text-lumen-text-secondary">
+          <RoleIcon role={item.role} labels={labels.roles} />
+          <span className="truncate">
+            {itemRoleLabel(item.role, labels.roles)}
+          </span>
+        </p>
+        <h2
+          className="min-w-0 truncate text-sm font-semibold text-lumen-text"
+          title={item.title}
         >
-          {labels.openItem}
-          <ArrowUpRight size={12} aria-hidden />
-        </button>
-      </div>
+          {item.title}
+        </h2>
+      </header>
 
       {section(
         labels.links,
@@ -189,6 +192,12 @@ export function RelationPanel({
             </button>
           </li>
         )),
+        <AddLinkButton
+          candidates={candidates}
+          onAddLink={onAddLink}
+          opensDown={addLinkOpensDown}
+          labels={labels}
+        />,
       )}
       {section(
         labels.sharedTags,
@@ -205,15 +214,67 @@ export function RelationPanel({
         sameDayDaily && <li className="flex">{rowButton(sameDayDaily)}</li>,
       )}
 
-      <div className="mt-auto">
-        <AddLinkButton
-          candidates={candidates}
-          onAddLink={onAddLink}
-          opensDown={addLinkOpensDown}
-          labels={labels}
-        />
+      <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
+        <button
+          type="button"
+          onClick={() => onOpenItem(item)}
+          className={cn(
+            "flex items-center gap-1.5 rounded-lumen-md border border-lumen-border-strong bg-lumen-bg px-3 py-1.5 text-xs font-medium text-lumen-text",
+            "transition-colors hover:bg-lumen-hover max-md:min-h-11",
+            FOCUS_RING_TIGHT,
+          )}
+        >
+          <ExternalLink size={13} aria-hidden />
+          {labels.openItem}
+        </button>
+        <button
+          type="button"
+          onClick={onBack}
+          className={cn(
+            "flex items-center gap-1.5 rounded-lumen-md px-2 py-1.5 text-xs text-lumen-text-secondary",
+            "transition-colors hover:bg-lumen-hover hover:text-lumen-text max-md:min-h-11",
+            FOCUS_RING_TIGHT,
+          )}
+        >
+          <ArrowLeft size={13} aria-hidden />
+          {labels.back}
+        </button>
       </div>
     </div>
+  );
+}
+
+/**
+ * The bare kind glyph, tinted like ItemRoleBadge's but without its chip: the
+ * prototype marks rows and the header with the icon alone. `announce` gives
+ * it the kind as its accessible name where no visible word says it (rows);
+ * the header prints the kind beside it, so there it stays decorative.
+ */
+function RoleIcon({
+  role,
+  labels,
+  announce = false,
+}: {
+  role: string;
+  labels: ItemRoleLabels;
+  announce?: boolean;
+}): React.JSX.Element {
+  const resolved = resolveItemRole(role);
+  const Icon = resolved ? ITEM_ROLE_ICON[resolved] : UNKNOWN_ITEM_ROLE_ICON;
+  const tint = resolved
+    ? ITEM_ROLE_ICON_CLASS[resolved]
+    : UNKNOWN_ITEM_ROLE_ICON_CLASS;
+  const label = itemRoleLabel(role, labels);
+  return (
+    <span
+      role={announce ? "img" : undefined}
+      aria-label={announce ? label : undefined}
+      aria-hidden={announce ? undefined : true}
+      title={announce ? label : undefined}
+      className="inline-flex shrink-0"
+    >
+      <Icon size={13} aria-hidden className={tint} />
+    </span>
   );
 }
 
@@ -255,15 +316,15 @@ function AddLinkButton({
   };
 
   return (
-    <div ref={boxRef} className="relative">
+    <div ref={boxRef} className="relative mt-1">
       <button
         type="button"
         onClick={() => (open ? close() : setOpen(true))}
         aria-expanded={open}
         aria-haspopup="dialog"
         className={cn(
-          "flex w-full items-center justify-center gap-1.5 rounded-lumen-md border border-lumen-border-strong bg-lumen-bg px-3 py-1.5 text-sm text-lumen-text-secondary",
-          "transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+          "flex items-center gap-1.5 rounded-lumen-sm px-2 py-1 text-xs text-lumen-text-secondary",
+          "transition-colors hover:bg-lumen-hover hover:text-lumen-text max-md:min-h-11",
           FOCUS_RING_TIGHT,
         )}
       >
