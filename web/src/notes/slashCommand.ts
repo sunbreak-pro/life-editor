@@ -8,7 +8,7 @@ import {
   Heading3,
   List,
   ListOrdered,
-  ListChecks,
+  ListTodo,
   Image,
   Paperclip,
   Table,
@@ -189,7 +189,7 @@ export function buildSlashItems(
     {
       id: "taskList",
       title: labels.taskList,
-      Icon: ListChecks,
+      Icon: ListTodo,
       command: ({ editor, range }) =>
         editor.chain().focus().deleteRange(range).toggleTaskList().run(),
     },
