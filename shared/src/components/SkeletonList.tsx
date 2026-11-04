@@ -15,9 +15,15 @@ export interface SkeletonListProps {
   /**
    * Already-translated accessible name (#2620). Given, the list becomes the
    * screen's loading announcement: `role="status"` + `aria-busy` + this name.
-   * Omitted, the list stays decorative and the host owns the announcement.
+   * Omitted (or empty, so a missing translation cannot mint a nameless
+   * status), the list stays decorative and the host owns the announcement.
    */
   label?: string;
+  /**
+   * Lands on the outermost element. With `label` that is the status wrapper,
+   * and the flex column with its `gap` is the element inside it, so layout
+   * classes that target the bars' column apply only without `label`.
+   */
   className?: string;
 }
 
@@ -62,7 +68,7 @@ export function SkeletonList({
     />
   ));
 
-  if (label === undefined) {
+  if (!label) {
     return (
       <div
         aria-hidden="true"

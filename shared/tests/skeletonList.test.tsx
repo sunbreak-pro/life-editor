@@ -50,6 +50,19 @@ describe("SkeletonList", () => {
     expect(container.querySelectorAll(".animate-pulse")).toHaveLength(3);
   });
 
+  it("stays decorative when the label is empty", () => {
+    const { container } = render(<SkeletonList label="" />);
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(container.firstChild).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("keeps the unlabelled markup exactly as before", () => {
+    const { container } = render(<SkeletonList rows={1} />);
+    const bar = container.querySelector(".animate-pulse") as HTMLElement;
+    // No stray `width` from the widths prop when it is not passed.
+    expect(bar.getAttribute("style")).toBe("height: 36px;");
+  });
+
   it("applies widths per row, repeating from the start", () => {
     const { container } = render(
       <SkeletonList rows={5} widths={["82%", "64%"]} />,
