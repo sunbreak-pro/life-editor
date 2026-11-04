@@ -4,6 +4,7 @@ import { Button } from "./Button";
 import { Card } from "./Card";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { NoticePanel } from "./NoticePanel";
+import { CARD_BTN_TAP } from "./styleTokens";
 import { formatAttachmentSize } from "../constants/attachments";
 import type { AttachmentOrphanScan } from "../services/attachmentOrphans";
 
@@ -120,6 +121,7 @@ export function AttachmentCleanupPanel({
           disabled={busy}
           busy={status === "scanning"}
           busyLabel={labels.scanning}
+          className={CARD_BTN_TAP}
         >
           {scan === null ? labels.scan : labels.rescan}
         </Button>
@@ -131,6 +133,7 @@ export function AttachmentCleanupPanel({
             disabled={busy}
             busy={status === "deleting"}
             busyLabel={labels.deleting}
+            className={CARD_BTN_TAP}
           >
             {labels.deleteAll}
           </Button>

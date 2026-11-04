@@ -10,7 +10,9 @@ import {
 import type { ReactNode } from "react";
 import {
   ItemCreatePanel,
+  UndoRedoProvider,
   WikiTagsUnifiedProvider,
+  useUndoRedoContext,
   type DataService,
   type ItemCreatePanelLabels,
   type ItemCreateSlot,
@@ -19,6 +21,7 @@ import {
 } from "@life-editor/shared";
 import { createBumpableSync, stubDataService } from "./helpers";
 import { useScheduleCreateFlow } from "../src/schedule/useScheduleCreateFlow";
+import { useCreatePanelNotes } from "../src/schedule/useCreatePanelNotes";
 import { useCreatePanelTags } from "../src/schedule/useCreatePanelTags";
 
 /*
@@ -330,5 +333,130 @@ describe("useCreatePanelTags — writing the difference (#2220)", () => {
     act(() => hook.result.current.tagPool.onStagedChange(["tag-work"]));
     expect(hook.result.current.takeStagedTags()).toEqual(["tag-work"]);
     expect(hook.result.current.takeStagedTags()).toBeNull();
+  });
+});
+
+/*
+ * #2402 — 新規作成 puts the staged tags on the memo note as well as the item,
+ * and none of it adds a history entry: one Ctrl+Z has to take the whole press.
+ */
+describe("useCreatePanelNotes — the memo note's tags (#2402)", () => {
+  function setup() {
+    const assignTagToItem = vi.fn(
+      async (id: string, itemId: string, tagId: string) => ({
+        id,
+        itemId,
+        tagId,
+        createdAt: "2026-08-20T00:00:00.000Z",
+        updatedAt: "2026-08-20T00:00:00.000Z",
+        isDisplayColor: false,
+        isDeleted: false,
+      }),
+    );
+    const ds = stubDataService({
+      listNotesUnified: vi.fn(async () => []),
+      createNoteUnified: vi.fn(async () => {}),
+      softDeleteNoteUnified: vi.fn(async () => {}),
+      createItemLink: vi.fn(async (linkId: string) => ({
+        id: linkId,
+        fromItemId: "evt-1",
+        toItemId: "note-1",
+        origin: "manual" as const,
+        createdAt: "2026-08-20T00:00:00.000Z",
+      })),
+      listAllWikiTagsUnified: vi.fn(async () =>
+        TAGS.map((t) => ({ ...t, icon: null })),
+      ),
+      listAllTagAssignments: vi.fn(async () => []),
+      listAllTagConnections: vi.fn(async () => []),
+      assignTagToItem,
+    }) as DataService;
+    const { wrapper: Sync } = createBumpableSync();
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <Sync>
+        <UndoRedoProvider>
+          <WikiTagsUnifiedProvider dataService={ds}>
+            {children}
+          </WikiTagsUnifiedProvider>
+        </UndoRedoProvider>
+      </Sync>
+    );
+    const hook = renderHook(
+      () => ({
+        notes: useCreatePanelNotes({
+          dataService: ds,
+          active: true,
+          onAttachError: vi.fn(),
+        }),
+        undo: useUndoRedoContext(),
+      }),
+      { wrapper },
+    );
+    return { hook, ds, assignTagToItem };
+  }
+  const assigned = (spy: ReturnType<typeof setup>["assignTagToItem"]) =>
+    spy.mock.calls.map((c) => c.slice(1));
+
+  it("gives the note the same tags as the item", async () => {
+    const { hook, ds, assignTagToItem } = setup();
+    const attached = await act(() =>
+      hook.result.current.notes.attachMemoNote("evt-1", {
+        title: "Memo",
+        notes: [],
+        noteTagIds: ["tag-work", "tag-home"],
+        itemTagIds: ["tag-work", "tag-home"],
+      }),
+    );
+    const note = vi.mocked(ds.createNoteUnified).mock.calls[0][0].id;
+    expect(attached).toMatchObject({ noteId: note, ok: true });
+    expect(assigned(assignTagToItem)).toEqual([
+      ["evt-1", "tag-work"],
+      ["evt-1", "tag-home"],
+      [note, "tag-work"],
+      [note, "tag-home"],
+    ]);
+  });
+
+  it("adds no history entry per tag, so one undo takes the whole press", async () => {
+    const { hook } = setup();
+    await act(() =>
+      hook.result.current.notes.attachMemoNote("evt-1", {
+        title: "Memo",
+        notes: [],
+        noteTagIds: ["tag-work"],
+        itemTagIds: ["tag-work"],
+      }),
+    );
+    expect(hook.result.current.undo.canUndo("tags")).toBe(false);
+  });
+
+  it("leaves a picked todo's own tags alone", async () => {
+    const { hook, ds, assignTagToItem } = setup();
+    await act(() =>
+      hook.result.current.notes.attachMemoNote("task-old", {
+        title: "Memo",
+        notes: [],
+        noteTagIds: ["tag-home"],
+        itemTagIds: [],
+      }),
+    );
+    const note = vi.mocked(ds.createNoteUnified).mock.calls[0][0].id;
+    expect(assigned(assignTagToItem)).toEqual([[note, "tag-home"]]);
+  });
+
+  it("keeps the note and says the press did not finish when a tag fails", async () => {
+    const { hook, ds, assignTagToItem } = setup();
+    assignTagToItem.mockRejectedValueOnce(new Error("no"));
+    const attached = await act(() =>
+      hook.result.current.notes.attachMemoNote("evt-1", {
+        title: "Memo",
+        notes: [],
+        noteTagIds: ["tag-work"],
+        itemTagIds: ["tag-work"],
+      }),
+    );
+    const note = vi.mocked(ds.createNoteUnified).mock.calls[0][0].id;
+    expect(attached).toMatchObject({ noteId: note, ok: false });
+    expect(ds.softDeleteNoteUnified).not.toHaveBeenCalled();
   });
 });

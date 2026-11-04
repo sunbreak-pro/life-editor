@@ -24,6 +24,7 @@ import {
   createdWithinRange,
   getWorkSessions,
 } from "../../utils/analyticsAggregation";
+import { isPomodoroSession } from "../../utils/timerSessions";
 import { WEEK_STARTS_ON } from "../../utils/scheduleGridLayout";
 import { NoticePanel } from "../NoticePanel";
 import { AnalyticsEmptyState } from "./AnalyticsEmptyState";
@@ -193,9 +194,7 @@ export function MobileAnalyticsView(
       (sum, s) => sum + (s.duration ?? 0) / 60,
       0,
     );
-    const pomodoroCount = todaySessions.filter(
-      (s) => s.sessionType === "WORK" && s.completed,
-    ).length;
+    const pomodoroCount = todaySessions.filter(isPomodoroSession).length;
     const completedToday = nodes.filter(
       (n) =>
         n.type === "task" &&
@@ -520,16 +519,22 @@ export function MobileAnalyticsView(
             </span>
           </div>
           {/* Narrowed by the Apps section's "show records" (#2312): say to
-              which app, and give the way back to every app. */}
+              which app, and give the way back to every app.
+              The sentence wraps instead of truncating (#2511): at 390px the
+              button took ~119px and cut "Only <app>" down to "Only <ap…", so
+              a long app name hid the very fact that the block is narrowed.
+              The row wraps too, and the button drops below the sentence when
+              the two no longer fit side by side (`ml-auto` keeps it on the
+              right there); its 44px hit box is unchanged. */}
           {sourceName !== null ? (
-            <div className="flex items-center justify-between gap-2">
-              <span className="min-w-0 truncate text-xs text-lumen-text-secondary">
+            <div className="flex flex-wrap items-center justify-between gap-x-2">
+              <span className="min-w-0 break-words text-xs text-lumen-text-secondary">
                 {labels.records.mobile.formatFilteredTo(sourceName)}
               </span>
               <button
                 type="button"
                 onClick={() => setSource(null)}
-                className="min-h-11 flex-shrink-0 rounded-lumen-md px-2 text-xs font-medium text-lumen-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+                className="ml-auto min-h-11 flex-shrink-0 rounded-lumen-md px-2 text-xs font-medium text-lumen-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
               >
                 {labels.records.mobile.clearFilter}
               </button>

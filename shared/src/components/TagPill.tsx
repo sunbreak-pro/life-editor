@@ -88,8 +88,15 @@ export function TagPill({
             "rounded-lumen-sm text-lumen-text-secondary hover:text-lumen-danger focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent",
             touch === true &&
               "-my-3 -mr-2.5 inline-flex min-h-11 min-w-11 items-center justify-center",
+            // #2474: the right margin cancels the pill's own right padding
+            // and no more, so the square ends inside the pill's border. At
+            // `-mr-2.5` an sm pill's square ran past it, into the gap before
+            // the next control and past the end of a scrolling chip strip.
             touch === "narrow" &&
-              "max-md:-my-3 max-md:-mr-2.5 max-md:inline-flex max-md:min-h-11 max-md:min-w-11 max-md:items-center max-md:justify-center",
+              cn(
+                "max-md:-my-3 max-md:inline-flex max-md:min-h-11 max-md:min-w-11 max-md:items-center max-md:justify-center",
+                size === "sm" ? "max-md:-mr-2" : "max-md:-mr-2.5",
+              ),
           )}
         >
           <X size={iconSize} aria-hidden />

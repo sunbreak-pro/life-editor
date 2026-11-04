@@ -91,8 +91,14 @@ export function SettingsSegment<V extends string>({
               tabIndex={selected || (selectedIndex === -1 && i === 0) ? 0 : -1}
               onClick={() => onChange(option.value)}
               onKeyDown={(e) => handleKeyDown(e, i)}
+              // min-h, not h: the grid splits the row evenly, so at 390px a
+              // label such as 「システムに従う」 wraps, and a fixed height let
+              // the lines spill out of the border (#2516). Mobile trims the
+              // side padding so fewer labels wrap at all, and keeps the 44px
+              // touch floor.
               className={cn(
-                "flex h-10 items-center justify-center rounded-lumen-md px-3 text-sm",
+                "flex min-h-10 items-center justify-center rounded-lumen-md px-3 text-center text-sm",
+                "max-md:min-h-11 max-md:px-2 max-md:py-1",
                 "transition-colors focus-visible:outline-none focus-visible:ring-2",
                 "focus-visible:ring-lumen-accent",
                 selected

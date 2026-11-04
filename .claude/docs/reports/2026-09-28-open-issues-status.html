@@ -1,0 +1,230 @@
+<title>残り Issue の片づけ表</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #f5f7f6;
+    --panel: #ffffff;
+    --ink: #1c2327;
+    --muted: #56636b;
+    --line: #d5dcdf;
+    --accent: #0e6b74;
+    --accent-ink: #ffffff;
+    --accent-soft: #dcefef;
+    --ok: #2c7a4b;
+    --warn: #a86a12;
+    --stop: #a23c3c;
+    --idle: #6f7a80;
+    --code-bg: #eaf0f0;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #13181b;
+      --panel: #1b2226;
+      --ink: #e4e9eb;
+      --muted: #99a6ad;
+      --line: #2c363b;
+      --accent: #5fc4cc;
+      --accent-ink: #0f1c1e;
+      --accent-soft: #163338;
+      --ok: #6fc48f;
+      --warn: #e0a94a;
+      --stop: #e07a7a;
+      --idle: #8a969c;
+      --code-bg: #0f1417;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #13181b;
+    --panel: #1b2226;
+    --ink: #e4e9eb;
+    --muted: #99a6ad;
+    --line: #2c363b;
+    --accent: #5fc4cc;
+    --accent-ink: #0f1c1e;
+    --accent-soft: #163338;
+    --ok: #6fc48f;
+    --warn: #e0a94a;
+    --stop: #e07a7a;
+    --idle: #8a969c;
+    --code-bg: #0f1417;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "BIZ UDPGothic", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+    font-size: 16px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+  code, pre, .mono { font-family: "IBM Plex Mono", "Consolas", "Courier New", monospace; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 48px 24px 80px; }
+  .prose { max-width: 720px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 28px; margin-bottom: 36px; }
+  .eyebrow { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin: 0 0 8px; }
+  h1 { font-size: clamp(26px, 4vw, 36px); line-height: 1.3; margin: 0 0 12px; text-wrap: balance; font-weight: 700; }
+  .lede { font-size: 18px; color: var(--muted); margin: 0; max-width: 720px; }
+  h2 { font-size: 22px; margin: 48px 0 12px; text-wrap: balance; padding-top: 8px; }
+  h3 { font-size: 17px; margin: 24px 0 8px; }
+  p { margin: 0 0 14px; }
+  ul { padding-left: 1.3em; margin: 0 0 14px; }
+  li { margin-bottom: 6px; }
+  a { color: var(--accent); }
+
+  .verdicts { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin: 0; padding: 0; list-style: none; }
+  .verdict { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .verdict .tag { font-size: 12px; letter-spacing: .1em; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; }
+  .verdict .tag::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
+  .verdict.now .tag { color: var(--ok); }
+  .verdict.later .tag { color: var(--warn); }
+  .verdict.check .tag { color: var(--accent); }
+  .verdict.skip .tag { color: var(--idle); }
+  .verdict h3 { margin: 0; font-size: 18px; font-variant-numeric: tabular-nums; }
+  .verdict p { margin: 0; color: var(--muted); font-size: 15px; }
+
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; overflow-x: auto; font-size: 13.5px; line-height: 1.6; margin: 0 0 16px; white-space: pre-wrap; word-break: break-word; }
+  pre code { background: none; padding: 0; }
+  p code, li code, td code { background: var(--code-bg); padding: 1px 5px; border-radius: 3px; font-size: .9em; }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); margin: 12px 0 20px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; min-width: 820px; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: .08em; color: var(--muted); background: var(--ground); font-weight: 700; white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  td.num { white-space: nowrap; font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; }
+  td.state { white-space: nowrap; font-weight: 700; }
+  td.state.yes { color: var(--ok); }
+  td.state.maybe { color: var(--warn); }
+  td.state.check { color: var(--accent); }
+  td.state.no { color: var(--idle); font-weight: 400; }
+
+  .callout { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 16px 0 20px; font-size: 15px; }
+  .callout strong { color: var(--accent); }
+  .note { font-size: 14px; color: var(--muted); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">2026-09-28 / 進捗 / life-editor</p>
+    <h1>残りの open Issue は 9 件で、Claude だけで進められるのは Schedule のリファクタリングだけです</h1>
+    <p class="lede">昨日配った 7 件は PR がすべて merge されました。残りの多くは「コードは入ったが、こうだいさんの決定・外部サービスの設定・実機での確認が残っている」状態です。引っ越しで言えば、荷物は運び終わっていて、鍵の受け取りと電気の開通手続きが残っている段階です。</p>
+  </header>
+
+  <ul class="verdicts">
+    <li class="verdict now"><span class="tag">Claude が進める</span><h3>#1642 → #2005</h3><p>リファクタリングの残り 5 単位のうち 4 単位は今すぐ着手できます。下の貼り付け用コマンドを Schedule の作業チャットに渡すだけで進みます。</p></li>
+    <li class="verdict later"><span class="tag">こうだいさんが決める・操作する</span><h3>#1986 #1987 #1989 #1793</h3><p>送信サービスの選定と登録、連絡先の決定、実機での起動確認、音源の差し替えが残っています。どれもコード側の準備は済んでいます。</p></li>
+    <li class="verdict check"><span class="tag">メインのチャットで実ブラウザ確認</span><h3>#2010 #1793 #1642</h3><p>修正は merge 済みで、画面や耳で確かめる確認だけが残っています。確認が通れば Issue を閉じられます。</p></li>
+    <li class="verdict skip"><span class="tag">移行完了まで凍結</span><h3>#677 #898</h3><p>移行が終わるまで着手しない決定になっています。今は何もしなくて大丈夫です。</p></li>
+  </ul>
+
+  <h2>Issue ごとの残りと、片づけるのに必要なもの</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Issue</th><th>内容</th><th>済んだこと</th><th>残っていること</th><th>誰の作業か</th><th>必要なもの</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="num">#1642</td>
+          <td>Schedule のコードを整理するリファクタリングの第 2 期です。</td>
+          <td>P0〜P4・P9・P10 の 7 単位が merge 済みです（PR #2002 / #2004 / #2014 / #2015 / #2016 / #2019 / #2021）。</td>
+          <td>P5・P6・P8・P11 は P4 の merge で着手できるようになりました。P7 は P5 の merge 後です。そのあと実ブラウザ検証（P12）と計画書の片づけ（P13）が続きます。</td>
+          <td class="state yes">Claude</td>
+          <td>下の貼り付け用コマンドを Schedule の作業チャットに貼ってください。PR が出たら merge をお願いします。</td>
+        </tr>
+        <tr>
+          <td class="num">#2005</td>
+          <td>予定を複製するとき、タグを引き継ぐかをその場で選べるようにします。</td>
+          <td>まだ着手していません。</td>
+          <td>全部です。P6 と同じ関数を触るため、P6 の merge を待っています。</td>
+          <td class="state yes">Claude</td>
+          <td>P6 の PR の merge です。merge 後にもう一度コマンドを作ります。</td>
+        </tr>
+        <tr>
+          <td class="num">#2010</td>
+          <td>スマホ幅で、サイドバーの Todo タブにある「＋」の余白が大きすぎる不具合です。</td>
+          <td>PR #2022 で修正が merge 済みです。</td>
+          <td>390px 幅の実ブラウザで余白が詰まったことと、押せる範囲が 44px 以上あることの確認です。テスト環境には座標が無いため、実ブラウザでしか測れません。</td>
+          <td class="state check">メインのチャット</td>
+          <td>メインのチャットで「#2010 を実ブラウザで確認して閉じて」と頼むだけです。</td>
+        </tr>
+        <tr>
+          <td class="num">#1793</td>
+          <td>環境音に「サーッ」という雑音が重なって聞こえる不具合です。</td>
+          <td>原因は音源ファイル側と分かりました（PR #1797）。再生側ではフェード（PR #1922）と、1 周ごとの途切れを消す重ね再生（PR #1965）が merge 済みです。</td>
+          <td>1 つめは、5 分の連続再生・ON / OFF・音量スライダー・完了チャイムを耳で確かめることです。2 つめは、16 kHz で帯域が切れている音源 5 本の差し替えです。</td>
+          <td class="state maybe">こうだいさん + メインのチャット</td>
+          <td>差し替え用の音源を用意してください。条件は <code>shared/src/constants/sounds.ts</code> の先頭に書いてあります（非圧縮素材から 1 回だけ変換・両端の無音を削る・60 秒以上）。耳での確認はこうだいさんに聴いてもらう形になります。</td>
+        </tr>
+        <tr>
+          <td class="num">#1986</td>
+          <td>確認メールの送信元を、Supabase 内蔵のものから無料枠の送信サービスへ切り替えます。配布前の 1 件目です。</td>
+          <td>設定手順・戻し方・メール文面の控えが PR #1999 で入りました。</td>
+          <td>送信サービスと送信ドメインを決め、アカウント登録・DNS 設定・Supabase の画面での設定をします。そのあと、届く速さを実測します。</td>
+          <td class="state maybe">こうだいさん</td>
+          <td>下の「判断が要る点」の 1 と 2 に答えてください。そのあと <code>supabase/README.md</code> の手順どおりに設定します。</td>
+        </tr>
+        <tr>
+          <td class="num">#1987</td>
+          <td>デスクトップ版の Electron を 33 系から 44 系へ上げます。配布前の 2 件目です。</td>
+          <td>PR #2012 で更新が merge 済みです。脆弱性の検査は 0 件になりました。</td>
+          <td>配布ファイルを作る GitHub Actions を 1 回手動で走らせることと、Windows / Mac の実機で起動・ログイン・Todo の作成から削除までを確かめることです。</td>
+          <td class="state maybe">こうだいさん</td>
+          <td>Actions の実行はメインのチャットに頼めば、確認を取ってから実行します。実機での確認はこうだいさんの作業です。</td>
+        </tr>
+        <tr>
+          <td class="num">#1989</td>
+          <td>Settings とログイン画面に、ヘルプ・よくある質問・問い合わせ先への導線を置きます。配布前の 4 件目です。</td>
+          <td>PR #2003 で導線が merge 済みです。問い合わせ先は今は GitHub Issues だけです。</td>
+          <td>GitHub アカウントが無い人向けの連絡先を 1 つ決めることです。</td>
+          <td class="state maybe">こうだいさん</td>
+          <td>メールアドレスかフォームの URL を教えてください。<code>web/src/legal/operator.ts</code> の 1 か所に入れれば、規約と Settings の両方に出ます。</td>
+        </tr>
+        <tr>
+          <td class="num">#677</td>
+          <td>shared と MCP サーバーで手写しになっている DB の型を、1 か所にまとめます。</td>
+          <td>—</td>
+          <td>全部です。移行完了後に着手する決定になっています。</td>
+          <td class="state no">凍結</td>
+          <td>移行の完了です。今は不要です。</td>
+        </tr>
+        <tr>
+          <td class="num">#898</td>
+          <td>移行の名残の名前（Unified という接尾辞など）を整理します。</td>
+          <td>—</td>
+          <td>全部です。優先度が低く、着手するかどうかを決めていません。</td>
+          <td class="state no">凍結</td>
+          <td>移行の完了と、着手するかどうかの判断です。今は不要です。</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Schedule の作業チャットに貼るコマンド</h2>
+  <p class="prose">P5・P6・P8・P11 の 4 本を、それぞれ main から切ったブランチで PR にするところまで進めます。P7 と #2005 は、前の PR が merge されるまで入れていません。</p>
+  <pre><code>/goal in the life-editor worktree for schedule-refine: each item below has its own branch cut from origin/main, a green local run of every CI verify step plus docs-lint, and an opened PR that references #1642 — phase-2 units P5 (one implementation for series delete and unlink), P6 (make create failures behave like duplicate), P8 (small fixes K-03, K-11, N-16, C-03, plus the N-03 record correction from Q2), and P11 (split convertEventToRoutine into stage functions), as defined in .claude/docs/vision/plans/2026-09-23-schedule-refactor-phase2.md §4. Do not start P7 (it needs P5 merged) or #2005 (it needs P6 merged), and do not stack PRs. Read .claude/skills/worktree-policy/SKILL.md first, update .claude/comm/.session-branch on every branch switch, and merge nothing yourself.</code></pre>
+  <p class="note">止めどころは、4 本の PR が open になったときです。merge は待ちません。</p>
+
+  <h2>次に判断が要る点</h2>
+  <ol class="prose">
+    <li><strong>確認メールの送信サービスと送信ドメイン</strong>を決めてください（D-20260926-web-1）。おすすめは Resend と、こうだいさんが持っているドメインのサブドメインの組み合わせです。設定がいちばん単純で、配布 10〜20 人なら 1 日 100 通の無料枠で足ります。ドメインが無い場合は、Gmail アドレスから送る案もありますが、迷惑メールに入りやすいのでおすすめしません。</li>
+    <li><strong>認証メールの文面を日本語と英語のどちらにするか</strong>を決めてください（D-20260926-web-2）。おすすめは日本語です。</li>
+    <li><strong>GitHub 以外の問い合わせ先</strong>を決めてください（#1989）。メールアドレスかフォームの URL のどちらかです。</li>
+    <li><strong>ノートの表にタグを付ける仕組み</strong>を決めてください（D-20260927-materials-1）。#2011 は名前・線・操作パネルだけで閉じています。おすすめは表を独立したアイテムにする案です。この案なら、タグ別一覧や MCP から、ほかのタグ付きアイテムと同じように表を引けます。ただし DB の変更が要るため、新しい Issue として起票し直します。答えが無いあいだは、表のタグは作りません。</li>
+  </ol>
+  <p class="note">ほかにも、急がない判断が 2 件キューに残っています。1 件は計画書の差分の数え方（D-20260920-main-2）です。もう 1 件は無効状態のボタン 7 か所の見た目を揃えるかどうか（D-20260905-shared-fix-1）です。どちらも放置して実害が出ない設計になっています。</p>
+
+  <h2>置いた仮定</h2>
+  <ul class="prose">
+    <li>P7 は計画書の依存表どおり、P5 の merge を待つものとして扱いました。計画書では P7 の依存先が P5 になっています。</li>
+    <li>#1793 の音源差し替えは、重ね再生（PR #1965）が入ったあとも必要なものとして扱いました。PR #1965 の本文に「帯域が切れている件はこの PR では直らない」と書かれているためです。</li>
+  </ul>
+
+  <h2>未確認のこと</h2>
+  <ul class="prose">
+    <li>アカウント削除の本番反映（DB の変更の適用と Edge Function の配置）が済んでいるかを確かめられていません。設定画面のキューに「こうだいさんの作業」として残っていますが、元の Issue #1200 は 2026-08-29 に閉じています。Supabase の MCP にアクセストークンが渡っておらず、本番の状態を読めませんでした。配布前に一度見ておくと安心です。</li>
+  </ul>
+</div>

@@ -47,4 +47,23 @@ describe("CommandSearchField", () => {
     );
     expect(screen.queryByText("⌘K")).toBeNull();
   });
+
+  /*
+   * #2508: a fixed md:w-72 made the field the minimum width of the header's
+   * controls group, and Analytics' tabs got 0px at 768px. SectionHeader's
+   * search slot owns the width now, so the wide field fills it and may shrink.
+   */
+  it("fills its slot instead of carrying a fixed width (#2508)", () => {
+    render(
+      <CommandSearchField
+        onOpen={() => {}}
+        placeholder="Search"
+        label="Open command palette"
+      />,
+    );
+    const wide = screen.getAllByLabelText("Open command palette")[0];
+    const classes = (wide?.getAttribute("class") ?? "").split(/\s+/);
+    expect(classes).toEqual(expect.arrayContaining(["flex-1", "min-w-0"]));
+    expect(classes.filter((c) => /(^|:)w-/.test(c))).toEqual([]);
+  });
 });

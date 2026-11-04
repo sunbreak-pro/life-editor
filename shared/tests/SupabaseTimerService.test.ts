@@ -2,7 +2,11 @@
 import { describe, it, expect } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { SupabaseTimerService } from "../src/services/SupabaseTimerService";
-import type { TimerSettingsRow } from "../src/services/timerMapper";
+import type {
+  TimerSessionRow,
+  TimerSettingsRow,
+} from "../src/services/timerMapper";
+import { MANUAL_SESSION_LABEL } from "../src/utils/timerSessions";
 
 /*
  * Service-level test for the W3-A→W3-B fixes on SupabaseTimerService. Focus:
@@ -189,5 +193,226 @@ describe("SupabaseTimerService.fetchTimerSettings", () => {
     await expect(svc.fetchTimerSettings()).rejects.toThrow(
       /fetchTimerSettings failed: no row/,
     );
+  });
+});
+
+/*
+ * #2407 — a typed total becomes one row in the log. An in-memory table rather
+ * than staged results, because what is under test is the state the writes leave
+ * behind: the timer's rows untouched, and at most one hand-entered row.
+ */
+describe("SupabaseTimerService.saveEventWorkTotal", () => {
+  const EVENT = "event-1";
+  const ANCHOR = { date: "2026-08-20", startTime: "10:00", isAllDay: false };
+
+  function row(
+    over: Partial<TimerSessionRow> & { id: number },
+  ): TimerSessionRow {
+    return {
+      user_id: "u",
+      task_id: null,
+      event_id: EVENT,
+      session_type: "WORK",
+      started_at: "2026-08-20T01:00:00.000Z",
+      ended_at: "2026-08-20T01:30:00.000Z",
+      duration: 1800,
+      completed: true,
+      label: null,
+      created_at: "2026-08-20T01:00:00.000Z",
+      updated_at: "2026-08-20T01:30:00.000Z",
+      ...over,
+    };
+  }
+
+  function makeTable(rows: TimerSessionRow[], failWrites = false) {
+    const table = { rows, nextId: 100 };
+    const failure = failWrites ? { message: "boom" } : null;
+    const client = {
+      from() {
+        return {
+          select() {
+            const filters: Array<(r: TimerSessionRow) => boolean> = [];
+            const builder = {
+              eq(col: keyof TimerSessionRow, val: unknown) {
+                filters.push((r) => r[col] === val);
+                return builder;
+              },
+              order() {
+                return builder;
+              },
+              range() {
+                return Promise.resolve({
+                  data: table.rows.filter((r) => filters.every((f) => f(r))),
+                  error: null,
+                });
+              },
+            };
+            return builder;
+          },
+          insert(values: Partial<TimerSessionRow>) {
+            if (!failWrites) {
+              table.rows.push(row({ id: table.nextId++, ...values }));
+            }
+            return Promise.resolve({ error: failure });
+          },
+          update(patch: Partial<TimerSessionRow>) {
+            return {
+              eq(_col: string, id: number) {
+                if (!failWrites) {
+                  table.rows = table.rows.map((r) =>
+                    r.id === id ? { ...r, ...patch } : r,
+                  );
+                }
+                return Promise.resolve({ error: failure });
+              },
+            };
+          },
+          delete() {
+            return {
+              in(_col: string, ids: number[]) {
+                if (!failWrites) {
+                  table.rows = table.rows.filter((r) => !ids.includes(r.id));
+                }
+                return Promise.resolve({ error: failure });
+              },
+            };
+          },
+        };
+      },
+    } as unknown as SupabaseClient;
+    return { table, svc: new SupabaseTimerService(client) };
+  }
+
+  const manual = (rows: TimerSessionRow[]) =>
+    rows.filter((r) => r.label === MANUAL_SESSION_LABEL);
+
+  it("inserts a closed WORK row on the event's day for what the timer did not measure", async () => {
+    const timer = row({ id: 1 });
+    const { table, svc } = makeTable([timer]);
+    await svc.saveEventWorkTotal({
+      eventId: EVENT,
+      anchor: ANCHOR,
+      totalMinutes: 45,
+    });
+    const [added] = manual(table.rows);
+    expect(added).toMatchObject({
+      session_type: "WORK",
+      event_id: EVENT,
+      task_id: null,
+      completed: true,
+      duration: 900,
+    });
+    const startedAt = new Date(added.started_at);
+    expect(startedAt.getTime()).toBe(new Date(2026, 7, 20, 10, 0).getTime());
+    expect(new Date(added.ended_at as string).getTime()).toBe(
+      startedAt.getTime() + 900_000,
+    );
+    expect(table.rows.find((r) => r.id === 1)).toEqual(timer);
+  });
+
+  it("updates the existing row rather than adding a second", async () => {
+    const timer = row({ id: 1 });
+    const { table, svc } = makeTable([
+      timer,
+      row({ id: 2, label: MANUAL_SESSION_LABEL, duration: 60 }),
+    ]);
+    await svc.saveEventWorkTotal({
+      eventId: EVENT,
+      anchor: { ...ANCHOR, date: "2026-08-21" },
+      totalMinutes: 40,
+    });
+    const rows = manual(table.rows);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ id: 2, duration: 600 });
+    expect(new Date(rows[0].started_at).getDate()).toBe(21);
+    expect(table.rows.find((r) => r.id === 1)).toEqual(timer);
+  });
+
+  it.each([
+    ["the field is emptied", null],
+    ["the total comes back to the timer's", 30],
+  ])("deletes the row when %s", async (_name, totalMinutes) => {
+    const timer = row({ id: 1 });
+    const { table, svc } = makeTable([
+      timer,
+      row({ id: 2, label: MANUAL_SESSION_LABEL, duration: 60 }),
+    ]);
+    await svc.saveEventWorkTotal({
+      eventId: EVENT,
+      anchor: ANCHOR,
+      totalMinutes,
+    });
+    expect(table.rows).toEqual([timer]);
+  });
+
+  it("refuses a total below the timer's minutes and writes nothing", async () => {
+    const { table, svc } = makeTable([row({ id: 1 })]);
+    await expect(
+      svc.saveEventWorkTotal({
+        eventId: EVENT,
+        anchor: ANCHOR,
+        totalMinutes: 29,
+      }),
+    ).rejects.toThrow(/below the 30 min/);
+    expect(table.rows).toHaveLength(1);
+  });
+
+  it.each([1.5, -1])("refuses %d, which is not whole minutes", async (n) => {
+    const { table, svc } = makeTable([]);
+    await expect(
+      svc.saveEventWorkTotal({
+        eventId: EVENT,
+        anchor: ANCHOR,
+        totalMinutes: n,
+      }),
+    ).rejects.toThrow(/whole number/);
+    expect(table.rows).toHaveLength(0);
+  });
+
+  it("rejects when the write fails", async () => {
+    const { svc } = makeTable([], true);
+    await expect(
+      svc.saveEventWorkTotal({
+        eventId: EVENT,
+        anchor: ANCHOR,
+        totalMinutes: 10,
+      }),
+    ).rejects.toThrow(/write failed: boom/);
+  });
+
+  /*
+   * #2553: the todo twin. Same plan, but the log is read by `task_id` and the
+   * hand-entered row carries it, so a todo's time never lands on an event.
+   */
+  it("writes a todo's hand-entered row under task_id, beside its timer rows", async () => {
+    const TODO = "task-7";
+    const timer = row({ id: 1, event_id: null, task_id: TODO });
+    const eventRow = row({ id: 2 });
+    const { table, svc } = makeTable([timer, eventRow]);
+    await svc.saveTodoWorkTotal({
+      todoId: TODO,
+      anchor: ANCHOR,
+      totalMinutes: 50,
+    });
+    const added = manual(table.rows);
+    expect(added).toHaveLength(1);
+    expect(added[0]).toMatchObject({
+      task_id: TODO,
+      event_id: null,
+      duration: 1200,
+    });
+    // The event's own row is not the todo's timer time: 30 timer + 20 typed.
+    expect(table.rows.find((r) => r.id === 2)).toEqual(eventRow);
+  });
+
+  it("refuses a todo total below its timer rows", async () => {
+    const TODO = "task-7";
+    const { table, svc } = makeTable([
+      row({ id: 1, event_id: null, task_id: TODO }),
+    ]);
+    await expect(
+      svc.saveTodoWorkTotal({ todoId: TODO, anchor: ANCHOR, totalMinutes: 20 }),
+    ).rejects.toThrow(/saveTodoWorkTotal: 20 min is below the 30 min/);
+    expect(manual(table.rows)).toHaveLength(0);
   });
 });

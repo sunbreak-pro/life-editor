@@ -1,11 +1,14 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import {
+  AttachmentCleanupPanel,
   ColorPicker,
   PasswordUpdateForm,
   SettingsAccount,
   SettingsLegal,
+  SettingsProfile,
   SettingsReset,
+  SettingsSchedule,
   SettingsTabsNav,
   SettingsTutorial,
   TagHubView,
@@ -414,5 +417,150 @@ describe("#1562 — the tag editor, now inside the Connect hub (#1643)", () => {
     expect(screen.getByRole("button", { name: "Color" })).not.toHaveClass(
       "max-md:min-h-11",
     );
+  });
+});
+
+describe("#2517 — the Schedule, Profile and attachment-cleanup cards", () => {
+  const SCHEDULE_LABELS = {
+    heading: "Schedule",
+    description: "How the calendar opens.",
+    initialViewLabel: "Opens on",
+    week: "Week",
+    month: "Month",
+    hint: "Desktop only.",
+    reminderLabel: "Reminders",
+    reminderDescription: "Notify before an event starts.",
+    reminderDefaultLabel: "Default lead time",
+    reminderDefaultHint: "Applies to new events.",
+    reminderDesktopHint: "Desktop only.",
+    holidayHeading: "Holidays",
+    holidayDescription: "Public holidays are drawn as all-day items.",
+    holidayColorLabel: "Holiday colour",
+    holidayColorClear: "Default colour",
+    holidayColorCustom: "Custom colour",
+    holidayVisibleLabel: "Show holidays on the calendar",
+  };
+
+  function renderSchedule() {
+    return render(
+      <SettingsSchedule
+        initialView="week"
+        onInitialViewChange={vi.fn()}
+        remindersEnabled
+        onRemindersEnabledChange={vi.fn()}
+        defaultLeadMinutes={10}
+        onDefaultLeadMinutesChange={vi.fn()}
+        leadOptions={[{ value: 10, label: "10 min" }]}
+        holidayColor="#e03e3e"
+        onHolidayColorChange={vi.fn()}
+        defaultHolidayColor="#e03e3e"
+        holidaysShown
+        onHolidaysShownChange={vi.fn()}
+        labels={SCHEDULE_LABELS}
+      />,
+    );
+  }
+
+  it("widens the two switches' hit area on narrow without redrawing the track", () => {
+    renderSchedule();
+
+    for (const name of [
+      SCHEDULE_LABELS.reminderLabel,
+      SCHEDULE_LABELS.holidayVisibleLabel,
+    ]) {
+      const track = screen.getByRole("switch", { name });
+      // The track itself stays 36x20 on every width — the floor is a
+      // transparent ::after, and only on narrow.
+      expect(track).toHaveClass("relative", "h-5", "w-9");
+      expect(track).toHaveClass(
+        "max-md:after:h-[44px]",
+        "max-md:after:w-[44px]",
+        "max-md:after:content-['']",
+      );
+      expect(track).not.toHaveClass("min-h-11");
+      expect(track).not.toHaveClass("max-md:min-h-11");
+      // Unprefixed `after:` would also grow the Desktop hit area.
+      for (const cls of Array.from(track.classList)) {
+        expect(cls.startsWith("after:")).toBe(false);
+      }
+    }
+  });
+
+  it("floors the holiday colour trigger and the lead-time select", () => {
+    renderSchedule();
+
+    const trigger = screen.getByRole("button", {
+      name: SCHEDULE_LABELS.holidayColorLabel,
+    });
+    expect(trigger).toHaveClass("max-md:min-h-11", "py-0.5");
+    expect(trigger).not.toHaveClass("min-h-11");
+
+    const select = screen.getByRole("combobox", {
+      name: SCHEDULE_LABELS.reminderDefaultLabel,
+    });
+    expect(select).toHaveClass("max-md:min-h-11", "py-2");
+    expect(select).not.toHaveClass("min-h-11");
+  });
+
+  it("floors the display-name field and leaves its Desktop height", () => {
+    render(
+      <SettingsProfile
+        displayName=""
+        onDisplayNameChange={vi.fn()}
+        email="a@example.com"
+        error={null}
+        notice={null}
+        busy={false}
+        onSubmit={vi.fn()}
+        labels={{
+          heading: "Profile",
+          description: "How you appear.",
+          displayNameLabel: "Display name",
+          displayNameHelper: "Shown in the sidebar.",
+          emailLabel: "Signed in as",
+          submit: "Save",
+          busy: "Saving…",
+        }}
+      />,
+    );
+
+    expectNarrowFloor(screen.getByLabelText("Display name"), "h-9");
+  });
+
+  it("floors the scan and delete-all buttons of the attachment sweep", () => {
+    render(
+      <AttachmentCleanupPanel
+        labels={{
+          heading: "Unused files",
+          description: "Find files no note uses.",
+          scan: "Find unused files",
+          scanning: "Scanning…",
+          rescan: "Scan again",
+          summary: "1 of 2 files is unused.",
+          nothing: "Nothing to delete.",
+          deleteAll: "Delete 1 file",
+          deleting: "Deleting…",
+          listLabel: "Unused files",
+          confirmMessage: "Delete 1 file?",
+          confirmLabel: "Delete",
+          cancelLabel: "Cancel",
+        }}
+        scan={{
+          orphans: [{ path: "uid/a.png", size: 10, uploadedAt: null }],
+          scanned: 2,
+          referenced: 1,
+          recent: 0,
+        }}
+        status="idle"
+        error={null}
+        outcome={null}
+        onScan={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    for (const name of ["Scan again", "Delete 1 file"]) {
+      expectNarrowFloor(screen.getByRole("button", { name }), "h-7");
+    }
   });
 });

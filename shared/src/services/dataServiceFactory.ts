@@ -8,6 +8,7 @@ import {
   type OutboxSent,
 } from "./offlineDataService";
 import type { KnownDailies } from "./offlineDaily";
+import { readStoredOwnerId } from "./offlineSession";
 import { getSupabaseClient } from "./supabaseClient";
 
 /*
@@ -39,7 +40,7 @@ let lastOnSent: OutboxSent = () => {};
 export function getDataService(): DataService {
   if (!dataServiceSingleton) {
     const inner = createSupabaseDataService();
-    const owner = sessionOwner(getSupabaseClient().auth);
+    const owner = sessionOwner(getSupabaseClient().auth, readStoredOwnerId);
     const landed = new Set<string>();
     const dropped = new Set<string>();
     const known: KnownDailies = new Map();

@@ -6,6 +6,7 @@ import {
   deliverDailyEntry,
   type KnownDailies,
 } from "./offlineDaily";
+import { isOffline } from "../state/connectivity";
 import { patchDomainSnapshot } from "../state/domainSnapshotStore";
 import {
   claimOutboxEntry,
@@ -74,19 +75,35 @@ export type OwnerResolver = () => Promise<string | null>;
  * `getSession()` is local, unlike `getUser()`. With an expired token and no
  * network it reports an error and no session; the user has not changed, so the
  * last known id still names the box. Only a clean "no session" clears it.
+ *
+ * #2334: a page opened offline has no last known id, and that error can take
+ * 50 seconds to arrive (`offlineSession.ts`). So while offline the stored session
+ * answers first, and it also answers when `getSession()` reports that error. A
+ * session that was signed out is no longer stored, so it cannot answer.
  */
-export function sessionOwner(auth: {
-  getSession: () => Promise<{
-    data: { session: { user: { id: string } } | null };
-    error: unknown;
-  }>;
-}): OwnerResolver {
+export function sessionOwner(
+  auth: {
+    getSession: () => Promise<{
+      data: { session: { user: { id: string } } | null };
+      error: unknown;
+    }>;
+  },
+  readStored: OwnerResolver = () => Promise.resolve(null),
+): OwnerResolver {
   let last: string | null = null;
   return async () => {
+    if (isOffline()) {
+      const stored = await readStored();
+      if (stored !== null) {
+        last = stored;
+        return stored;
+      }
+    }
     try {
       const { data, error } = await auth.getSession();
       if (data.session) last = data.session.user.id;
       else if (!error) last = null;
+      else last ??= await readStored();
     } catch {
       // Keep `last`, for the same reason.
     }

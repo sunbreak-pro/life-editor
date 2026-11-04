@@ -1,5 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import {
+  act,
+  createEvent,
+  render,
+  screen,
+  fireEvent,
+  within,
+} from "@testing-library/react";
 import {
   TodayTodoTray,
   type TodayTodoTrayLabels,
@@ -404,6 +411,250 @@ describe("TodayTodoTray moves between the two lists (#1406)", () => {
     expect(screen.getByLabelText("take off today").className).not.toContain(
       "opacity-0",
     );
+  });
+});
+
+/*
+ * #2408 — the Desktop cluster and the line under the title. Both are opt-in, so
+ * every case above (Briefing and narrow Schedule) is the "absent" contract.
+ *
+ * jsdom has no layout: a tooltip's coordinates are not checked, only that it
+ * hangs from the button's top edge and that it is on document.body, out of the
+ * scroller that would clip it.
+ */
+describe("TodayTodoTray row actions (#2408)", () => {
+  const rowActions = {
+    edit: "edit todo",
+    moveOutHint: "moves out",
+    moveToTodayHint: "moves to today",
+    editHint: "opens the panel",
+    deleteHint: "deletes it",
+  };
+  const copy = {
+    ...labels,
+    allDay: "All-day",
+    delete: "delete todo",
+    moveOut: "take off today",
+    openAddable: "open addable",
+  };
+
+  function renderCluster(over: { onAddCandidate?: (id: string) => void } = {}) {
+    const onMoveOut = vi.fn();
+    const onOpenTodo = vi.fn();
+    const onOpenAddable = vi.fn();
+    const onDelete = vi.fn();
+    render(
+      <TodayTodoTray
+        placed={[
+          { id: "task-1", title: "Timed", timeLabel: "09:00", completed: false },
+        ]}
+        unplaced={[]}
+        addable={[{ id: "task-3", title: "Later", meta: "9/5 14:00" }]}
+        onToggleComplete={noop}
+        onOpenTodo={onOpenTodo}
+        onOpenAddable={onOpenAddable}
+        onAddCandidate={over.onAddCandidate ?? noop}
+        onMoveOut={onMoveOut}
+        onDelete={onDelete}
+        addableControls
+        hoverActions
+        singleList
+        rowActions={rowActions}
+        labels={copy}
+      />,
+    );
+    return { onMoveOut, onOpenTodo, onOpenAddable, onDelete };
+  }
+
+  const clusterOf = (title: string) =>
+    within(screen.getByText(title).closest("li")!)
+      .getAllByRole("button")
+      .filter((b) => b.hasAttribute("aria-label"));
+
+  it("orders move, edit, delete on both lists", () => {
+    renderCluster();
+    expect(clusterOf("Timed").map((b) => b.getAttribute("aria-label"))).toEqual(
+      ["take off today", "edit todo", "delete todo"],
+    );
+    expect(clusterOf("Later").map((b) => b.getAttribute("aria-label"))).toEqual(
+      ["add to today", "edit todo", "delete todo"],
+    );
+  });
+
+  it("draws the arrow that points the way the row goes", () => {
+    renderCluster();
+    expect(
+      clusterOf("Timed")[0]!.querySelector(".lucide-arrow-down-to-line"),
+    ).not.toBeNull();
+    expect(
+      clusterOf("Later")[0]!.querySelector(".lucide-arrow-up-to-line"),
+    ).not.toBeNull();
+  });
+
+  it("routes each press to its own row and callback", () => {
+    const onAddCandidate = vi.fn();
+    const { onMoveOut, onOpenTodo, onOpenAddable, onDelete } = renderCluster({
+      onAddCandidate,
+    });
+    const [out, editToday, delToday] = clusterOf("Timed");
+    fireEvent.click(out!);
+    expect(onMoveOut).toHaveBeenCalledWith("task-1");
+    fireEvent.click(editToday!);
+    expect(onOpenTodo).toHaveBeenCalledWith("task-1");
+    fireEvent.click(delToday!);
+    expect(onDelete).toHaveBeenCalledWith("task-1");
+
+    const [into, editOther, delOther] = clusterOf("Later");
+    fireEvent.click(into!);
+    expect(onAddCandidate).toHaveBeenCalledWith("task-3");
+    fireEvent.click(editOther!);
+    expect(onOpenAddable).toHaveBeenCalledWith("task-3");
+    fireEvent.click(delOther!);
+    expect(onDelete).toHaveBeenCalledWith("task-3");
+  });
+
+  it("keeps the title press and hides the icons until hover or focus", () => {
+    const { onOpenTodo } = renderCluster();
+    fireEvent.click(screen.getByText("Timed"));
+    expect(onOpenTodo).toHaveBeenCalledWith("task-1");
+    for (const btn of [...clusterOf("Timed"), ...clusterOf("Later")]) {
+      expect(btn.className).toContain("opacity-0");
+      expect(btn.className).toContain("group-hover:opacity-100");
+      expect(btn.className).toContain("group-focus-within:opacity-100");
+      // Shown where nothing can hover.
+      expect(btn.className).toContain("[@media(hover:none)]:opacity-100");
+    }
+  });
+
+  it("uses no native title, which would double the tooltip below the icon", () => {
+    renderCluster();
+    for (const btn of [...clusterOf("Timed"), ...clusterOf("Later")]) {
+      expect(btn.hasAttribute("title")).toBe(false);
+    }
+  });
+
+  it.each([
+    ["take off today", "Timed", "moves out"],
+    ["edit todo", "Timed", "opens the panel"],
+    ["delete todo", "Timed", "deletes it"],
+    ["add to today", "Later", "moves to today"],
+  ])("explains %s on hover, above the icon", (name, title, hint) => {
+    renderCluster();
+    const btn = within(screen.getByText(title).closest("li")!).getByLabelText(
+      name,
+    );
+    expect(screen.queryByRole("tooltip")).toBeNull();
+    fireEvent.pointerEnter(btn);
+    const tip = screen.getByRole("tooltip");
+    expect(tip.textContent).toBe(hint);
+    expect(tip.parentElement).toBe(document.body);
+    expect(tip.className).toContain("fixed");
+    expect(tip.style.bottom).not.toBe("");
+    expect(tip.style.top).toBe("");
+    expect(btn.getAttribute("aria-describedby")).toBe(tip.id);
+    fireEvent.pointerLeave(btn);
+    expect(screen.queryByRole("tooltip")).toBeNull();
+    expect(btn.hasAttribute("aria-describedby")).toBe(false);
+  });
+
+  it("explains on keyboard focus too, and Escape dismisses it", () => {
+    renderCluster();
+    const btn = clusterOf("Timed")[1]!;
+    act(() => btn.focus());
+    expect(screen.getByRole("tooltip").textContent).toBe("opens the panel");
+    fireEvent.keyDown(btn, { key: "Escape" });
+    expect(screen.queryByRole("tooltip")).toBeNull();
+    act(() => btn.focus());
+    act(() => btn.blur());
+    expect(screen.queryByRole("tooltip")).toBeNull();
+  });
+
+  it("does not open from a finger, and closes on press and on scroll", () => {
+    renderCluster();
+    const btn = clusterOf("Timed")[1]!;
+    // jsdom has no PointerEvent to carry pointerType, so it is set by hand.
+    // The enter is what React derives from a pointerover.
+    const touch = createEvent.pointerOver(btn);
+    Object.defineProperty(touch, "pointerType", { value: "touch" });
+    fireEvent(btn, touch);
+    expect(screen.queryByRole("tooltip")).toBeNull();
+
+    fireEvent.pointerEnter(btn);
+    expect(screen.getByRole("tooltip")).toBeTruthy();
+    fireEvent.click(btn);
+    expect(screen.queryByRole("tooltip")).toBeNull();
+
+    fireEvent.pointerEnter(btn);
+    expect(screen.getByRole("tooltip")).toBeTruthy();
+    fireEvent.scroll(window);
+    expect(screen.queryByRole("tooltip")).toBeNull();
+  });
+
+  it("leaves the buttons as they were without the prop", () => {
+    render(
+      <TodayTodoTray
+        {...rows}
+        onToggleComplete={noop}
+        onOpenTodo={noop}
+        onAddCandidate={noop}
+        onMoveOut={noop}
+        onDelete={noop}
+        labels={copy}
+      />,
+    );
+    expect(screen.queryByLabelText("edit todo")).toBeNull();
+    expect(screen.getAllByTitle("delete todo").length).toBeGreaterThan(0);
+    fireEvent.pointerEnter(screen.getAllByTitle("delete todo")[0]!);
+    expect(screen.queryByRole("tooltip")).toBeNull();
+  });
+});
+
+describe("TodayTodoTray metaLine (#2408)", () => {
+  const timed = [
+    { id: "task-1", title: "Timed", timeLabel: "09:00", completed: false },
+  ];
+  const untimed = [{ id: "task-2", title: "Untimed", completed: false }];
+
+  it("moves the clock and the all-day pill out of the title, beside the extra", () => {
+    render(
+      <TodayTodoTray
+        placed={timed}
+        unplaced={untimed}
+        addable={[]}
+        onToggleComplete={noop}
+        onOpenTodo={noop}
+        onAddCandidate={noop}
+        singleList
+        metaLine
+        renderRowExtra={(row) => <span>{`extra-${row.id}`}</span>}
+        labels={{ ...labels, allDay: "All-day" }}
+      />,
+    );
+    const clock = screen.getByText("09:00");
+    expect(clock.closest("button")).toBeNull();
+    expect(clock.parentElement).toBe(
+      screen.getByText("extra-task-1").parentElement,
+    );
+    const pill = screen.getByText("All-day");
+    expect(pill.closest("button")).toBeNull();
+    expect(pill.parentElement).toBe(
+      screen.getByText("extra-task-2").parentElement,
+    );
+  });
+
+  it("keeps the clock at the title's end for a host that does not opt in", () => {
+    render(
+      <TodayTodoTray
+        placed={timed}
+        unplaced={[]}
+        addable={[]}
+        onToggleComplete={noop}
+        onOpenTodo={noop}
+        onAddCandidate={noop}
+        labels={labels}
+      />,
+    );
+    expect(screen.getByText("09:00").closest("button")).not.toBeNull();
   });
 });
 

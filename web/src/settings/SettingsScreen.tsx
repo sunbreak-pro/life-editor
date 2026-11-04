@@ -30,7 +30,6 @@ import {
   Modal,
   Button,
   getSession,
-  signOut,
   deleteAccount,
   RightSidebarPortal,
   ConfirmDialog,
@@ -74,6 +73,7 @@ import {
 import { usePasswordUpdate } from "../hooks/usePasswordUpdate";
 import { useProfileUpdate } from "../hooks/useProfileUpdate";
 import { useClaudeLauncher } from "../hooks/useClaudeLauncher";
+import { signOutWithNotice } from "../hooks/signOutWithNotice";
 import { AiCustomizationHost } from "./AiCustomizationHost";
 import { TrashScreen } from "../trash/TrashScreen";
 import { AttachmentCleanupCard } from "../trash/AttachmentCleanupCard";
@@ -483,7 +483,7 @@ export function SettingsScreen({
   const handleSignOut = () => {
     const { pending } = getOutboxCounts();
     if (pending === 0) {
-      void signOut();
+      signOutWithNotice();
       return;
     }
     void askConfirm({
@@ -491,7 +491,7 @@ export function SettingsScreen({
       confirmLabel: t("settings.account.signOut.button"),
       cancelLabel: t("common.cancel"),
     }).then((ok) => {
-      if (ok) void signOut();
+      if (ok) signOutWithNotice();
     });
   };
 

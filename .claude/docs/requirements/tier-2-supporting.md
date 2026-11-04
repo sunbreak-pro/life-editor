@@ -130,6 +130,7 @@ Audio Mixer のサウンド（プリセット / カスタム）を任意の順�
   - WORK 完了時: 完了音 + デスクトップ通知 + `SessionCompletionModal`
   - `autoStartBreaks: true` で休憩自動開始
   - タスク紐付け（`startForTask(id, title)`）で `timer_sessions.task_id` 記録
+  - 予定の編集パネルで手入力した実績時間は、`event_id` 付きの閉じた WORK 行 1 本（`label` = `MANUAL_SESSION_LABEL`）で持つ。作業時間の合計には入れ、ポモドーロ数とセッション数には数えない（#2407）
   - サイドバー / TodoTree 行 / Work 画面の残り時間が一致表示
   - Mobile（iOS）でもタイマー自体は動作（§2 Mobile 対応）
 - やらない:
@@ -561,7 +562,7 @@ Life Editor の全 UI を en / ja で切替可能にする。Settings からい�
 **Tier**: 2
 **Status**: ◎稼働中（2026-10 新設 = #2165）
 **Owner Provider/Module**: `shared/src/components/Apps/` + `web/src/apps/AppsScreen.tsx`（データは `shared/src/services/SupabaseAppRecordsService.ts`）
-**MCP Coverage**: `list_extension_apps`（台帳の行に最後の記録と 30 日の件数を添える）と、記録の `create_record` / `list_records` / `delete_record`
+**MCP Coverage**: `list_extension_apps`（台帳の行に最後の記録と 30 日の件数を添える）と、記録の `create_record` / `list_records` / `delete_record`。`list_records` の集計と `get_today_context` / `get_week_context` の記録の要約は、合計・件数のほかに平均（`avg`）と最新（`latest`）を返す（#2261）
 **Supports Value Prop**: 補助（Briefing ループの「分析」の材料を太くする拡張アプリの入口 = [`D-20261008-main-1`](../../decisions/D-20261008-main-1.md)）
 **Platform**: Web ホスト共通（Desktop / Mobile）。登録 / 編集 / 削除は wide だけ（mobile-scope.md の Apps の行）
 
@@ -574,6 +575,7 @@ Life Editor の全 UI を en / ja で切替可能にする。Settings からい�
 - やる:
   - 拡張アプリの登録（slug / 名前 / URL / アイコン / 説明）・編集・削除。slug は登録後に変えられません。記録の `source_app` と窓口の鍵が slug を指すためです
   - 一覧のカードに、URL を開くリンク、「最後の記録: n 日前・30 日で m 件」、「記録を見る」を出す。「記録を見る」は Analytics の記録タブへアプリの絞り込みつきで移ります
+  - 記録の見せ方: Analytics の記録タブとスマホの直近 7 日の「記録」ブロックで、記録の種類ごとに値の出し方（合計 / 平均 / 最新 / 件数）とグラフの形（棒 / 折れ線）を選べる。選んだ内容は `record_views` に保存され、Desktop と Mobile で揃う。選んでいない種類は合計・棒で出る。種類を 1 つに絞らない数字の行は、単位の違う値を足さないよう「-」を出す（D-20261017-main-1・#2263 / #2264）
   - 「記録だけ届いているアプリ」: 記録の `source_app` にあって台帳に無い値（予約語 `claude` は除く）を並べ、slug を埋めた登録ダイアログを開けます
   - 削除は台帳の行だけを消します。記録は残り、「記録だけ届いているアプリ」に戻ります。確認ダイアログを挟みます
 - やらない:

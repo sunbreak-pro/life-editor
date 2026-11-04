@@ -5,6 +5,7 @@ import {
   EventEditorPane,
   type EventEditorItem,
   type EventEditorLabels,
+  type EventEditorWorkTime,
 } from "../src/components";
 
 /*
@@ -72,8 +73,8 @@ function renderPane(
     convert?: boolean;
     /** #1374: render the reminder field. */
     reminder?: boolean;
-    /** #1375: render the read-only logged-time row. */
-    workTime?: boolean;
+    /** #1375 / #2407: render the logged-time field. */
+    workTime?: Partial<EventEditorWorkTime>;
     /** #1664: lay the fields out in two columns (Desktop). */
     twoColumn?: boolean;
   },
@@ -95,7 +96,9 @@ function renderPane(
       }}
       convert={props?.convert ? { label: CONVERT_LABEL, onConvert } : undefined}
       reminder={props?.reminder ? REMINDER_BUNDLE : undefined}
-      workTime={props?.workTime ? WORK_TIME_BUNDLE : undefined}
+      workTime={
+        props?.workTime ? { ...WORK_TIME_BUNDLE, ...props.workTime } : undefined
+      }
       tagSlot={props?.tagSlot}
       twoColumn={props?.twoColumn}
     />,
@@ -720,8 +723,17 @@ describe("EventEditorPane — tag slot (#468)", () => {
   });
 });
 
-/** #1375: the logged-time row's copy, shaped as the host builds it. */
-const WORK_TIME_BUNDLE = { label: "Logged time", value: "1 hr 30 min" };
+/** #1375 / #2407: the logged-time field, shaped as the host builds it. */
+const WORK_TIME_BUNDLE: EventEditorWorkTime = {
+  label: "Logged time",
+  placeholder: "e.g. 45 min",
+  unit: "min",
+  totalMinutes: 90,
+  timerMinutes: 30,
+  belowTimerMessage: "Below the timer",
+  notWholeMessage: "Whole minutes only",
+  onSave: () => {},
+};
 
 /** #1374: the reminder field's copy, shaped as the host builds it. */
 const REMINDER_BUNDLE = {
@@ -801,33 +813,190 @@ describe("EventEditorPane — the reminder field (#1374)", () => {
 });
 
 /*
- * The logged-time row (#1375). The pane's half is only the bundle contract:
- * absent → nothing at all, present → the host's already-formatted string, and
- * present on an ALL-DAY row too (unlike the reminder, which needs a clock time
- * to lead). The formatting itself is the host's and is tested there.
+ * The logged-time field (#1375, typed since #2407). Absent → nothing at all,
+ * present → the total, on an ALL-DAY row too (unlike the reminder, which needs a
+ * clock time to lead). It is a draft like the rest: only the save press writes,
+ * and that press refuses a value below what the timer measured.
  */
-describe("EventEditorPane — the logged work time row (#1375)", () => {
+describe("EventEditorPane — the logged work time field (#1375 / #2407)", () => {
+  const field = () =>
+    screen.getByLabelText("Logged time") as HTMLInputElement;
+  const type = (value: string) =>
+    fireEvent.change(field(), { target: { value } });
+
   it("renders nothing when the host supplies no workTime bundle", () => {
     renderPane(manualItem);
     expect(screen.queryByText("Logged time")).toBeNull();
   });
 
-  it("renders the host's already-formatted total", () => {
-    renderPane(manualItem, { workTime: true });
-    expect(screen.getByText("Logged time")).toBeInTheDocument();
-    expect(screen.getByText("1 hr 30 min")).toBeInTheDocument();
+  it("shows the total in the field", () => {
+    renderPane(manualItem, { workTime: {} });
+    expect(field().value).toBe("90");
+  });
+
+  it("is empty with the placeholder when nothing is logged", () => {
+    renderPane(manualItem, { workTime: { totalMinutes: 0, timerMinutes: 0 } });
+    expect(field().value).toBe("");
+    expect(field().placeholder).toBe("e.g. 45 min");
   });
 
   it("shows it on an all-day row as well — a whole day can still be worked", () => {
-    renderPane({ ...manualItem, isAllDay: true }, { workTime: true });
-    expect(screen.getByText("1 hr 30 min")).toBeInTheDocument();
+    renderPane({ ...manualItem, isAllDay: true }, { workTime: {} });
+    expect(field().value).toBe("90");
   });
 
-  // It is a record, not a draft: showing it must never make the save button
-  // think something is pending.
-  it("leaves the save button untouched", () => {
-    renderPane(manualItem, { workTime: true });
+  it("leaves the save button off until the value changes", () => {
+    renderPane(manualItem, { workTime: {} });
     expect(saveButton()).toBeDisabled();
+    type("90");
+    expect(saveButton()).toBeDisabled();
+    type("95");
+    expect(saveButton()).toBeEnabled();
+  });
+
+  it("writes nothing until the save press, then the total and the event's place", () => {
+    const onSave = vi.fn();
+    const fns = renderPane(manualItem, { workTime: { onSave } });
+    type("120");
+    expect(onSave).not.toHaveBeenCalled();
+    fireEvent.click(saveButton());
+    expect(onSave).toHaveBeenCalledExactlyOnceWith(120, {
+      date: manualItem.date,
+      startTime: manualItem.startTime,
+      isAllDay: manualItem.isAllDay,
+    });
+    // No field moved, so the row's own write (and its scope dialog) stays out.
+    expect(fns.onSave).not.toHaveBeenCalled();
+  });
+
+  it("reports an emptied field as null", () => {
+    const onSave = vi.fn();
+    renderPane(manualItem, { workTime: { onSave } });
+    type("");
+    fireEvent.click(saveButton());
+    expect(onSave.mock.calls[0][0]).toBeNull();
+  });
+
+  it("reads full-width digits the way a Japanese IME types them", () => {
+    const onSave = vi.fn();
+    renderPane(manualItem, { workTime: { onSave } });
+    type("４５");
+    fireEvent.click(saveButton());
+    expect(onSave.mock.calls[0][0]).toBe(45);
+  });
+
+  it("does not save on the Enter that confirms an IME conversion", () => {
+    const onSave = vi.fn();
+    renderPane(manualItem, { workTime: { onSave } });
+    type("４５");
+    fireEvent.keyDown(field(), { key: "Enter", keyCode: 229 });
+    expect(onSave).not.toHaveBeenCalled();
+    fireEvent.keyDown(field(), { key: "Enter" });
+    expect(onSave).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a total below the timer, says so, and writes nothing", () => {
+    const onSave = vi.fn();
+    const fns = renderPane(manualItem, { workTime: { onSave } });
+    type("29");
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("Below the timer");
+    expect(field()).toHaveAttribute("aria-invalid", "true");
+    expect(field().getAttribute("aria-describedby")).toBe(alert.id);
+    expect(saveButton()).toBeDisabled();
+    fireEvent.keyDown(field(), { key: "Enter" });
+    expect(onSave).not.toHaveBeenCalled();
+    expect(fns.onSave).not.toHaveBeenCalled();
+  });
+
+  it("accepts exactly the timer's minutes", () => {
+    const onSave = vi.fn();
+    renderPane(manualItem, { workTime: { onSave } });
+    type("30");
+    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.click(saveButton());
+    expect(onSave.mock.calls[0][0]).toBe(30);
+  });
+
+  it.each(["1.5", "abc", "-5"])("refuses %s as not whole minutes", (value) => {
+    renderPane(manualItem, { workTime: {} });
+    type(value);
+    expect(screen.getByRole("alert")).toHaveTextContent("Whole minutes only");
+    expect(saveButton()).toBeDisabled();
+  });
+
+  // A refused draft is still something the user typed: closing asks first.
+  it("reports a typed value as dirty, refused or not", () => {
+    const onDirtyChange = vi.fn();
+    renderPane(manualItem, { workTime: {}, onDirtyChange });
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+    type("29");
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+    type("90");
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it("does not count emptying a field that holds only the timer's minutes", () => {
+    const onDirtyChange = vi.fn();
+    renderPane(manualItem, {
+      workTime: { totalMinutes: 30, timerMinutes: 30 },
+      onDirtyChange,
+    });
+    type("");
+    expect(saveButton()).toBeDisabled();
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+    // ...and blur puts the number being held back.
+    fireEvent.blur(field());
+    expect(field().value).toBe("30");
+  });
+
+  it("moves the hand-entered row with the event when only the day changes", () => {
+    const onSave = vi.fn();
+    const fns = renderPane(manualItem, {
+      canEditDate: true,
+      workTime: { onSave },
+    });
+    fireEvent.change(screen.getByLabelText("Date"), {
+      target: { value: "2026-12-25" },
+    });
+    fireEvent.click(saveButton());
+    expect(onSave).toHaveBeenCalledExactlyOnceWith(90, {
+      date: "2026-12-25",
+      startTime: manualItem.startTime,
+      isAllDay: manualItem.isAllDay,
+    });
+    expect(fns.onSave).toHaveBeenCalledTimes(1);
+  });
+
+  it("writes no time when a move finds nothing hand-entered", () => {
+    const onSave = vi.fn();
+    renderPane(manualItem, {
+      canEditDate: true,
+      workTime: { totalMinutes: 30, timerMinutes: 30, onSave },
+    });
+    fireEvent.change(screen.getByLabelText("Date"), {
+      target: { value: "2026-12-25" },
+    });
+    fireEvent.click(saveButton());
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it("locks the field while the total is unknown, without calling that dirty", () => {
+    renderPane(manualItem, {
+      workTime: { totalMinutes: null, placeholder: "Loading" },
+    });
+    expect(field()).toBeDisabled();
+    expect(field().placeholder).toBe("Loading");
+    expect(saveButton()).toBeDisabled();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("says why when the read failed", () => {
+    renderPane(manualItem, {
+      workTime: { totalMinutes: null, loadFailedMessage: "Couldn't load" },
+    });
+    expect(field()).toBeDisabled();
+    expect(screen.getByRole("alert")).toHaveTextContent("Couldn't load");
   });
 });
 

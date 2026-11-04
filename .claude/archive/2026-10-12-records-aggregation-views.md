@@ -1,7 +1,7 @@
 ---
-Status: IN PROGRESS — 2026-10-17 にこうだいさんが承認（D-20261017-main-1）。Step ごとの Issue #2259〜#2265 を起票済み。実装の PR はまだありません
+Status: COMPLETED — 2026-11-03 に全 Step が済んだ（実装 = #2267 #2268 #2275 #2276 #2298 #2300、実画面の確認と docs の追随 = #2265）
 Created: 2026-10-12
-Updated: 2026-10-17
+Updated: 2026-11-03
 Branch: docs/records-display-plan-2231
 Owner-chat: main
 Parent: .claude/docs/vision/plans/2026-10-08-extension-app-records-and-apps-section.md
@@ -225,3 +225,4 @@ AC を満たせない見込みになったら、自己免除せず **P-008** に
 - 2026-10-12: こうだいさんの決定（平均と最新を両方出す・種類ごとに表示を選べる）を受けて、計画書を起こした。回答待ちの 3 問を上に置いた。
 - 2026-10-17: こうだいさんが「#2231 の計画書を承認する」と回答し、3 問とも推奨を採った（D-20261017-main-1）。Status を IN PROGRESS にし、Step ごとに Issue を起票した（Step 1 = #2259 / Step 2 = #2261 / Step 3 = #2262 / Step 4 = #2260 / Step 5 = #2263 / Step 6 = #2264 / Step 7・8 = #2265）。この承認の PR が main に入るまで、main 上の Status は Draft のままに見える。
 - 2026-10-17: refactor-core の申し送りを受けて、`record_views` の主キーを `(user_id, kind, unit)` から乱数の `id` + UNIQUE に変えた（#2268 の実装に合わせた。D-20261017-main-2）。同じ漏れが 0039 の `extension_apps` にもあると分かり、#2271 に切り出した（この計画書の Scope の外）。
+- 2026-11-03: Step 7 を済ませた。dev server で、Desktop 1440px と Mobile 390px の light / dark を確かめた。体重（最新・折れ線）と支出（平均・棒）を別の表示にすると、記録タブと Mobile の「記録」ブロックの両方が同じ表示になり、リロードのあとも保たれた。選んだ内容は `localStorage` に無く、DB から読んでいる。別の端末での確認だけは未確認。Step 8 の docs（CLAUDE.md §4・db-conventions §17・tier-2 の Apps・mobile-scope #12・D-20261017-main-1 / -2 の `implemented-by`）を直し、Status を COMPLETED にして `archive/` へ移した。

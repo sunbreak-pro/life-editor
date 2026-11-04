@@ -313,10 +313,12 @@ export function PomodoroTodoSheet({
  * the sheet opens: BottomSheet renders nothing while closed, which unmounts
  * this and drops a draft the user walked away from.
  *
- * The submit button stays beside the field (#2054 kept it — plan A draws the
+ * The submit button stays with the field (#2054 kept it — plan A draws the
  * field alone). Enter submits too, but a phone keyboard's return key is not
  * where everyone looks for "go", and the button is what says that typing a
- * name is a way to start at all.
+ * name is a way to start at all. It sits on its own row under the field
+ * (#2515): beside it, the button took its natural width and left the field
+ * 161px at 390px, too narrow to show the placeholder or a typed name.
  *
  * With `onCreate` (#2229) a typed name also offers two buttons under the field
  * — add it as a new Todo, or as an Event filed when the session ends. They
@@ -360,7 +362,7 @@ function FreeSessionNameField({
       >
         {labels.nameLabel}
       </label>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-2">
         {/* min-h-11 rather than h-11: `cn` does not merge, and Input sets h-9. */}
         <Input
           id={fieldId}
@@ -373,7 +375,7 @@ function FreeSessionNameField({
         <button
           type="button"
           onClick={() => onSubmit(draft)}
-          className="inline-flex min-h-11 shrink-0 items-center rounded-lumen-md border border-lumen-border-strong bg-lumen-bg px-3.5 text-sm font-semibold text-lumen-text hover:bg-lumen-hover"
+          className="inline-flex min-h-11 w-full items-center justify-center rounded-lumen-md border border-lumen-border-strong bg-lumen-bg px-3.5 text-sm font-semibold text-lumen-text hover:bg-lumen-hover"
         >
           {labels.nameSubmit}
         </button>

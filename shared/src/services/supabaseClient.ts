@@ -21,6 +21,16 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as
 
 let cached: SupabaseClient | null = null;
 
+/**
+ * Where the session is stored (#2334). This is supabase-js's own default,
+ * written out because the offline entry reads the stored session directly, and
+ * a key that drifted after an upgrade would silently end that entry.
+ */
+export function authStorageKey(url = SUPABASE_URL): string | null {
+  if (!url) return null;
+  return `sb-${new URL(url).hostname.split(".")[0]}-auth-token`;
+}
+
 export function getSupabaseClient(): SupabaseClient {
   if (cached) return cached;
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
@@ -47,6 +57,7 @@ export function getSupabaseClient(): SupabaseClient {
       // only shell where this changes anything is the public web URL — which
       // is exactly where the recovery link lands.
       detectSessionInUrl: true,
+      storageKey: authStorageKey() ?? undefined,
       ...(storage ? { storage } : {}),
     },
   });

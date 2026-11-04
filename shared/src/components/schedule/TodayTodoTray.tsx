@@ -1,6 +1,16 @@
-import type { ReactNode } from "react";
-import { CalendarMinus, Plus, Trash2 } from "lucide-react";
+import { useEffect, useId, useState } from "react";
+import type { ComponentType, CSSProperties, ReactNode } from "react";
+import { createPortal } from "react-dom";
+import {
+  ArrowDownToLine,
+  ArrowUpToLine,
+  CalendarMinus,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import type { TodoStatus } from "../../types/todoTree";
+import { isImeComposing } from "../../utils/imeGuard";
 import { cn } from "../cn";
 import { TodoStatusCheckbox } from "../TodoStatusCheckbox";
 import type { StatusLabelSet } from "../todoStatusVisuals";
@@ -46,6 +56,12 @@ import { setTodoDragData } from "./todoCalendarDrag";
  * make them draggable onto its calendar (`draggableAddable`, the payload is
  * todoCalendarDrag.ts). Both are opt-in for the same reason as #1406's props:
  * Briefing's picker is a staging list and stays as it was.
+ *
+ * #2408 gives the Desktop rows of both lists one trailing cluster: move, edit,
+ * delete, shown on hover or focus, each with a tooltip above it (`rowActions`).
+ * A phone has no hover to reveal them or to show a tooltip with, so a host
+ * leaves the prop off there and keeps the buttons it had. `metaLine` moves the
+ * clock under the title, beside what `renderRowExtra` draws.
  */
 
 export interface TodayTodoRow {
@@ -71,6 +87,16 @@ export interface TodayTodoAddableRow {
    * another day (#1406). Omitted for a row with no day yet.
    */
   meta?: string;
+}
+
+/** Already-translated copy of the `rowActions` cluster (#2408). */
+export interface TodayTodoRowActions {
+  /** Accessible name of the edit button. */
+  edit: string;
+  moveOutHint: string;
+  moveToTodayHint: string;
+  editHint: string;
+  deleteHint: string;
 }
 
 export interface TodayTodoTrayLabels {
@@ -163,6 +189,19 @@ export interface TodayTodoTrayProps {
    * Desktop only in practice: a phone has no calendar beside the list.
    */
   draggableAddable?: boolean;
+  /**
+   * Replace the rows' trailing buttons with the move / edit / delete cluster
+   * (#2408), in both lists. Move and delete keep their names (labels.moveOut,
+   * labels.addAction, labels.delete) and need their callbacks, as before; edit
+   * calls `onOpenTodo` or `onOpenAddable`, the same as the title.
+   */
+  rowActions?: TodayTodoRowActions;
+  /**
+   * Draw the clock or the all-day pill on a line under the title, in front of
+   * `renderRowExtra`, instead of at the title's right end (#2408). Today's rows
+   * only: an "other" row has no such line.
+   */
+  metaLine?: boolean;
   /** Extra content under the title row (#555 — the host's tag surface). */
   renderRowExtra?: (row: TodayTodoRow) => ReactNode;
   /**
@@ -230,6 +269,133 @@ const HOVER_REVEAL =
  */
 const NARROW_TAP_FLOOR = "max-md:min-h-11 max-md:min-w-11";
 
+/*
+ * The title on a phone (#2477): two lines instead of one, and the button
+ * around it is 44px tall.
+ *
+ * The drawer leaves the title what the leading checkbox and the two 44px
+ * buttons after it do not take, which measured 113px at 390px — five or six
+ * characters before the ellipsis, and ONE on an "other" row whose "9/5 14:00"
+ * sat on the same line. None of the three can shrink below the touch floor,
+ * so the title gets a second line rather than more width: two lines of that
+ * column are twice the characters, and a short title still takes one.
+ *
+ * `max-md:` because the Desktop sidebar keeps its one truncated line (the
+ * same reason as NARROW_TAP_FLOOR above). `whitespace-normal` undoes the
+ * `truncate` beside it, and `break-words` lets a long Latin word wrap rather
+ * than push past the box.
+ */
+const NARROW_TITLE_WRAP =
+  "max-md:line-clamp-2 max-md:whitespace-normal max-md:break-words";
+
+/*
+ * One button of the #2408 cluster, with its tooltip above it.
+ *
+ * The tooltip is portalled and fixed because the sidebar's scroller clips: the
+ * top row's tooltip would be cut off by the scroller's edge, and the sentence
+ * is wider than the icons it hangs from, so it grows to the left from the
+ * button's right edge. It closes on scroll, where a fixed box would otherwise
+ * stay behind while the row moved away.
+ *
+ * Touch does not open it. A tap sends pointerenter with no pointerleave to
+ * follow, which would leave the box up after the finger has gone. Focus opens
+ * it only when the browser would draw a focus ring, so a click does not leave
+ * it standing, and neither does the panel handing focus back when it closes.
+ */
+const TOOLTIP_GAP = 4;
+
+function RowActionButton({
+  icon: Icon,
+  label,
+  hint,
+  onClick,
+  danger,
+}: {
+  icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
+  label: string;
+  hint: string;
+  onClick: () => void;
+  danger?: boolean;
+}) {
+  const tooltipId = useId();
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [place, setPlace] = useState<CSSProperties>({});
+  const open = hovered || focused;
+  const close = () => {
+    setHovered(false);
+    setFocused(false);
+  };
+  const placeAbove = (button: HTMLElement) => {
+    const rect = button.getBoundingClientRect();
+    setPlace({
+      bottom: window.innerHeight - rect.top + TOOLTIP_GAP,
+      right: window.innerWidth - rect.right,
+    });
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const onScroll = () => {
+      setHovered(false);
+      setFocused(false);
+    };
+    // Capture: a scroll on the sidebar's scroller does not bubble to window.
+    window.addEventListener("scroll", onScroll, true);
+    return () => window.removeEventListener("scroll", onScroll, true);
+  }, [open]);
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-label={label}
+        aria-describedby={open ? tooltipId : undefined}
+        onClick={() => {
+          close();
+          onClick();
+        }}
+        onPointerEnter={(e) => {
+          if (e.pointerType === "touch") return;
+          placeAbove(e.currentTarget);
+          setHovered(true);
+        }}
+        onPointerLeave={() => setHovered(false)}
+        onFocus={(e) => {
+          if (!e.currentTarget.matches(":focus-visible")) return;
+          placeAbove(e.currentTarget);
+          setFocused(true);
+        }}
+        onBlur={() => setFocused(false)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape" && !isImeComposing(e)) close();
+        }}
+        className={cn(
+          "flex size-6 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover",
+          danger ? "hover:text-lumen-danger" : "hover:text-lumen-text",
+          NARROW_TAP_FLOOR,
+          HOVER_REVEAL,
+          FOCUS,
+        )}
+      >
+        <Icon aria-hidden className="size-3.5" />
+      </button>
+      {open &&
+        createPortal(
+          <span
+            role="tooltip"
+            id={tooltipId}
+            style={place}
+            className="pointer-events-none fixed z-50 w-max max-w-[min(20rem,calc(100vw-2rem))] rounded-lumen-md border border-lumen-border bg-lumen-bg px-2 py-1 text-xs text-lumen-text shadow-lumen-md"
+          >
+            {hint}
+          </span>,
+          document.body,
+        )}
+    </>
+  );
+}
+
 function TodoRow({
   row,
   onToggleComplete,
@@ -238,6 +404,8 @@ function TodoRow({
   onDelete,
   onMoveOut,
   hoverActions,
+  rowActions,
+  metaLine,
   extra,
   openLabel,
   deleteLabel,
@@ -253,6 +421,8 @@ function TodoRow({
   onDelete?: (id: string) => void;
   onMoveOut?: (id: string) => void;
   hoverActions?: boolean;
+  rowActions?: TodayTodoRowActions;
+  metaLine?: boolean;
   extra?: ReactNode;
   openLabel: string;
   deleteLabel?: string;
@@ -271,6 +441,22 @@ function TodoRow({
     (onSetStatus ? row.status : undefined) ??
     (row.completed ? "DONE" : "NOT_STARTED");
   const done = status === "DONE";
+  const time = row.timeLabel ? (
+    <span className="shrink-0 text-xs tabular-nums text-lumen-text-secondary">
+      {row.timeLabel}
+    </span>
+  ) : (
+    // Same pill AgendaList gives an all-day row, in the same slot the
+    // timed rows use for their clock — but wearing the chip-todo
+    // family, so a todo with no time never reads as an all-day EVENT
+    // (#795). Only on the merged list; the paired layout says
+    // "unplaced" with its heading already.
+    allDayLabel && (
+      <span className="shrink-0 rounded border border-lumen-chip-task-dot bg-lumen-chip-task-bg px-1.5 py-0.5 text-xs font-semibold text-lumen-chip-task-fg">
+        {allDayLabel}
+      </span>
+    )
+  );
   return (
     <li className="group flex flex-col border-b border-lumen-border">
       <div className="flex items-center gap-2">
@@ -293,13 +479,15 @@ function TodoRow({
             // horizontal scrollbar under the narrow drawer's Todo tab. The
             // `truncate` on the title span inside cannot help while the box
             // around it is the thing that will not give.
-            "flex min-h-[38px] min-w-0 flex-1 items-center gap-2 rounded-sm py-1 text-left",
+            // #2477: `max-md:min-h-11` — 38px is a mouse size.
+            "flex min-h-[38px] min-w-0 flex-1 items-center gap-2 rounded-sm py-1 text-left max-md:min-h-11",
             FOCUS,
           )}
         >
           <span
             className={cn(
               "min-w-0 flex-1 truncate text-sm",
+              NARROW_TITLE_WRAP,
               done
                 ? "text-lumen-text-secondary line-through"
                 : "text-lumen-text",
@@ -307,24 +495,36 @@ function TodoRow({
           >
             {row.title}
           </span>
-          {row.timeLabel ? (
-            <span className="shrink-0 text-xs tabular-nums text-lumen-text-secondary">
-              {row.timeLabel}
-            </span>
-          ) : (
-            // Same pill AgendaList gives an all-day row, in the same slot the
-            // timed rows use for their clock — but wearing the chip-todo
-            // family, so a todo with no time never reads as an all-day EVENT
-            // (#795). Only on the merged list; the paired layout says
-            // "unplaced" with its heading already.
-            allDayLabel && (
-              <span className="shrink-0 rounded border border-lumen-chip-task-dot bg-lumen-chip-task-bg px-1.5 py-0.5 text-xs font-semibold text-lumen-chip-task-fg">
-                {allDayLabel}
-              </span>
-            )
-          )}
+          {!metaLine && time}
         </button>
-        {onMoveOut && moveOutLabel && (
+        {rowActions && (
+          <div className="flex shrink-0 items-center gap-0.5">
+            {onMoveOut && moveOutLabel && (
+              <RowActionButton
+                icon={ArrowDownToLine}
+                label={moveOutLabel}
+                hint={rowActions.moveOutHint}
+                onClick={() => onMoveOut(row.id)}
+              />
+            )}
+            <RowActionButton
+              icon={Pencil}
+              label={rowActions.edit}
+              hint={rowActions.editHint}
+              onClick={() => onOpenTodo(row.id)}
+            />
+            {onDelete && deleteLabel && (
+              <RowActionButton
+                icon={Trash2}
+                label={deleteLabel}
+                hint={rowActions.deleteHint}
+                onClick={() => onDelete(row.id)}
+                danger
+              />
+            )}
+          </div>
+        )}
+        {!rowActions && onMoveOut && moveOutLabel && (
           <button
             type="button"
             aria-label={moveOutLabel}
@@ -340,7 +540,7 @@ function TodoRow({
             <CalendarMinus aria-hidden className="size-3.5" />
           </button>
         )}
-        {onDelete && deleteLabel && (
+        {!rowActions && onDelete && deleteLabel && (
           <button
             type="button"
             aria-label={deleteLabel}
@@ -359,7 +559,14 @@ function TodoRow({
       {/* Leading control + gap-2, so the extra aligns with the title: pl-13 =
           the 44px checkbox plus the row's gap. One value since #1368 — before
           it, the two branches led with two differently sized boxes. */}
-      {extra && <div className="pl-13 pb-1.5">{extra}</div>}
+      {metaLine ? (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 pl-13 pb-1.5">
+          {time}
+          {extra}
+        </div>
+      ) : (
+        extra && <div className="pl-13 pb-1.5">{extra}</div>
+      )}
     </li>
   );
 }
@@ -375,6 +582,8 @@ function Group({
   onDelete,
   onMoveOut,
   hoverActions,
+  rowActions,
+  metaLine,
   renderRowExtra,
   openLabel,
   deleteLabel,
@@ -393,6 +602,8 @@ function Group({
   onDelete?: (id: string) => void;
   onMoveOut?: (id: string) => void;
   hoverActions?: boolean;
+  rowActions?: TodayTodoRowActions;
+  metaLine?: boolean;
   renderRowExtra?: (row: TodayTodoRow) => ReactNode;
   openLabel: string;
   deleteLabel?: string;
@@ -428,6 +639,8 @@ function Group({
               onDelete={onDelete}
               onMoveOut={onMoveOut}
               hoverActions={hoverActions}
+              rowActions={rowActions}
+              metaLine={metaLine}
               extra={renderRowExtra?.(row)}
               openLabel={openLabel}
               deleteLabel={deleteLabel}
@@ -457,6 +670,8 @@ export function TodayTodoTray({
   hoverActions,
   addableControls,
   draggableAddable,
+  rowActions,
+  metaLine,
   renderRowExtra,
   singleList,
   headingActions,
@@ -472,6 +687,8 @@ export function TodayTodoTray({
     onDelete,
     onMoveOut,
     hoverActions,
+    rowActions,
+    metaLine,
     renderRowExtra,
     openLabel: labels.openInTodos,
     deleteLabel: labels.delete,
@@ -545,72 +762,125 @@ export function TodayTodoTray({
                       label={labels.status}
                     />
                   )}
-                  {onOpenAddable ? (
-                    // #1153: the same title, as the way in. A button only when
-                    // the host has somewhere to open — a dead one would be worse
-                    // than the plain text it replaces.
+                  {/* #2477: the title and the "where it is now" share one box,
+                    side by side on Desktop (the row's own gap-2, as before) and
+                    stacked on a phone, where the meta on the title's line left
+                    the title one character. */}
+                  <div
+                    data-addable-title
+                    className="flex min-w-0 flex-1 items-center gap-2 max-md:flex-col max-md:items-stretch max-md:gap-0 max-md:py-0.5"
+                  >
+                    {onOpenAddable ? (
+                      // #1153: the same title, as the way in. A button only when
+                      // the host has somewhere to open — a dead one would be worse
+                      // than the plain text it replaces.
+                      <button
+                        type="button"
+                        title={labels.openAddable}
+                        onClick={() => onOpenAddable(a.id)}
+                        className={cn(
+                          "flex min-w-0 flex-1 items-center py-1.5 text-left text-sm text-lumen-text transition-colors hover:text-lumen-accent max-md:min-h-11",
+                          FOCUS,
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "min-w-0 flex-1 truncate",
+                            NARROW_TITLE_WRAP,
+                          )}
+                        >
+                          {a.title}
+                        </span>
+                      </button>
+                    ) : (
+                      <span
+                        className={cn(
+                          "min-w-0 flex-1 truncate py-1.5 text-sm text-lumen-text",
+                          NARROW_TITLE_WRAP,
+                        )}
+                      >
+                        {a.title}
+                      </span>
+                    )}
+                    {/* #1406: where the row is now — a row on some other day
+                      says so, in the slot today's rows use for their clock. */}
+                    {a.meta && (
+                      <span className="shrink-0 text-xs tabular-nums text-lumen-text-secondary">
+                        {a.meta}
+                      </span>
+                    )}
+                  </div>
+                  {rowActions && (
+                    <div className="flex shrink-0 items-center gap-0.5">
+                      <RowActionButton
+                        icon={ArrowUpToLine}
+                        label={labels.addAction}
+                        hint={rowActions.moveToTodayHint}
+                        onClick={() => onAddCandidate(a.id)}
+                      />
+                      {onOpenAddable && (
+                        <RowActionButton
+                          icon={Pencil}
+                          label={rowActions.edit}
+                          hint={rowActions.editHint}
+                          onClick={() => onOpenAddable(a.id)}
+                        />
+                      )}
+                      {addableControls && onDelete && labels.delete && (
+                        <RowActionButton
+                          icon={Trash2}
+                          label={labels.delete}
+                          hint={rowActions.deleteHint}
+                          onClick={() => onDelete(a.id)}
+                          danger
+                        />
+                      )}
+                    </div>
+                  )}
+                  {!rowActions && (
                     <button
                       type="button"
-                      title={labels.openAddable}
-                      onClick={() => onOpenAddable(a.id)}
+                      aria-label={labels.addAction}
+                      title={labels.addAction}
+                      onClick={() => onAddCandidate(a.id)}
                       className={cn(
-                        "min-w-0 flex-1 truncate py-1.5 text-left text-sm text-lumen-text transition-colors hover:text-lumen-accent",
+                        "group/add flex size-6 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:text-lumen-text",
+                        NARROW_TAP_FLOOR,
+                        hoverActions && HOVER_REVEAL,
                         FOCUS,
                       )}
                     >
-                      {a.title}
-                    </button>
-                  ) : (
-                    <span className="min-w-0 flex-1 truncate py-1.5 text-sm text-lumen-text">
-                      {a.title}
-                    </span>
-                  )}
-                  {/* #1406: where the row is now — a row on some other day says
-                    so, in the slot today's rows use for their clock. */}
-                  {a.meta && (
-                    <span className="shrink-0 text-xs tabular-nums text-lumen-text-secondary">
-                      {a.meta}
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    aria-label={labels.addAction}
-                    title={labels.addAction}
-                    onClick={() => onAddCandidate(a.id)}
-                    className={cn(
-                      "group/add flex size-6 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:text-lumen-text",
-                      NARROW_TAP_FLOOR,
-                      hoverActions && HOVER_REVEAL,
-                      FOCUS,
-                    )}
-                  >
-                    {/* #2010: the bordered square is painted here, not on the
+                      {/* #2010: the bordered square is painted here, not on the
                       button. The button still grows to 44px on narrow (the
                       floor above), but a border drawn on THAT box turned a 16px
                       "+" into a 44px frame of padding. The square keeps the
                       Desktop size on both layouts; the tap area around it is
                       the button's, as before. */}
-                    <span className="flex size-6 items-center justify-center rounded-lumen-md border border-lumen-border-strong transition-colors group-hover/add:bg-lumen-hover">
-                      <Plus aria-hidden className="size-4" />
-                    </span>
-                  </button>
-                  {/* #1627: to the right of the +, the same soft delete today's
-                    rows carry (always visible, like theirs). */}
-                  {addableControls && onDelete && labels.delete && (
-                    <button
-                      type="button"
-                      aria-label={labels.delete}
-                      title={labels.delete}
-                      onClick={() => onDelete(a.id)}
-                      className={cn(
-                        "flex size-6 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-danger",
-                        NARROW_TAP_FLOOR,
-                        FOCUS,
-                      )}
-                    >
-                      <Trash2 aria-hidden className="size-3.5" />
+                      <span className="flex size-6 items-center justify-center rounded-lumen-md border border-lumen-border-strong transition-colors group-hover/add:bg-lumen-hover">
+                        <Plus aria-hidden className="size-4" />
+                      </span>
                     </button>
                   )}
+                  {/* #1627: to the right of the +, the same soft delete today's
+                    rows carry (always visible, like theirs). */}
+                  {!rowActions &&
+                    addableControls &&
+                    onDelete &&
+                    labels.delete && (
+                      <button
+                        type="button"
+                        aria-label={labels.delete}
+                        title={labels.delete}
+                        onClick={() => onDelete(a.id)}
+                        className={cn(
+                          "flex size-6 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-danger",
+                          NARROW_TAP_FLOOR,
+                          FOCUS,
+                        )}
+                      >
+                        <Trash2 aria-hidden className="size-3.5" />
+                      </button>
+                    )}
                 </li>
               ))}
             </ul>

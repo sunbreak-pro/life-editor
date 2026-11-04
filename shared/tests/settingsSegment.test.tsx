@@ -111,6 +111,19 @@ describe("SettingsSegment", () => {
     );
   });
 
+  // jsdom has no layout, so the overflow itself is checked in a real browser;
+  // this pins the classes that let a wrapped label grow the box (#2516).
+  it("lets a wrapped label grow the button instead of fixing its height", () => {
+    renderSegment();
+    for (const radio of screen.getAllByRole("radio")) {
+      const classes = radio.className.split(/\s+/);
+      expect(classes).not.toContain("h-10");
+      expect(classes).toContain("min-h-10");
+      expect(classes).toContain("max-md:min-h-11");
+      expect(classes).toContain("text-center");
+    }
+  });
+
   it("leaves non-arrow keys alone", () => {
     const { onChange } = renderSegment();
     const event = fireEvent.keyDown(

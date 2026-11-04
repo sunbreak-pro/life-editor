@@ -43,7 +43,6 @@ import {
   type EveningUpcomingLabels,
   type Goal,
   type GoalPeriodKind,
-  type GoalTodoLinkScreenLabels,
   type ItemPanelOptions,
   type MorningGoalsLabels,
   type WikiTagAssignmentUnified,
@@ -115,7 +114,8 @@ const GOAL_KINDS: readonly GoalPeriodKind[] = ["year", "month", "week"];
 type GoalsPanelView =
   | { kind: "list" }
   | { kind: "detail"; goalId: string }
-  | { kind: "link"; goalId: string };
+  /** `from`: where the linking screen's cancel goes back to (#2410). */
+  | { kind: "link"; goalId: string; from: "list" | "detail" };
 
 export function BriefingScreen({
   dataService: ds,
@@ -227,6 +227,7 @@ export function BriefingScreen({
       goalMark: t("briefing.goalMark"),
       scheduleTitle: t("briefing.scheduleTitle"),
       noSchedule: t("briefing.noSchedule"),
+      noTodos: t("briefing.table.noTodos"),
       routineTag: t("briefing.routineTag"),
       allDay: t("briefing.allDay"),
       timeColumn: t("briefing.table.time"),
@@ -293,31 +294,8 @@ export function BriefingScreen({
       openInConnect: t("briefing.goals.openInConnect"),
     };
   }, [t, goalRanges]);
-  // The linking screen's copy: the same goalLink.* words Connect opens it with.
-  // `periodLabel` is the linked goal's own period, filled in where it opens.
-  const goalLinkLabels = useMemo<GoalTodoLinkScreenLabels>(
-    () => ({
-      heading: t("goalLink.heading"),
-      periodLabel: "",
-      search: t("goalLink.search"),
-      listLabel: t("goalLink.todoList"),
-      empty: t("goalLink.empty"),
-      noMatch: t("goalLink.noMatch"),
-      done: t("goalLink.done"),
-      previewHeading: t("goalLink.previewHeading"),
-      achievementLost: t("goalLink.achievementLost"),
-      save: t("goalLink.save"),
-      saving: t("goalLink.saving"),
-      cancel: t("goalLink.cancel"),
-      saveFailed: t("goalLink.saveFailed"),
-      unconnected: t("goalLink.unconnected"),
-      achieved: t("goalLink.achieved"),
-      becomesAchieved: t("goalLink.becomesAchieved"),
-      losesAchievement: t("goalLink.losesAchievement"),
-    }),
-    [t],
-  );
-  const { detailLabels: goalDetailLabels } = useGoalTreeLabels(todayKey);
+  const { detailLabels: goalDetailLabels, linkLabels: goalLinkLabels } =
+    useGoalTreeLabels(todayKey);
 
   // Widget copy re-uses the EXISTING analytics.* keys (Analytics shrink:
   // the three widgets moved in here — their labels come along unduplicated).
@@ -1026,7 +1004,11 @@ export function BriefingScreen({
               diff.unlink.map((todoId) => ({ goalId, todoId })),
             )
           }
-          onClose={showGoalList}
+          onClose={
+            panelView.from === "detail"
+              ? () => setPanelView({ kind: "detail", goalId })
+              : showGoalList
+          }
           labels={{
             ...goalLinkLabels,
             periodLabel: morningGoalsLabels.periods[panelGoal.periodKind],
@@ -1043,6 +1025,17 @@ export function BriefingScreen({
           key={goalId}
           node={panelNode}
           parentOptions={goalParentOptions(goalState.goals, panelNode.goal)}
+          parentGoal={
+            panelNode.goal.parentGoalId
+              ? (goalModel?.byId.get(panelNode.goal.parentGoalId)?.goal ?? null)
+              : null
+          }
+          // No drag on this panel at any width: the select is the only way
+          // to re-parent or detach a goal from here.
+          parentSelect
+          onLinkTodos={() =>
+            setPanelView({ kind: "link", goalId, from: "detail" })
+          }
           onRename={(title) => void updateGoal(goalId, { title })}
           onChangeParent={(parentGoalId) =>
             void updateGoal(goalId, { parentGoalId })
@@ -1065,7 +1058,9 @@ export function BriefingScreen({
       <MorningGoalsPanel
         goals={morningGoals}
         labels={morningGoalsLabels}
-        onLinkTodos={(goalId) => setPanelView({ kind: "link", goalId })}
+        onLinkTodos={(goalId) =>
+          setPanelView({ kind: "link", goalId, from: "list" })
+        }
         onSelectGoal={(goalId) => setPanelView({ kind: "detail", goalId })}
         onCreateWeekGoal={createWeekGoal}
         writing={goalWriting}

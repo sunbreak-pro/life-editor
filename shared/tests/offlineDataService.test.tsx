@@ -789,6 +789,36 @@ describe("sessionOwner", () => {
     expect(await resolve()).toBe("u");
     expect(await resolve()).toBeNull();
   });
+
+  it("names the stored session's user when a page opens offline (#2334)", async () => {
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    const getSession = vi.fn();
+    const resolve = sessionOwner({ getSession }, async () => "stored");
+    expect(await resolve()).toBe("stored");
+    // That wait can last 50 seconds, so the stored answer comes first.
+    expect(getSession).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
+  });
+
+  it("falls back on the stored session when the refresh cannot reach the network (#2334)", async () => {
+    const getSession = vi.fn().mockResolvedValue({
+      data: { session: null },
+      error: new Error("Failed to fetch"),
+    });
+    expect(await sessionOwner({ getSession }, async () => "stored")()).toBe(
+      "stored",
+    );
+  });
+
+  it("does not bring back a session that was signed out (#2334)", async () => {
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    const getSession = vi.fn().mockResolvedValue({
+      data: { session: null },
+      error: null,
+    });
+    expect(await sessionOwner({ getSession }, async () => null)()).toBeNull();
+    vi.restoreAllMocks();
+  });
 });
 
 describe("the sender", () => {

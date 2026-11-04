@@ -187,7 +187,7 @@ MCP の検証ツール（`seed_verification_state` / `read_verification_state` /
 
 ## 15. 目標の表と、日ごとの朝刊・夕刊の列（0034 / 0035・#2101 / #2107）
 
-Briefing の作り直し（計画書 = `docs/vision/plans/2026-10-03-briefing-goals-redesign.md`）で足した DDL の規約です。目標は新しい role `goal` のアイテムで、Todo とのつながりは専用の関係の表に持ちます。
+Briefing の作り直し（計画書 = `archive/2026-10-03-briefing-goals-redesign.md`）で足した DDL の規約です。目標は新しい role `goal` のアイテムで、Todo とのつながりは専用の関係の表に持ちます。
 
 - **role の CHECK は名前付きになった**: 0008 の `check (role in (...))` は名前の無いインライン制約でした。0034 は `pg_constraint` から role を見る CHECK を引いて落とし、`items_meta_role_check` として張り直しています。次に role を足す migration は、この名前を落として張り直すだけで済みます
 - **`goals_payload` は §10.1 の 2 行分割に従う**: `updated_at` とソフトデリートの列は持たず、どちらも `items_meta` 側が持ちます（DB-Q2 の bump は `goalMapper.ts` の責務）。親の目標は `(parent_goal_id, parent_goal_role)` → `items_meta(id, role)` の複合 FK（`ON DELETE NO ACTION` = §10.4 と同じ）で、親は `goal` に限られます
@@ -221,4 +221,5 @@ Briefing の作り直し（計画書 = `docs/vision/plans/2026-10-03-briefing-go
 - **DB が検査するのは形だけ**: `kind` は `^[a-z][a-z0-9_]{0,31}$`、`extension_apps.slug` は `^[a-z][a-z0-9-]{1,31}$`、`dims` は jsonb の object であることだけを CHECK します。`dims` の値の型とキーの数（20 個まで）は MCP のハンドラが検査します
 - **`value` の `numeric` は 15 桁までを扱う**: mapper は `numeric` を JS の `number` に写します（`appRecordMapper.ts`）。金額（円の整数）や体重（小数 1 桁）の範囲では落ちませんが、15 桁を超える値は精度が落ちるので扱いません
 - **台帳の引き当てのキーは `(user_id, slug)` の UNIQUE で、主キーは乱数の `id`**（0042・#2271）: slug は登録後に変えません。`app_records.source_app` と窓口の鍵が指すアプリの id が、この slug だからです。画面と MCP は `id` を読まず、更新と削除も slug で絞ります。`id` を主キーにしたのは、Realtime が行の削除の通知を RLS で絞らずに主キーの列を付けて全購読者へ送るためで、主キーが `(user_id, slug)` のままだと、消した人の uuid と slug が他人に届きます（0037 の `ai_rules`・0041 の `record_views` と同じ理由）。「最後の記録」と「30 日の件数」は保存せず、`app_records` から数えます
+- **記録の見せ方は `record_views`（0041・#2260）**: 記録の種類ごとに、値の出し方（合計 / 平均 / 最新 / 件数）とグラフの形（棒 / 折れ線）を 1 行ずつ持ちます。`(user_id, kind, unit)` は UNIQUE で、`unit` なしは空文字です（null を入れると「null 同士は別物」になり、同じ種類の行が何本でも入るため）。主キーは乱数の `id` で、Realtime が削除の通知に主キーの列を付けて全購読者へ送るため、uuid と種類が他人に届かないようにしています（D-20261017-main-2。`ai_rules`・`extension_apps` と同じ理由）。選んだ内容を端末の `localStorage` ではなく DB に置くのは、公開 Web URL が主導線で、Desktop と Mobile で選択が揃わないと「選んだのに戻っている」と見えるためです（D-20261017-main-1）。行が無い種類は初期値（合計・棒）で出し、DB に空行を作りません
 - owner-only の RLS（`(select auth.uid())` の INITPLAN 形の 4 ポリシー）と `supabase_realtime` への加入、`delete_my_account` への 2 表の追加は 0039 の中で済ませています。同期のドメインは表ごとに `appRecords` と `extensionApps` です（`shared/src/context/syncDomains.ts`）。データの書き出しの表の一覧にも 2 表が入っています（`shared/src/services/userDataExport.ts`）

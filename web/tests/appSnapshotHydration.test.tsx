@@ -22,7 +22,8 @@ const h = vi.hoisted(() => ({
 vi.mock("@life-editor/shared", async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   useTranslation: () => ({ t: (key: string) => key }),
-  getSession: () => Promise.resolve(h.session),
+  readSession: () =>
+    Promise.resolve({ session: h.session, unreachable: false }),
   onAuthStateChange: (cb: (event: string, s: Session | null) => void) => {
     h.listener = cb;
     return { unsubscribe: () => {} };

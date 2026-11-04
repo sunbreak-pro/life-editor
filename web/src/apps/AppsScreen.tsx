@@ -178,6 +178,7 @@ export function AppsScreen({
           noMatchLabel: t("apps.dialog.iconNoMatch"),
           moreLabel: t("apps.dialog.iconMore"),
           countLabel: t("apps.dialog.iconCount"),
+          closeLabel: t("apps.dialog.iconClose"),
         },
         save: t("apps.dialog.save"),
         cancel: t("apps.dialog.cancel"),

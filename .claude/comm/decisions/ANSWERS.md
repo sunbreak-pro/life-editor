@@ -187,3 +187,13 @@
 - D-20261021-main-1: **段階 0〜2 を進める・Note は新規作成とピン留めだけ**（取ったデータを IndexedDB に置き、前回から変わった分だけを取る。Service Worker でアプリ本体を端末に置き、圏外でも前回までのデータを見られるようにする。圏外では Daily・Todo の追加・Note を書ける。オフラインで表示するノートは、オフラインで作ったものとピン留めしたものだけ。すべての画面のオフライン編集はやらない。D-20260818-refactor-1 の A-2 却下と、移行 SSOT の「常時オンライン前提」を置き換える。#2290・#2329。2026-10-21 チャットで回答・chat-main が転記 / 昇格）
 - D-20261028-main-1: **A**（画面が変わる新機能・改修は、実装前に Life Editor デザインシステムと Artifact で UI / UX の案を作り、こうだいさんの確認を経てから計画書を確定する。`rules/design-first-planning.md` を新設し、計画書の型に「UI / UX の確認」節を足す。#2372。2026-10-28 チャットで直接指示・chat-main が転記 / 昇格）
 - D-20261101-materials-1: **A**（「ノートを作る」は今の位置を保ち、#2390 の完了条件を実態に合わせて直す。2026-11-01 チャットの AskUserQuestion で回答・materials-refine が転記 / 昇格）
+- D-20261102-materials-1: **B**（ヘッダーのタグの編集パネルに「タグを削除」を足す。試作とはここだけ違う形になる。2026-11-02 チャットの AskUserQuestion で回答・materials-refine が転記 / 昇格）
+- D-20261102-main-1: **merge-round を足し、P-001 を改定する**（chat-main で `merge-round` スキルを起動したら、事前確認を通った PR の `gh pr merge <n> -R sunbreak-pro/life-editor --squash` を確認なしで通す。作業レーンからの merge は hook で止める。衝突した PR はレーンごとの `/goal` にする。2026-11-02 チャットで直接依頼・dotfiles のセッションが転記。この PR の merge をもって承認とする）
+- D-20261102-main-2: **案 B**（文書・lockfile・翻訳ファイルだけの衝突で、どのレーンもそのブランチを開いていない PR は、chat-main がサブエージェント（Sonnet）に一時 worktree で解かせ、確かめてから PR のブランチへ fast-forward で push する。コードの衝突と CI の赤は従来どおりレーンへの `/goal`。GitHub Agent Merge は試さない。2026-11-02 チャットの AskUserQuestion で回答・dotfiles のセッションが転記）
+- D-20261102-connect-1: **A**（目標と Todo のタブの広い画面で、上の目標を「なし」に戻す手段を足すか → リンクの横に「外す」ボタンを足す。2026-11-02 チャットの AskUserQuestion で回答・connect-refine が転記 / 昇格）
+- D-20261102-connect-2: **A**（Todo の編集中に目標の行を押したら、閉じるだけでよいか → 閉じるだけ。2026-11-02 チャットの AskUserQuestion で回答・connect-refine が転記 / 昇格）
+- D-20261102-connect-3: **A**（残した下の目標に Todo などがつながっているとき、どこに出すか → 今の分類のまま木の一番上に出し、Issue の文を実態に合わせる。2026-11-02 チャットの AskUserQuestion で回答・connect-refine が転記 / 昇格）
+- D-20261102-connect-4: **B**（持ち越した週・やめた週を、上の目標の達成判定に数えるか → 今のまま全部数える。2026-11-02 チャットの AskUserQuestion で回答・connect-refine が転記 / 昇格）
+- D-20261102-connect-5: **B**（右パネルの「つないだ Todo」の名前を押したときの動きを木にそろえるか → 右パネルも完了の切り替えにする。2026-11-02 チャットの AskUserQuestion で回答・connect-refine が転記 / 昇格）
+- D-20261102-connect-6: **A**（タグ画面の event の呼び名を「予定」と「イベント」のどちらにそろえるか → 今の PR のままにして、別 Issue で全画面の呼び名をそろえる。2026-11-02 チャットの AskUserQuestion で回答・connect-refine が転記 / 昇格）
+- D-20261102-connect-7: **A**（削除ダイアログの注記で、つながっているのが下の Todo だと書き分けるか → 同じ文のまま。2026-11-02 チャットの AskUserQuestion で回答・connect-refine が転記 / 昇格）

@@ -35,6 +35,7 @@ const LABELS: TagHubDetailLabels = {
     task: "Todo",
     event: "Event",
     note: "Note",
+    table: "Table",
     daily: "Daily",
     unknown: "Other",
   },
@@ -160,25 +161,90 @@ describe("selectRecentTaggedItems", () => {
 describe("TagHubDetailPanel", () => {
   beforeEach(cleanup);
 
-  it("names the tag, its total, and its per-kind breakdown", () => {
-    render(
+  const renderBreakdown = (groups: readonly TagHubGroup[]) => {
+    const view = render(
       <TagHubDetailPanel
         tag={WORK}
-        groups={GROUPS}
+        groups={groups}
         recent={[]}
         onOpenItem={vi.fn()}
         formatCount={formatCount}
         labels={LABELS}
       />,
     );
-    expect(
-      screen.getByRole("heading", { level: 2, name: "Work" }),
-    ).toBeTruthy();
-    expect(screen.getByText("3 items")).toBeTruthy();
+    const region = within(screen.getByRole("region", { name: "By kind" }));
+    return {
+      rows: region.getAllByRole("listitem").map((li) => li.textContent),
+      // The fill inside each kind's track, by kind, as the width it was given.
+      widths: Object.fromEntries(
+        Array.from(
+          view.container.querySelectorAll<HTMLElement>("[data-kind-bar]"),
+        ).map((bar) => [
+          bar.dataset.kindBar,
+          (bar.firstElementChild as HTMLElement).style.width,
+        ]),
+      ),
+    };
+  };
 
-    const breakdown = within(screen.getByRole("region", { name: "By kind" }));
-    const rows = breakdown.getAllByRole("listitem").map((li) => li.textContent);
-    expect(rows).toEqual(["Todo2 items", "Note1 items"]);
+  it("leaves the tag's name and total to the main pane (#2409)", () => {
+    renderBreakdown(GROUPS);
+    expect(screen.queryByRole("heading", { level: 2 })).toBeNull();
+    expect(screen.queryByText("3 items")).toBeNull();
+  });
+
+  it("draws the four kinds as bars, the empty kinds too (#2409)", () => {
+    const { rows, widths } = renderBreakdown(GROUPS);
+    expect(rows).toEqual([
+      "Todo2 items",
+      "Event0 items",
+      "Note1 items",
+      "Daily0 items",
+    ]);
+    // The longest bar is the largest count, and the rest scale from it.
+    expect(widths).toEqual({
+      task: "100%",
+      event: "0%",
+      note: "50%",
+      daily: "0%",
+    });
+  });
+
+  it("keeps all four bars at zero for a tag holding nothing (#2409)", () => {
+    const { rows, widths } = renderBreakdown([]);
+    expect(rows).toHaveLength(4);
+    // A divide by the zero maximum would leave `NaN%`, which the DOM drops.
+    expect(widths).toEqual({
+      task: "0%",
+      event: "0%",
+      note: "0%",
+      daily: "0%",
+    });
+  });
+
+  it("adds a bar for note tables only when the tag holds one (#2409)", () => {
+    const { rows, widths } = renderBreakdown([
+      {
+        role: "note",
+        items: [item("note-1", "note", "Migration notes")],
+      },
+      {
+        role: "table",
+        items: [
+          item("table-1", "table", "Budget"),
+          item("table-2", "table", "Rota"),
+        ],
+      },
+    ]);
+    expect(rows).toEqual([
+      "Todo0 items",
+      "Event0 items",
+      "Note1 items",
+      "Table2 items",
+      "Daily0 items",
+    ]);
+    expect(widths.table).toBe("100%");
+    expect(widths.note).toBe("50%");
   });
 
   it("lists the recent rows and routes a click to the host", () => {
@@ -212,7 +278,7 @@ describe("TagHubDetailPanel", () => {
     expect(onOpenItem).toHaveBeenCalledWith(recent[1]);
   });
 
-  it("says so when the tag holds nothing, and skips the breakdown", () => {
+  it("says so when the tag holds nothing", () => {
     render(
       <TagHubDetailPanel
         tag={{ ...WORK, count: 0 }}
@@ -223,7 +289,6 @@ describe("TagHubDetailPanel", () => {
         labels={LABELS}
       />,
     );
-    expect(screen.queryByRole("region", { name: "By kind" })).toBeNull();
     expect(
       screen.getByText("Nothing is filed under this tag yet."),
     ).toBeTruthy();

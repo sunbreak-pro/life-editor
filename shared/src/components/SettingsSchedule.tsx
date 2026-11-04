@@ -2,6 +2,7 @@ import { CalendarRange } from "lucide-react";
 import { cn } from "./cn";
 import { ColorPicker } from "./ColorPicker";
 import { SettingsSegment } from "./SettingsSegment";
+import { CARD_BTN_TAP, SWITCH_TAP_NARROW } from "./styleTokens";
 import type { DesktopCalendarView } from "../utils/calendarView";
 
 export interface SettingsScheduleProps {
@@ -150,6 +151,7 @@ export function SettingsSchedule({
             onClick={() => onRemindersEnabledChange(!remindersEnabled)}
             className={cn(
               "relative h-5 w-9 shrink-0 rounded-full transition-colors",
+              SWITCH_TAP_NARROW,
               remindersEnabled ? "bg-lumen-accent" : "bg-lumen-border-strong",
             )}
           >
@@ -175,6 +177,9 @@ export function SettingsSchedule({
             onChange={(e) => onDefaultLeadMinutesChange(Number(e.target.value))}
             className={cn(
               "w-full rounded-lumen-md border border-lumen-border bg-lumen-bg px-3 py-2 text-sm text-lumen-text",
+              // 2.25rem + border lands a hair under 44px at the larger
+              // Settings font step, so it gets the same floor as the input.
+              CARD_BTN_TAP,
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
               !remindersEnabled && "opacity-55",
             )}
@@ -219,6 +224,7 @@ export function SettingsSchedule({
             onClick={() => onHolidaysShownChange(!holidaysShown)}
             className={cn(
               "relative h-5 w-9 shrink-0 rounded-full transition-colors",
+              SWITCH_TAP_NARROW,
               holidaysShown ? "bg-lumen-accent" : "bg-lumen-border-strong",
             )}
           >
@@ -236,6 +242,7 @@ export function SettingsSchedule({
             label={labels.holidayColorLabel}
             clearLabel={labels.holidayColorClear}
             customLabel={labels.holidayColorCustom}
+            triggerClassName={CARD_BTN_TAP}
             // Clearing means "back to the default", not "no colour": a
             // holiday with no face would be indistinguishable from an event,
             // which is the one thing the shared colour exists to prevent.

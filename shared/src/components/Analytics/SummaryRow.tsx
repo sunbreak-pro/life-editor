@@ -2,7 +2,8 @@
  * Shared label/value row for the Overview summary cards (Today / Weekly).
  * A full-width row never wraps its value regardless of locale — ja duration
  * strings like 「12時間34分」 need ~90px+, which the previous 3-col mini grid
- * could not guarantee inside the data-width dashboard column (#182).
+ * could not guarantee inside the data-width dashboard column (#182). The value
+ * never breaks (`whitespace-nowrap`, #2509); only the label may wrap.
  */
 export function SummaryRow({
   label,
@@ -12,9 +13,9 @@ export function SummaryRow({
   value: string;
 }): React.JSX.Element {
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-xs text-lumen-text-secondary">{label}</span>
-      <span className="text-sm font-semibold tabular-nums text-lumen-text">
+    <div className="flex items-center justify-between gap-2">
+      <span className="min-w-0 text-xs text-lumen-text-secondary">{label}</span>
+      <span className="whitespace-nowrap text-sm font-semibold tabular-nums text-lumen-text">
         {value}
       </span>
     </div>

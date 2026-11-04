@@ -42,6 +42,11 @@
 #     Standard hardening: no framing (clickjacking), no plugins, no `<base>`
 #     rewrite of the relative asset paths, no off-site form posts.
 #
+#   worker: nothing to add (#2334)
+#     The Service Worker is /sw.js and its one import, both 'self', so
+#     `default-src` / `script-src 'self'` already allow them. It is registered
+#     from the bundle (web/src/pwa/serviceWorker.ts), not from an inline script.
+#
 #   Referrer-Policy: no-referrer
 #     Nothing here needs to tell another origin where the visitor came from,
 #     and the URL is exactly what #919 made sensitive.
@@ -58,3 +63,10 @@
 
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+
+# The Service Worker must always be revalidated (#2334): the browser finds a new
+# version of the app by comparing this file, so a cached copy would keep an old
+# app shell on the device for as long as the cache lasted.
+
+/sw.js
+  Cache-Control: no-cache

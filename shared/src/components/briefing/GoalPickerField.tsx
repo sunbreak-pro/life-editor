@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
+import { Plus, X } from "lucide-react";
 import type { Goal, GoalPeriodKind } from "../../types/goal";
 import {
   judgeGoals,
@@ -38,6 +39,11 @@ import {
  *
  * Rows are checkboxes rather than a select: a todo can serve several goals
  * at once (§1.2), and the rows have to say each goal's progress anyway.
+ *
+ * With `chips` (#2401, the todo detail) the picks read as one chip each, with
+ * an × to take it off, and the rows stay folded behind "+ Link to a goal". What
+ * the choice is about to do (the numbers, the lost achievement, a failed save)
+ * stays outside the fold, since a × can change it with the rows closed.
  */
 
 export interface GoalPickerLabels extends GoalProgressLabels {
@@ -92,6 +98,16 @@ export function goalPickerLabels(
   };
 }
 
+/** The words of the chip form. Given, the field draws chips over a fold. */
+export interface GoalPickerChipLabels {
+  /** The button that opens the rows, after a plus. */
+  add: string;
+  /** "Week · Get the proposal approved". */
+  formatChip: (kind: GoalPeriodKind, title: string) => string;
+  /** The ×'s spoken name. */
+  formatRemove: (title: string) => string;
+}
+
 export interface GoalPickerFieldProps {
   /** The goals on offer, in display order (see goalsForTodoPicker). */
   goals: readonly Goal[];
@@ -107,6 +123,7 @@ export interface GoalPickerFieldProps {
   lostTitles?: readonly string[];
   failed?: boolean;
   labels: GoalPickerLabels;
+  chips?: GoalPickerChipLabels;
 }
 
 export function GoalPickerField({
@@ -119,7 +136,10 @@ export function GoalPickerField({
   lostTitles = [],
   failed = false,
   labels,
+  chips,
 }: GoalPickerFieldProps): React.JSX.Element {
+  const [rowsOpen, setRowsOpen] = useState(false);
+  const addRef = useRef<HTMLButtonElement | null>(null);
   const selected = useMemo(() => new Set(selectedIds), [selectedIds]);
   const { current, changes } = useMemo(() => {
     const withTodo = applyGoalLinkEdit(snapshot, { todos: [todo] });
@@ -160,59 +180,106 @@ export function GoalPickerField({
         label={labels.achievementLost}
         titles={lostTitles}
       />
-      <div aria-label={labels.listLabel} role="group" className="space-y-2">
-        {groups.map((group) => (
-          <div
-            key={group.kind}
-            role="group"
-            aria-label={labels.periods[group.kind]}
+      {chips && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {goals
+            .filter((goal) => selected.has(goal.id))
+            .map((goal) => (
+              <span
+                key={goal.id}
+                data-goal-chip={goal.id}
+                className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-lumen-md border border-lumen-border bg-lumen-bg px-2 py-0.5 text-xs text-lumen-text"
+              >
+                <span className="min-w-0 truncate">
+                  {chips.formatChip(goal.periodKind, goal.title)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    toggle(goal.id);
+                    // The × leaves with its chip; the focus stays in the field.
+                    addRef.current?.focus();
+                  }}
+                  aria-label={chips.formatRemove(goal.title)}
+                  className={cn(
+                    "shrink-0 rounded-lumen-sm text-lumen-text-secondary hover:text-lumen-danger max-md:-my-3 max-md:-mr-2 max-md:inline-flex max-md:min-h-11 max-md:min-w-11 max-md:items-center max-md:justify-center",
+                    FOCUS_RING_TIGHT,
+                  )}
+                >
+                  <X size={14} aria-hidden />
+                </button>
+              </span>
+            ))}
+          <button
+            ref={addRef}
+            type="button"
+            onClick={() => setRowsOpen((open) => !open)}
+            aria-expanded={rowsOpen}
+            className={cn(
+              "inline-flex items-center gap-1 rounded-lumen-md border border-dashed border-lumen-border px-2 py-1 text-xs text-lumen-text-secondary transition-colors hover:bg-lumen-hover max-md:min-h-11",
+              FOCUS_RING_TIGHT,
+            )}
           >
-            <p className={cn(FIELD_LABEL, "mb-1")}>
-              {labels.periods[group.kind]}
-            </p>
-            <ul className="space-y-1">
-              {group.goals.map((goal) => {
-                const judged = current[goal.id];
-                const progress = judged ? goalProgressOf(judged) : null;
-                const checked = selected.has(goal.id);
-                return (
-                  <li key={goal.id}>
-                    <button
-                      type="button"
-                      role="checkbox"
-                      aria-checked={checked}
-                      onClick={() => toggle(goal.id)}
-                      className={cn(
-                        "flex w-full items-center gap-2 rounded-lumen-md border px-2 py-1.5 text-left text-sm transition-colors max-md:min-h-11",
-                        checked
-                          ? "border-lumen-accent bg-lumen-accent-subtle text-lumen-text"
-                          : "border-lumen-border bg-lumen-bg text-lumen-text hover:bg-lumen-hover",
-                        FOCUS_RING_TIGHT,
-                      )}
-                    >
-                      <SelectCheckboxMark checked={checked} />
-                      <span className="min-w-0 flex-1 truncate">
-                        {goal.title}
-                      </span>
-                      {progress?.achieved ? (
-                        <span className={GOAL_CHIP_ACHIEVED}>
-                          {labels.achieved}
+            <Plus size={14} aria-hidden />
+            {chips.add}
+          </button>
+        </div>
+      )}
+      {(!chips || rowsOpen) && (
+        <div aria-label={labels.listLabel} role="group" className="space-y-2">
+          {groups.map((group) => (
+            <div
+              key={group.kind}
+              role="group"
+              aria-label={labels.periods[group.kind]}
+            >
+              <p className={cn(FIELD_LABEL, "mb-1")}>
+                {labels.periods[group.kind]}
+              </p>
+              <ul className="space-y-1">
+                {group.goals.map((goal) => {
+                  const judged = current[goal.id];
+                  const progress = judged ? goalProgressOf(judged) : null;
+                  const checked = selected.has(goal.id);
+                  return (
+                    <li key={goal.id}>
+                      <button
+                        type="button"
+                        role="checkbox"
+                        aria-checked={checked}
+                        onClick={() => toggle(goal.id)}
+                        className={cn(
+                          "flex w-full items-center gap-2 rounded-lumen-md border px-2 py-1.5 text-left text-sm transition-colors max-md:min-h-11",
+                          checked
+                            ? "border-lumen-accent bg-lumen-accent-subtle text-lumen-text"
+                            : "border-lumen-border bg-lumen-bg text-lumen-text hover:bg-lumen-hover",
+                          FOCUS_RING_TIGHT,
+                        )}
+                      >
+                        <SelectCheckboxMark checked={checked} />
+                        <span className="min-w-0 flex-1 truncate">
+                          {goal.title}
                         </span>
-                      ) : (
-                        progress && (
-                          <span className="shrink-0 text-xs tabular-nums text-lumen-text-tertiary">
-                            {goalProgressText(progress, labels)}
+                        {progress?.achieved ? (
+                          <span className={GOAL_CHIP_ACHIEVED}>
+                            {labels.achieved}
                           </span>
-                        )
-                      )}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ))}
-      </div>
+                        ) : (
+                          progress && (
+                            <span className="shrink-0 text-xs tabular-nums text-lumen-text-tertiary">
+                              {goalProgressText(progress, labels)}
+                            </span>
+                          )
+                        )}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
       {changes.length > 0 && (
         <div className="rounded-lumen-md border border-lumen-border bg-lumen-bg px-2.5 py-2">
           <p className={cn(FIELD_LABEL, "mb-1")}>{labels.previewHeading}</p>
