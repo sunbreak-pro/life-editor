@@ -199,15 +199,17 @@ export type ManualSessionPlan =
  */
 export function planManualSession(
   sessions: readonly TimerSession[],
-  eventId: string,
+  itemId: string,
   totalMinutes: number | null,
 ): ManualSessionPlan {
-  const { timerMinutes, timerSeconds } = eventWorkBreakdown(sessions, eventId);
+  // An event's or, since #2553, a todo's: `sessionTargetId` reads either
+  // column, and ids are unique across roles (CLAUDE.md §4).
+  const { timerMinutes, timerSeconds } = eventWorkBreakdown(sessions, itemId);
   if (totalMinutes !== null && totalMinutes < timerMinutes) {
     return { kind: "refused", timerMinutes };
   }
   const rows = sessions.filter(
-    (s) => isManualSession(s) && sessionTargetId(s) === eventId,
+    (s) => isManualSession(s) && sessionTargetId(s) === itemId,
   );
   const ids = rows.map((s) => s.id);
   if (totalMinutes === null || totalMinutes === timerMinutes) {

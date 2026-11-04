@@ -201,6 +201,15 @@ export interface TimerDataService {
     anchor: EventWorkAnchor;
     totalMinutes: number | null;
   }): Promise<void>;
+  /**
+   * The same for a Todo (#2553): its one hand-entered row carries `task_id`.
+   * `anchor` is the day and time the row is filed under.
+   */
+  saveTodoWorkTotal(input: {
+    todoId: string;
+    anchor: EventWorkAnchor;
+    totalMinutes: number | null;
+  }): Promise<void>;
 
   // Pomodoro Presets
   fetchPomodoroPresets(): Promise<PomodoroPreset[]>;

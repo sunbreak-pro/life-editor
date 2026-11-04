@@ -6,6 +6,9 @@ import {
   useSyncDomains,
   useUndoRedoOptional,
   type EventWorkAnchor,
+  type TimerSession,
+  type WorkTarget,
+  type WorkTargetKind,
 } from "@life-editor/shared";
 
 /*
@@ -23,6 +26,10 @@ import {
  * grid render to serve one panel would cost far more than the one filtered
  * request this makes when a panel opens. Hosts may call `getDataService()`
  * (§6.4); the pane underneath stays pure and receives finished values.
+ *
+ * #2553: a todo's detail panel edits the same total, against `task_id`
+ * instead of `event_id`. `useItemWorkTime` takes either; `useEventWorkTime`
+ * stays as the event editor's name for it.
  *
  * `getDataService()` THROWS synchronously when the app has no Supabase config,
  * so each call sits inside a try — the same shape SettingsScreen uses.
@@ -53,10 +60,58 @@ export interface EventWorkTimeHandle {
   ) => void;
 }
 
+/** The log's read and write for one kind of item (#2553). */
+const WORK_LOG: Record<
+  WorkTargetKind,
+  {
+    fetch: string;
+    save: string;
+    read: (id: string) => Promise<TimerSession[]>;
+    write: (input: {
+      id: string;
+      anchor: EventWorkAnchor;
+      totalMinutes: number | null;
+    }) => Promise<void>;
+  }
+> = {
+  event: {
+    fetch: "fetchSessionsByEventId",
+    save: "saveEventWorkTotal",
+    read: (id) => getDataService().fetchSessionsByEventId(id),
+    write: ({ id, anchor, totalMinutes }) =>
+      getDataService().saveEventWorkTotal({
+        eventId: id,
+        anchor,
+        totalMinutes,
+      }),
+  },
+  todo: {
+    fetch: "fetchSessionsByTodoId",
+    save: "saveTodoWorkTotal",
+    read: (id) => getDataService().fetchSessionsByTodoId(id),
+    write: ({ id, anchor, totalMinutes }) =>
+      getDataService().saveTodoWorkTotal({ todoId: id, anchor, totalMinutes }),
+  },
+};
+
 export function useEventWorkTime(
   eventId: string | null,
   onSaveFailed?: () => void,
 ): EventWorkTimeHandle {
+  return useItemWorkTime(
+    eventId === null ? null : { kind: "event", id: eventId },
+    onSaveFailed,
+  );
+}
+
+export function useItemWorkTime(
+  target: WorkTarget | null,
+  onSaveFailed?: () => void,
+): EventWorkTimeHandle {
+  // Primitives for the effect: the caller builds the target object inline.
+  const kind = target?.kind ?? "event";
+  const eventId = target?.id ?? null;
+  const log = WORK_LOG[kind];
   /*
    * The result carries the id it belongs to, and "which event is this for" is
    * DERIVED from comparing that id against the current one — the same trick
@@ -85,7 +140,7 @@ export function useEventWorkTime(
     let cancelled = false;
     void (async () => {
       try {
-        const sessions = await getDataService().fetchSessionsByEventId(eventId);
+        const sessions = await WORK_LOG[kind].read(eventId);
         if (!cancelled) {
           const { totalMinutes, timerMinutes } = eventWorkBreakdown(
             sessions,
@@ -98,13 +153,13 @@ export function useEventWorkTime(
         }
       } catch (e) {
         if (!cancelled) setLoaded({ id: eventId, read: { status: "failed" } });
-        logServiceError("Schedule", "fetchSessionsByEventId", e);
+        logServiceError("Schedule", WORK_LOG[kind].fetch, e);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [eventId, syncVersion, writeTick]);
+  }, [kind, eventId, syncVersion, writeTick]);
 
   const read = loaded !== null && loaded.id === eventId ? loaded.read : LOADING;
 
@@ -136,13 +191,9 @@ export function useEventWorkTime(
           : cur,
       );
       try {
-        await getDataService().saveEventWorkTotal({
-          eventId,
-          anchor: where,
-          totalMinutes: total,
-        });
+        await log.write({ id: eventId, anchor: where, totalMinutes: total });
       } catch (e) {
-        logServiceError("Schedule", "saveEventWorkTotal", e);
+        logServiceError("Schedule", log.save, e);
         onSaveFailed?.();
       } finally {
         setWriteTick((n) => n + 1);

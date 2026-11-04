@@ -246,14 +246,16 @@ function manualSessionSpan(startedAt: Date, seconds: number) {
 }
 
 export function manualTimerSessionInsert(
-  eventId: string,
+  target: WorkTarget,
   startedAt: Date,
   seconds: number,
 ): ManualTimerSessionInsertRow {
+  // #2553: a todo's row too, so the column follows the target's kind — the
+  // same split newTimerSessionInsert makes.
   return {
     session_type: "WORK",
-    task_id: null,
-    event_id: eventId,
+    task_id: target.kind === "todo" ? target.id : null,
+    event_id: target.kind === "event" ? target.id : null,
     ...manualSessionSpan(startedAt, seconds),
     completed: true,
     label: MANUAL_SESSION_LABEL,

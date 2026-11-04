@@ -379,4 +379,40 @@ describe("SupabaseTimerService.saveEventWorkTotal", () => {
       }),
     ).rejects.toThrow(/write failed: boom/);
   });
+
+  /*
+   * #2553: the todo twin. Same plan, but the log is read by `task_id` and the
+   * hand-entered row carries it, so a todo's time never lands on an event.
+   */
+  it("writes a todo's hand-entered row under task_id, beside its timer rows", async () => {
+    const TODO = "task-7";
+    const timer = row({ id: 1, event_id: null, task_id: TODO });
+    const eventRow = row({ id: 2 });
+    const { table, svc } = makeTable([timer, eventRow]);
+    await svc.saveTodoWorkTotal({
+      todoId: TODO,
+      anchor: ANCHOR,
+      totalMinutes: 50,
+    });
+    const added = manual(table.rows);
+    expect(added).toHaveLength(1);
+    expect(added[0]).toMatchObject({
+      task_id: TODO,
+      event_id: null,
+      duration: 1200,
+    });
+    // The event's own row is not the todo's timer time: 30 timer + 20 typed.
+    expect(table.rows.find((r) => r.id === 2)).toEqual(eventRow);
+  });
+
+  it("refuses a todo total below its timer rows", async () => {
+    const TODO = "task-7";
+    const { table, svc } = makeTable([
+      row({ id: 1, event_id: null, task_id: TODO }),
+    ]);
+    await expect(
+      svc.saveTodoWorkTotal({ todoId: TODO, anchor: ANCHOR, totalMinutes: 20 }),
+    ).rejects.toThrow(/saveTodoWorkTotal: 20 min is below the 30 min/);
+    expect(manual(table.rows)).toHaveLength(0);
+  });
 });
