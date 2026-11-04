@@ -619,7 +619,9 @@ describe("ScheduleOverlays — the event bubble's summary (#2397)", () => {
 
   /** The interpolation the day-and-time line was built from. */
   function whenParts(): Record<string, string> {
-    const line = within(eventPanel()).getByText(/^scheduleScreen\.bubbleWhen /);
+    const line = within(eventPanel()).getByText(
+      /^scheduleScreen\.bubbleWhen /,
+    );
     return JSON.parse(
       (line.textContent ?? "").slice("scheduleScreen.bubbleWhen ".length),
     ) as Record<string, string>;
@@ -627,9 +629,7 @@ describe("ScheduleOverlays — the event bubble's summary (#2397)", () => {
 
   it("leads with the event badge and names the day with the time", () => {
     renderOverlays({ popover: { state: POPOVER, selected: ITEM } });
-    expect(
-      within(eventPanel()).getByText("scheduleScreen.typeEvent"),
-    ).toBeTruthy();
+    expect(within(eventPanel()).getByText("scheduleScreen.typeEvent")).toBeTruthy();
     expect(within(eventPanel()).getByText(ITEM.title)).toBeTruthy();
     // 2026-08-16 is a Sunday. The catalog arranges the parts (ja:
     // 「8月16日（日）・10:00–11:00」 — pinned in scheduleCopy.test.ts).
@@ -905,9 +905,7 @@ describe("ScheduleOverlays — the create panel's note picker (#2396)", () => {
     expect(document.activeElement).toBe(done);
     // Esc is still the picker's: the dialog stays.
     fireEvent.keyDown(document, { key: "Escape" });
-    expect(
-      screen.queryByRole("region", { name: "notePickerTitle" }),
-    ).toBeNull();
+    expect(screen.queryByRole("region", { name: "notePickerTitle" })).toBeNull();
     createDialog();
   });
 
@@ -930,9 +928,7 @@ describe("ScheduleOverlays — the create panel's note picker (#2396)", () => {
       />,
     );
     expect(createDialog().className).toContain("max-w-lg");
-    expect(
-      screen.queryByRole("region", { name: "notePickerTitle" }),
-    ).toBeNull();
+    expect(screen.queryByRole("region", { name: "notePickerTitle" })).toBeNull();
   });
 
   it("raises a second sheet over the Mobile create sheet", () => {

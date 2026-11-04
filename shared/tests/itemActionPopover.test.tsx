@@ -160,7 +160,9 @@ describe("ItemActionPopover columns layout (#1625)", () => {
     const actions = column("actions");
     expect(summary).toHaveTextContent("Gym · 09:00–10:00");
     for (const name of ["Rename", "Duplicate", "Delete"]) {
-      expect(actions).toContainElement(screen.getByRole("menuitem", { name }));
+      expect(actions).toContainElement(
+        screen.getByRole("menuitem", { name }),
+      );
     }
   });
 
@@ -284,9 +286,9 @@ describe("ItemActionPopover — in-place edit of the summary (#2222)", () => {
 
   it("carries the hint on the target and hides the edit-detail button while editing", () => {
     renderEditable();
-    const target = screen
-      .getByText("Gym")
-      .closest("[data-item-quick-edit-target]") as HTMLElement;
+    const target = screen.getByText("Gym").closest(
+      "[data-item-quick-edit-target]",
+    ) as HTMLElement;
     expect(target.getAttribute("title")).toBe(LABELS.hint);
     expect(screen.getByText("Edit detail")).toBeTruthy();
 
