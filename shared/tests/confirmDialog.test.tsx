@@ -126,3 +126,50 @@ describe("ConfirmDialog / useConfirmDialog (#707)", () => {
     expect(onAnswer).toHaveBeenCalledTimes(1);
   });
 });
+
+/*
+ * #2621 — an optional heading, for the prototype's delete confirmations. The
+ * point worth pinning is the swap of the accessible name: with a title the
+ * heading names the dialog, without one nothing about today's dialogs moves.
+ */
+describe("ConfirmDialog — optional title (#2621)", () => {
+  const renderDialog = (extra: { title?: string; closeLabel?: string }) =>
+    render(
+      <ConfirmDialog
+        open
+        message="このタグは 3 件のアイテムから外れます。"
+        confirmLabel="削除"
+        cancelLabel="キャンセル"
+        danger
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+        {...extra}
+      />,
+    );
+
+  it("draws the title as a heading and names the dialog by it", () => {
+    renderDialog({ title: "タグを削除", closeLabel: "閉じる" });
+    expect(
+      screen.getByRole("heading", { level: 2, name: "タグを削除" }),
+    ).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: "タグを削除" })).toBeTruthy();
+    // The heading holds the corner ×'s room, so the message does not.
+    const message = screen.getByText("このタグは 3 件のアイテムから外れます。");
+    expect(message.className).not.toContain("pr-8");
+    expect(message.className).toContain("text-lumen-text-secondary");
+  });
+
+  it("keeps the message as the name and draws no heading without a title", () => {
+    renderDialog({ closeLabel: "閉じる" });
+    expect(screen.queryByRole("heading")).toBeNull();
+    expect(
+      screen.getByRole("dialog", {
+        name: "このタグは 3 件のアイテムから外れます。",
+      }),
+    ).toBeTruthy();
+    const message = screen.getByText("このタグは 3 件のアイテムから外れます。");
+    expect(message.className).toContain("pr-8");
+    expect(message.className).toContain("text-lumen-text");
+    expect(message.className).not.toContain("text-lumen-text-secondary");
+  });
+});

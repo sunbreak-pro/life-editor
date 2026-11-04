@@ -21,15 +21,41 @@ import { cn } from "./cn";
  *   with cancelLabel    — a question (the `confirm`)
  *   without cancelLabel — a statement to acknowledge (the `alert`)
  *
+ * An optional `title` (#2621) puts a heading above the message, the shape the
+ * prototype's delete confirmations use (heading + corner × + explanation).
+ * The heading then names the dialog and the message becomes its explanation.
+ * Screens copy a ConfirmRequest field by field into <ConfirmDialog>, so a
+ * caller that wants the heading has to pass `title` (and `closeLabel` for the
+ * ×) through that copy as well — setting it on the request alone draws
+ * nothing:
+ *
+ *   <ConfirmDialog
+ *     open
+ *     title={request.title}
+ *     message={request.message}
+ *     confirmLabel={request.confirmLabel}
+ *     cancelLabel={request.cancelLabel}
+ *     danger={request.danger}
+ *     closeLabel={t("common.close")}
+ *     onConfirm={() => resolve(true)}
+ *     onCancel={() => resolve(false)}
+ *   />
+ *
  * Pure presentation (§3.1 / §6.4): copy arrives already translated, both
  * answers are callbacks. lumen-* tokens only, opaque panel via <Modal>.
  */
 
 export interface ConfirmRequest {
   /**
-   * Already-translated question or statement. It also NAMES the dialog
-   * (aria-labelledby), so a screen reader announces the actual question
-   * instead of a generic "Confirm".
+   * Already-translated heading (#2621). Given, it is drawn above the message
+   * and names the dialog in the message's place. Omitted, the dialog looks
+   * and reads exactly as before.
+   */
+  title?: string;
+  /**
+   * Already-translated question or statement. Without a `title` it also
+   * NAMES the dialog (aria-labelledby), so a screen reader announces the
+   * actual question instead of a generic "Confirm".
    */
   message: string;
   /** Affirmative label, already translated. */
@@ -58,6 +84,7 @@ export interface ConfirmDialogProps extends ConfirmRequest {
 
 export function ConfirmDialog({
   open,
+  title,
   message,
   confirmLabel,
   cancelLabel,
@@ -71,16 +98,22 @@ export function ConfirmDialog({
     <Modal
       open={open}
       onClose={onCancel}
-      labelledBy={messageId}
+      // With a heading, Modal names the dialog by it (aria-label = title).
+      labelledBy={title ? undefined : messageId}
+      title={title}
       size="sm"
       closeLabel={closeLabel}
     >
       <p
         id={messageId}
         className={cn(
-          "whitespace-pre-line text-sm leading-relaxed text-lumen-text",
-          // Keeps the message's first line out from under the corner ×.
-          closeLabel && "pr-8",
+          "whitespace-pre-line text-sm leading-relaxed",
+          // Under a heading the message is the explanation, so it steps down
+          // to secondary text as in the prototype; alone it is the question.
+          title ? "text-lumen-text-secondary" : "text-lumen-text",
+          // Keeps the message's first line out from under the corner ×. A
+          // heading already holds that room (Modal's h2 pads for the ×).
+          closeLabel && !title && "pr-8",
         )}
       >
         {message}
