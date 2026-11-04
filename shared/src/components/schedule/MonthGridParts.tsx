@@ -355,86 +355,89 @@ export function MonthFullChips({
 }: FullChipsProps) {
   return (
     <>
-      {items.slice(0, shown).map((it) =>
-        /*
-         * #1626: a holiday is drawn, not operated. It has no row behind it —
-         * its name and its date are the law's — so there is nothing for a
-         * click to open and nothing a context menu could offer. A <button>
-         * that answers no gesture reads as broken (the same argument #1584
-         * made in reverse for the chips that DO), so it is a span instead,
-         * wearing the chip's own face.
-         */
-        it.variant === "holiday" ? (
-          <span
-            key={it.id}
-            title={it.title}
-            data-holiday-chip={it.date}
-            style={holidayFace(it.tagColor).style}
-            className={cn(
-              "block truncate rounded px-1 py-0.5 text-left text-xs font-medium",
-              holidayFace(it.tagColor).className,
-            )}
-          >
-            {it.title}
-          </span>
-        ) : (
-          <button
-            key={it.id}
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (onItemActivate)
-                onItemActivate(it.id, {
-                  x: e.clientX,
-                  y: e.clientY,
-                });
-              else onSelectItem?.(it.id);
-            }}
-            onDoubleClick={(e) => {
-              e.stopPropagation();
-              onItemDoubleClick?.(it.id);
-            }}
-            onContextMenu={
-              onItemContextMenu
-                ? (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onItemContextMenu(it.id, {
-                      x: e.clientX,
-                      y: e.clientY,
-                    });
-                  }
-                : undefined
-            }
-            title={it.title}
-            // #2623 — see the compact body above.
-            style={chipFace(it.variant ?? "event", it.tagColor).style}
-            className={cn(
-              // #1584: `cursor-pointer` says it out loud. Tailwind
-              // preflight resets every <button> to the arrow, so a
-              // chip read as decoration until it was clicked.
-              // #2551: every kind carries its mark now (#593 gave
-              // only todos one), so every chip is the same row.
-              "pointer-events-auto flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-left text-xs font-medium",
-              CELL_FOCUS,
-              chipFace(it.variant ?? "event", it.tagColor).className,
-              // Gated on the variant (#1373): the MCP tool still
-              // writes `completed` for events, and an event struck
-              // through with no control to clear it would be worse
-              // than the toggle that went.
-              it.variant === "task" &&
-                it.completed &&
-                "line-through opacity-55",
-            )}
-          >
-            <MonthChipKindIcon
-              variant={it.variant ?? "event"}
-              labels={kindLabels}
-            />
-            <span className="truncate">{it.title || " "}</span>
-          </button>
-        ),
-      )}
+      {items.slice(0, shown).map((it) => {
+        const face = chipFace(it.variant ?? "event", it.tagColor);
+        return (
+          /*
+           * #1626: a holiday is drawn, not operated. It has no row behind it —
+           * its name and its date are the law's — so there is nothing for a
+           * click to open and nothing a context menu could offer. A <button>
+           * that answers no gesture reads as broken (the same argument #1584
+           * made in reverse for the chips that DO), so it is a span instead,
+           * wearing the chip's own face.
+           */
+          it.variant === "holiday" ? (
+            <span
+              key={it.id}
+              title={it.title}
+              data-holiday-chip={it.date}
+              style={face.style}
+              className={cn(
+                "block truncate rounded px-1 py-0.5 text-left text-xs font-medium",
+                face.className,
+              )}
+            >
+              {it.title}
+            </span>
+          ) : (
+            <button
+              key={it.id}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onItemActivate)
+                  onItemActivate(it.id, {
+                    x: e.clientX,
+                    y: e.clientY,
+                  });
+                else onSelectItem?.(it.id);
+              }}
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                onItemDoubleClick?.(it.id);
+              }}
+              onContextMenu={
+                onItemContextMenu
+                  ? (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onItemContextMenu(it.id, {
+                        x: e.clientX,
+                        y: e.clientY,
+                      });
+                    }
+                  : undefined
+              }
+              title={it.title}
+              // #2623 — see the compact body above.
+              style={face.style}
+              className={cn(
+                // #1584: `cursor-pointer` says it out loud. Tailwind
+                // preflight resets every <button> to the arrow, so a
+                // chip read as decoration until it was clicked.
+                // #2551: every kind carries its mark now (#593 gave
+                // only todos one), so every chip is the same row.
+                "pointer-events-auto flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-left text-xs font-medium",
+                CELL_FOCUS,
+                face.className,
+                // Gated on the variant (#1373): the MCP tool still
+                // writes `completed` for events, and an event struck
+                // through with no control to clear it would be worse
+                // than the toggle that went.
+                it.variant === "task" &&
+                  it.completed &&
+                  "line-through opacity-55",
+              )}
+            >
+              <MonthChipKindIcon
+                variant={it.variant ?? "event"}
+                labels={kindLabels}
+              />
+              <span className="truncate">{it.title || " "}</span>
+            </button>
+          )
+        );
+      })}
       {/*
        * The remainder (#1829). It was a <span>, so on Desktop — where the
        * cell has no face button either — the items past the second one had no

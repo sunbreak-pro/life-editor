@@ -14,7 +14,6 @@ import {
   CELL_FOCUS,
   MonthChipKindIcon,
   chipFace,
-  holidayFace,
   type MonthChipKindLabels,
 } from "./MonthGridParts";
 import type { MonthGridItem } from "./MonthGrid";
@@ -250,57 +249,60 @@ export function MonthMorePanel({
         onKeyDown={handleListKey}
         className="flex min-h-0 flex-col gap-0.5 overflow-y-auto p-1.5"
       >
-        {items.map((it) => (
-          <li key={it.id} className="flex">
-            {it.variant === "holiday" ? (
-              // #1626: drawn, not operated — the same span the cell uses.
-              <span
-                title={it.title}
-                style={holidayFace(it.tagColor).style}
-                className={cn(
-                  "block w-full truncate rounded px-1.5 py-1 text-xs font-medium",
-                  holidayFace(it.tagColor).className,
-                )}
-              >
-                {it.title}
-              </span>
-            ) : (
-              <button
-                type="button"
-                data-month-more-item={it.id}
-                title={it.title}
-                onClick={(e) => {
-                  // A keyboard press arrives as a click with no pointer
-                  // (detail 0, coordinates 0/0), so the bubble is placed from
-                  // the row instead of from the window's corner.
-                  const keyboard = e.detail === 0;
-                  const r = e.currentTarget.getBoundingClientRect();
-                  const pos = keyboard
-                    ? { x: r.left, y: r.bottom }
-                    : { x: e.clientX, y: e.clientY };
-                  onClose();
-                  onItemActivate(it.id, pos, { focus: keyboard });
-                }}
-                // #2623: the same face-and-line rule as the cell's chips.
-                style={chipFace(it.variant ?? "event", it.tagColor).style}
-                className={cn(
-                  "flex w-full min-w-0 cursor-pointer items-center gap-1 rounded px-1.5 py-1 text-left text-xs font-medium",
-                  CELL_FOCUS,
-                  chipFace(it.variant ?? "event", it.tagColor).className,
-                  it.variant === "task" &&
-                    it.completed &&
-                    "line-through opacity-55",
-                )}
-              >
-                <MonthChipKindIcon
-                  variant={it.variant ?? "event"}
-                  labels={kindLabels}
-                />
-                <span className="truncate">{it.title || " "}</span>
-              </button>
-            )}
-          </li>
-        ))}
+        {items.map((it) => {
+          // #2623: the same face-and-line rule as the cell's chips.
+          const face = chipFace(it.variant ?? "event", it.tagColor);
+          return (
+            <li key={it.id} className="flex">
+              {it.variant === "holiday" ? (
+                // #1626: drawn, not operated — the same span the cell uses.
+                <span
+                  title={it.title}
+                  style={face.style}
+                  className={cn(
+                    "block w-full truncate rounded px-1.5 py-1 text-xs font-medium",
+                    face.className,
+                  )}
+                >
+                  {it.title}
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  data-month-more-item={it.id}
+                  title={it.title}
+                  onClick={(e) => {
+                    // A keyboard press arrives as a click with no pointer
+                    // (detail 0, coordinates 0/0), so the bubble is placed from
+                    // the row instead of from the window's corner.
+                    const keyboard = e.detail === 0;
+                    const r = e.currentTarget.getBoundingClientRect();
+                    const pos = keyboard
+                      ? { x: r.left, y: r.bottom }
+                      : { x: e.clientX, y: e.clientY };
+                    onClose();
+                    onItemActivate(it.id, pos, { focus: keyboard });
+                  }}
+                  style={face.style}
+                  className={cn(
+                    "flex w-full min-w-0 cursor-pointer items-center gap-1 rounded px-1.5 py-1 text-left text-xs font-medium",
+                    CELL_FOCUS,
+                    face.className,
+                    it.variant === "task" &&
+                      it.completed &&
+                      "line-through opacity-55",
+                  )}
+                >
+                  <MonthChipKindIcon
+                    variant={it.variant ?? "event"}
+                    labels={kindLabels}
+                  />
+                  <span className="truncate">{it.title || " "}</span>
+                </button>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </div>,
     document.body,

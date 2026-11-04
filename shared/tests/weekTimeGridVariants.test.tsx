@@ -254,9 +254,9 @@ describe("WeekTimeGrid — completion is a TODO's alone (#1373)", () => {
 
   it("keeps the struck-through look on a completed TODO block", () => {
     renderGrid({ items: COMPLETED });
-    expect(screen.getByTitle("09:00–10:00 Write report").className).toContain(
-      "line-through",
-    );
+    expect(
+      screen.getByTitle("09:00–10:00 Write report").className,
+    ).toContain("line-through");
   });
 
   it("applies the same rule to the all-day lane chips", () => {

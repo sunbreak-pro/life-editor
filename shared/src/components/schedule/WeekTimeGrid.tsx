@@ -98,9 +98,8 @@ export interface WeekTimeGridItem {
    * The colour of the tag that speaks for this item (#1580), drawn as the
    * left line since #2623, or undefined to draw that line in the kind's
    * colour (a holiday: the Settings colour, #1626). A hex, because it is the
-   * user's own value off
-   * `wiki_tags.color` — the host resolves WHICH tag (buildItemTagColors) and
-   * this is only the answer.
+   * user's own value off `wiki_tags.color` — the host resolves WHICH tag
+   * (buildItemTagColors) and this is only the answer.
    */
   tagColor?: string | null;
 }
@@ -777,17 +776,18 @@ export function WeekTimeGrid({
                      * wearing the one colour Settings chose for all of them.
                      */
                     if (it.variant === "holiday") {
+                      // #2623: the Settings colour as a light face and a
+                      // line, the same form as the month's holiday chip.
+                      const face = holidayFace(it.tagColor);
                       return (
                         <span
                           key={it.id}
                           title={it.title}
                           data-holiday-chip={it.date}
-                          // #2623: the Settings colour as a light face and a
-                          // line, the same form as the month's holiday chip.
-                          style={holidayFace(it.tagColor).style}
+                          style={face.style}
                           className={cn(
                             "block w-full truncate rounded px-1 py-0.5 text-left text-xs font-medium",
-                            holidayFace(it.tagColor).className,
+                            face.className,
                           )}
                         >
                           {it.title}
@@ -997,7 +997,8 @@ export function WeekTimeGrid({
                       glyph: variant === "routine" || variant === "task",
                       // #2623: the 3px left line on every block. band (2px)
                       // plus border (2px) over-counts it by a pixel, which
-                      // keeps the fit on the safe side of a wrap.
+                      // keeps the fit on the safe side of a wrap. A single
+                      // 3px option in blockTitleFit would say it exactly.
                       band: true,
                       border: true,
                     },
