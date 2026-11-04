@@ -297,6 +297,21 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     ).getByRole("button", { name: "Edit: Write the estimate" });
   });
 
+  it("starts the tree under the add field with no visible heading or period legend, in a centred 48rem column (#2606)", async () => {
+    await renderTab();
+    const treeRegion = screen.getByRole("region", { name: "Goal tree" });
+    expect(screen.queryByRole("heading", { name: "Goal tree" })).toBeNull();
+    expect(within(treeRegion).queryByRole("heading")).toBeNull();
+    // The legend joined every period with its range: "This year 2026 · …".
+    expect(screen.queryByText(/This year 2026/)).toBeNull();
+    expect(screen.queryByText(/ · This month /)).toBeNull();
+
+    const body = treeRegion.closest("[data-goals-body]");
+    expect(body?.className).toContain("max-w-[48rem]");
+    expect(body?.className).toContain("mx-auto");
+    expect(body?.parentElement?.className).toContain("pb-12");
+  });
+
   it("files nothing-connected goals under Unconnected, and lists the todos no shown goal holds", async () => {
     await renderTab();
     const unconnected = within(

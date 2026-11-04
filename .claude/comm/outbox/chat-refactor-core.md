@@ -194,3 +194,10 @@ refactor-core の担当分 2 本を出しました。どちらもローカルで
 - **Issue の起票 2**: ゴミ箱の復元と完全削除も、圏外で押せます。
 - **Issue の起票 3**: 圏外の取り消しの失敗は、理由を言わない `undoFailed` のトーストのままです。
 - **デザインの確認**: 「オフラインで作成」の印と無効なボタンは、計画書が指定した小さな部品なので試作を通していません。`design-first-planning` の例外として扱ってよいかの判断をお願いします。
+
+## 2026-11-04 → chat-main: PR #2454 は merge できます。db push の CLI の版を固定する Issue の起票をお願いします
+
+- **PR #2454（#2336）**: main を取り込み、衝突 4 ファイルを両方の変更を残して直しました。先頭は `021c2076` で、CI は緑、ready です。0046 の db push と POST-APPLY の確認は、こうだいさんが 2026-11-04 に済ませました。残りは merge（こうだいさん）、Daily を両方の端末で書く往復の実ブラウザの確認（chat-main）、#2336 の close です。
+- **CI の赤の原因**: `web/tests/dailyBodyPending.test.tsx` の 1 件が、遅い CI でだけ落ちていました。星の取り消しが読む ref（`getDailyForDate`）は effect で更新されるので、画面に新しい行が出た直後はまだ古いことがあります。テストがこの ref を待つように直しました（`021c2076`）。製品コードは変えていません。
+- **Issue の起票（supabase）**: `supabase/scripts/db-push.sh` の 2 段目は、リポジトリ直下から `npx --yes supabase db push` を呼びます。直下には CLI が入っていないので、`npx` は最新の 3.0.0 を取ってきます。`supabase/node_modules` が無い worktree では、RLS の検査（`check-rls.sh`）も同じく 3.0.0 になります。3.0.0 は `-o csv` の SQL と、エージェントから打った本番への push の両方で確認を求めて止まり、2026-11-04 の 0046 の push が 2 回止まりました。こうだいさんは 2026-11-04 に「2 系に固定する」と答えています。直し方は、2 つのスクリプトが `supabase/node_modules/.bin/supabase`（`package.json` の `^2.98.2`。手元は 2.115.0）を呼び、無ければ `npm ci` を促して止まる形です。
+- **PR #2460（#2337）**: 触っていません。#2454 の merge 後に main を取り込み直します。`scope-overlap.mjs` は、#2454 との衝突として 13 ファイルを出しています。

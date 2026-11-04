@@ -69,16 +69,16 @@ export function docBlocks(content: string): DocBlock[] {
     // A legacy plain-text body: one paragraph holding the text.
     return [{ type: "paragraph", content: [{ type: "text", text: content }] }];
   }
-  if (
-    typeof parsed === "object" &&
-    parsed !== null &&
-    Array.isArray((parsed as { content?: unknown }).content)
-  ) {
-    return (parsed as { content: unknown[] }).content.filter(
-      (b): b is DocBlock => typeof b === "object" && b !== null,
-    );
+  const doc = parsed as { type?: unknown; content?: unknown } | null;
+  // A plain-text body that happens to parse ("2026", "null", "{}") is text, not
+  // an empty doc. The same reading as parseDailyDoc.
+  if (typeof doc !== "object" || doc === null || doc.type !== "doc") {
+    return [{ type: "paragraph", content: [{ type: "text", text: content }] }];
   }
-  return [];
+  if (!Array.isArray(doc.content)) return [];
+  return doc.content.filter(
+    (b): b is DocBlock => typeof b === "object" && b !== null,
+  );
 }
 
 /** Serialise blocks back into a document body. */

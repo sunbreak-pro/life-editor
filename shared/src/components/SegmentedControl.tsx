@@ -106,6 +106,18 @@ const TRUNCATE_SIZE_CLASSES: Record<SegmentedControlSize, string> = {
   sm: `px-1 py-1.5 text-xs ${TAP_TARGET_TALL}`,
 };
 
+/*
+ * Weight of the selected segment (#2619). "sm" is the narrow layout's section
+ * tab strip, which the prototype draws at 600 like the Desktop header tabs;
+ * "md" sits inside panels (the schedule sidebar's tab pair, the editors) and
+ * keeps 500. A table rather than appending font-semibold, because `cn` is a
+ * plain join and two font-* classes would be settled by emit order (#830).
+ */
+const ACTIVE_WEIGHT_CLASSES: Record<SegmentedControlSize, string> = {
+  md: "font-medium",
+  sm: "font-semibold",
+};
+
 export interface SegmentedControlProps {
   options: SegmentedOption[];
   value: string;
@@ -267,7 +279,10 @@ export function SegmentedControl({
               "focus-visible:ring-2 focus-visible:ring-lumen-accent",
               disabled && "cursor-not-allowed opacity-60",
               active
-                ? "bg-lumen-bg font-medium text-lumen-text shadow-lumen-sm"
+                ? cn(
+                    "bg-lumen-bg text-lumen-text shadow-lumen-sm",
+                    ACTIVE_WEIGHT_CLASSES[size],
+                  )
                 : "text-lumen-text-secondary",
             )}
           >

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeAll, afterAll } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
@@ -8,7 +8,12 @@ import {
   createItemLinkSuggestion,
   type ItemLinkSuggestionDeps,
 } from "../src/notes/itemLinkSuggestion";
-import { ItemLinkMenu, type ItemLinkMenuItem } from "../src/notes/ItemLinkMenu";
+import { i18n } from "@life-editor/shared";
+import {
+  ItemLinkMenu,
+  ItemLinkSearchMenu,
+  type ItemLinkMenuItem,
+} from "../src/notes/ItemLinkMenu";
 
 /*
  * The "[[" menu, from two sides (#471 — mobile notes went fully editable, which
@@ -213,5 +218,82 @@ describe("ItemLinkMenu — long rows inside a capped menu (#1518)", () => {
     // wrapped titles would be a wall rather than a picker.
     const label = screen.getByText("A very long note title indeed");
     expect(label.className).toContain("truncate");
+  });
+});
+
+/*
+ * #2586 — the "[[" menu opens with a grey「リンク」heading, on an empty
+ * result as well. The search form under the floating bar's link button
+ * (#2288) has its own field saying what the list is, so it goes without.
+ */
+describe("ItemLinkMenu heading (#2586)", () => {
+  let before = "";
+  beforeAll(async () => {
+    before = i18n.language;
+    await i18n.changeLanguage("ja");
+  });
+  afterAll(async () => {
+    await i18n.changeLanguage(before);
+  });
+
+  function row(id: string, title: string): ItemLinkMenuItem {
+    return { id, title, kind: "candidate", Icon: Link2, command: vi.fn() };
+  }
+
+  function heading(): HTMLElement | null {
+    return document.querySelector<HTMLElement>("[data-item-link-heading]");
+  }
+
+  it("titles the list「リンク」and names the listbox with it", () => {
+    render(
+      <ItemLinkMenu
+        items={[row("note-1", "Roof repair")]}
+        command={vi.fn()}
+        emptyLabel="No matches"
+      />,
+    );
+    expect(heading()?.textContent).toContain("リンク");
+    // Inside the listbox the heading is hidden (a listbox owns only options);
+    // the listbox's own name carries the word instead.
+    expect(heading()?.getAttribute("aria-hidden")).toBe("true");
+    screen.getByRole("listbox", { name: "リンク" });
+    expect(screen.getAllByRole("option")).toHaveLength(1);
+  });
+
+  it("keeps the heading when nothing matches", () => {
+    render(
+      <ItemLinkMenu items={[]} command={vi.fn()} emptyLabel="No matches" />,
+    );
+    expect(heading()?.textContent).toContain("リンク");
+    screen.getByText("No matches");
+  });
+
+  it("leaves the heading out of the search form under the floating bar", () => {
+    render(
+      <ItemLinkSearchMenu
+        itemsFor={() => [row("note-1", "Roof repair")]}
+        command={vi.fn()}
+        onClose={vi.fn()}
+        emptyLabel="No matches"
+        searchLabel="Search"
+      />,
+    );
+    expect(heading()).toBeNull();
+  });
+
+  it("draws the row icon bare, with the hover fill as the highlight", () => {
+    render(
+      <ItemLinkMenu
+        items={[row("note-1", "Roof repair"), row("note-2", "Groceries")]}
+        command={vi.fn()}
+        emptyLabel="No matches"
+      />,
+    );
+    const options = screen.getAllByRole("option");
+    expect(options[0]!.classList.contains("bg-lumen-hover")).toBe(true);
+    expect(options[1]!.classList.contains("bg-lumen-hover")).toBe(false);
+    // No bordered tile around the icon any more: the svg is the row's child.
+    const icon = options[0]!.querySelector("svg");
+    expect(icon?.parentElement).toBe(options[0]);
   });
 });

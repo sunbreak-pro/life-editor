@@ -399,6 +399,7 @@ export function CalendarDesktopLayout({
         onChangeView={toolbar.onChangeView}
         onToggleRepeats={toolbar.onToggleRepeats}
         repeatsHidden={toolbar.repeatsHidden}
+        hiddenRepeatCount={toolbar.hiddenRepeats}
         onToggleHolidays={toolbar.onToggleHolidays}
         holidaysHidden={toolbar.holidaysHidden}
         onOpenFilter={toolbar.onOpenFilter}

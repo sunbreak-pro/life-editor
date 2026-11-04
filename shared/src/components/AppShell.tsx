@@ -259,17 +259,23 @@ export function AppShell({
      * Non-mac hosts (browser, Windows / Linux shells, Capacitor) render the
      * same tree as before: `body` is a fragment, so the wrapper below is the
      * only difference and it does not exist for them.
+     *
+     * Both roots are `h-full`, not `h-screen` (#2622): the host stacks the
+     * offline / new-version banners above the shell inside a frame of the
+     * screen's height (web/src/App.tsx), so the shell takes what is left. A
+     * 100vh shell under a banner pushed the page a banner's height past the
+     * bottom of the screen.
      */
     if (!isMacDesktopShell()) {
       return (
-        <div className="flex h-screen overflow-hidden bg-lumen-bg text-lumen-text">
+        <div className="flex h-full overflow-hidden bg-lumen-bg text-lumen-text">
           {body}
         </div>
       );
     }
 
     return (
-      <div className="flex h-screen flex-col overflow-hidden bg-lumen-bg text-lumen-text">
+      <div className="flex h-full flex-col overflow-hidden bg-lumen-bg text-lumen-text">
         <div
           data-mac-titlebar="drag"
           aria-hidden="true"
@@ -299,13 +305,20 @@ export function AppShell({
   // of the shell's box rather than adding to it: <main> shrinks, the shell
   // still ends exactly at the bottom of the screen.
   //
-  // That height is --app-shell-height (shared/src/styles/tokens.css), not a
-  // literal `100svh`: in the iOS home-screen app the small viewport comes out
-  // one status bar short of the screen, and the token adds that strip back
-  // (#1037). The host's `body { min-height }` reads the same token, which is
-  // the pairing #631 relies on.
+  // The screen's height is --app-shell-height (shared/src/styles/tokens.css),
+  // not a literal `100svh`: in the iOS home-screen app the small viewport
+  // comes out one status bar short of the screen, and the token adds that
+  // strip back (#1037). The host's `body { min-height }` reads the same
+  // token, the pairing #631 relies on (pinned by
+  // web/tests/shellHeightLockstep.test.ts).
+  //
+  // `max-h-full` (#2622): the host's frame (web/src/App.tsx) is the same
+  // token tall and stacks the offline / new-version banners above this
+  // shell, so the cap makes the shell take only what the banners leave and
+  // the bottom tab bar stays on screen while one is showing. With no banner
+  // the cap equals the token and nothing moves.
   return (
-    <div className="flex h-[var(--app-shell-height)] flex-col bg-lumen-bg text-lumen-text pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)]">
+    <div className="flex h-[var(--app-shell-height)] max-h-full flex-col bg-lumen-bg text-lumen-text pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)]">
       <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
       {/*
        * The bar stands down while typing (#608) by going INVISIBLE, not by

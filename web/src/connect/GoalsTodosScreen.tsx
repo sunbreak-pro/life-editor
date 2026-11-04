@@ -728,42 +728,47 @@ export function GoalsTodosScreen({
           </div>
         </RightSidebarPortal>
       )}
-      <div className="h-full min-h-0 overflow-y-auto px-1 py-4 md:py-6">
-        {!isWide && model.byId.size > 0 && !loadFailed && (
-          <div className="mb-4 flex justify-end">
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => setArrangeSheetOpen(true)}
-              leadingIcon={<SlidersHorizontal size={14} aria-hidden />}
-              className="max-md:min-h-11"
-            >
-              {arrangeLabels.heading}
-            </Button>
-          </div>
-        )}
-        <GoalTreeView
-          model={shownModel}
-          activeFilters={activeFilters}
-          onResetFilters={resetFilters}
-          onCreateLooseTodo={createLooseTodo}
-          isLoading={isLoading}
-          loadFailed={loadFailed}
-          onRetry={() => setReloadTick((n) => n + 1)}
-          selectedGoalId={selectedGoalId}
-          onSelectGoal={selectGoal}
-          onCreateGoal={createGoal}
-          onSetTodoStatus={setTodoStatus}
-          onOpenTodo={openTodo}
-          editingTodoId={editingTodoId}
-          onDeleteTodo={deleteTodo}
-          drag={isWide ? drag : undefined}
-          onRenameGoal={renameGoal}
-          // Wide: the edit icon also opens the panel for the other fields.
-          onEditGoal={isWide ? selectGoal : undefined}
-          rowActions={rowActions}
-          labels={treeLabels}
-        />
+      {/* The column is capped here, not in the section descriptor, because the
+          tag tab shares that descriptor and stays fluid (#2606). The scroll box
+          stays full width so its scrollbar sits at the screen's edge. */}
+      <div className="h-full min-h-0 overflow-y-auto px-1 pt-4 pb-12 md:pt-6">
+        <div data-goals-body className="mx-auto max-w-[48rem]">
+          {!isWide && model.byId.size > 0 && !loadFailed && (
+            <div className="mb-4 flex justify-end">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => setArrangeSheetOpen(true)}
+                leadingIcon={<SlidersHorizontal size={14} aria-hidden />}
+                className="max-md:min-h-11"
+              >
+                {arrangeLabels.heading}
+              </Button>
+            </div>
+          )}
+          <GoalTreeView
+            model={shownModel}
+            activeFilters={activeFilters}
+            onResetFilters={resetFilters}
+            onCreateLooseTodo={createLooseTodo}
+            isLoading={isLoading}
+            loadFailed={loadFailed}
+            onRetry={() => setReloadTick((n) => n + 1)}
+            selectedGoalId={selectedGoalId}
+            onSelectGoal={selectGoal}
+            onCreateGoal={createGoal}
+            onSetTodoStatus={setTodoStatus}
+            onOpenTodo={openTodo}
+            editingTodoId={editingTodoId}
+            onDeleteTodo={deleteTodo}
+            drag={isWide ? drag : undefined}
+            onRenameGoal={renameGoal}
+            // Wide: the edit icon also opens the panel for the other fields.
+            onEditGoal={isWide ? selectGoal : undefined}
+            rowActions={rowActions}
+            labels={treeLabels}
+          />
+        </div>
       </div>
       {!isWide && panel && selectedNode && (
         <BottomSheet

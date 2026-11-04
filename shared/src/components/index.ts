@@ -565,6 +565,9 @@ export {
   type ErrorBoundaryLabels,
 } from "./ErrorBoundary";
 export { SkeletonList, type SkeletonListProps } from "./SkeletonList";
+// Load-failure card with retry (#2620) — NoticePanel's danger surface with the
+// body in normal text, shared by the screens' "could not load" state.
+export { LoadErrorCard, type LoadErrorCardProps } from "./LoadErrorCard";
 // Materials primitives (mini-plan Step 1) — StatusFilterChips / ExcerptListItem
 // / DateStrip for the 4-tab Materials views. Sub-barrel so the
 // feature can grow exports without touching here (matches Analytics).

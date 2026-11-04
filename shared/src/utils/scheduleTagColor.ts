@@ -193,3 +193,59 @@ export function tagFaceStyle(color?: string | null): TagFaceStyle | undefined {
   if (!ink) return undefined;
   return { backgroundColor: color, color: ink };
 }
+
+/** The inline style that draws a row's left line in its tag colour. */
+export interface TagLineStyle {
+  borderLeftColor: string;
+}
+
+/**
+ * The tag colour as a month chip's or week block's left line (#2623), or
+ * undefined when there is none — the row then draws the line in its kind's
+ * colour instead.
+ *
+ * #1580 filled the whole face with the tag colour, which turned a busy week
+ * into blocks of one saturated hue and forced the ink to flip with the fill.
+ * The face now stays on the kind's own light token pair, so the title is in the
+ * kind's ink and readable whatever colour the tag is; the tag still wins over
+ * the kind ("種別の色より優先"), on the line. No ink has to be picked for a
+ * line, so only "is it a hex" is asked — the same answer that keeps an unusable
+ * colour out of buildItemTagColors.
+ */
+export function tagLineStyle(color?: string | null): TagLineStyle | undefined {
+  if (!color || !parseHex(color)) return undefined;
+  return { borderLeftColor: color };
+}
+
+/** How much of the colour the light wash of a tinted face carries. */
+const WASH_PERCENT = 18;
+
+/** A holiday's face: its colour as the line, a light wash of it as the face. */
+export interface TintedFaceStyle extends TagLineStyle {
+  backgroundColor: string;
+  backgroundImage: string;
+}
+
+/**
+ * The face a holiday wears (#2623): the colour chosen in Settings (#1626) as
+ * the left line, and a light wash of it over the page's own background as the
+ * face. A holiday has no kind, so the wash is what stands in for a kind face.
+ *
+ * The wash is mixed against the theme's background token rather than drawn
+ * with opacity, so the face stays opaque in both themes (frontend.md: no
+ * transparent faces). It is painted as a background IMAGE over the solid
+ * colour: an engine without `color-mix` drops the image and is left with the
+ * full colour, which is what every holiday wore before, instead of no face.
+ */
+export function tintedFaceStyle(
+  color?: string | null,
+): TintedFaceStyle | undefined {
+  const line = tagLineStyle(color);
+  if (!line) return undefined;
+  const wash = `color-mix(in srgb, ${line.borderLeftColor} ${WASH_PERCENT}%, var(--color-bg-primary))`;
+  return {
+    ...line,
+    backgroundColor: line.borderLeftColor,
+    backgroundImage: `linear-gradient(${wash}, ${wash})`,
+  };
+}
