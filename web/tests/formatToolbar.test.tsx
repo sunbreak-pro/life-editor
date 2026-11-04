@@ -659,3 +659,62 @@ describe("FormatBubbleMenu placement (#2288)", () => {
     expect(options.padding.top).toBe(68);
   });
 });
+
+describe("FormatToolbar groups (#2586)", () => {
+  /** The toolbar's children in order: a button's name, or "|" for a rule. */
+  function layout(): string[] {
+    const bar = screen.getByRole("toolbar", { name: "Formatting" });
+    return Array.from(bar.children).map((el) =>
+      el.getAttribute("role") === "separator"
+        ? "|"
+        : (el.getAttribute("aria-label") ?? "?"),
+    );
+  }
+
+  it("splits the six buttons into three groups with two vertical rules", () => {
+    render(<FormatToolbar editor={makeEditor()} labels={LABELS} />);
+    expect(layout()).toEqual([
+      "Heading 1",
+      "Heading 2",
+      "|",
+      "Bold",
+      "Italic",
+      "Strikethrough",
+      "|",
+      "Insert divider",
+    ]);
+    for (const rule of screen.getAllByRole("separator")) {
+      expect(rule.getAttribute("aria-orientation")).toBe("vertical");
+      expect(rule.classList.contains("w-px")).toBe(true);
+      expect(rule.classList.contains("bg-lumen-border")).toBe(true);
+    }
+  });
+
+  it("keeps the item-link button, in the last group after the divider (#2288)", () => {
+    let editor: Editor | null = null;
+    render(
+      <RichTextEditor
+        noteId="note-1"
+        initialContent={JSON.stringify({ type: "doc", content: [{ type: "paragraph" }] })}
+        onUpdate={() => {}}
+        loadLinkTargets={() => Promise.resolve([])}
+        onEditorChange={(e) => {
+          editor = e;
+        }}
+      />,
+    );
+    if (editor === null) throw new Error("no editor");
+    render(<FormatToolbar editor={editor} labels={LABELS} />);
+    expect(layout()).toEqual([
+      "Heading 1",
+      "Heading 2",
+      "|",
+      "Bold",
+      "Italic",
+      "Strikethrough",
+      "|",
+      "Insert divider",
+      LABELS.itemLink,
+    ]);
+  });
+});

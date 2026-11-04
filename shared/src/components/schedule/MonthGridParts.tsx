@@ -1,7 +1,12 @@
 import { useCallback, useState, type DragEvent } from "react";
-import { CheckSquare, Plus } from "lucide-react";
+import { Calendar, CheckSquare, Plus, Repeat } from "lucide-react";
 import { cn } from "../cn";
-import { tagFaceStyle } from "../../utils/scheduleTagColor";
+import {
+  tagLineStyle,
+  tintedFaceStyle,
+  type TagLineStyle,
+  type TintedFaceStyle,
+} from "../../utils/scheduleTagColor";
 import { type ScheduleItemVariant } from "./scheduleVariantVisuals";
 import type { MonthGridItem } from "./MonthGrid";
 import {
@@ -89,7 +94,10 @@ export function monthCellFold(
   return { shown, overflow: Math.max(0, count - MONTH_MAX_CHIPS) };
 }
 
-/** The variant face a chip wears when no tag colour replaces it (#1580). */
+/**
+ * The kind's light face and its ink. Since #2623 every chip wears it, tagged
+ * or not — the tag colour moved to the left line (`scheduleLine`).
+ */
 export function chipFaceClasses(variant: ScheduleItemVariant): string {
   switch (variant) {
     case "routine":
@@ -99,6 +107,143 @@ export function chipFaceClasses(variant: ScheduleItemVariant): string {
     default:
       return "bg-lumen-chip-event-bg text-lumen-chip-event-fg";
   }
+}
+
+/*
+ * #2623: one colour rule for every Schedule chip and block — the month chips
+ * (both densities), the "他 N 件" rows and the week's timed blocks, and next the
+ * week's all-day chips (#2563), which is why it is exported rather than
+ * written out at each call site.
+ *
+ *   face   the kind's light token pair (chips: chipFaceClasses; week blocks
+ *          keep their own schedule-* family, read at a larger size)
+ *   line   3px on the left, in the tag's colour when one speaks for the item
+ *          (#1580's "タグの色を種別の色より優先" lives on here), else the kind's
+ *   ring   1px accent while selected
+ *
+ * The ink always belongs to the face, so no tag colour can make a title
+ * unreadable. The borders are 0 everywhere else (Tailwind preflight), so the
+ * width class alone draws only the left edge.
+ */
+export const SCHEDULE_LINE = "border-l-[3px]";
+export const SCHEDULE_SELECTED_RING = "ring-1 ring-lumen-accent";
+
+/** The left line's colour when no tag colour speaks for the item. */
+export function kindLineClasses(variant: ScheduleItemVariant): string {
+  switch (variant) {
+    case "routine":
+      return "border-l-lumen-chip-routine-dot";
+    case "task":
+      return "border-l-lumen-chip-task-dot";
+    default:
+      return "border-l-lumen-chip-event-dot";
+  }
+}
+
+/** Classes plus the inline colour for a row's left line. */
+export interface ScheduleLine {
+  className: string;
+  style: TagLineStyle | undefined;
+}
+
+/**
+ * The left line for an item of `variant` coloured by `tagColor`. Inline when
+ * it is the tag's, because that value is user data (colorPresets.ts); a token
+ * class otherwise, including for a colour that is not a hex.
+ */
+export function scheduleLine(
+  variant: ScheduleItemVariant,
+  tagColor?: string | null,
+): ScheduleLine {
+  const style = tagLineStyle(tagColor);
+  return {
+    className: cn(SCHEDULE_LINE, !style && kindLineClasses(variant)),
+    style,
+  };
+}
+
+/** Classes plus the inline colours for a holiday's face. */
+export interface HolidayFace {
+  className: string;
+  style: TintedFaceStyle | undefined;
+}
+
+/**
+ * A holiday in the same light-face-and-line form (#2623), in the colour chosen
+ * in Settings (#1626) rather than a fixed red. A holiday has no kind, so its
+ * face is a wash of that colour and its ink is the page's own. Without a usable
+ * colour it falls back to the neutral face and border tokens.
+ */
+export function holidayFace(color?: string | null): HolidayFace {
+  const style = tintedFaceStyle(color);
+  return {
+    className: cn(
+      SCHEDULE_LINE,
+      "text-lumen-text",
+      !style && "border-l-lumen-border bg-lumen-bg-secondary",
+    ),
+    style,
+  };
+}
+
+/**
+ * A chip's whole colouring — face, ink and line — for any variant, holidays
+ * included. What the month chips, the "他 N 件" rows and (#2563) the week's
+ * all-day chips spread onto their element.
+ */
+export function chipFace(
+  variant: ScheduleItemVariant,
+  tagColor?: string | null,
+): ScheduleLine | HolidayFace {
+  if (variant === "holiday") return holidayFace(tagColor);
+  const line = scheduleLine(variant, tagColor);
+  return {
+    className: cn(chipFaceClasses(variant), line.className),
+    style: line.style,
+  };
+}
+
+/** Already-translated names of the three chip kinds (#2551, §6.4). */
+export interface MonthChipKindLabels {
+  event: string;
+  task: string;
+  routine: string;
+}
+
+/*
+ * The kind mark at the head of a chip (#2551). Until then only a todo carried
+ * one (#593), so an event and a routine told apart by colour alone — which
+ * fails for a reader who cannot see the difference, and fails for everyone
+ * while a tag colour (#1580) replaced the variant face. Holidays keep no mark:
+ * they are not operated and their row says what they are.
+ *
+ * Named (`role="img"`) when the host passes the labels, so a screen reader
+ * hears the kind before the title; decorative otherwise.
+ */
+export function MonthChipKindIcon({
+  variant,
+  labels,
+}: {
+  variant: Exclude<ScheduleItemVariant, "holiday">;
+  labels?: MonthChipKindLabels;
+}) {
+  const Icon =
+    variant === "task"
+      ? CheckSquare
+      : variant === "routine"
+        ? Repeat
+        : Calendar;
+  const label = labels?.[variant];
+  return (
+    <Icon
+      data-chip-kind={variant}
+      className="size-3 shrink-0"
+      strokeWidth={2.5}
+      {...(label
+        ? { role: "img", "aria-label": label }
+        : { "aria-hidden": true })}
+    />
+  );
 }
 
 interface CellBodyProps {
@@ -130,32 +275,35 @@ export function MonthCompactTitles({
        * buttons, because the day stays the tap target on a
        * phone.
        */}
-      {items.slice(0, shown).map((it) => (
-        <span
-          key={it.id}
-          // #1580: a tag's colour REPLACES the variant face —
-          // "which tag" beats "where it came from" once the user
-          // has coloured a tag. Inline, because the value is
-          // user data (colorPresets.ts), and paired with an ink
-          // chosen for contrast rather than assumed.
-          style={tagFaceStyle(it.tagColor)}
-          className={cn(
-            "block w-full overflow-hidden rounded-sm px-0.5 text-[0.625rem] font-medium leading-[0.8125rem]",
-            !it.tagColor && chipFaceClasses(it.variant ?? "event"),
-            // Same #1373 gate as the Desktop chip: only a todo
-            // can be complete.
-            it.variant === "task" && it.completed && "line-through opacity-55",
-          )}
-        >
-          {/* The text layer, and the only thing the fade
+      {items.slice(0, shown).map((it) => {
+        // #2623: the kind's face with the tag colour on the left line, the
+        // same rule as the Desktop chip. A holiday has no kind and takes the
+        // Settings colour instead.
+        const face = chipFace(it.variant ?? "event", it.tagColor);
+        return (
+          <span
+            key={it.id}
+            style={face.style}
+            className={cn(
+              "block w-full overflow-hidden rounded-sm px-0.5 text-[0.625rem] font-medium leading-[0.8125rem]",
+              face.className,
+              // Same #1373 gate as the Desktop chip: only a todo
+              // can be complete.
+              it.variant === "task" &&
+                it.completed &&
+                "line-through opacity-55",
+            )}
+          >
+            {/* The text layer, and the only thing the fade
               touches — see TITLE_FADE. `nowrap` moved down
               here with it, so the mask and the line it fades
               are the same box. */}
-          <span className={cn("block whitespace-nowrap", TITLE_FADE)}>
-            {it.title || " "}
+            <span className={cn("block whitespace-nowrap", TITLE_FADE)}>
+              {it.title || " "}
+            </span>
           </span>
-        </span>
-      ))}
+        );
+      })}
       {/*
        * The remainder, spelled out (#1045): a day with eight
        * items must not look like a day with two. It takes the
@@ -184,6 +332,8 @@ interface FullChipsProps extends CellBodyProps {
   onShowMore?: (anchor: HTMLElement) => void;
   /** Already-translated accessible name for that button (§6.4). */
   showMoreLabel?: string;
+  /** Names for the kind marks (#2551). Omitted, the marks are decorative. */
+  kindLabels?: MonthChipKindLabels;
   onSelectItem?: (id: string) => void;
   onItemActivate?: (id: string, pos: { x: number; y: number }) => void;
   onItemDoubleClick?: (id: string) => void;
@@ -197,6 +347,7 @@ export function MonthFullChips({
   formatMoreCount,
   onShowMore,
   showMoreLabel,
+  kindLabels,
   onSelectItem,
   onItemActivate,
   onItemDoubleClick,
@@ -204,94 +355,89 @@ export function MonthFullChips({
 }: FullChipsProps) {
   return (
     <>
-      {items.slice(0, shown).map((it) =>
-        /*
-         * #1626: a holiday is drawn, not operated. It has no row behind it —
-         * its name and its date are the law's — so there is nothing for a
-         * click to open and nothing a context menu could offer. A <button>
-         * that answers no gesture reads as broken (the same argument #1584
-         * made in reverse for the chips that DO), so it is a span instead,
-         * wearing the chip's own face.
-         */
-        it.variant === "holiday" ? (
-          <span
-            key={it.id}
-            title={it.title}
-            data-holiday-chip={it.date}
-            style={tagFaceStyle(it.tagColor)}
-            className="block truncate rounded px-1 py-0.5 text-left text-xs font-medium"
-          >
-            {it.title}
-          </span>
-        ) : (
-          <button
-            key={it.id}
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (onItemActivate)
-                onItemActivate(it.id, {
-                  x: e.clientX,
-                  y: e.clientY,
-                });
-              else onSelectItem?.(it.id);
-            }}
-            onDoubleClick={(e) => {
-              e.stopPropagation();
-              onItemDoubleClick?.(it.id);
-            }}
-            onContextMenu={
-              onItemContextMenu
-                ? (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onItemContextMenu(it.id, {
-                      x: e.clientX,
-                      y: e.clientY,
-                    });
-                  }
-                : undefined
-            }
-            title={it.title}
-            // #1580 — see the compact body above.
-            style={tagFaceStyle(it.tagColor)}
-            className={cn(
-              // #1584: `cursor-pointer` says it out loud. Tailwind
-              // preflight resets every <button> to the arrow, so a
-              // chip read as decoration until it was clicked.
-              "pointer-events-auto cursor-pointer rounded px-1 py-0.5 text-left text-xs font-medium",
-              // #593: todo chips carry the CheckSquare todo mark,
-              // matching the week grid, so the cue does not vanish
-              // when the same item is viewed by month.
-              it.variant === "task"
-                ? "flex items-center gap-1"
-                : "block truncate",
-              CELL_FOCUS,
-              !it.tagColor && chipFaceClasses(it.variant ?? "event"),
-              // Gated on the variant (#1373): the MCP tool still
-              // writes `completed` for events, and an event struck
-              // through with no control to clear it would be worse
-              // than the toggle that went.
-              it.variant === "task" &&
-                it.completed &&
-                "line-through opacity-55",
-            )}
-          >
-            {it.variant === "task" ? (
-              <>
-                <CheckSquare
-                  aria-hidden
-                  className="size-3 shrink-0"
-                  strokeWidth={2.5}
-                />
-                <span className="truncate">{it.title || " "}</span>
-              </>
-            ) : (
-              it.title || " "
-            )}
-          </button>
-        ),
-      )}
+      {items.slice(0, shown).map((it) => {
+        const face = chipFace(it.variant ?? "event", it.tagColor);
+        return (
+          /*
+           * #1626: a holiday is drawn, not operated. It has no row behind it —
+           * its name and its date are the law's — so there is nothing for a
+           * click to open and nothing a context menu could offer. A <button>
+           * that answers no gesture reads as broken (the same argument #1584
+           * made in reverse for the chips that DO), so it is a span instead,
+           * wearing the chip's own face.
+           */
+          it.variant === "holiday" ? (
+            <span
+              key={it.id}
+              title={it.title}
+              data-holiday-chip={it.date}
+              style={face.style}
+              className={cn(
+                "block truncate rounded px-1 py-0.5 text-left text-xs font-medium",
+                face.className,
+              )}
+            >
+              {it.title}
+            </span>
+          ) : (
+            <button
+              key={it.id}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onItemActivate)
+                  onItemActivate(it.id, {
+                    x: e.clientX,
+                    y: e.clientY,
+                  });
+                else onSelectItem?.(it.id);
+              }}
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                onItemDoubleClick?.(it.id);
+              }}
+              onContextMenu={
+                onItemContextMenu
+                  ? (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onItemContextMenu(it.id, {
+                        x: e.clientX,
+                        y: e.clientY,
+                      });
+                    }
+                  : undefined
+              }
+              title={it.title}
+              // #2623 — see the compact body above.
+              style={face.style}
+              className={cn(
+                // #1584: `cursor-pointer` says it out loud. Tailwind
+                // preflight resets every <button> to the arrow, so a
+                // chip read as decoration until it was clicked.
+                // #2551: every kind carries its mark now (#593 gave
+                // only todos one), so every chip is the same row.
+                "pointer-events-auto flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-left text-xs font-medium",
+                CELL_FOCUS,
+                face.className,
+                // Gated on the variant (#1373): the MCP tool still
+                // writes `completed` for events, and an event struck
+                // through with no control to clear it would be worse
+                // than the toggle that went.
+                it.variant === "task" &&
+                  it.completed &&
+                  "line-through opacity-55",
+              )}
+            >
+              <MonthChipKindIcon
+                variant={it.variant ?? "event"}
+                labels={kindLabels}
+              />
+              <span className="truncate">{it.title || " "}</span>
+            </button>
+          )
+        );
+      })}
       {/*
        * The remainder (#1829). It was a <span>, so on Desktop — where the
        * cell has no face button either — the items past the second one had no

@@ -28,12 +28,18 @@ export interface DuplicateTagCopy {
    * them as chips. Same owners as the count; a tag in the trash is left out.
    */
   tagsOf: (item: ScheduleItem) => WikiTagUnified[];
+  /** #2406: the ids of those same tags, for the creation panel's tag field. */
+  liveTagIdsOf: (item: ScheduleItem) => string[];
   /**
    * The companion that puts `source`'s tags on the saved copy. Resolves the
    * pair that reverses them, or null when no tag landed (the create is then
-   * recorded on its own).
+   * recorded on its own). #2406: `chosen` is the set to carry instead of the
+   * source's own, when the user edited it in the creation panel.
    */
-  copyTagsFrom: (source: ScheduleItem) => CreateCompanion;
+  copyTagsFrom: (
+    source: ScheduleItem,
+    chosen?: readonly string[],
+  ) => CreateCompanion;
 }
 
 export function useDuplicateTagCopy(
@@ -91,11 +97,16 @@ export function useDuplicateTagCopy(
     [tagIdsOf, tagsById],
   );
 
+  const liveTagIdsOf = useCallback(
+    (item: ScheduleItem) => tagsOf(item).map((tag) => tag.id),
+    [tagsOf],
+  );
+
   const copyTagsFrom = useCallback(
-    (source: ScheduleItem): CreateCompanion => {
+    (source: ScheduleItem, chosen?: readonly string[]): CreateCompanion => {
       // Read at press time: the tags the user saw on the source are the ones
       // they asked to carry over.
-      const tagIds = tagIdsOf(source);
+      const tagIds = chosen ?? tagIdsOf(source);
       return async (saved) => {
         const landed: string[] = [];
         for (const tagId of tagIds) {
@@ -134,5 +145,5 @@ export function useDuplicateTagCopy(
     [tagIdsOf, onCopyFailed],
   );
 
-  return { tagCountOf, tagsOf, copyTagsFrom };
+  return { tagCountOf, tagsOf, liveTagIdsOf, copyTagsFrom };
 }

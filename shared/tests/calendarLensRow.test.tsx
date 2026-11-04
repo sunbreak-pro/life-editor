@@ -108,4 +108,25 @@ describe("CalendarLensRow", () => {
     expect(onClear).toHaveBeenCalled();
     expect(onChange).not.toHaveBeenCalled();
   });
+
+  it("heads the chips with the group label, read out once (#2562)", () => {
+    renderRow();
+    const heading = screen.getByText("Group");
+    // The chip group already carries these words as its name; the drawn
+    // heading is for the eye only, so a reader does not hear them twice.
+    expect(heading).toHaveAttribute("aria-hidden", "true");
+    screen.getByRole("group", { name: "Group" });
+  });
+
+  it("draws no heading over an ad-hoc filter with no chips", () => {
+    renderRow({ chips: [], filtered: true });
+    expect(screen.queryByText("Group")).toBeNull();
+  });
+
+  it("draws show-all as a bare text link, not a bordered button (#2562)", () => {
+    renderRow({ activeId: "group-work" });
+    const showAll = screen.getByRole("button", { name: "Show all" });
+    expect(showAll.className).not.toMatch(/(^|\s)border(-|\s|$)/);
+    expect(showAll.className).toContain("hover:underline");
+  });
 });

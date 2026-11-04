@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, render, renderHook, screen, fireEvent } from "@testing-library/react";
 import en from "../../shared/src/i18n/locales/en.json";
 import ja from "../../shared/src/i18n/locales/ja.json";
+import { setSessionUnreachable } from "@life-editor/shared";
 import { OfflineBanner } from "../src/components/OfflineBanner";
 import { useShellChrome } from "../src/hooks/useShellChrome";
 
@@ -64,6 +65,18 @@ describe("OfflineBanner", () => {
     setOnline(true);
     const { container } = render(<OfflineBanner />);
     expect(container.innerHTML).toBe("");
+  });
+
+  it("follows the session gate while the browser says online", () => {
+    setOnline(true);
+    render(<OfflineBanner />);
+    expect(screen.queryByRole("status")).toBeNull();
+
+    act(() => setSessionUnreachable(true));
+    expect(screen.getByRole("status").textContent).toBe("offline.message");
+
+    act(() => setSessionUnreachable(false));
+    expect(screen.queryByRole("status")).toBeNull();
   });
 
   it("says offline, with the count when Todos wait", () => {
@@ -144,19 +157,30 @@ describe("OfflineBanner", () => {
     expect(copy.className).toContain("max-md:min-w-11");
   });
 
-  it("promises what is held and no more, in both catalogs", () => {
+  it("names what is kept and what is not, in both catalogs", () => {
     expect(en.offline.message).toContain("Todo");
+    expect(en.offline.message).toContain("Daily");
     expect(en.offline.message).toContain("pinned notes");
     expect(ja.offline.message).toContain("Todo");
+    expect(ja.offline.message).toContain("デイリー");
     expect(ja.offline.message).toContain("ピン留めしたノート");
     // #2337: other changes need a connection; they are not "never saved".
     expect(en.offline.message).not.toContain("not saved");
     expect(ja.offline.message).not.toContain("保存されません");
-    // The box holds notes as well, so its copy does not say Todo.
-    for (const key of ["pending", "failed", "failedCopied"] as const) {
+    // Daily and note entries wait in the same box, so the counts do not say "Todo".
+    for (const key of [
+      "pending",
+      "failed",
+      "failedCopyManual",
+      "failedCopied",
+    ] as const) {
       expect(en.offline[key]).not.toContain("Todo");
       expect(ja.offline[key]).not.toContain("Todo");
     }
+    expect(en.nav.signOutPromptPending).not.toContain("Todo");
+    expect(ja.nav.signOutPromptPending).not.toContain("Todo");
+    expect(en.offline.dailyMerged).toContain("{{date}}");
+    expect(ja.offline.dailyMerged).toContain("{{date}}");
     expect(Object.keys(ja.offline)).toEqual(Object.keys(en.offline));
     expect(en.nav.signOutPromptPending).toContain("{{n}}");
     expect(ja.nav.signOutPromptPending).toContain("{{n}}");

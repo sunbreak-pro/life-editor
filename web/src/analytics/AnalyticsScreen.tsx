@@ -500,6 +500,7 @@ export function AnalyticsScreen({
   const recordFormats = useMemo(() => {
     const locale = i18n.language.startsWith("ja") ? "ja-JP" : "en-US";
     return {
+      locale,
       number: new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }),
       dateTime: new Intl.DateTimeFormat(locale, {
         dateStyle: "medium",
@@ -623,7 +624,17 @@ export function AnalyticsScreen({
           const number = recordFormats.number.format(value);
           return unit ? `${number} ${unit}` : number;
         },
-        formatNumber: (value: number) => recordFormats.number.format(value),
+        formatNumber: (value: number, fractionDigits?: number) => {
+          if (fractionDigits === undefined) {
+            return recordFormats.number.format(value);
+          }
+          // Intl throws a RangeError past 20 digits; no real step is that fine.
+          const digits = Math.min(fractionDigits, 20);
+          return new Intl.NumberFormat(recordFormats.locale, {
+            minimumFractionDigits: digits,
+            maximumFractionDigits: digits,
+          }).format(value);
+        },
         formatDateTime: (iso: string) => {
           const at = new Date(iso);
           return Number.isNaN(at.getTime())

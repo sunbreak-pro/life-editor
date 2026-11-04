@@ -7,6 +7,7 @@ import {
   todayCalendarKey,
 } from "../../utils/dateKey";
 import { getWorkSessions } from "../../utils/analyticsAggregation";
+import { isPomodoroSession } from "../../utils/timerSessions";
 import { ChartCard } from "./ChartCard";
 import { SummaryRow } from "./SummaryRow";
 
@@ -44,9 +45,7 @@ export function TodayDashboard({
       (sum, s) => sum + (s.duration ?? 0) / 60,
       0,
     );
-    const pomodoroCount = todaySessions.filter(
-      (s) => s.sessionType === "WORK" && s.completed,
-    ).length;
+    const pomodoroCount = todaySessions.filter(isPomodoroSession).length;
 
     const completedToday = nodes.filter(
       (n) =>

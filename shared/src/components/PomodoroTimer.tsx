@@ -498,11 +498,16 @@ function FullscreenFace({
         >
           <RotateCcw aria-hidden="true" className="size-lumen-icon-md" />
         </button>
+        {/* A fixed floor wider than the longest label ("一時停止", "Resume")
+            keeps the pill one width across start / pause / resume, so reset
+            and skip do not slide under the thumb between taps (#2514). It is
+            in rem, so it scales with the Settings font-size step like the
+            label does. */}
         <button
           type="button"
           onClick={onMain}
           className={cn(
-            "inline-flex h-16 items-center gap-2 rounded-full px-8 text-base font-semibold shadow-lumen-md",
+            "inline-flex h-16 min-w-40 items-center justify-center gap-2 whitespace-nowrap rounded-full px-6 text-base font-semibold shadow-lumen-md",
             PHASE_BUTTON[phase],
             PHASE_COLOR_TRANSITION,
           )}

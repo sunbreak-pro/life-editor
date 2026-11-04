@@ -182,3 +182,22 @@ refactor-core の担当分 2 本を出しました。どちらもローカルで
 - **Issue の起票 2（web）**: `web/src/briefing/hooks/useBriefingWrites.ts:336` と `web/src/work/WorkScreen.tsx:417-420` は、圏外で `createTodo` が箱に積んだ行へノートのリンクとタグを書こうとして失敗し、ログだけが残ります。`createTodo` が積んだことを呼び出し側へ伝える必要があります。
 - **Issue の起票 3（schedule）**: `web/src/schedule/useScheduleCreateFlow.ts:328-333` で、圏外で Todo を足すと選んだタグが通知なしで消えます。タグが付かなかったことをトーストで伝える修正です（D-20261101-refactor-2 の回答 A）。
 - **`ANSWERS.md` への転記**: こうだいさんが 2026-11-01 に会話で回答しました。D-20261101-refactor-1 は A（PR #2424 は ±500 行を超えたまま 1 本で通す）、D-20261101-refactor-2 は A（別 Issue で通知を足す）です。`ANSWERS.md` の書き手ではないので、転記をお願いします。台帳への昇格は転記のあとに chat-refactor-core が行います。
+
+## 2026-11-02 → chat-main: 圏外対応の PR 3 本と、Issue 10 件の close の判断をお願いします
+
+- **PR 番号**: PR #2445（#2334）は ready です。PR #2454（#2336）と PR #2460（#2337）は draft です。この 2 本はローカルの verify を通しで回していません。メモリ不足でシステムが CI を止めたためです。どれも merge していません。
+- **merge の順**: #2445 → #2454 → #2460 を勧めます。3 本は互いに衝突するので、1 本 merge するたびに残りへ main を取り込んで直してください。#2454 と #2460 の衝突が最も多く、`outbox.ts`、`offlineDataService.ts`、`AppProviders.tsx` などの 11 ファイルです。
+- **db push**: #2454 の merge の前に、こうだいさんの `0046_upsert_daily_content.sql` の push が要ります。push のあとで migration 末尾の POST-APPLY の確認を流してください。SQL は実 DB で未実行です。
+- **実機と実ブラウザの確認**: 機内モードの iPhone の 3 通り（#2445）、Daily を両方の端末で書く往復（#2454）、ピン留めのノートを両方の端末で書く往復（#2460）、「オフラインで作成」の印が狭い画面に収まるか（#2460）が未確認です。
+- **Issue の close の判断**: #2290・#2325・#2326・#2327・#2328・#2329・#2331・#2332・#2333・#2335 は PR が merge 済みで、Issue だけが open です。確認が済んだものから close してください。#2290 は環境音 v2 の Storage へのアップロードと Egress 1 週間分が残っています。
+- **Issue の起票 1**: テンプレートのノートの改名と削除は、圏外でも押せます。データは失われませんが、失敗のトーストになります。
+- **Issue の起票 2**: ゴミ箱の復元と完全削除も、圏外で押せます。
+- **Issue の起票 3**: 圏外の取り消しの失敗は、理由を言わない `undoFailed` のトーストのままです。
+- **デザインの確認**: 「オフラインで作成」の印と無効なボタンは、計画書が指定した小さな部品なので試作を通していません。`design-first-planning` の例外として扱ってよいかの判断をお願いします。
+
+## 2026-11-04 → chat-main: PR #2454 は merge できます。db push の CLI の版を固定する Issue の起票をお願いします
+
+- **PR #2454（#2336）**: main を取り込み、衝突 4 ファイルを両方の変更を残して直しました。先頭は `021c2076` で、CI は緑、ready です。0046 の db push と POST-APPLY の確認は、こうだいさんが 2026-11-04 に済ませました。残りは merge（こうだいさん）、Daily を両方の端末で書く往復の実ブラウザの確認（chat-main）、#2336 の close です。
+- **CI の赤の原因**: `web/tests/dailyBodyPending.test.tsx` の 1 件が、遅い CI でだけ落ちていました。星の取り消しが読む ref（`getDailyForDate`）は effect で更新されるので、画面に新しい行が出た直後はまだ古いことがあります。テストがこの ref を待つように直しました（`021c2076`）。製品コードは変えていません。
+- **Issue の起票（supabase）**: `supabase/scripts/db-push.sh` の 2 段目は、リポジトリ直下から `npx --yes supabase db push` を呼びます。直下には CLI が入っていないので、`npx` は最新の 3.0.0 を取ってきます。`supabase/node_modules` が無い worktree では、RLS の検査（`check-rls.sh`）も同じく 3.0.0 になります。3.0.0 は `-o csv` の SQL と、エージェントから打った本番への push の両方で確認を求めて止まり、2026-11-04 の 0046 の push が 2 回止まりました。こうだいさんは 2026-11-04 に「2 系に固定する」と答えています。直し方は、2 つのスクリプトが `supabase/node_modules/.bin/supabase`（`package.json` の `^2.98.2`。手元は 2.115.0）を呼び、無ければ `npm ci` を促して止まる形です。
+- **PR #2460（#2337）**: 触っていません。#2454 の merge 後に main を取り込み直します。`scope-overlap.mjs` は、#2454 との衝突として 13 ファイルを出しています。

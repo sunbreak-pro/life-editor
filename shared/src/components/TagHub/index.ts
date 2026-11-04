@@ -39,6 +39,12 @@ export {
   type TagActionsMenuProps,
   type TagActionsMenuState,
 } from "./TagActionsMenu";
+// #2395 — the note header's panel under a tag chip.
+export {
+  TagQuickEditPopover,
+  type TagQuickEditLabels,
+  type TagQuickEditPopoverProps,
+} from "./TagQuickEditPopover";
 export {
   useTagEditDrafts,
   type TagEditDrafts,

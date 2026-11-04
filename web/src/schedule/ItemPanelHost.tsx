@@ -26,6 +26,7 @@ import {
 } from "@life-editor/shared";
 import { ScheduleOverlayHost } from "./ScheduleOverlayHost";
 import { useCreatePanelNotes } from "./useCreatePanelNotes";
+import { useCreatePanelMemoNote } from "./useCreatePanelMemoNote";
 import { useCreatePanelTags } from "./useCreatePanelTags";
 import { useVisibleRangeItems } from "./useVisibleRangeItems";
 import { useRepeatUndoGate } from "./useRepeatUndoGate";
@@ -247,11 +248,21 @@ function ItemPanelSurface({
     notesError,
     attachNote,
     attachNoteAlongside,
+    attachMemoNote,
   } = useCreatePanelNotes({
     dataService,
     active: !!createPanel || notePickerOpen,
     onAttachError: handleAttachError,
     push: undoRedo?.push,
+  });
+  // #2402: only for a caller that asks for it (see ItemPanelOptions).
+  const memoNote = useCreatePanelMemoNote({
+    dataService,
+    attachMemoNote,
+    refetchTodos,
+    push: undoRedo?.push,
+    onOpenNote: request.options.onOpenMemoNote,
+    showToast,
   });
   // #2220: the create panel's tag field — staged there, written here once
   // the new row exists.
@@ -316,6 +327,7 @@ function ItemPanelSurface({
     handlePlaceTodoSubmit,
     handleCreateTodoSubmitAndOpen,
     handlePlaceTodoSubmitAndOpen,
+    handleCreateMemoNote,
   } = useScheduleCreateFlow({
     createPanel,
     setCreatePanel,
@@ -337,6 +349,7 @@ function ItemPanelSurface({
     // would draw no todo "and open" and drop a picked repeat.
     openTodoDetail: setTodoDetailId,
     convertToRepeat: convertSavedToRepeat,
+    memoNote,
   });
 
   const {
@@ -524,6 +537,7 @@ function ItemPanelSurface({
           onPlaceTodo: handlePlaceTodoSubmit,
           onCreateTodoAndOpen: handleCreateTodoSubmitAndOpen,
           onPlaceTodoAndOpen: handlePlaceTodoSubmitAndOpen,
+          onCreateMemoNote: handleCreateMemoNote,
         },
         formatDuration,
         labels: createPanelLabels,

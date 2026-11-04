@@ -22,7 +22,7 @@ import {
 } from "../src/state/outbox";
 import {
   createOfflineDataService,
-  createOutboxSender,
+  createOutboxSender as realOutboxSender,
   sessionOwner,
 } from "../src/services/offlineDataService";
 import type { DataService } from "../src/services/DataService";
@@ -70,15 +70,21 @@ afterEach(() => {
   delete (navigator as { locks?: unknown }).locks;
 });
 
-/** The sender, in the suites that only send Todos. */
+const box = async () =>
+  (await readOutbox(user)).flatMap((e) =>
+    e.kind === "todo.create" ? [e.payload.node] : [],
+  );
+
+/**
+ * These suites send Todos only: the Daily half is in offlineDaily.test.tsx and
+ * the note half in offlineNotes.test.tsx.
+ */
 const todoSender = (
-  inner: Pick<DataService, "createTodoIfAbsent">,
-  ...rest: Parameters<typeof createOutboxSender> extends [unknown, ...infer R]
+  inner: Parameters<typeof stubDataService>[0],
+  ...rest: Parameters<typeof realOutboxSender> extends [unknown, ...infer R]
     ? R
     : never
-) => createOutboxSender(inner as DataService, ...rest);
-
-const box = async () => (await readOutbox(user)).map((e) => e.payload.node);
+) => realOutboxSender(stubDataService(inner), ...rest);
 
 function wrap(over: Record<string, unknown> = {}) {
   return createOfflineDataService(
@@ -785,6 +791,36 @@ describe("sessionOwner", () => {
     expect(await resolve()).toBe("u");
     expect(await resolve()).toBe("u");
     expect(await resolve()).toBeNull();
+  });
+
+  it("names the stored session's user when a page opens offline (#2334)", async () => {
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    const getSession = vi.fn();
+    const resolve = sessionOwner({ getSession }, async () => "stored");
+    expect(await resolve()).toBe("stored");
+    // That wait can last 50 seconds, so the stored answer comes first.
+    expect(getSession).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
+  });
+
+  it("falls back on the stored session when the refresh cannot reach the network (#2334)", async () => {
+    const getSession = vi.fn().mockResolvedValue({
+      data: { session: null },
+      error: new Error("Failed to fetch"),
+    });
+    expect(await sessionOwner({ getSession }, async () => "stored")()).toBe(
+      "stored",
+    );
+  });
+
+  it("does not bring back a session that was signed out (#2334)", async () => {
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    const getSession = vi.fn().mockResolvedValue({
+      data: { session: null },
+      error: null,
+    });
+    expect(await sessionOwner({ getSession }, async () => null)()).toBeNull();
+    vi.restoreAllMocks();
   });
 });
 

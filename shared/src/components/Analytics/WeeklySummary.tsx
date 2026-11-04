@@ -5,6 +5,7 @@ import {
   calendarWeekRange,
   getWorkSessions,
 } from "../../utils/analyticsAggregation";
+import { isManualSession } from "../../utils/timerSessions";
 import { WEEK_STARTS_ON } from "../../utils/scheduleGridLayout";
 import { dateKeyOfInstant, formatDateKey } from "../../utils/dateKey";
 import { ChartCard } from "./ChartCard";
@@ -48,7 +49,8 @@ export function WeeklySummary({
 
     return {
       workMinutes: work.reduce((sum, s) => sum + (s.duration ?? 0) / 60, 0),
-      sessionCount: work.length,
+      // #2407: a hand-entered amount adds to the minutes, not to the count.
+      sessionCount: work.filter((s) => !isManualSession(s)).length,
       completedTodos,
     };
   }, [sessions, nodes]);

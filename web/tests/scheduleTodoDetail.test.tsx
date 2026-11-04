@@ -40,6 +40,9 @@ vi.mock("@life-editor/shared", async (importOriginal) => ({
   // #2109: the goal row's data. No goals here — its own suite
   // (scheduleTodoDetailGoals.test.tsx) drives it with a Sync provider.
   useGoalLinkSnapshot: () => ({ state: null, writeLinks: async () => {} }),
+  // #2553: the logged-time read follows the `sessions` Sync domain; no
+  // Provider here, and no write lands from this suite.
+  useSyncDomains: () => 0,
 }));
 
 /*
@@ -85,8 +88,20 @@ vi.mock("../src/wikitag/TagPicker", () => ({
   // glyph. #1000's 「タグの付け外し」 clause reads the same element from the
   // other end — it asks whether the tag surface is THERE and pointed at this
   // row, which is itemId, not itemRole.
-  TagPicker: ({ itemId, itemRole }: { itemId: string; itemRole?: string }) => (
-    <div data-testid="tag-picker" data-item-role={itemRole ?? "none"}>
+  TagPicker: ({
+    itemId,
+    itemRole,
+    addLabel,
+  }: {
+    itemId: string;
+    itemRole?: string;
+    addLabel?: string;
+  }) => (
+    <div
+      data-testid="tag-picker"
+      data-item-role={itemRole ?? "none"}
+      data-add-label={addLabel}
+    >
       {itemId}
     </div>
   ),
@@ -447,17 +462,17 @@ describe("ScheduleTodoDetail — the body it inherited (#1153)", () => {
     );
   });
 
-  it("gives narrow the touch status row and Desktop the cycle button", () => {
-    // #470's split, kept: on narrow this sheet is the only way into a todo,
-    // and a cycle button is a poor target for a thumb.
-    const narrow = renderDetail({ isWide: false });
-    fireEvent.click(screen.getByText("todoDetail.statusDone"));
-    expect(narrow.setStatus).toHaveBeenCalledWith(TODO.id, "DONE");
-    narrow.unmount();
-
-    const wide = renderDetail({ isWide: true });
-    expect(screen.queryByText("todoDetail.statusDone")).toBeNull();
-    expect(wide.setStatus).not.toHaveBeenCalled();
+  it("gives both widths the two-choice status row (#2553)", () => {
+    // #470 gave it to narrow, where a cycle button is a poor target for a
+    // thumb. #2553 gives it to Desktop too: the prototype draws 「未着手 | 完了」
+    // on both, the same way the event editor's fields match across widths.
+    for (const isWide of [false, true]) {
+      const view = renderDetail({ isWide });
+      fireEvent.click(screen.getByText("todoDetail.statusDone"));
+      expect(view.setStatus).toHaveBeenCalledWith(TODO.id, "DONE");
+      expect(view.toggleStatus).not.toHaveBeenCalled();
+      view.unmount();
+    }
   });
 });
 
@@ -527,5 +542,220 @@ describe("ScheduleTodoDetail — the prototype's tag rows (#2219)", () => {
     expect(
       screen.queryByRole("button", { name: "scheduleScreen.attachNote" }),
     ).toBeNull();
+  });
+});
+
+/*
+ * #2401 — the panel edits everything, so the date and time reach the write here:
+ * same press, same single write, same guard as the title and the body.
+ */
+describe("ScheduleTodoDetail — the date and time (#2401)", () => {
+  const TIMED: TodoNode = {
+    ...TODO,
+    scheduledAt: new Date(2026, 7, 15, 13, 0).toISOString(),
+    scheduledEndAt: new Date(2026, 7, 15, 14, 0).toISOString(),
+    isAllDay: false,
+  };
+  const dateField = () =>
+    screen.getByLabelText("scheduleScreen.date") as HTMLInputElement;
+
+  it.each([
+    ["Desktop", true],
+    ["Mobile", false],
+  ])("reads the row from the todo's slot on %s", (_name, isWide) => {
+    renderDetail({ todoNodes: [TIMED], isWide });
+    screen.getByText("todoDetail.schedule");
+    expect(dateField().value).toBe("2026-08-15");
+    expect(
+      (
+        screen.getByRole("combobox", {
+          name: "scheduleScreen.startTime",
+        }) as HTMLInputElement
+      ).value,
+    ).toBe("13:00");
+  });
+
+  it("writes a changed date and title in ONE write, under the tree's undo label", () => {
+    const { updateNode } = renderDetail({ todoNodes: [TIMED] });
+    makeDirty();
+    fireEvent.change(dateField(), { target: { value: "2026-08-20" } });
+    fireEvent.click(screen.getByText("todoDetail.save"));
+    expect(updateNode).toHaveBeenCalledTimes(1);
+    expect(updateNode).toHaveBeenCalledWith(
+      TODO.id,
+      {
+        title: "書き換えた",
+        scheduledAt: new Date(2026, 7, 20, 13, 0).toISOString(),
+        scheduledEndAt: new Date(2026, 7, 20, 14, 0).toISOString(),
+        isAllDay: false,
+      },
+      { undoLabel: "todoTreeChange" },
+    );
+  });
+
+  it("gives a dateless todo its first day, all day", () => {
+    const { updateNode } = renderDetail();
+    fireEvent.change(dateField(), { target: { value: "2026-08-20" } });
+    fireEvent.click(screen.getByText("todoDetail.save"));
+    expect(updateNode.mock.calls[0][1]).toEqual({
+      scheduledAt: new Date(2026, 7, 20).toISOString(),
+      isAllDay: true,
+    });
+  });
+
+  it("takes the todo off the calendar when the date is emptied", () => {
+    const { updateNode } = renderDetail({ todoNodes: [TIMED] });
+    fireEvent.change(dateField(), { target: { value: "" } });
+    fireEvent.click(screen.getByText("todoDetail.save"));
+    expect(updateNode.mock.calls[0][1]).toEqual({
+      scheduledAt: undefined,
+      scheduledEndAt: undefined,
+      isAllDay: false,
+    });
+  });
+
+  it("asks before a close throws a pending date away", async () => {
+    const { askConfirm, onClose } = renderDetail({ todoNodes: [TIMED] });
+    fireEvent.change(dateField(), { target: { value: "2026-08-20" } });
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() => expect(askConfirm).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+  });
+
+  /*
+   * 22:00 to next-day 00:00, as the grid writes a block dragged to the bottom
+   * of the day. The slot reads it as a start after its end, and it has to stay
+   * two hours long on the way back through the save.
+   */
+  describe("an overnight todo", () => {
+    const OVERNIGHT: TodoNode = {
+      ...TODO,
+      scheduledAt: new Date(2026, 7, 15, 22, 0).toISOString(),
+      scheduledEndAt: new Date(2026, 7, 16, 0, 0).toISOString(),
+      isAllDay: false,
+    };
+    const startField = () =>
+      screen.getByRole("combobox", {
+        name: "scheduleScreen.startTime",
+      }) as HTMLInputElement;
+    const moveStart = (value: string) => {
+      fireEvent.change(startField(), { target: { value } });
+      fireEvent.blur(startField());
+      fireEvent.click(screen.getByText("todoDetail.save"));
+    };
+
+    it("keeps its two hours when the start moves earlier, ending the same day", () => {
+      const { updateNode } = renderDetail({ todoNodes: [OVERNIGHT] });
+      moveStart("21:00");
+      expect(updateNode.mock.calls[0][1]).toEqual({
+        scheduledAt: new Date(2026, 7, 15, 21, 0).toISOString(),
+        scheduledEndAt: new Date(2026, 7, 15, 23, 0).toISOString(),
+        isAllDay: false,
+      });
+    });
+
+    it("stays overnight when the start moves later, so it does not turn all-day", () => {
+      const { updateNode } = renderDetail({ todoNodes: [OVERNIGHT] });
+      moveStart("23:00");
+      expect(updateNode.mock.calls[0][1]).toEqual({
+        scheduledAt: new Date(2026, 7, 15, 23, 0).toISOString(),
+        scheduledEndAt: new Date(2026, 7, 16, 1, 0).toISOString(),
+        isAllDay: false,
+      });
+    });
+
+    it("has nothing to save after all-day on and off", () => {
+      const { updateNode } = renderDetail({ todoNodes: [OVERNIGHT] });
+      const allDay = () =>
+        screen.getByRole("checkbox", { name: "scheduleScreen.allDay" });
+      fireEvent.click(allDay());
+      fireEvent.click(allDay());
+      expect(startField().value).toBe("22:00");
+      expect(
+        (
+          screen.getByRole("combobox", {
+            name: "scheduleScreen.endTime",
+          }) as HTMLInputElement
+        ).value,
+      ).toBe("00:00");
+      const save = screen.getByText("todoDetail.save") as HTMLButtonElement;
+      expect(save.disabled).toBe(true);
+      fireEvent.click(save);
+      expect(updateNode).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe("ScheduleTodoDetail — the name field's keys (#2401)", () => {
+  const nameField = () => screen.getByLabelText("todoDetail.titleLabel");
+
+  it("closes on Esc without asking while nothing is pending", async () => {
+    const { askConfirm, onClose } = renderDetail();
+    fireEvent.keyDown(nameField(), { key: "Escape" });
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+    expect(askConfirm).not.toHaveBeenCalled();
+  });
+
+  it("asks on Esc with a draft, and stays on no", async () => {
+    const { askConfirm, onClose } = renderDetail();
+    askConfirm.mockResolvedValue(false);
+    makeDirty();
+    fireEvent.keyDown(nameField(), { key: "Escape" });
+    await waitFor(() => expect(askConfirm).toHaveBeenCalledTimes(1));
+    await act(async () => {});
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("leaves the Esc that cancels an IME conversion alone", async () => {
+    const { onClose } = renderDetail();
+    fireEvent.keyDown(nameField(), { key: "Escape", isComposing: true });
+    fireEvent.keyDown(nameField(), { key: "Escape", keyCode: 229 });
+    await act(async () => {});
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("saves on Enter, not on the Enter that confirms an IME conversion", () => {
+    const { updateNode } = renderDetail();
+    makeDirty();
+    fireEvent.keyDown(nameField(), { key: "Enter", keyCode: 229 });
+    expect(updateNode).not.toHaveBeenCalled();
+    fireEvent.keyDown(nameField(), { key: "Enter" });
+    expect(updateNode).toHaveBeenCalledTimes(1);
+  });
+
+  it("will not save an empty name", () => {
+    const { updateNode } = renderDetail();
+    fireEvent.change(nameField(), { target: { value: "" } });
+    fireEvent.keyDown(nameField(), { key: "Enter" });
+    fireEvent.click(screen.getByText("todoDetail.save"));
+    expect(updateNode).not.toHaveBeenCalled();
+  });
+});
+
+describe("ScheduleTodoDetail — Cancel (#2401)", () => {
+  it("closes straight away from a clean panel", async () => {
+    const { askConfirm, onClose } = renderDetail();
+    fireEvent.click(screen.getByRole("button", { name: "common.cancel" }));
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+    expect(askConfirm).not.toHaveBeenCalled();
+  });
+
+  it("asks first with a draft", async () => {
+    const { askConfirm, onClose } = renderDetail();
+    askConfirm.mockResolvedValue(false);
+    makeDirty();
+    fireEvent.click(screen.getByRole("button", { name: "common.cancel" }));
+    await waitFor(() => expect(askConfirm).toHaveBeenCalledTimes(1));
+    await act(async () => {});
+    expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe("ScheduleTodoDetail — the tag row's words (#2401)", () => {
+  it("names the add button", () => {
+    renderDetail();
+    expect(
+      screen.getByTestId("tag-picker").getAttribute("data-add-label"),
+    ).toBe("todoDetail.addTag");
   });
 });

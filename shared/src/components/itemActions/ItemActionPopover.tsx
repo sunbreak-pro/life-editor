@@ -1,4 +1,6 @@
 import {
+  useCallback,
+  useEffect,
   useId,
   useLayoutEffect,
   useRef,
@@ -14,6 +16,7 @@ import { ItemActionRow } from "./ItemActionRow";
 import { clampToViewport, useFloatingDismiss } from "./floating";
 import { TimeRangeField } from "../TimeRangeField";
 import { isImeComposing } from "../../utils/imeGuard";
+import { hasOpenDialogLayer } from "../../hooks/useDialogA11y";
 
 /*
  * ItemActionPopover (Issue #307) — the generic click bubble for an item.
@@ -135,6 +138,16 @@ export interface ItemActionPopoverProps {
   autoFocus?: boolean;
   /** #2222: makes the summary editable in place. See the file comment. */
   quickEdit?: ItemQuickEdit;
+  /**
+   * The summary opens Modals of its own (#2395: TagIconPicker's panel of every
+   * icon, and the host's question before a delete). Two things then have to
+   * change, and both are this one fact: the panel sits under the Modal (z-40
+   * against the Modal's z-50, where the default z-[60] would draw it on top of
+   * its own child), and a press in that Modal is not "outside". The Modal portals
+   * to <body>, so without this the press that picks an icon would close the panel
+   * and the picker with it.
+   */
+  hostsDialogs?: boolean;
 }
 
 const FIELD =
@@ -161,6 +174,7 @@ export function ItemActionPopover({
   layout = "stack",
   autoFocus = false,
   quickEdit,
+  hostsDialogs = false,
 }: ItemActionPopoverProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -171,7 +185,31 @@ export function ItemActionPopover({
   // #2222: the in-place form's draft; null while the summary is showing.
   const [editDraft, setEditDraft] = useState<ItemQuickEditValue | null>(null);
   const [measuredHeight, setMeasuredHeight] = useState<number | null>(null);
-  useFloatingDismiss(panelRef, onClose);
+  /*
+   * Read when the press or the key STARTS, not when it reaches the dismiss
+   * listener. A press on a Modal's backdrop closes that Modal from <body>, and
+   * the browser commits the close in the microtask before the event goes on to
+   * document, so a read there finds no layer and takes this panel down with the
+   * Modal it only meant to close.
+   */
+  const dialogOpenAtEventStart = useRef(false);
+  useEffect(() => {
+    if (!hostsDialogs) return;
+    const note = () => {
+      dialogOpenAtEventStart.current = hasOpenDialogLayer();
+    };
+    document.addEventListener("mousedown", note, true);
+    document.addEventListener("keydown", note, true);
+    return () => {
+      document.removeEventListener("mousedown", note, true);
+      document.removeEventListener("keydown", note, true);
+    };
+  }, [hostsDialogs]);
+  const dismiss = useCallback(() => {
+    if (hostsDialogs && dialogOpenAtEventStart.current) return;
+    onClose();
+  }, [hostsDialogs, onClose]);
+  useFloatingDismiss(panelRef, dismiss);
   const editing = editDraft != null;
 
   const inlineAction =
@@ -477,7 +515,10 @@ export function ItemActionPopover({
       ref={panelRef}
       role="dialog"
       aria-label={label}
-      className="fixed z-[60] overflow-hidden rounded-lumen-md border border-lumen-border bg-lumen-bg py-1 shadow-lumen-lg"
+      className={cn(
+        "fixed overflow-hidden rounded-lumen-md border border-lumen-border bg-lumen-bg py-1 shadow-lumen-lg",
+        hostsDialogs ? "z-40" : "z-[60]",
+      )}
       // A panel too tall for the viewport is capped and scrolls inside itself
       // rather than running off both edges. `overflowY` overrides the class's
       // `overflow-hidden` on that axis only, so the rounded corners still clip.

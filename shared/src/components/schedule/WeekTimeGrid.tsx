@@ -8,9 +8,9 @@ import {
 } from "react";
 import { CheckSquare, Repeat } from "lucide-react";
 import { cn } from "../cn";
-import { tagFaceStyle } from "../../utils/scheduleTagColor";
 import {
-  blockTitleLines,
+  blockTitleFit,
+  DEFAULT_BLOCK_TITLE_METRICS,
   dayOfWeek,
   minutesFromMidnight,
   parseDateKey,
@@ -22,10 +22,16 @@ import {
   minutesToTime,
   snapMinutes,
   DEFAULT_SNAP_MINUTES,
+  type BlockTitleMetrics,
   type HourRange,
 } from "../../utils/scheduleGridLayout";
 import { useWeekTimeGridDrag } from "./useWeekTimeGridDrag";
 import { MonthMorePanel } from "./MonthMorePanel";
+import {
+  SCHEDULE_SELECTED_RING,
+  holidayFace,
+  scheduleLine,
+} from "./MonthGridParts";
 import {
   hasTodoDragData,
   readTodoDragData,
@@ -89,10 +95,11 @@ export interface WeekTimeGridItem {
    */
   variant?: ScheduleItemVariant;
   /**
-   * The colour of the tag that speaks for this item (#1580), or undefined to
-   * keep the variant colours. A hex, because it is the user's own value off
-   * `wiki_tags.color` — the host resolves WHICH tag (buildItemTagColors) and
-   * this is only the answer.
+   * The colour of the tag that speaks for this item (#1580), drawn as the
+   * left line since #2623, or undefined to draw that line in the kind's
+   * colour (a holiday: the Settings colour, #1626). A hex, because it is the
+   * user's own value off `wiki_tags.color` — the host resolves WHICH tag
+   * (buildItemTagColors) and this is only the answer.
    */
   tagColor?: string | null;
 }
@@ -294,10 +301,10 @@ function defaultFormatDayDate(dateKey: string): string {
 }
 
 /**
- * Face classes for a timed block by provenance (W8). Routine = 藍 face (an
- * inner left band is rendered separately); event (default) = 紫 face + border;
- * todo = blue face (a CheckSquare glyph is rendered separately, #593). Every
- * variant carries a non-hue cue — band / border / glyph — so provenance never
+ * Light face and ink for a timed block by provenance (W8): routine = 藍,
+ * event (default) = 紫, todo = blue. Since #2623 every block wears it, tagged
+ * or not, and the left line (`scheduleLine`) carries the tag colour. The
+ * glyphs (Repeat, CheckSquare #593) stay the non-hue cue, so provenance never
  * relies on hue alone.
  */
 function variantBlockClasses(variant: ScheduleItemVariant): string {
@@ -307,7 +314,7 @@ function variantBlockClasses(variant: ScheduleItemVariant): string {
     case "task":
       return "bg-lumen-schedule-task-bg text-lumen-chip-task-fg";
     default:
-      return "border border-lumen-schedule-event-border bg-lumen-schedule-event-bg text-lumen-chip-event-fg";
+      return "bg-lumen-schedule-event-bg text-lumen-chip-event-fg";
   }
 }
 
@@ -484,6 +491,56 @@ export function WeekTimeGrid({
     onSelectItem,
     onItemActivate,
   });
+
+  /*
+   * #2478: the px width of one day column, which decides (with the block's
+   * height) how many lines a block title may use. A narrow column would
+   * otherwise wrap a tall block's title a character per line. The columns are
+   * equal `1fr` shares of the time grid, so watching the grid is enough; null
+   * until measured (and in jsdom), which keeps the height-only rule (#1835).
+   *
+   * The width is judged against the real type: one title character measured
+   * from a hidden probe in the title's own classes, and the root font size
+   * the rem paddings follow. Both move with the Settings font-size step, and
+   * the probe is observed too, so a step change re-measures without a resize.
+   * A probe that reads 0 (jsdom) keeps the default metrics.
+   */
+  const [colWidthPx, setColWidthPx] = useState<number | null>(null);
+  const [titleMetrics, setTitleMetrics] = useState<BlockTitleMetrics>(
+    DEFAULT_BLOCK_TITLE_METRICS,
+  );
+  const charProbeRef = useRef<HTMLSpanElement | null>(null);
+  useEffect(() => {
+    const grid = timeGridRef.current;
+    if (!grid || typeof ResizeObserver === "undefined") return;
+    const measure = (): void => {
+      const col = grid.querySelector<HTMLElement>("[data-week-grid-day]");
+      const w = col ? col.getBoundingClientRect().width : 0;
+      setColWidthPx(w > 0 ? w : null);
+      const charPx = charProbeRef.current?.getBoundingClientRect().width ?? 0;
+      const remPx = parseFloat(
+        getComputedStyle(document.documentElement).fontSize,
+      );
+      const next: BlockTitleMetrics =
+        charPx > 0
+          ? {
+              charPx,
+              remPx:
+                Number.isFinite(remPx) && remPx > 0
+                  ? remPx
+                  : DEFAULT_BLOCK_TITLE_METRICS.remPx,
+            }
+          : DEFAULT_BLOCK_TITLE_METRICS;
+      setTitleMetrics((prev) =>
+        prev.charPx === next.charPx && prev.remPx === next.remPx ? prev : next,
+      );
+    };
+    const ro = new ResizeObserver(measure);
+    ro.observe(grid);
+    if (charProbeRef.current) ro.observe(charProbeRef.current);
+    measure();
+    return () => ro.disconnect();
+  }, [timeGridRef, days]);
 
   // Bucket items per day key once.
   const byDay = useMemo(() => {
@@ -719,13 +776,19 @@ export function WeekTimeGrid({
                      * wearing the one colour Settings chose for all of them.
                      */
                     if (it.variant === "holiday") {
+                      // #2623: the Settings colour as a light face and a
+                      // line, the same form as the month's holiday chip.
+                      const face = holidayFace(it.tagColor);
                       return (
                         <span
                           key={it.id}
                           title={it.title}
                           data-holiday-chip={it.date}
-                          style={tagFaceStyle(it.tagColor)}
-                          className="block w-full truncate rounded px-1 py-0.5 text-left text-xs font-medium"
+                          style={face.style}
+                          className={cn(
+                            "block w-full truncate rounded px-1 py-0.5 text-left text-xs font-medium",
+                            face.className,
+                          )}
                         >
                           {it.title}
                         </span>
@@ -843,6 +906,16 @@ export function WeekTimeGrid({
         >
           {/* Hour axis */}
           <div className="relative border-r border-lumen-border">
+            {/* #2478: one title character in the block title's own type,
+                measured to judge whether a title can wrap. Never seen. */}
+            <span
+              ref={charProbeRef}
+              aria-hidden
+              data-week-grid-char-probe
+              className="pointer-events-none invisible absolute left-0 top-0 whitespace-nowrap text-xs font-medium"
+            >
+              あ
+            </span>
             {hours.map((h) => (
               <div key={h} style={{ height: hourHeight }} className="relative">
                 <span className="absolute -top-1.5 right-1 text-xs tabular-nums text-lumen-text-secondary">
@@ -906,11 +979,30 @@ export function WeekTimeGrid({
                   // a mark under another block would point at nothing.
                   const marked = it.id === markedId;
                   const blockZ = marked ? 19 : 1 + Math.min(p.stackOrder, 18);
+                  // #2623: every block draws the 3px left line, in the tag's
+                  // colour or else the kind's.
+                  const line = scheduleLine(variant, it.tagColor);
                   // #1835: the block's height in px, which is what decides how
                   // many lines its title may use. `heightPct` is a share of
                   // the day body, and the body's px height is known here.
-                  const titleLines = blockTitleLines(
+                  // #2478: and its width, so a narrow column truncates one
+                  // line (dropping the glyph first) instead of wrapping a
+                  // character per line.
+                  const { lines: titleLines, showGlyph } = blockTitleFit(
                     (p.heightPct / 100) * bodyHeight,
+                    colWidthPx == null
+                      ? null
+                      : (colWidthPx * p.widthPct) / 100 - 2,
+                    {
+                      glyph: variant === "routine" || variant === "task",
+                      // #2623: the 3px left line on every block. band (2px)
+                      // plus border (2px) over-counts it by a pixel, which
+                      // keeps the fit on the safe side of a wrap. A single
+                      // 3px option in blockTitleFit would say it exactly.
+                      band: true,
+                      border: true,
+                    },
+                    titleMetrics,
                   );
                   // A-1 made todo chips read-only; A-2 (#297) opts them back in
                   // via `todoInteractive` so a drag writes scheduledAt. Events/
@@ -949,14 +1041,11 @@ export function WeekTimeGrid({
                         // raising the one under the pointer would cover the
                         // block above it until the pointer left the stack.
                         "absolute z-(--block-z) overflow-hidden rounded px-1 py-0.5 text-left text-xs leading-tight focus-visible:z-20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
-                        // #1580: the tag's colour REPLACES the variant face
-                        // — "which tag" beats "where it came from" once the
-                        // user has coloured a tag. The provenance GLYPHS (the
-                        // Repeat, the CheckSquare) and the routine's left band
-                        // stay, so nothing about where a block came from is
-                        // lost, only which channel says it.
-                        !it.tagColor && variantBlockClasses(variant),
-                        variant === "routine" && "pl-1.5",
+                        // #2623: the kind's light face always, and the tag's
+                        // colour (#1580) only on the left line — a filled tag
+                        // face turned a busy week into one saturated block.
+                        variantBlockClasses(variant),
+                        line.className,
                         // #2221: a block laid over another gets an edge in the
                         // grid's own colour and a light shadow, so the line
                         // between the two reads even when they share a tag.
@@ -965,7 +1054,7 @@ export function WeekTimeGrid({
                         movable && "cursor-move",
                         // The selection keeps its place in the stack: lifting
                         // it would bury a shorter block that starts inside it.
-                        selected && "ring-2 ring-lumen-accent",
+                        selected && SCHEDULE_SELECTED_RING,
                         marked && "le-focus-mark",
                         // Gated on the variant (#1373): the MCP tool still
                         // writes `completed` for events, and an event struck
@@ -977,7 +1066,7 @@ export function WeekTimeGrid({
                       )}
                       style={
                         {
-                          ...tagFaceStyle(it.tagColor),
+                          ...line.style,
                           top: `${p.topPct}%`,
                           height: `${p.heightPct}%`,
                           left: `calc(${p.offsetPct}% + 1px)`,
@@ -989,23 +1078,6 @@ export function WeekTimeGrid({
                       data-week-grid-depth={p.depth}
                       data-focus-mark={marked || undefined}
                     >
-                      {/* Routine provenance: inner left band (藍) */}
-                      {variant === "routine" && (
-                        <span
-                          aria-hidden
-                          className={cn(
-                            "absolute inset-y-0 left-0 w-[3px]",
-                            // #1580: on a tag-coloured block the fixed band
-                            // token can land within a shade of the fill and
-                            // disappear. `currentColor` is the ink the fill
-                            // was already contrast-checked against, so the
-                            // band is guaranteed visible on any tag colour.
-                            it.tagColor
-                              ? "bg-current opacity-60"
-                              : "bg-lumen-chip-routine-dot",
-                          )}
-                        />
-                      )}
                       <span
                         className={cn(
                           "flex gap-1 font-medium",
@@ -1014,7 +1086,7 @@ export function WeekTimeGrid({
                           titleLines === 1 ? "items-center" : "items-start",
                         )}
                       >
-                        {variant === "routine" && (
+                        {showGlyph && variant === "routine" && (
                           <Repeat
                             aria-hidden
                             className="size-3 shrink-0"
@@ -1025,7 +1097,7 @@ export function WeekTimeGrid({
                             Todos mark — as the todo counterpart of the
                             routine's Repeat. Static (not a completion state:
                             done already reads via line-through). */}
-                        {variant === "task" && (
+                        {showGlyph && variant === "task" && (
                           <CheckSquare
                             aria-hidden
                             className="size-3 shrink-0"

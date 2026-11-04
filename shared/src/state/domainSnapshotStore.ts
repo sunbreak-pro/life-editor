@@ -5,6 +5,7 @@ import {
   writePersistedSnapshots,
   type PersistedSnapshot,
 } from "./persistentCache";
+import { forgetStoredNoteBodies, hydrateNoteBodies } from "./noteBodyStore";
 import type { ChangeCursor } from "../services/itemChanges";
 
 /**
@@ -146,6 +147,14 @@ export function readDomainSnapshot<T>(
   return { data: entry.data as T, fresh: entry.fresh, cursor: entry.cursor };
 }
 
+/** Has this DataService read `key` in this page, not just off the device? */
+export function isDomainSnapshotRead(
+  key: DomainSnapshotKey,
+  dataService: unknown,
+): boolean {
+  return snapshots.get(key)?.dataService === dataService;
+}
+
 /** Record the result of a successful read, replacing any earlier one. */
 export function writeDomainSnapshot<T>(
   key: DomainSnapshotKey,
@@ -227,13 +236,17 @@ export async function hydrateDomainSnapshots(
     cancelPendingWrites();
     owner = userId;
   }
-  const load = readPersistedSnapshots(userId).then(
-    (rows) => {
-      if (owner !== userId) return;
-      for (const row of rows) restore(userId, row);
-    },
-    (e: unknown) => warn(e),
-  );
+  const load = Promise.all([
+    readPersistedSnapshots(userId).then(
+      (rows) => {
+        if (owner !== userId) return;
+        for (const row of rows) restore(userId, row);
+      },
+      (e: unknown) => warn(e),
+    ),
+    // #2334: pinned notes' bodies come back in the same wait.
+    hydrateNoteBodies(userId).catch((e: unknown) => warn(e)),
+  ]);
   let timer: ReturnType<typeof setTimeout> | null = null;
   const timeout = new Promise<void>((resolve) => {
     timer = setTimeout(resolve, timeoutMs);
@@ -253,6 +266,7 @@ export async function forgetDomainSnapshots(userId: string): Promise<void> {
     cancelPendingWrites();
     owner = null;
   }
+  forgetStoredNoteBodies(userId);
   try {
     await deletePersistentCache(userId);
   } catch (e) {

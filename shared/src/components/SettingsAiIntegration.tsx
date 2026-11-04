@@ -254,10 +254,13 @@ export function SettingsAiIntegration({
             {customize.description}
           </p>
           <div>
+            {/* #2518: `secondary` fills with bg-lumen-bg-secondary, the same
+                colour as this tile, so without a border the button has no
+                outline and reads as plain text. */}
             <Button
               variant="secondary"
               onClick={customize.onOpen}
-              className="max-md:min-h-11"
+              className="border border-lumen-border max-md:min-h-11"
             >
               {customize.button}
             </Button>

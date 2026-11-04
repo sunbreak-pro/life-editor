@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import {
+  i18n,
   UndoRedoProvider,
   WikiTagsUnifiedProvider,
   useUndoRedoContext,
@@ -10,6 +11,7 @@ import {
 } from "@life-editor/shared";
 import { createBumpableSync, stubDataService } from "./helpers";
 import { useCreatePanelNotes } from "../src/schedule/useCreatePanelNotes";
+import { useCreatePanelMemoNote } from "../src/schedule/useCreatePanelMemoNote";
 
 /*
  * #1638 (A-08 / B-04) — the note the creation panel attaches is on the history
@@ -468,5 +470,306 @@ describe("a failed note-attach undo and the real history (#1767)", () => {
     });
     await waitFor(() => expect(h.onCommandApplied).toHaveBeenCalledTimes(1));
     expect(h.ds.deleteItemLink).toHaveBeenCalledTimes(2);
+  });
+});
+
+/*
+ * #2402 — the writes behind 新規作成, and the todo path's one undo entry. The
+ * event path hands the same reversal to its create (the N-08 cases above).
+ */
+describe("the memo note (#2402)", () => {
+  const INPUT = {
+    title: "Dentist のメモ",
+    notes: [],
+    noteTagIds: [],
+    itemTagIds: [],
+  };
+
+  it("makes the note, links item to note, and reports nothing itself", async () => {
+    const h = setup();
+    const attached = await act(() =>
+      h.hook.result.current.attachMemoNote("s-1", INPUT),
+    );
+    const created = vi.mocked(h.ds.createNoteUnified).mock.calls[0][0];
+    expect(created.title).toBe("Dentist のメモ");
+    expect(attached.noteId).toBe(created.id);
+    expect(attached.ok).toBe(true);
+    expect(vi.mocked(h.ds.createItemLink).mock.calls[0].slice(1, 3)).toEqual([
+      "s-1",
+      created.id,
+    ]);
+    expect(h.pushed).toHaveLength(0);
+    expect(h.onAttachError).not.toHaveBeenCalled();
+  });
+
+  it("links the staged chips after the memo, and reverses them as one", async () => {
+    const h = setup();
+    const attached = await act(() =>
+      h.hook.result.current.attachMemoNote("s-1", {
+        ...INPUT,
+        notes: [{ kind: "existing", id: "note-a" }],
+      }),
+    );
+    const created = vi.mocked(h.ds.createNoteUnified).mock.calls[0][0];
+    expect(vi.mocked(h.ds.createItemLink).mock.calls.map((c) => c[2])).toEqual([
+      created.id,
+      "note-a",
+    ]);
+
+    await act(async () => {
+      await attached.reversal?.undo();
+    });
+    expect(h.ds.deleteItemLink).toHaveBeenCalledTimes(2);
+    // Only the note this press made goes to the trash.
+    expect(h.ds.softDeleteNoteUnified).toHaveBeenCalledExactlyOnceWith(
+      created.id,
+    );
+    await act(async () => {
+      await attached.reversal?.redo();
+    });
+    expect(h.ds.restoreNoteUnified).toHaveBeenCalledExactlyOnceWith(created.id);
+    expect(h.ds.createNoteUnified).toHaveBeenCalledTimes(1);
+  });
+
+  it("has no note to open when the link failed, and trashes the one it made", async () => {
+    const h = setup();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(h.ds.createItemLink).mockRejectedValueOnce(new Error("no"));
+    const attached = await act(() =>
+      h.hook.result.current.attachMemoNote("s-1", INPUT),
+    );
+    expect(attached).toEqual({ noteId: null, ok: false, reversal: null });
+    expect(h.ds.softDeleteNoteUnified).toHaveBeenCalledTimes(1);
+    // The caller reports the whole press once; this must not add a second.
+    expect(h.onAttachError).not.toHaveBeenCalled();
+  });
+
+  it("has no note when its creation failed", async () => {
+    const h = setup();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(h.ds.createNoteUnified).mockRejectedValueOnce(new Error("no"));
+    const attached = await act(() =>
+      h.hook.result.current.attachMemoNote("s-1", INPUT),
+    );
+    expect(attached.noteId).toBeNull();
+    expect(attached.ok).toBe(false);
+    expect(h.ds.createItemLink).not.toHaveBeenCalled();
+  });
+
+  function setupMemoNote() {
+    const h = setup();
+    const calls: string[] = [];
+    vi.mocked(h.ds.deleteItemLink).mockImplementation(async () => {
+      calls.push("unlink");
+    });
+    vi.mocked(h.ds.createItemLink).mockImplementation(async (id: string) => {
+      calls.push("link");
+      return {
+        id,
+        fromItemId: "task-1",
+        toItemId: "note-1",
+        origin: "manual" as const,
+        createdAt: "2026-09-17T00:00:00.000Z",
+        updatedAt: "2026-09-17T00:00:00.000Z",
+        isDeleted: false,
+        deletedAt: null,
+      };
+    });
+    h.ds.softDeleteTodo = vi.fn(async () => {
+      calls.push("trash todo");
+    });
+    h.ds.restoreTodo = vi.fn(async () => {
+      calls.push("restore todo");
+    });
+    const refetchTodos = vi.fn(async () => {});
+    const onOpenNote = vi.fn();
+    const showToast = vi.fn();
+    const memo = renderHook(() =>
+      useCreatePanelMemoNote({
+        dataService: h.ds,
+        attachMemoNote: h.hook.result.current.attachMemoNote,
+        refetchTodos,
+        push: h.push,
+        onOpenNote,
+        showToast,
+      }),
+    );
+    return { ...h, memo, calls, refetchTodos, onOpenNote, showToast };
+  }
+
+  it("records a new todo, its note and the link as ONE by-id command", async () => {
+    const h = setupMemoNote();
+    const api = h.memo.result.current!;
+    const attached = await act(() =>
+      api.attach("task-1", "Write", {
+        notes: [],
+        noteTagIds: [],
+        itemTagIds: [],
+      }),
+    );
+    h.calls.length = 0;
+    act(() => api.pushTodoUndo(attached, "task-1"));
+
+    expect(h.pushed).toHaveLength(1);
+    // It must survive the jump: only flagged commands die with the provider.
+    expect(h.pushed[0].command.expiresWithProvider).toBeUndefined();
+
+    await act(async () => {
+      await h.pushed[0].command.undo();
+    });
+    // The link hangs off the todo's row, so it goes first.
+    expect(h.calls).toEqual(["unlink", "trash todo"]);
+    expect(h.ds.softDeleteNoteUnified).toHaveBeenCalledTimes(1);
+
+    h.calls.length = 0;
+    await act(async () => {
+      await h.pushed[0].command.redo();
+    });
+    expect(h.calls).toEqual(["restore todo", "link"]);
+    expect(h.ds.restoreNoteUnified).toHaveBeenCalledTimes(1);
+    expect(h.refetchTodos).toHaveBeenCalledTimes(2);
+  });
+
+  it("leaves a picked todo out of the command", async () => {
+    const h = setupMemoNote();
+    const api = h.memo.result.current!;
+    const attached = await act(() =>
+      api.attach("task-old", "Old", {
+        notes: [],
+        noteTagIds: [],
+        itemTagIds: [],
+      }),
+    );
+    act(() => api.pushTodoUndo(attached, null));
+    await act(async () => {
+      await h.pushed[0].command.undo();
+    });
+    expect(h.ds.softDeleteTodo).not.toHaveBeenCalled();
+    expect(h.ds.softDeleteNoteUnified).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the todo undoable when only the note failed", () => {
+    const h = setupMemoNote();
+    act(() =>
+      h.memo.result.current!.pushTodoUndo(
+        { noteId: null, ok: false, reversal: null },
+        "task-1",
+      ),
+    );
+    expect(h.pushed).toHaveLength(1);
+  });
+
+  it("records nothing for a picked todo whose note failed", () => {
+    const h = setupMemoNote();
+    act(() =>
+      h.memo.result.current!.pushTodoUndo(
+        { noteId: null, ok: false, reversal: null },
+        null,
+      ),
+    );
+    expect(h.pushed).toHaveLength(0);
+  });
+
+  describe("landing", () => {
+    const OK = { noteId: "note-memo", ok: true, reversal: null };
+
+    it("goes to the note and says so, in the event's words", () => {
+      const h = setupMemoNote();
+      act(() => h.memo.result.current!.land("event", "歯医者", OK));
+      expect(h.onOpenNote).toHaveBeenCalledExactlyOnceWith({
+        id: "note-memo",
+        role: "note",
+      });
+      expect(h.showToast).toHaveBeenCalledExactlyOnceWith(
+        "success",
+        i18n.t("scheduleScreen.memoNoteCreatedEvent", { title: "歯医者" }),
+      );
+    });
+
+    it("says so in the todo's words", () => {
+      const h = setupMemoNote();
+      act(() => h.memo.result.current!.land("task", "資料", OK));
+      expect(h.showToast).toHaveBeenCalledExactlyOnceWith(
+        "success",
+        i18n.t("scheduleScreen.memoNoteCreatedTodo", { title: "資料" }),
+      );
+    });
+
+    it("stays and reports once when there is no note", () => {
+      const h = setupMemoNote();
+      act(() =>
+        h.memo.result.current!.land("event", "歯医者", {
+          noteId: null,
+          ok: false,
+          reversal: null,
+        }),
+      );
+      expect(h.onOpenNote).not.toHaveBeenCalled();
+      expect(h.showToast).toHaveBeenCalledExactlyOnceWith(
+        "danger",
+        i18n.t("scheduleScreen.memoNoteFailed"),
+      );
+    });
+
+    it("still opens a note that landed without every tag, and reports once", () => {
+      const h = setupMemoNote();
+      act(() =>
+        h.memo.result.current!.land("event", "歯医者", { ...OK, ok: false }),
+      );
+      expect(h.onOpenNote).toHaveBeenCalledTimes(1);
+      expect(h.showToast).toHaveBeenCalledTimes(1);
+      expect(h.showToast.mock.calls[0][0]).toBe("danger");
+    });
+
+    it("reports once, in place of the success, when the jump throws", () => {
+      const h = setupMemoNote();
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      h.onOpenNote.mockImplementation(() => {
+        throw new Error("no");
+      });
+      act(() => h.memo.result.current!.land("event", "歯医者", OK));
+      expect(h.showToast).toHaveBeenCalledExactlyOnceWith(
+        "danger",
+        i18n.t("scheduleScreen.memoNoteFailed"),
+      );
+    });
+  });
+
+  it("is null on a host with no jump to make", () => {
+    const h = setup();
+    const memo = renderHook(() =>
+      useCreatePanelMemoNote({
+        dataService: h.ds,
+        attachMemoNote: h.hook.result.current.attachMemoNote,
+        refetchTodos: async () => {},
+        showToast: vi.fn(),
+      }),
+    );
+    expect(memo.result.current).toBeNull();
+  });
+
+  it("words the names and the title in both languages", async () => {
+    const h = setupMemoNote();
+    const language = i18n.language;
+    const api = () => h.memo.result.current!;
+    await act(async () => {
+      await i18n.changeLanguage("ja");
+    });
+    expect(api().untitled("event")).toBe("無題の予定");
+    expect(api().untitled("task")).toBe("無題の Todo");
+    expect(i18n.t("scheduleScreen.memoNoteTitle", { title: "歯医者" })).toBe(
+      "歯医者のメモ",
+    );
+    expect(
+      i18n.t("scheduleScreen.memoNoteCreatedEvent", { title: "歯医者" }),
+    ).toBe("予定『歯医者』とリンクしたノートを作りました");
+    await act(async () => {
+      await i18n.changeLanguage("en");
+    });
+    expect(api().untitled("event")).toBe("Untitled event");
+    expect(api().untitled("task")).toBe("Untitled todo");
+    await act(async () => {
+      await i18n.changeLanguage(language);
+    });
   });
 });

@@ -29,7 +29,7 @@ import type { ScheduleSidebarProps } from "../src/schedule/ScheduleSidebar";
  *
  * `useTranslation` is stubbed to echo its key — these assertions are about
  * wiring, and an echo makes the queries read as the key that produced them.
- * <TagPicker> is stubbed because it talks to WikiTagsUnifiedContext, which this
+ * <TagDotNames> is stubbed because it talks to WikiTagsUnifiedContext, which this
  * component neither owns nor needs to exercise.
  *
  * No jest-dom in web/: presence comes from getBy* throwing, absence from
@@ -41,8 +41,8 @@ vi.mock("@life-editor/shared", async (importOriginal) => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
-vi.mock("../src/wikitag/TagPicker", () => ({
-  TagPicker: ({ itemId }: { itemId: string }) => <span>tag:{itemId}</span>,
+vi.mock("../src/wikitag/TagDotNames", () => ({
+  TagDotNames: ({ itemId }: { itemId: string }) => <span>tag:{itemId}</span>,
 }));
 
 /**
@@ -328,7 +328,7 @@ describe("ScheduleSidebar — todo tab", () => {
         })}
       />,
     );
-    // #555: the tray rows carry the same TagPicker the todo detail uses.
+    // #2408: the row reads its tags, and the panel is where they change.
     expect(screen.getByText("tag:t1")).toBeTruthy();
     fireEvent.click(screen.getByLabelText("todoDetail.todoDelete"));
     expect(onDelete).toHaveBeenCalledWith("t1");
@@ -461,6 +461,128 @@ describe("ScheduleSidebar — the todo tray after the board (#1153)", () => {
 
     expect(onMoveOut).toHaveBeenCalledWith("t1");
   });
+
+  /*
+   * #2408: Desktop rows carry move, edit and delete, in that order. Narrow
+   * keeps the buttons it had, because hover can neither reveal nor explain
+   * anything on a phone. The tag line is on both.
+   */
+  const rowNames = (title: string): (string | null)[] =>
+    within(screen.getByText(title).closest("li")!)
+      .getAllByRole("button")
+      .map((b) => b.getAttribute("aria-label"))
+      .filter((name) => name !== null);
+
+  it("gives a Desktop today row move, edit and delete", () => {
+    const onOpenTodo = vi.fn();
+    render(<ScheduleSidebar {...withTray({ onOpenTodo, addable: [] })} />);
+    expect(rowNames("Buy milk")).toEqual([
+      "scheduleScreen.todoMoveToOthers",
+      "scheduleScreen.todoRowEdit",
+      "todoDetail.todoDelete",
+    ]);
+    fireEvent.click(
+      screen.getByRole("button", { name: "scheduleScreen.todoRowEdit" }),
+    );
+    expect(onOpenTodo).toHaveBeenCalledWith("t1");
+  });
+
+  it("gives a Desktop 'other' row the reverse move, edit and delete", () => {
+    const onOpenAddable = vi.fn();
+    const { container } = render(
+      <ScheduleSidebar {...withTray({ placed: [], onOpenAddable })} />,
+    );
+    expect(rowNames("Book the dentist")).toEqual([
+      "scheduleScreen.todoMoveToToday",
+      "scheduleScreen.todoRowEdit",
+      "todoDetail.todoDelete",
+    ]);
+    fireEvent.click(
+      screen.getByRole("button", { name: "scheduleScreen.todoRowEdit" }),
+    );
+    expect(onOpenAddable).toHaveBeenCalledWith("t2");
+    expect(
+      container.querySelector("[title='scheduleScreen.todoMoveToToday']"),
+    ).toBeNull();
+  });
+
+  it("shows each icon's sentence above it on hover", () => {
+    render(<ScheduleSidebar {...withTray({ addable: [] })} />);
+    const cases = [
+      [
+        "scheduleScreen.todoMoveToOthers",
+        "scheduleScreen.todoRowMoveToOthersHint",
+      ],
+      ["scheduleScreen.todoRowEdit", "scheduleScreen.todoRowEditHint"],
+      ["todoDetail.todoDelete", "scheduleScreen.todoRowDeleteHint"],
+    ] as const;
+    for (const [name, hint] of cases) {
+      const btn = screen.getByRole("button", { name });
+      fireEvent.pointerEnter(btn);
+      expect(screen.getByRole("tooltip").textContent).toBe(hint);
+      fireEvent.pointerLeave(btn);
+      expect(screen.queryByRole("tooltip")).toBeNull();
+    }
+  });
+
+  it("keeps narrow's buttons, with no edit icon and no tooltip", () => {
+    render(
+      <ScheduleSidebar
+        {...makeProps({
+          isWide: false,
+          tab: "todo",
+          todo: {
+            placed: [{ id: "t1", title: "Buy milk", completed: false }],
+            addable: [{ id: "t2", title: "Book the dentist" }],
+          },
+        })}
+      />,
+    );
+    expect(rowNames("Buy milk")).toEqual([
+      "scheduleScreen.todoMoveToOthers",
+      "todoDetail.todoDelete",
+    ]);
+    expect(rowNames("Book the dentist")).toEqual([
+      "scheduleScreen.todoMoveToToday",
+      "todoDetail.todoDelete",
+    ]);
+    fireEvent.pointerEnter(
+      screen.getByRole("button", { name: "scheduleScreen.todoMoveToOthers" }),
+    );
+    expect(screen.queryByRole("tooltip")).toBeNull();
+  });
+
+  it.each([
+    ["Desktop", true],
+    ["narrow", false],
+  ])(
+    "puts the time and the tags on one line under the title (%s)",
+    (_, isWide) => {
+      render(
+        <ScheduleSidebar
+          {...makeProps({
+            isWide,
+            tab: "todo",
+            todo: {
+              placed: [
+                {
+                  id: "t1",
+                  title: "Buy milk",
+                  timeLabel: "09:00",
+                  completed: false,
+                },
+              ],
+            },
+          })}
+        />,
+      );
+      const time = screen.getByText("09:00");
+      const tags = screen.getByText("tag:t1");
+      expect(time.parentElement).toBe(tags.parentElement);
+      // Out of the title button, which only the title is in now.
+      expect(time.closest("button")).toBeNull();
+    },
+  );
 
   it("draws two lists: today and others", () => {
     render(<ScheduleSidebar {...withTray()} />);
@@ -722,6 +844,22 @@ describe("ScheduleSidebar — the Todo tab's day (#2281)", () => {
     expect(
       screen.getByRole("button", { name: "scheduleScreen.today" }).className,
     ).toContain("max-md:min-h-11");
+  });
+
+  // #2477: 今日 was 35px wide and the filter button 36x36 on a phone.
+  it("floors 今日 and the filter button in both directions on narrow", () => {
+    render(<ScheduleSidebar {...makeProps({ tab: "todo", isWide: false })} />);
+    for (const name of [
+      "scheduleScreen.today",
+      "scheduleScreen.todoFilterOpen",
+    ]) {
+      const cls = screen.getByRole("button", { name }).className.split(/\s+/);
+      expect(cls).toContain("max-md:min-h-11");
+      expect(cls).toContain("max-md:min-w-11");
+      // Unprefixed floors would grow the Desktop sidebar's controls too.
+      expect(cls).not.toContain("min-h-11");
+      expect(cls).not.toContain("min-w-11");
+    }
   });
 });
 

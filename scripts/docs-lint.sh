@@ -9,6 +9,7 @@
 #   (c) plans/ Status enum: Draft / IN PROGRESS / BLOCKED / COMPLETED / SUPERSEDED /
 #                          DEFERRED / REFERENCE / ACTIVE (adopted policy) のみ許可
 #   (d) 完了プラン残置   : Status: COMPLETED / SUPERSEDED のファイルが plans/ に残っていないか
+#   (e) 記録グラフ層 / (f) known-issue 計測の自己検査 / (g) 担当表とファイルの重なり検査の自己検査
 #
 # 実行: bash scripts/docs-lint.sh
 #   - ローカル: リポジトリ内どこからでも可（git toplevel へ cd する）
@@ -139,6 +140,25 @@ if command -v node >/dev/null 2>&1; then
   done <<<"${KIU_OUT}"
 else
   echo "docs-lint: warn — node が無いため (f) known-issue-usage selftest をスキップ" >&2
+fi
+
+# ---------------------------------------------------------------------------
+# (g) 担当表とファイルの重なり検査の自己検査（正本 = .claude/scripts/scope-overlap.mjs）
+#     lane-ownership.json の glob がすべて tree のファイルに当たり、2 つのレーンが同じファイルを
+#     持たないこと。改名・削除で担当表が静かに古びるのを止める。CI の checkout には
+#     origin/main という名前の参照がないので --base HEAD で読む。単体テストは固定データだけで、
+#     gh もネットワークも使わない。
+# ---------------------------------------------------------------------------
+if command -v node >/dev/null 2>&1; then
+  MAP_OUT=$(node .claude/scripts/scope-overlap.mjs --check-map --base HEAD 2>&1) || while IFS= read -r line; do
+    report "docs-lint(g) ${line}"
+  done <<<"${MAP_OUT}"
+  # node --test prints the whole TAP stream; only its tail (the failing cases and the totals) is useful.
+  SO_TEST_OUT=$(node --test .claude/scripts/scope-overlap.test.mjs 2>&1) || while IFS= read -r line; do
+    report "docs-lint(g) ${line}"
+  done <<<"$(tail -n 30 <<<"${SO_TEST_OUT}")"
+else
+  echo "docs-lint: warn — node が無いため (g) scope-overlap check をスキップ" >&2
 fi
 
 if [ "${FAIL}" -ne 0 ]; then

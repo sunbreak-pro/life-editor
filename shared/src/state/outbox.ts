@@ -1,6 +1,6 @@
 import type { NoteNode } from "../types/note";
 import type { TodoNode } from "../types/todoTree";
-import { blockText, docBlocks } from "../utils/blockMerge";
+import { blockText, docBlocks, mergeDocBlocks } from "../utils/blockMerge";
 import { committed, factory, settle } from "./persistentCache";
 
 /*
@@ -43,9 +43,29 @@ interface OutboxEntryBase {
   schemaVersion: number;
 }
 
-export interface TodoOutboxEntry extends OutboxEntryBase {
+export interface TodoCreateEntry extends OutboxEntryBase {
   kind: "todo.create";
   payload: { node: TodoNode };
+}
+
+/**
+ * A day's body (#2336). One per date. A new kind needs no version bump for
+ * sending: an older tab's `isSendable` looks at the kind, so it leaves this entry
+ * where it is. The failed box has no such check. A tab still on the #2335 code
+ * throws when it copies a refused day, because it reads `payload.node` on every
+ * row, and it counts the day as a Todo. Reloading that tab cures both.
+ */
+export interface DailyUpsertEntry extends OutboxEntryBase {
+  kind: "daily.upsert";
+  payload: { date: string; content: string };
+  /**
+   * Text of this device's own saves that may be on the server: the network
+   * failed on the way back, or the save landed behind a newer one. A body equal
+   * to one of these holds nothing from elsewhere, so there is nothing to merge.
+   */
+  maybeLanded?: string[];
+  /** A landing already merged this entry, so the last landing owes a notice. */
+  merged?: true;
 }
 
 /**
@@ -65,7 +85,7 @@ export interface NoteOutboxEntry extends OutboxEntryBase {
   triedBodies?: string[];
 }
 
-export type OutboxEntry = TodoOutboxEntry | NoteOutboxEntry;
+export type OutboxEntry = TodoCreateEntry | DailyUpsertEntry | NoteOutboxEntry;
 
 export type FailedOutboxEntry = OutboxEntry & {
   error: string;
@@ -169,7 +189,9 @@ export async function readOutbox(userId: string): Promise<OutboxEntry[]> {
 export function isSendable(entry: OutboxEntry): boolean {
   return (
     entry.schemaVersion <= OUTBOX_SCHEMA_VERSION &&
-    (entry.kind === "todo.create" || isNoteEntry(entry))
+    (entry.kind === "todo.create" ||
+      entry.kind === "daily.upsert" ||
+      isNoteEntry(entry))
   );
 }
 
@@ -180,8 +202,8 @@ export function isNoteEntry(entry: OutboxEntry): entry is NoteOutboxEntry {
 export async function enqueueTodoCreate(
   userId: string,
   node: TodoNode,
-): Promise<TodoOutboxEntry> {
-  const entry: TodoOutboxEntry = {
+): Promise<TodoCreateEntry> {
+  const entry: TodoCreateEntry = {
     opId: newOpId(),
     kind: "todo.create",
     itemId: node.id,
@@ -306,6 +328,143 @@ function withBody(bodies: string[] = [], body: string): string[] {
   return bodies.includes(body) ? bodies : [...bodies, body];
 }
 
+/** Each one is a whole body, and only the latest few can still be on the server. */
+export const MAX_MAYBE_LANDED = 5;
+
+function withMaybeLanded(
+  entry: DailyUpsertEntry,
+  texts: readonly string[],
+): DailyUpsertEntry {
+  if (texts.length === 0) return entry;
+  const all = [...new Set([...(entry.maybeLanded ?? []), ...texts])];
+  return { ...entry, maybeLanded: all.slice(-MAX_MAYBE_LANDED) };
+}
+
+function findDailyEntry(
+  rows: OutboxEntry[],
+  date: string,
+): DailyUpsertEntry | undefined {
+  return rows.find(
+    (row): row is DailyUpsertEntry =>
+      row.kind === "daily.upsert" && row.payload.date === date,
+  );
+}
+
+/**
+ * Hold a day's body. One transaction, so it cannot race a send settling the same
+ * entry: a date that already waits keeps its first base and takes this content.
+ */
+export async function enqueueDailyUpsert(
+  userId: string,
+  date: string,
+  content: string,
+  base: { updatedAt: string; content: string } | null,
+  maybeLanded: readonly string[] = [],
+): Promise<DailyUpsertEntry> {
+  const db = await open(userId);
+  const tx = db.transaction(PENDING_STORE, "readwrite");
+  const done = committed(tx);
+  const store = tx.objectStore(PENDING_STORE);
+  const rows = (await settle(store.getAll())) as OutboxEntry[];
+  const held = findDailyEntry(rows, date);
+  const entry = withMaybeLanded(
+    held
+      ? { ...held, payload: { date, content } }
+      : {
+          opId: newOpId(),
+          kind: "daily.upsert",
+          itemId: `daily-${date}`,
+          baseUpdatedAt: base?.updatedAt ?? null,
+          ...(base ? { baseContent: base.content } : {}),
+          payload: { date, content },
+          createdAt: new Date().toISOString(),
+          attempts: 0,
+          schemaVersion: OUTBOX_SCHEMA_VERSION,
+        },
+    maybeLanded,
+  );
+  store.put(entry);
+  await done;
+  await refreshOutboxCounts(userId);
+  return entry;
+}
+
+/** Record on the waiting entry what `maybeLanded` names. False if none waits. */
+export async function noteDailyMaybeLanded(
+  userId: string,
+  date: string,
+  texts: readonly string[],
+): Promise<boolean> {
+  const db = await open(userId);
+  const tx = db.transaction(PENDING_STORE, "readwrite");
+  const done = committed(tx);
+  const store = tx.objectStore(PENDING_STORE);
+  const rows = (await settle(store.getAll())) as OutboxEntry[];
+  const held = findDailyEntry(rows, date);
+  if (held) store.put(withMaybeLanded(held, texts));
+  await done;
+  return held !== undefined;
+}
+
+/** What reached the server for a day's entry, to settle that entry against. */
+export interface DailyLanding {
+  /** The content the entry held when its send began. */
+  sent: string;
+  /** The body now on the server: `sent`, or `sent` merged with theirs. */
+  body: string;
+  updatedAt: string;
+  hasPassword: boolean;
+}
+
+/**
+ * Clear the entry only if nothing was typed during the send. An edit made in
+ * that time descends from `sent` and has not been sent, so the entry stays and
+ * is rebased onto what landed. The check and the write share a transaction, so
+ * an edit lands either before it (seen here) or after it (a new entry).
+ *
+ * A row behind a password keeps no merged text on this device: its entry stays
+ * as it was, and the next send merges against the server's body again.
+ */
+export async function settleDailyEntry(
+  userId: string,
+  opId: string,
+  landing: DailyLanding,
+): Promise<"cleared" | "kept"> {
+  const { sent, body, updatedAt, hasPassword } = landing;
+  const db = await open(userId);
+  const tx = db.transaction(PENDING_STORE, "readwrite");
+  const done = committed(tx);
+  const store = tx.objectStore(PENDING_STORE);
+  const row = (await settle(store.get(opId))) as OutboxEntry | undefined;
+  let result: "cleared" | "kept" = "cleared";
+  if (row?.kind === "daily.upsert") {
+    if (row.payload.content === sent) {
+      store.delete(opId);
+    } else {
+      result = "kept";
+      const merged = body !== sent;
+      if (!(merged && hasPassword)) {
+        const content = merged
+          ? mergeDocBlocks(sent, row.payload.content, body).merged
+          : row.payload.content;
+        // The version is known now, so what might have landed no longer matters.
+        const rebased: DailyUpsertEntry = {
+          ...row,
+          baseUpdatedAt: updatedAt,
+          baseContent: body,
+          payload: { ...row.payload, content },
+        };
+        delete rebased.maybeLanded;
+        if (merged) rebased.merged = true;
+        store.put(rebased);
+      }
+    }
+  }
+  await done;
+  await refreshOutboxCounts(userId);
+  return result;
+}
+
 /**
  * Count one more attempt, in one transaction so it cannot put back an entry an
  * undo has just removed. Null when the entry is gone.
@@ -319,7 +478,10 @@ export async function claimOutboxEntry(
   const done = committed(tx);
   const store = tx.objectStore(PENDING_STORE);
   const entry = (await settle(store.get(opId))) as OutboxEntry | undefined;
-  const claimed = entry && { ...entry, attempts: entry.attempts + 1 };
+  const claimed: OutboxEntry | undefined = entry && {
+    ...entry,
+    attempts: entry.attempts + 1,
+  };
   if (claimed) {
     // The caller reads what earlier attempts tried; the box also holds this one's.
     store.put(
@@ -351,7 +513,10 @@ export async function removeOutboxEntry(
   await refreshOutboxCounts(userId);
 }
 
-/** Move a refused entry to the failed box, so its text stays reachable. */
+/**
+ * Move a refused entry to the failed box, so its text stays reachable. The
+ * stored row is the one kept: a day's edit made during the send is in it.
+ */
 export async function failOutboxEntry(
   userId: string,
   entry: OutboxEntry,
@@ -361,12 +526,12 @@ export async function failOutboxEntry(
   const tx = db.transaction([PENDING_STORE, FAILED_STORE], "readwrite");
   const done = committed(tx);
   const pending = tx.objectStore(PENDING_STORE);
-  // The box's copy: a note may have taken a newer body while this one was sent.
-  const latest = (await settle(pending.get(entry.opId))) as
+  // The box's copy: a note or a day may have taken a newer body during the send.
+  const stored = (await settle(pending.get(entry.opId))) as
     | OutboxEntry
     | undefined;
   const failed: FailedOutboxEntry = {
-    ...(latest ?? entry),
+    ...(stored ?? entry),
     error,
     failedAt: new Date().toISOString(),
   };
@@ -471,14 +636,6 @@ export interface FailedOutboxCopy {
   opIds: string[];
 }
 
-/** A note's body is stored as a document: the clipboard gets its text. */
-function failedText(entry: FailedOutboxEntry): string {
-  const body = isNoteEntry(entry)
-    ? docBlocks(entry.payload.node.content).map(blockText).join("\n")
-    : entry.payload.node.content;
-  return [entry.payload.node.title, body].filter(Boolean).join("\n");
-}
-
 export async function readFailedOutboxCopy(): Promise<FailedOutboxCopy> {
   if (countsOwner === null) return { text: "", opIds: [] };
   const db = await open(countsOwner);
@@ -489,9 +646,23 @@ export async function readFailedOutboxCopy(): Promise<FailedOutboxCopy> {
   // Another tab may have moved the box: the band compares this read to the count.
   await refreshOutboxCounts(countsOwner);
   return {
-    text: rows.map(failedText).join("\n\n"),
+    text: rows.map(failedEntryText).join("\n\n"),
     opIds: rows.map((row) => row.opId),
   };
+}
+
+function failedEntryText(row: FailedOutboxEntry): string {
+  if (row.kind === "daily.upsert") {
+    const { date, content } = row.payload;
+    return [date, ...docBlocks(content).map(blockText)]
+      .filter(Boolean)
+      .join("\n");
+  }
+  // A note's body is stored as a document: the clipboard gets its text.
+  const body = isNoteEntry(row)
+    ? docBlocks(row.payload.node.content).map(blockText).join("\n")
+    : row.payload.node.content;
+  return [row.payload.node.title, body].filter(Boolean).join("\n");
 }
 
 /** By id: an entry refused after the copy was read has not been copied. */
@@ -528,6 +699,15 @@ export function isOfflineFailure(e: unknown): boolean {
   );
 }
 
+/** The function a send calls is not on the database yet (db push still to come). */
+const MISSING_FUNCTION_CODES = new Set(["PGRST202", "42883"]);
+
+export function isMissingFunction(e: unknown): boolean {
+  return (
+    e instanceof OutboxSendError && MISSING_FUNCTION_CODES.has(e.code ?? "")
+  );
+}
+
 /** A send failure with what PostgREST reported, for `classifySendFailure`. */
 export class OutboxSendError extends Error {
   readonly status?: number;
@@ -544,7 +724,8 @@ export class OutboxSendError extends Error {
 /**
  * - `retry`: nothing is wrong with the entry. Network, 5xx and auth problems,
  *   so a token that expired offline never pushes anything into the failed box.
- *   408 and 429 count too, since they say "not now" rather than "not this".
+ *   408 and 429 count too, since they say "not now" rather than "not this", and
+ *   so does a function the database does not have yet.
  * - `sent`: a conflict saying the row is already there. Only 23505: a foreign
  *   key violation is also HTTP 409, and that one is a real refusal.
  * - `failed`: every other refusal.
@@ -553,7 +734,7 @@ export function classifySendFailure(e: unknown): "retry" | "sent" | "failed" {
   const sendError = e instanceof OutboxSendError ? e : null;
   const status = sendError?.status;
   const code = sendError?.code;
-  if (isOfflineFailure(e)) return "retry";
+  if (isOfflineFailure(e) || isMissingFunction(e)) return "retry";
   if (messageOf(e).startsWith("getUserId failed")) return "retry";
   if (/\bJWT\b/i.test(messageOf(e)) || code?.startsWith("PGRST30"))
     return "retry";

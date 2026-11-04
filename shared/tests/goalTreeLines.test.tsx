@@ -67,6 +67,7 @@ const LABELS: GoalTreeLabels = {
   periodRanges: { year: "2026", month: "September", week: "9/27 – 10/3" },
   addHeading: "Add a goal",
   addPlaceholder: "Goal",
+  addNoParentHint: " (no parent needed)",
   add: "Add",
   cancel: "Cancel",
   startDate: "From",
@@ -83,6 +84,9 @@ const LABELS: GoalTreeLabels = {
   status: "Status",
   statusLabels: { statusNotStarted: "Not started", statusDone: "Done" },
   formatOpenTodo: (title) => `Open ${title}`,
+  formatMarkTodoDone: (title) => `Done: ${title}`,
+  formatMarkTodoOpen: (title) => `Not done: ${title}`,
+  formatDeleteTodo: (title) => `Delete todo: ${title}`,
   formatExpand: (title) => `Expand: ${title}`,
   formatCollapse: (title) => `Collapse: ${title}`,
   filteringBy: "Filtering by",
@@ -294,5 +298,34 @@ describe("GoalTreeView hierarchy lines (#2282)", () => {
     lineOf(yearGoals);
     within(yearGoals).getByRole("button", { name: /^Week: Run 3 times — / });
     expect(screen.queryByRole("button", { name: "Open Long run" })).toBeNull();
+  });
+});
+
+describe("GoalTreeView progress (#2606)", () => {
+  it("shows each open goal's progress as bare n/m text, without a bar, on every level", () => {
+    renderTree();
+    for (const [kind, title, count] of [
+      ["Year", "Run 10 km", "0/2"],
+      ["Month", "Run weekly", "0/2"],
+      ["Week", "Run 3 times", "0/2"],
+    ] as const) {
+      const row = screen.getByRole("button", {
+        name: `${kind}: ${title} — ${count}`,
+      });
+      const progress = row.querySelector("[data-goal-progress]");
+      expect(progress?.textContent).toBe(count);
+      // The count is the row's last part and nothing is drawn beside it.
+      expect(progress?.parentElement).toBe(row);
+      expect(row.querySelector(".bg-lumen-accent-secondary")).toBeNull();
+      expect(row.querySelector("[style]")).toBeNull();
+    }
+  });
+
+  it("draws no visible tree heading or period legend, but keeps the tree's spoken name", () => {
+    renderTree();
+    const tree = screen.getByRole("region", { name: "Goals" });
+    expect(within(tree).queryByRole("heading")).toBeNull();
+    expect(screen.queryByText(/This year 2026/)).toBeNull();
+    expect(screen.queryByText(/9\/27 – 10\/3/)).toBeNull();
   });
 });

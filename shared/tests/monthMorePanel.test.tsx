@@ -117,6 +117,52 @@ describe("MonthMorePanel", () => {
     expect(screen.getByText("Marine Day")).toBeInTheDocument();
   });
 
+  it("marks each row with its kind, named like the month chips (#2551)", () => {
+    const cell = document.createElement("div");
+    cell.setAttribute("data-month-cell", "2026-07-09");
+    cell.setAttribute("data-month-column", "4");
+    const anchor = document.createElement("button");
+    cell.appendChild(anchor);
+    document.body.appendChild(cell);
+    render(
+      <MonthMorePanel
+        anchor={anchor}
+        items={[
+          ...ITEMS,
+          { id: "r1", date: "2026-07-09", title: "Gym", variant: "routine" },
+          {
+            id: "t2",
+            date: "2026-07-09",
+            title: "Done thing",
+            variant: "task",
+            completed: true,
+          },
+        ]}
+        title="The rest of Thu, Jul 9"
+        closeLabel="Close"
+        kindLabels={{ event: "Event", task: "Todo", routine: "Repeating" }}
+        onItemActivate={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    for (const [title, kind, label] of [
+      ["Standup", "event", "Event"],
+      ["Write report", "task", "Todo"],
+      ["Gym", "routine", "Repeating"],
+    ] as const) {
+      const row = screen.getByRole("button", { name: `${label} ${title}` });
+      const mark = row.querySelector("svg");
+      expect(mark?.getAttribute("data-chip-kind")).toBe(kind);
+      expect(mark?.getAttribute("role")).toBe("img");
+    }
+    // #1373 stays: a completed todo is still struck through and faded.
+    const done = screen.getByRole("button", { name: "Todo Done thing" });
+    expect(done.className).toContain("line-through");
+    expect(done.className).toContain("opacity-55");
+    // A holiday keeps no mark.
+    expect(screen.getByText("Marine Day").querySelector("svg")).toBeNull();
+  });
+
   it("takes focus on open — the first item", () => {
     renderPanel();
     expect(screen.getByRole("button", { name: "Standup" })).toHaveFocus();
@@ -215,5 +261,34 @@ describe("MonthMorePanel", () => {
     expect(screen.getByRole("button", { name: "Standup" })).toHaveFocus();
     fireEvent.keyDown(list, { key: "ArrowUp" });
     expect(screen.getByRole("button", { name: "Standup" })).toHaveFocus();
+  });
+});
+
+/*
+ * #2623 — the rows wear the cell chips' colour rule: the kind's light face, the
+ * tag colour on the 3px left line (the kind's colour without one), and a
+ * holiday in its Settings colour as a light face and a line.
+ */
+describe("MonthMorePanel — the face and the left line (#2623)", () => {
+  it("draws a row's tag colour on its line and keeps the kind's face", () => {
+    renderPanel([
+      { ...ITEMS[0]!, tagColor: "#1e3a8a" },
+      ITEMS[1]!,
+      { ...ITEMS[2]!, tagColor: "#e03e3e" },
+    ]);
+    const tagged = screen.getByRole("button", { name: "Standup" });
+    expect(tagged.style.borderLeftColor).toBe("rgb(30, 58, 138)");
+    expect(tagged.style.backgroundColor).toBe("");
+    expect(tagged.className).toContain("border-l-[3px]");
+    expect(tagged.className).toContain("bg-lumen-chip-event-bg");
+
+    const plain = screen.getByRole("button", { name: "Write report" });
+    expect(plain.style.borderLeftColor).toBe("");
+    expect(plain.className).toContain("border-l-lumen-chip-task-dot");
+
+    const holiday = screen.getByText("Marine Day");
+    expect(holiday.style.borderLeftColor).toBe("rgb(224, 62, 62)");
+    expect(holiday.className).toContain("border-l-[3px]");
+    expect(holiday.className).toContain("text-lumen-text");
   });
 });

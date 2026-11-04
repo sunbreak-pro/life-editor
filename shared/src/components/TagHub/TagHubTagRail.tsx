@@ -1,7 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { ReactNode, RefObject } from "react";
-import { ChevronDown, ChevronRight, MoreHorizontal, Plus } from "lucide-react";
-import { Button } from "../Button";
+import { ChevronDown, ChevronRight, MoreHorizontal } from "lucide-react";
 import { cn } from "../cn";
 import { SkeletonList } from "../SkeletonList";
 import { TagHeadingIcon } from "../TagHeadingIcon";
@@ -228,7 +227,14 @@ export function TagHubTagRail({
             {labels.empty}
           </p>
         ) : visibleTags.length === 0 && visibleUnusedTags.length === 0 ? (
-          <p className="px-1 py-6 text-center text-sm text-lumen-text-tertiary">
+          // Left on narrow (#2600): the rule and the add row follow it at the
+          // left edge, so a centred line floated apart from both.
+          <p
+            className={cn(
+              "py-6 text-sm text-lumen-text-tertiary",
+              wide ? "px-1 text-center" : "px-2 text-left",
+            )}
+          >
             {labels.filterEmpty}
           </p>
         ) : (
@@ -281,11 +287,6 @@ export function TagHubTagRail({
       {onCreateTag && (
         <div className="flex flex-shrink-0 flex-col gap-1.5 border-t border-lumen-border px-3 py-2.5">
           <div className="flex items-center gap-2">
-            <Plus
-              size={16}
-              aria-hidden
-              className="shrink-0 text-lumen-text-tertiary"
-            />
             <input
               ref={addFieldRef}
               value={draft}
@@ -312,15 +313,25 @@ export function TagHubTagRail({
                 !wide && "min-h-11",
               )}
             />
-            <Button
-              variant="secondary"
-              size="sm"
-              className={CARD_BTN_TAP}
+            {/* A plain button, not <Button variant="primary"> (#2600): the
+                house disabled fill swaps the accent for the sunken grey, while
+                this row keeps the accent and only fades it, so the button
+                reads as the row's action before anything is typed. The box
+                matches Button's "sm" size. */}
+            <button
+              type="button"
               onClick={submitDraft}
               disabled={!draft.trim()}
+              className={cn(
+                "inline-flex h-7 shrink-0 items-center justify-center gap-1 rounded-md px-2.5 text-xs font-medium",
+                "bg-lumen-accent text-lumen-on-accent transition-opacity hover:opacity-90",
+                "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-50",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+                CARD_BTN_TAP,
+              )}
             >
               {labels.addButton}
-            </Button>
+            </button>
           </div>
           {addError && (
             <p
@@ -336,6 +347,12 @@ export function TagHubTagRail({
     </div>
   );
 }
+
+// #2501: four 1px drop-shadows, one per side, trace lucide's strokes in the
+// text token (an outline, since a stroked glyph has no fill to border). Written
+// out in full so Tailwind's scanner sees the literal class.
+const SELECTED_ICON_OUTLINE =
+  "[filter:drop-shadow(1px_0_0_var(--color-lumen-text))_drop-shadow(-1px_0_0_var(--color-lumen-text))_drop-shadow(0_1px_0_var(--color-lumen-text))_drop-shadow(0_-1px_0_var(--color-lumen-text))]";
 
 interface TagHubRailRowProps {
   tag: TagHubTagSummary;
@@ -380,7 +397,7 @@ function TagHubRailRow({
       // where there is a menu: anywhere else the native menu is left intact.
       onContextMenu={hasMenu && wide ? menu.openAtPointer : undefined}
       className={cn(
-        "group relative",
+        "relative",
         // The rule above the untagged bucket. Applied to the <li> rather than
         // drawn as a separate element so the list stays one row per tag for a
         // screen reader.
@@ -389,11 +406,12 @@ function TagHubRailRow({
     >
       {/* The selection bar (D3). On the wrapper rather than inside the row
           button so it spans the "…" too, and absolute so it does not shift the
-          glyph by its own 2px when a row is picked. */}
+          glyph by its own 3px when a row is picked. */}
       {active && (
         <span
           aria-hidden
-          className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-lumen-accent"
+          data-testid="tag-rail-selection-bar"
+          className="absolute inset-y-1.5 left-0 w-[3px] rounded-full bg-lumen-accent"
         />
       )}
       <div
@@ -419,25 +437,58 @@ function TagHubRailRow({
             "text-lumen-text",
           )}
         >
-          <TagHeadingIcon icon={tag.icon} color={tag.color} />
+          {active ? (
+            // #2501: the tag's colour is the user's and is drawn unchanged, so
+            // a light one (amber, orange) melted into the selected row's wash.
+            // The selected row alone lays the page colour under the glyph. The
+            // disc is absolute so the glyph keeps its 15px footprint and the
+            // name does not shift by a few px when a row is picked; `isolate`
+            // + `-z-10` keep it under the glyph rather than painted over it.
+            // The page colour is itself light, so amber / orange / teal / sky
+            // still sat under 3:1 on it; the glyph's strokes also get a 1px
+            // outline in the text colour. The filter is on its own span: on the
+            // wrapper it would outline the disc too.
+            <span
+              data-testid="tag-rail-icon-disc"
+              className="relative isolate inline-flex shrink-0"
+            >
+              <span
+                aria-hidden
+                className="absolute -inset-1 -z-10 rounded-full bg-lumen-bg"
+              />
+              <span
+                data-testid="tag-rail-icon-outline"
+                className={cn("inline-flex", SELECTED_ICON_OUTLINE)}
+              >
+                <TagHeadingIcon icon={tag.icon} color={tag.color} />
+              </span>
+            </span>
+          ) : (
+            <TagHeadingIcon icon={tag.icon} color={tag.color} />
+          )}
           <span
             className={cn(
               "min-w-0 flex-1 truncate text-sm",
-              tag.isUntagged && "text-lumen-text-secondary",
+              active
+                ? "font-semibold text-lumen-accent"
+                : tag.isUntagged && "text-lumen-text-secondary",
             )}
           >
             {tag.name}
           </span>
+          {/* aria-hidden: the button's label above already says it. Plain
+              text, no pill (#2600): the words "9 items" (#2409) already mark
+              it as a count, so a box around it only competed with the name. */}
           <span
             aria-hidden
-            className="shrink-0 rounded-full bg-lumen-bg-secondary px-2 py-0.5 text-xs font-medium tabular-nums text-lumen-text-secondary"
+            className="shrink-0 whitespace-nowrap text-xs font-normal tabular-nums text-lumen-text-tertiary"
           >
-            {tag.count}
+            {countText}
           </span>
         </button>
 
-        {/* The slot is reserved whether or not the "…" is painted, so a row
-            does not reflow under the pointer as it is hovered. */}
+        {/* The slot is reserved on a row with no "…" too (the untagged
+            bucket), so its count lines up with the others. */}
         <div className={cn("relative flex shrink-0", wide ? "w-7" : "w-11")}>
           {hasMenu && (
             <>
@@ -452,17 +503,8 @@ function TagHubRailRow({
                   "flex w-full items-center justify-center rounded-lumen-sm text-lumen-text-secondary",
                   "transition-colors hover:text-lumen-text",
                   FOCUS_RING_TIGHT,
-                  wide
-                    ? // Desktop reveals it on hover (D2). `focus-visible` keeps
-                      // it reachable by keyboard, where there is no hover at
-                      // all, and an open menu holds it up while the pointer is
-                      // over the menu rather than the row.
-                      cn(
-                        "h-7 opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
-                        menu.open && "opacity-100",
-                      )
-                    : // Narrow has no hover to reveal it with (M2).
-                      "h-11",
+                  // Always painted (#2409, which retired D2's reveal on hover).
+                  wide ? "h-7" : "h-11",
                 )}
               >
                 <MoreHorizontal size={16} aria-hidden />

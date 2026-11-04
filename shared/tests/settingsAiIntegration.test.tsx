@@ -238,3 +238,36 @@ describe("MCP_TOOL_CATALOG", () => {
     expect(toolArgNames(listTodos as McpToolCatalogEntry)).toContain("status");
   });
 });
+
+/*
+ * The customize tile (#2119 / #2518).
+ *
+ * The tile and the `secondary` button share bg-lumen-bg-secondary, so the
+ * border is the only thing that gives the button an outline. jsdom has no
+ * computed colours, so the outline is pinned as the classes that draw it.
+ */
+describe("SettingsAiIntegration customize tile (#2518)", () => {
+  it("outlines the edit button so it does not melt into the tile", () => {
+    render(
+      <SettingsAiIntegration
+        tools={TOOLS}
+        lastActivity="A briefing exists."
+        labels={LABELS}
+        customize={{
+          heading: "What Claude is given",
+          description: "Rules, memories and skills.",
+          button: "Edit rules, memories and skills",
+          onOpen: vi.fn(),
+        }}
+      />,
+    );
+    const button = screen.getByRole("button", {
+      name: "Edit rules, memories and skills",
+    });
+    expect(button).toHaveClass("bg-lumen-bg-secondary");
+    expect(button).toHaveClass("border", "border-lumen-border");
+    // Same outline on every width: the border is not behind a breakpoint.
+    expect(button.className).not.toMatch(/(?:^|\s)\S+:border(?:\s|$)/);
+    expect(button.closest("div.bg-lumen-bg-secondary")).not.toBeNull();
+  });
+});

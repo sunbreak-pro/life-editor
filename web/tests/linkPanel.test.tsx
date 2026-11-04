@@ -1,5 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { afterEach, describe, it, expect, vi, beforeEach } from "vitest";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from "@testing-library/react";
 
 /*
  * LinkPanel's #749 rewrite: the two things the old panel could not do.
@@ -704,5 +710,164 @@ describe("LinkPanel — icon-only chips (#2391)", () => {
 
     fireEvent.keyDown(input, { key: "Escape" });
     expect(screen.queryByRole("combobox")).toBeNull();
+  });
+});
+
+describe("LinkPanel — candidate rows on narrow (#2474)", () => {
+  it("drops the kind and the day under the title, and leaves Desktop's three items", async () => {
+    render(<LinkPanel itemId="note-1" loadTargets={loadTargets} />);
+    const input = await openPicker();
+    fireEvent.change(input, { target: { value: "Tile delivery" } });
+
+    const [option] = await screen.findAllByRole("option");
+    const title = within(option).getByText("Tile delivery");
+    const meta = within(option).getByText(`${kindName("event")} 2026-08-20`);
+
+    // One box holds the title over the meta; it is `contents` at Desktop, so
+    // the row there is still tile, title, meta side by side.
+    const stack = title.parentElement as HTMLElement;
+    expect(meta.parentElement).toBe(stack);
+    expect(stack.parentElement).toBe(option);
+    const classes = stack.className.split(" ");
+    expect(classes).toContain("contents");
+    expect(classes).toContain("max-md:flex-col");
+    // The title has the row's whole width on narrow, and still truncates.
+    expect(title.className).toContain("max-md:w-full");
+    expect(title.className).toContain("truncate");
+    expect(
+      stack.className.split(" ").filter((c) => !c.startsWith("max-md:")),
+    ).toEqual(["contents"]);
+  });
+});
+
+/*
+ * #2618: the "+" popover (and the related one) flip to hang from the
+ * trigger's LEFT edge when a 15rem panel would cross the left edge of the
+ * pane that clips it. jsdom has no layout, so the rects are stubbed: the
+ * trigger's by its accessible name, the clipping pane's by a test id (and
+ * `overflow-x: auto`, which is what makes it the boundary). jsdom reports no
+ * root font size, so the panel is measured at 15 × 16 = 240px.
+ */
+describe("LinkPanel — popover stays inside its pane (#2618)", () => {
+  const PANE_LEFT = 200;
+  const PANE_RIGHT = 1000;
+
+  // A failed expect must not leave the rect stub on for the next test.
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function stubRects(triggerName: string, triggerRight: number) {
+    return vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(function (this: HTMLElement) {
+        const isTrigger = this.getAttribute("aria-label") === triggerName;
+        const isPane = this.dataset.testid === "pane";
+        const left = isTrigger ? triggerRight - 24 : isPane ? PANE_LEFT : 0;
+        const right = isTrigger ? triggerRight : isPane ? PANE_RIGHT : 0;
+        return {
+          left,
+          right,
+          top: 0,
+          bottom: 0,
+          width: right - left,
+          height: 0,
+          x: left,
+          y: 0,
+          toJSON: () => ({}),
+        } as DOMRect;
+      });
+  }
+
+  function renderInPane() {
+    render(
+      <div data-testid="pane" style={{ overflowX: "auto" }}>
+        <LinkPanel itemId="note-1" loadTargets={loadTargets} />
+      </div>,
+    );
+  }
+
+  /** Class tokens, so `left-0` does not match inside `max-md:left-0`. */
+  const classesOf = (el: Element) => el.className.split(/\s+/);
+
+  const pickerPanel = () =>
+    screen.getByRole("dialog", {
+      name: i18n.t("materials.links.pickerDialog"),
+    });
+
+  it("hangs from the left edge when the '+' sits near the pane's left", async () => {
+    // 230 − 240 = −10, left of the pane at 200: no room to grow left.
+    const spy = stubRects(i18n.t("materials.links.add"), PANE_LEFT + 30);
+    renderInPane();
+    await openPicker();
+    expect(classesOf(pickerPanel())).toContain("left-0");
+    expect(classesOf(pickerPanel())).not.toContain("right-0");
+    // Narrow still spans the header row edge to edge.
+    expect(classesOf(pickerPanel())).toEqual(
+      expect.arrayContaining(["max-md:left-0", "max-md:right-0"]),
+    );
+    // The search field is the part that used to go missing.
+    expect(
+      within(pickerPanel()).getByPlaceholderText(
+        i18n.t("materials.links.searchPlaceholder"),
+      ),
+    ).toBeTruthy();
+    spy.mockRestore();
+  });
+
+  it("keeps hanging from the right edge when there is room on the left", async () => {
+    // 700 − 240 = 460, right of the pane at 200: grows left as before.
+    const spy = stubRects(i18n.t("materials.links.add"), 700);
+    renderInPane();
+    await openPicker();
+    expect(classesOf(pickerPanel())).toContain("right-0");
+    expect(classesOf(pickerPanel())).not.toContain("left-0");
+    spy.mockRestore();
+  });
+
+  it("still hangs from the right edge with exactly a panel's width of room", async () => {
+    // 440 − 240 = 200, the pane's left edge itself.
+    const spy = stubRects(i18n.t("materials.links.add"), PANE_LEFT + 240);
+    renderInPane();
+    await openPicker();
+    expect(classesOf(pickerPanel())).toContain("right-0");
+    spy.mockRestore();
+  });
+
+  it("measures against the pane, not the viewport", async () => {
+    // 400 − 240 = 160: clear of the viewport's 0, but under a pane at 200.
+    const spy = stubRects(i18n.t("materials.links.add"), 400);
+    renderInPane();
+    await openPicker();
+    expect(classesOf(pickerPanel())).toContain("left-0");
+    spy.mockRestore();
+  });
+
+  it("applies the same rule to the related popover", () => {
+    const spy = stubRects(i18n.t("materials.related.open"), PANE_LEFT + 30);
+    renderInPane();
+    fireEvent.click(
+      screen.getByRole("button", { name: i18n.t("materials.related.open") }),
+    );
+    const related = screen.getByRole("dialog", {
+      name: i18n.t("materials.related.dialog"),
+    });
+    expect(classesOf(related)).toContain("left-0");
+    expect(classesOf(related)).not.toContain("right-0");
+    spy.mockRestore();
+  });
+
+  it("names every kind it searches in the placeholder", async () => {
+    render(<LinkPanel itemId="note-1" loadTargets={loadTargets} />);
+    const input = await openPicker();
+    expect(input.getAttribute("placeholder")).toBe(
+      i18n.t("materials.links.searchPlaceholder"),
+    );
+    expect(i18n.getFixedT("ja")("materials.links.searchPlaceholder")).toBe(
+      "ノート・デイリー・予定・Todo を検索",
+    );
+    expect(i18n.getFixedT("en")("materials.links.searchPlaceholder")).toBe(
+      "Search notes, dailies, events and todos",
+    );
   });
 });

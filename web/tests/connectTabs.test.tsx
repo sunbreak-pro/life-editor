@@ -10,7 +10,7 @@ import type { ReactElement } from "react";
 import { connectTabBand } from "../src/connect/connectTabBand";
 import { ConnectScreen } from "../src/connect/ConnectScreen";
 import { GoalsTodosScreen } from "../src/connect/GoalsTodosScreen";
-import { TabBandHeader } from "../src/MainScreen";
+import { NarrowTabBand, TabBandHeader } from "../src/MainScreen";
 import { useShellNavigation } from "../src/hooks/useShellNavigation";
 import { SECTION_DESCRIPTORS } from "../src/sectionDescriptors";
 import { stubDataService } from "./helpers";
@@ -58,6 +58,31 @@ describe("Connect tabs (#2108)", () => {
     expect(container.textContent).not.toMatch(/\d+ items/);
     fireEvent.click(screen.getByRole("tab", { name: "Goals & Todos" }));
     expect(onSelect).toHaveBeenCalledWith("goals");
+  });
+
+  it("keeps each narrow band label on one line (#2489)", () => {
+    // jsdom has no layout, so the wrap itself is checked in a real browser;
+    // this pins the structure that prevents it — the band MainScreen draws at
+    // narrow widths asks the segmented control for single-line labels.
+    const band = connectTabBand({
+      defs: [
+        { id: "tags", label: "タグ" },
+        { id: "goals", label: "目標と Todo" },
+      ],
+      active: "tags",
+      onSelect: vi.fn(),
+      label: "Connect views",
+    });
+    render(<NarrowTabBand band={band} />);
+    const tabs = screen.getAllByRole("tab");
+    expect(tabs).toHaveLength(2);
+    for (const tab of tabs) {
+      expect(tab.className).toContain("whitespace-nowrap");
+      // Still the "sm" row's type, so the band's height does not move.
+      expect(tab.className).toContain("text-xs");
+    }
+    // The track stays one flex-1 row sharing the header with the actions.
+    expect(screen.getByRole("tablist").className).toContain("flex-1");
   });
 
   it("mounts the tag hub on Tags and the goal tree on Goals & Todos", () => {

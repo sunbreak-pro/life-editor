@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { Clock } from "lucide-react";
 import { SectionHeader, HeaderTabs } from "../src/components";
 
 /*
@@ -88,6 +89,127 @@ describe("SectionHeader", () => {
     ).toEqual([]);
   });
 
+  /*
+   * #2508 — the tab band has to stop at the controls. The band sits in the
+   * shrinkable left column (flex-1 min-w-0), the controls in their own
+   * non-shrinking column beside it, and the band's tablist is the one that
+   * scrolls; if the band ever moved into the controls column or lost the
+   * column's min-w-0, Analytics' tabs would run under the search field again.
+   */
+  it("keeps the tab band in the shrinkable column beside the controls (#2508)", () => {
+    const { container } = render(
+      <SectionHeader
+        tabs={
+          <HeaderTabs
+            divider={false}
+            tabs={[
+              { id: "a", label: "概要" },
+              { id: "b", label: "スケジュール" },
+            ]}
+            activeTab="a"
+            onSelect={() => {}}
+          />
+        }
+        controls={<button type="button">search</button>}
+      />,
+    );
+    const row = container.firstElementChild as HTMLElement;
+    const [tabColumn, controlsColumn] = Array.from(row.children);
+    const tablist = screen.getByRole("tablist");
+
+    expect(tabColumn?.contains(tablist)).toBe(true);
+    expect(controlsColumn?.contains(tablist)).toBe(false);
+    expect(controlsColumn?.contains(screen.getByText("search"))).toBe(true);
+    expect(tabColumn?.className.split(" ")).toContain("min-w-0");
+    expect(controlsColumn?.className.split(" ")).toContain("shrink-0");
+    expect(tablist.className.split(" ")).toContain("overflow-x-auto");
+  });
+
+  /*
+   * Review of PR #2529: at 768px the tablist got 0px. The search field kept
+   * its full width inside the shrink-0 controls group, and the tab column
+   * (flex-1, basis 0) only ever received the leftovers. The fix makes the
+   * search field its own item of the row with a floor, hands it nearly all of
+   * any shortfall, and gives the tab column its natural width as its basis.
+   * jsdom has no layout, so these pin the structure and classes that decide
+   * the order; the widths are checked in a real browser.
+   */
+  describe("short rows narrow the search field before the tabs (#2508)", () => {
+    function renderTabbed(): HTMLElement {
+      const { container } = render(
+        <SectionHeader
+          tabs={
+            <HeaderTabs
+              divider={false}
+              tabs={[
+                { id: "a", label: "概要" },
+                { id: "b", label: "記録" },
+              ]}
+              activeTab="a"
+              onSelect={() => {}}
+            />
+          }
+          search={<button type="button">search</button>}
+          controls={<button type="button">undo</button>}
+        />,
+      );
+      return container.firstElementChild as HTMLElement;
+    }
+
+    it("puts the search field in its own row item between the tabs and the controls", () => {
+      const row = renderTabbed();
+      expect(row.childElementCount).toBe(3);
+      const [tabColumn, searchSlot, controlsColumn] = Array.from(row.children);
+      expect(tabColumn?.contains(screen.getByRole("tablist"))).toBe(true);
+      expect(searchSlot?.contains(screen.getByText("search"))).toBe(true);
+      expect(controlsColumn?.contains(screen.getByText("undo"))).toBe(true);
+      // Inside the shrink-0 group the field's width was the group's minimum.
+      expect(controlsColumn?.contains(screen.getByText("search"))).toBe(false);
+    });
+
+    it("gives the search slot its width, a floor and the larger shrink share", () => {
+      const row = renderTabbed();
+      const searchSlot = row.children[1];
+      expect(searchSlot?.className.split(" ")).toEqual(
+        expect.arrayContaining([
+          "md:w-72",
+          "xl:w-96",
+          "md:min-w-32",
+          "md:shrink-[1000]",
+        ]),
+      );
+    });
+
+    it("bases the tab column on the band's natural width, not on 0", () => {
+      const row = renderTabbed();
+      const classes = row.children[0]?.className.split(" ") ?? [];
+      expect(classes).toEqual(expect.arrayContaining(["flex-auto", "min-w-0"]));
+      // flex-1 is basis 0: the column would only get what the controls leave.
+      expect(classes).not.toContain("flex-1");
+    });
+
+    it("keeps flex-1 on a title column and the old 8px before the controls", () => {
+      const { container } = render(
+        <SectionHeader
+          title="Work"
+          controls={<button type="button">undo</button>}
+        />,
+      );
+      const [titleColumn, controlsColumn] = Array.from(
+        (container.firstElementChild as HTMLElement).children,
+      );
+      expect(titleColumn?.className.split(" ")).toContain("flex-1");
+      expect(controlsColumn?.className.split(" ")).toContain("pl-2");
+    });
+
+    it("spaces the controls 6px from the search field, as between controls", () => {
+      const row = renderTabbed();
+      const classes = row.children[2]?.className.split(" ") ?? [];
+      expect(classes).toEqual(expect.arrayContaining(["pl-1.5", "gap-1.5"]));
+      expect(classes).not.toContain("pl-2");
+    });
+  });
+
   it("keeps the tab band bottom-glued and leaves a title unpadded (#1283)", () => {
     const withTabs = render(
       <SectionHeader
@@ -111,6 +233,52 @@ describe("SectionHeader", () => {
     const titleColumn = withTitle.container.firstElementChild
       ?.firstElementChild as HTMLElement;
     expect(titleColumn.className).not.toContain("pt-3");
+  });
+
+  /*
+   * #2552 — sections without a tab band show the sidebar's icon before the
+   * title, so the header alone says which section is open. The heading text
+   * stays the accessible name; a tab band replaces the icon along with the
+   * title.
+   */
+  describe("section icon (#2552)", () => {
+    it("draws the icon before the title at 18px, hidden from assistive tech", () => {
+      const { container } = render(<SectionHeader title="Schedule" icon={Clock} />);
+      const svg = container.querySelector("svg");
+      expect(svg).not.toBeNull();
+      expect(svg?.getAttribute("aria-hidden")).toBe("true");
+      expect(svg?.getAttribute("width")).toBe("18");
+      expect(svg?.getAttribute("class")).toContain("text-lumen-text-secondary");
+      const heading = screen.getByRole("heading", { name: "Schedule" });
+      expect(
+        svg!.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    });
+
+    it("draws no icon when none is given", () => {
+      const { container } = render(<SectionHeader title="Work" />);
+      expect(container.querySelector("svg")).toBeNull();
+    });
+
+    it("draws no icon when a tab band stands in for the title", () => {
+      render(
+        <SectionHeader
+          title="ignored"
+          icon={Clock}
+          tabs={
+            <HeaderTabs
+              divider={false}
+              tabs={[{ id: "a", label: "Tab A" }]}
+              activeTab="a"
+              onSelect={() => {}}
+            />
+          }
+        />,
+      );
+      const tablist = screen.getByRole("tablist");
+      const header = tablist.closest(".border-b") as HTMLElement;
+      expect(header.querySelector("svg.lucide-clock")).toBeNull();
+    });
   });
 
   /*

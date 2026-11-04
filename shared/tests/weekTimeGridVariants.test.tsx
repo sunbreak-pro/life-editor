@@ -70,12 +70,15 @@ describe("WeekTimeGrid — provenance variants", () => {
     expect(block.className).toContain("text-lumen-chip-routine-fg");
   });
 
-  it("gives an event item the 紫 face + border", () => {
+  it("gives an event item the 紫 face and the 紫 left line (#2623)", () => {
     renderGrid();
     const block = screen.getByTitle("12:00–13:00 Dinner");
     expect(block.className).toContain("bg-lumen-schedule-event-bg");
-    expect(block.className).toContain("border-lumen-schedule-event-border");
-    // The border IS the event cue — no glyph (#593 keeps event untouched).
+    expect(block.className).toContain("border-l-[3px]");
+    expect(block.className).toContain("border-l-lumen-chip-event-dot");
+    // #2623: the full 1px border gave way to the left line every kind draws.
+    expect(block.className).not.toContain("border-lumen-schedule-event-border");
+    // No glyph — that absence is the event's non-hue cue (#593).
     expect(block.querySelector("svg")).toBeNull();
   });
 
@@ -273,60 +276,71 @@ describe("WeekTimeGrid — completion is a TODO's alone (#1373)", () => {
 });
 
 /*
- * #1580 — a tag's colour on the block itself.
+ * #1580 → #2623 — a tag's colour on the block itself.
  *
- * The tag REPLACES the variant face (「種別の色より優先」), so each case checks
- * both halves: the colour arrives AND the variant class is gone. What does NOT
- * move is the non-hue half of provenance — the Repeat and CheckSquare glyphs
- * stay, so a coloured block still says what kind it is without relying on hue
- * at all, which is the rule the variant faces were written under (#593).
- *
- * The ink is not asserted as a literal (scheduleTagColor.test.ts owns the
- * contrast rule); what matters here is that the block carries one, so a title
- * can never land on an arbitrary fill in the page's default colour.
+ * #1580 let the tag colour REPLACE the variant face and flip the ink to match.
+ * #2623 keeps "the tag beats the kind" but only on the 3px left line: the face
+ * and the ink stay the kind's, so a title is readable on any tag colour and a
+ * busy week is no longer one saturated block. What does NOT move is the
+ * non-hue half of provenance — the Repeat and CheckSquare glyphs (#593).
  */
-describe("WeekTimeGrid — tag colour on the block (#1580)", () => {
+describe("WeekTimeGrid — tag colour on the block's line (#1580 / #2623)", () => {
   const TAGGED: WeekTimeGridItem[] = ITEMS.map((i) =>
     i.id === "gym" ? { ...i, tagColor: "#1e3a8a" } : i,
   );
 
-  it("paints the block with the tag colour instead of the variant face", () => {
+  it("draws the tag colour on the left line, over the kind's face", () => {
     renderGrid({ items: TAGGED });
     const block = screen.getByTitle("19:00–20:30 Gym");
-    expect(block.style.backgroundColor).toBe("rgb(30, 58, 138)");
-    expect(block.style.color).not.toBe("");
-    expect(block.className).not.toContain("bg-lumen-schedule-routine-bg");
+    expect(block.style.borderLeftColor).toBe("rgb(30, 58, 138)");
+    expect(block.className).toContain("border-l-[3px]");
+    expect(block.className).not.toContain("border-l-lumen-chip-routine-dot");
+    // The face and the ink stay the kind's.
+    expect(block.style.backgroundColor).toBe("");
+    expect(block.style.color).toBe("");
+    expect(block.className).toContain("bg-lumen-schedule-routine-bg");
+    expect(block.className).toContain("text-lumen-chip-routine-fg");
   });
 
-  it("leaves an untagged block on its variant face", () => {
+  it("draws an untagged block's line in its kind's colour", () => {
     renderGrid({ items: TAGGED });
     const block = screen.getByTitle("12:00–13:00 Dinner");
-    expect(block.style.backgroundColor).toBe("");
-    expect(block.className).toContain("bg-lumen-schedule-event-bg");
+    expect(block.style.borderLeftColor).toBe("");
+    expect(block.className).toContain("border-l-lumen-chip-event-dot");
+    const todo = screen.getByTitle("09:00–10:00 Write report");
+    expect(todo.className).toContain("border-l-lumen-chip-task-dot");
   });
 
-  it("keeps the routine glyph, and lights its band off the readable ink", () => {
+  it("keeps the routine glyph, and draws no second band inside the line", () => {
     renderGrid({ items: TAGGED });
     const block = screen.getByTitle("19:00–20:30 Gym");
-    // The provenance glyph survives the recolour.
     expect(block.querySelector("svg")).not.toBeNull();
-    // The band's own token can land within a shade of an arbitrary fill and
-    // disappear; currentColor is the ink the fill was contrast-checked against.
-    const band = block.querySelector("span[aria-hidden]") as HTMLElement;
-    expect(band.className).toContain("bg-current");
-    expect(band.className).not.toContain("bg-lumen-chip-routine-dot");
+    // The routine's old inner band would double the left line.
+    expect(block.querySelector("span[aria-hidden]")).toBeNull();
   });
 
-  it("keeps the token band on an untagged routine", () => {
-    renderGrid();
-    const band = screen
-      .getByTitle("19:00–20:30 Gym")
-      .querySelector("span[aria-hidden]") as HTMLElement;
-    expect(band.className).toContain("bg-lumen-chip-routine-dot");
+  it("marks the selected block with a 1px accent ring", () => {
+    render(
+      <WeekTimeGrid
+        data={{
+          weekStart: "2026-07-05",
+          items: TAGGED,
+          todayKey: "2026-07-09",
+          selectedId: "gym",
+        }}
+        labels={{ weekdays: WEEKDAYS, allDay: "All-day" }}
+      />,
+    );
+    const picked = screen.getByTitle("19:00–20:30 Gym");
+    expect(picked.className).toContain("ring-1 ring-lumen-accent");
+    expect(picked.className.split(" ")).not.toContain("ring-2");
+    expect(screen.getByTitle("12:00–13:00 Dinner").className).not.toContain(
+      "ring-1",
+    );
   });
 
   it("does not disturb the block's own position styles", () => {
-    // The face style is spread INTO the positioning object; a colour that
+    // The line style is spread INTO the positioning object; a colour that
     // wiped `top` / `height` would drop every block to the top of the column.
     renderGrid({ items: TAGGED });
     const block = screen.getByTitle("19:00–20:30 Gym");

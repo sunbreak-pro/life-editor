@@ -182,10 +182,7 @@ export function AgendaList({
     return (
       <li
         key={it.id}
-        className={cn(
-          "flex items-stretch gap-2 border-b border-lumen-border",
-          selected && "bg-lumen-hover",
-        )}
+        className={cn("flex items-stretch gap-2", selected && "bg-lumen-hover")}
       >
         <button
           type="button"
@@ -202,7 +199,11 @@ export function AgendaList({
           )}
         >
           {it.isAllDay ? (
-            <span className="rounded border border-lumen-border-strong bg-lumen-bg px-1.5 py-0.5 text-xs font-semibold text-lumen-text-tertiary">
+            // Plain words in the time column (#2570), so an all-day title
+            // lines up with the timed titles below it instead of sitting after
+            // a framed badge of its own width. No wrapping: "All-day" nearly
+            // fills the column and would otherwise break at its hyphen.
+            <span className="w-11 shrink-0 whitespace-nowrap text-xs leading-tight text-lumen-text-secondary">
               {labels.allDay}
             </span>
           ) : (

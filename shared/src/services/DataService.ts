@@ -7,6 +7,7 @@ import type {
   SessionType,
   PomodoroPreset,
 } from "../types/timer";
+import type { EventWorkAnchor } from "../utils/timerSessions";
 import type { SoundSettings } from "../types/sound";
 import type { DailyNode } from "../types/daily";
 import type {
@@ -190,6 +191,25 @@ export interface TimerDataService {
   fetchSessionsByTodoId(todoId: string): Promise<TimerSession[]>;
   /** Sessions measured against one Event (#1375) — the event's logged time. */
   fetchSessionsByEventId(eventId: string): Promise<TimerSession[]>;
+  /**
+   * Make an Event's logged time add up to `totalMinutes` by writing its one
+   * hand-entered row (#2407). Null removes that row. Timer rows are never
+   * touched, so a total below them rejects.
+   */
+  saveEventWorkTotal(input: {
+    eventId: string;
+    anchor: EventWorkAnchor;
+    totalMinutes: number | null;
+  }): Promise<void>;
+  /**
+   * The same for a Todo (#2553): its one hand-entered row carries `task_id`.
+   * `anchor` is the day and time the row is filed under.
+   */
+  saveTodoWorkTotal(input: {
+    todoId: string;
+    anchor: EventWorkAnchor;
+    totalMinutes: number | null;
+  }): Promise<void>;
 
   // Pomodoro Presets
   fetchPomodoroPresets(): Promise<PomodoroPreset[]>;
@@ -858,6 +878,18 @@ export interface DailyWriteOptions {
   ownEcho?: boolean;
 }
 
+/** The answer of `upsert_daily_content` (0046, #2336). */
+export interface DailySaveAnswer {
+  saved: boolean;
+  /** The version now on the server. */
+  updatedAt: string;
+  /** The body now on the server. Only meaningful when `saved` is false. */
+  content: string;
+  /** The day is in the Trash, so nothing was written. */
+  isDeleted: boolean;
+  hasPassword: boolean;
+}
+
 export interface DailiesUnifiedDataService {
   listDailiesUnified(): Promise<DailyNode[]>;
   /** The light rows changed since `cursor` (#2333) — see fetchTodoChanges. */
@@ -883,6 +915,17 @@ export interface DailiesUnifiedDataService {
     content: string,
     opts?: DailyWriteOptions,
   ): Promise<DailyNode>;
+  /**
+   * The outbox's save (#2336): writes only if the day is still at
+   * `expectedUpdatedAt`, or, when that is null, if the day has no row. Under any
+   * session other than `ownerId` it refuses to write, as createTodoIfAbsent does.
+   */
+  saveDailyIfUnchanged(
+    date: string,
+    content: string,
+    expectedUpdatedAt: string | null,
+    options: { ownerId: string },
+  ): Promise<DailySaveAnswer>;
   createDailyUnified(node: DailyNode): Promise<DailyNode>;
   updateDailyUnified(
     id: string,

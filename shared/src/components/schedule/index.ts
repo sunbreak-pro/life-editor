@@ -62,7 +62,7 @@ export {
   type EventEditorRepeat,
   // #1374: the per-event reminder field.
   type EventEditorReminder,
-  // #1375: the read-only logged-work-time row.
+  // #1375 / #2407: the logged-work-time field.
   type EventEditorWorkTime,
   // #998: the narrow sheet's Event → Todo entry.
   type EventEditorConvert,
@@ -70,6 +70,8 @@ export {
   type EventEditorDuplicate,
   // #2407: the footer's Cancel.
   type EventEditorCancel,
+  // #2447: the tag slot's staged edit.
+  type EventEditorTagDraft,
   // #628: the one patch the save button hands the host.
   type EventEditorPatch,
 } from "./EventEditorPane";
@@ -102,6 +104,7 @@ export {
   TodayTodoTray,
   type TodayTodoTrayProps,
   type TodayTodoTrayLabels,
+  type TodayTodoRowActions,
   type TodayTodoRow,
   type TodayTodoAddableRow,
 } from "./TodayTodoTray";
@@ -131,12 +134,14 @@ export {
   type ItemCreatePanelHandlers,
   type ItemCreateOption,
   type ItemCreateNoteDraft,
+  type ItemCreateMemoTarget,
   type ItemCreateNotePickerPlacement,
   type ItemCreateSlot,
   type ItemCreateType,
   type ItemCreateSource,
   type ItemCreateTagOption,
   type ItemCreateTagPool,
+  type ItemCreateEventPool,
   type ItemCreateRepeatField,
 } from "./ItemCreatePanel";
 // #2219: 「ノートを添付」 for an item that already exists (the edit panels).

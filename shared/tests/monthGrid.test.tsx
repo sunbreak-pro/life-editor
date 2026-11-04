@@ -321,11 +321,51 @@ describe("MonthGrid", () => {
     expect(chip.className).toContain("bg-lumen-chip-task-bg");
     expect(chip.className).toContain("text-lumen-chip-task-fg");
     // #593: same todo mark as the week grid, so the cue survives the month view.
-    expect(chip.querySelector("svg")).not.toBeNull();
-    // Event chips stay glyph-free (face color only — #593 touches todo only).
-    expect(
-      screen.getByRole("button", { name: "Dentist" }).querySelector("svg"),
-    ).toBeNull();
+    expect(chip.querySelector("svg")?.getAttribute("data-chip-kind")).toBe(
+      "task",
+    );
+  });
+
+  /*
+   * #2551: every kind carries its own mark, so an event and a routine tell
+   * apart without their colours — #593 had given only todos one.
+   */
+  it("marks each chip with its kind and names the mark when given labels", () => {
+    renderGrid({
+      chipKindLabels: { event: "Event", task: "Todo", routine: "Repeating" },
+    });
+    const kinds: Array<[string, string, string]> = [
+      ["Dentist", "event", "Event"],
+      ["Gym", "routine", "Repeating"],
+      ["Write report", "task", "Todo"],
+    ];
+    for (const [title, kind, label] of kinds) {
+      const chip = screen.getByRole("button", { name: `${label} ${title}` });
+      const mark = chip.querySelector("svg");
+      expect(mark?.getAttribute("data-chip-kind")).toBe(kind);
+      expect(mark?.getAttribute("role")).toBe("img");
+      expect(mark?.getAttribute("aria-label")).toBe(label);
+      expect(chip.className).toContain("flex");
+    }
+    // The three marks are three different glyphs, not one icon three times.
+    const glyphs = kinds.map(
+      ([title, , label]) =>
+        screen
+          .getByRole("button", { name: `${label} ${title}` })
+          .querySelector("svg")
+          ?.getAttribute("class") ?? "",
+    );
+    expect(new Set(glyphs).size).toBe(3);
+    // Still no time on a month chip (#2551 keeps the prototype's rule).
+    expect(screen.queryByText(/\d{1,2}:\d{2}/)).toBeNull();
+  });
+
+  it("keeps the kind marks decorative when no labels are given", () => {
+    renderGrid();
+    const chip = screen.getByRole("button", { name: "Dentist" });
+    const mark = chip.querySelector("svg");
+    expect(mark?.getAttribute("data-chip-kind")).toBe("event");
+    expect(mark?.getAttribute("aria-hidden")).toBe("true");
   });
 
   it("paints a todo title in the todo chip colours in compact mode", () => {
@@ -503,20 +543,15 @@ describe("MonthGrid — chips carry the pointer cursor (#1584)", () => {
 });
 
 /*
- * #1580 — a tag's colour on the item itself.
+ * #1580 → #2623 — a tag's colour on the item itself.
  *
- * Until now a chip said only WHERE it came from (routine / event / todo) in
- * three fixed token pairs. Tags already carried a colour and the calendar lens
- * already painted with it; the items did not. The colour REPLACES the variant
- * face rather than sitting beside it, which is what "種別の色より優先" asks
- * for — so each case here checks both halves: the tag colour arrives AND the
- * variant class is gone.
- *
- * The ink is not asserted as a literal here (scheduleTagColor.test.ts owns the
- * contrast rule); what this file pins is that the chip carries one at all, so
- * a title can never land on an arbitrary fill in the page's default colour.
+ * #1580 let the tag colour REPLACE the variant face ("種別の色より優先"). #2623
+ * kept the priority and moved it: the face is always the kind's light token
+ * pair, and the tag colour is the 3px left line. So each case checks both
+ * halves — the tag colour lands on the line, and the face (and with it the
+ * ink) is still the kind's, never the tag's.
  */
-describe("MonthGrid — tag colour on the chip (#1580)", () => {
+describe("MonthGrid — tag colour on the chip's line (#1580 / #2623)", () => {
   const TAGGED: MonthGridItem[] = [
     {
       id: "e1",
@@ -528,32 +563,53 @@ describe("MonthGrid — tag colour on the chip (#1580)", () => {
     { id: "e2", date: "2026-07-09", title: "Gym", variant: "routine" },
   ];
 
-  it("paints a Desktop chip with the tag colour instead of the variant face", () => {
+  it("draws a Desktop chip's tag colour on its left line, over the kind's face", () => {
     renderGrid({ items: TAGGED });
     const chip = screen.getByRole("button", { name: "Dentist" });
-    expect(chip.style.backgroundColor).toBe("rgb(30, 58, 138)");
-    expect(chip.style.color).not.toBe("");
-    expect(chip.className).not.toContain("bg-lumen-chip-event-bg");
+    expect(chip.style.borderLeftColor).toBe("rgb(30, 58, 138)");
+    expect(chip.className).toContain("border-l-[3px]");
+    // The face and the ink stay the kind's: no fill, no flipped ink.
+    expect(chip.style.backgroundColor).toBe("");
+    expect(chip.style.color).toBe("");
+    expect(chip.className).toContain("bg-lumen-chip-event-bg");
+    expect(chip.className).toContain("text-lumen-chip-event-fg");
+    // The kind's line colour gives way to the tag's.
+    expect(chip.className).not.toContain("border-l-lumen-chip-event-dot");
   });
 
-  it("leaves an untagged chip on its variant face", () => {
+  it("draws an untagged chip's line in its kind's colour", () => {
     renderGrid({ items: TAGGED });
     const chip = screen.getByRole("button", { name: "Gym" });
-    expect(chip.style.backgroundColor).toBe("");
+    expect(chip.style.borderLeftColor).toBe("");
+    expect(chip.className).toContain("border-l-[3px]");
+    expect(chip.className).toContain("border-l-lumen-chip-routine-dot");
     expect(chip.className).toContain("bg-lumen-chip-routine-bg");
   });
 
-  it("paints a compact title line the same way", () => {
+  it("falls back to the kind's line for a colour that is not a hex", () => {
+    renderGrid({
+      items: [{ ...TAGGED[0]!, tagColor: "rebeccapurple" }],
+    });
+    const chip = screen.getByRole("button", { name: "Dentist" });
+    expect(chip.style.borderLeftColor).toBe("");
+    expect(chip.className).toContain("border-l-lumen-chip-event-dot");
+  });
+
+  it("draws a compact title line the same way", () => {
     renderGrid({ compact: true, items: TAGGED });
     // The face is on the chip BOX; the text sits one span deeper since #1516.
     const face = screen.getByText("Dentist").parentElement as HTMLElement;
-    expect(face.style.backgroundColor).toBe("rgb(30, 58, 138)");
-    expect(face.className).not.toContain("bg-lumen-chip-event-bg");
+    expect(face.style.borderLeftColor).toBe("rgb(30, 58, 138)");
+    expect(face.style.backgroundColor).toBe("");
+    expect(face.className).toContain("border-l-[3px]");
+    expect(face.className).toContain("bg-lumen-chip-event-bg");
+    const plain = screen.getByText("Gym").parentElement as HTMLElement;
+    expect(plain.className).toContain("border-l-lumen-chip-routine-dot");
   });
 
   it("keeps the todo mark and the strike-through on a coloured chip", () => {
-    // The colour answers "which tag"; the glyph and the line answer "what kind"
-    // and "is it done". Replacing the face must not swallow either.
+    // The colour answers "which tag"; the glyph and the line-through answer
+    // "what kind" and "is it done". Moving the colour must not swallow either.
     renderGrid({
       items: [
         {
@@ -567,9 +623,31 @@ describe("MonthGrid — tag colour on the chip (#1580)", () => {
       ],
     });
     const chip = screen.getByRole("button", { name: "Write report" });
-    expect(chip.style.backgroundColor).toBe("rgb(253, 230, 138)");
+    expect(chip.style.borderLeftColor).toBe("rgb(253, 230, 138)");
+    expect(chip.className).toContain("bg-lumen-chip-task-bg");
     expect(chip.querySelector("svg")).not.toBeNull();
     expect(chip.className).toContain("line-through");
+  });
+
+  it("draws a holiday in its Settings colour as a light face and a line (#1626)", () => {
+    renderGrid({
+      items: [
+        {
+          id: "holiday-2026-07-20",
+          date: "2026-07-20",
+          title: "Marine Day",
+          variant: "holiday",
+          isAllDay: true,
+          tagColor: "#e03e3e",
+        },
+      ],
+    });
+    const chip = screen.getByText("Marine Day");
+    expect(chip.style.borderLeftColor).toBe("rgb(224, 62, 62)");
+    expect(chip.className).toContain("border-l-[3px]");
+    // The page's ink, which the light wash of any colour keeps readable.
+    expect(chip.className).toContain("text-lumen-text");
+    expect(chip.style.color).toBe("");
   });
 });
 

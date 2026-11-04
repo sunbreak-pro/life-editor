@@ -5,9 +5,11 @@ import {
   createOutboxSender,
   sessionOwner,
   type OutboxSender,
+  type OutboxSent,
 } from "./offlineDataService";
+import type { KnownDailies } from "./offlineDaily";
+import { readStoredOwnerId } from "./offlineSession";
 import { getSupabaseClient } from "./supabaseClient";
-import type { SyncDomain } from "../context/syncDomains";
 
 /*
  * Single source for the web/Electron/Capacitor DataService singleton.
@@ -33,28 +35,31 @@ import type { SyncDomain } from "../context/syncDomains";
 
 let dataServiceSingleton: DataService | null = null;
 let outboxSender: OutboxSender | null = null;
+let lastOnSent: OutboxSent = () => {};
 
 export function getDataService(): DataService {
   if (!dataServiceSingleton) {
     const inner = createSupabaseDataService();
-    const owner = sessionOwner(getSupabaseClient().auth);
+    const owner = sessionOwner(getSupabaseClient().auth, readStoredOwnerId);
     const landed = new Set<string>();
     const dropped = new Set<string>();
+    const known: KnownDailies = new Map();
     dataServiceSingleton = createOfflineDataService(
       inner,
       owner,
       landed,
       dropped,
+      known,
+      () => outboxSender?.nudge(lastOnSent),
     );
-    outboxSender = createOutboxSender(inner, owner, landed, dropped);
+    outboxSender = createOutboxSender(inner, owner, landed, dropped, known);
   }
   return dataServiceSingleton;
 }
 
 /** Send what waits in the outbox. Resolves either way; `onSent` if any went. */
-export async function sendOutbox(
-  onSent: (domains: SyncDomain[]) => void,
-): Promise<void> {
+export async function sendOutbox(onSent: OutboxSent): Promise<void> {
   getDataService();
+  lastOnSent = onSent;
   await outboxSender?.run(onSent);
 }

@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Link2, Pencil, Trash2 } from "lucide-react";
 import { cn } from "../cn";
 import { Button } from "../Button";
 import { Input } from "../Input";
-import { TodoStatusCheckbox } from "../TodoStatusCheckbox";
-import type { GoalPeriodKind } from "../../types/goal";
+import { TodoStatusCheckbox, toggledTodoStatus } from "../TodoStatusCheckbox";
+import type { Goal, GoalPeriodKind } from "../../types/goal";
 import type { TodoStatus } from "../../types/todoTree";
 import { isImeComposing } from "../../utils/imeGuard";
 import { goalProgress, type GoalTreeNode } from "./buildGoalTreeModel";
@@ -13,14 +13,21 @@ import { GoalStatus, type GoalTreeLabels } from "./GoalTreeView";
 /*
  * The right panel for the goal picked in the tree (#2108 — design C4; on a
  * phone the host puts the same panel in a bottom sheet). Everything a goal
- * can be told from here: its title, its place in the tree (a parent of a
- * longer period — how the tree is rearranged, brief §1.5), the hand mark that only
- * an unconnected goal may carry (brief §1.2), and delete. Its todos and child
- * goals are listed so the progress number can be read back to its parts: the
- * tree only draws this period's children, so the ones from earlier periods
- * (which the progress counts too) are given as a number.
+ * can be told from here: its title, the hand mark that only an unconnected
+ * goal may carry (brief §1.2), and delete. Its todos and child goals are listed
+ * so the progress number can be read back to its parts: the tree only draws
+ * this period's children, so the ones from earlier periods (which the progress
+ * counts too) are given as a number. A todo's name ticks it and its pencil
+ * opens it, as on the tree's todo rows (#2388); no bin here yet.
  *
- * Linking todos FROM the goal is #2109's screen, not this one.
+ * The goal above is a link that picks it (#2410). Changing it is a drag on the
+ * tree where the tree can be dragged; where it cannot (a phone, the Briefing
+ * goals panel), the host also asks for the old select with `parentSelect`, the
+ * only way there. Without the select, a "Remove" button beside the link is how
+ * the goal goes back to having none: a drag only moves it under another goal.
+ *
+ * Linking todos FROM the goal is #2109's screen, not this one: the button only
+ * tells the host to swap it in (`onLinkTodos`).
  *
  * Pure presentation (§6.4). The host mounts it keyed by the goal's id and
  * title, so the title draft starts over when another goal is picked or the
@@ -31,8 +38,14 @@ export interface GoalDetailLabels {
   titleLabel: string;
   parentLabel: string;
   parentNone: string;
+  /** The button beside the link that takes the goal above off (#2410). */
+  unlinkParent: string;
+  /** Its name for a screen reader, naming the goal it is taken off. */
+  formatUnlinkParent: (parentTitle: string) => string;
   todosHeading: string;
   todosEmpty: string;
+  /** The button that opens the linking screen. */
+  linkTodos: string;
   childrenHeading: string;
   /** "2 more from earlier periods" — child goals the tree does not draw. */
   formatEarlierChildren: (count: number) => string;
@@ -52,10 +65,32 @@ export interface GoalParentOption {
   periodKind?: GoalPeriodKind;
 }
 
+/** "Week · 2026-09-27"; a range of its own (#2366) says more than the key. */
+export function formatGoalPeriod(
+  goal: Goal,
+  labels: Pick<GoalDetailLabels, "formatPeriod" | "tree">,
+): string {
+  return labels.formatPeriod(
+    labels.tree.kinds[goal.periodKind],
+    goal.startDate && goal.endDate
+      ? labels.tree.formatDateRange(goal.startDate, goal.endDate)
+      : goal.periodKey,
+  );
+}
+
 export interface GoalDetailPanelProps {
   node: GoalTreeNode;
   /** The longer-period goals this one may hang under; empty for a year. */
   parentOptions: readonly GoalParentOption[];
+  /**
+   * The goal above, for the link. Apart from `parentOptions`: a goal added
+   * under last month's goal keeps a parent that is no longer on offer.
+   */
+  parentGoal?: GoalParentOption | null;
+  /** Also offer the select, where the tree cannot be dragged. */
+  parentSelect?: boolean;
+  /** Opens the linking screen. Absent, no button is drawn. */
+  onLinkTodos?: () => void;
   onRename: (title: string) => void;
   onChangeParent: (parentGoalId: string | null) => void;
   onSetManualAchieved: (achieved: boolean) => void;
@@ -68,9 +103,25 @@ export interface GoalDetailPanelProps {
 
 const SUB_HEADING = "mb-1.5 text-xs font-medium text-lumen-text-tertiary";
 
+/**
+ * A linked todo's pencil, drawn as the tree's todo-row icons are
+ * (GoalTreeView's TODO_ROW_ICON): on hover or focus on desktop, always on a
+ * phone, with a 44px target there. Copied, not imported, because a component
+ * module may export only components (react-refresh).
+ */
+const TODO_ROW_ICON = cn(
+  "ml-0.5 grid shrink-0 place-items-center rounded-lumen-sm text-lumen-text-tertiary transition-[color,background-color,opacity] hover:bg-lumen-hover hover:text-lumen-text",
+  "focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+  "max-md:min-h-11 max-md:min-w-11",
+  "opacity-0 group-hover/todo:opacity-100 group-focus-within/todo:opacity-100 max-md:opacity-100",
+);
+
 export function GoalDetailPanel({
   node,
   parentOptions,
+  parentGoal = null,
+  parentSelect = false,
+  onLinkTodos,
   onRename,
   onChangeParent,
   onSetManualAchieved,
@@ -98,13 +149,7 @@ export function GoalDetailPanel({
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-2">
         <span className="text-xs text-lumen-briefing-kohaku">
-          {labels.formatPeriod(
-            labels.tree.kinds[goal.periodKind],
-            // A range of its own (#2366) says more than the period's key.
-            goal.startDate && goal.endDate
-              ? labels.tree.formatDateRange(goal.startDate, goal.endDate)
-              : goal.periodKey,
-          )}
+          {formatGoalPeriod(goal, labels)}
         </span>
         <Input
           value={title}
@@ -127,33 +172,74 @@ export function GoalDetailPanel({
         </div>
       </div>
 
-      {parentOptions.length > 0 && (
-        <label className="flex flex-col gap-1.5">
+      {(parentGoal !== null || parentOptions.length > 0) && (
+        <div className="flex flex-col items-start gap-1.5">
           <span className="text-xs font-medium text-lumen-text-tertiary">
             {labels.parentLabel}
           </span>
-          <select
-            value={goal.parentGoalId ?? ""}
-            onChange={(e) => onChangeParent(e.target.value || null)}
-            className={cn(
-              "h-9 w-full rounded-md border border-lumen-border bg-lumen-bg px-2 text-sm text-lumen-text",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11 max-md:text-base",
-            )}
-          >
-            <option value="">{labels.parentNone}</option>
-            {parentOptions.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.periodKind
-                  ? `${labels.tree.kinds[option.periodKind]}: ${option.title}`
-                  : option.title}
-              </option>
-            ))}
-          </select>
-        </label>
+          {parentGoal !== null ? (
+            <div className="flex max-w-full items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onSelectGoal(parentGoal.id)}
+                className={cn(
+                  "min-w-0 max-w-full truncate rounded-lumen-sm text-left text-[13px] text-lumen-accent hover:underline max-md:min-h-11",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+                )}
+              >
+                {parentGoal.title}
+              </button>
+              {/* The link alone cannot take a goal back to none (#2410,
+                  D-20261102-connect-1 = A): the select's "None", without it. */}
+              {!parentSelect && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => onChangeParent(null)}
+                  aria-label={labels.formatUnlinkParent(parentGoal.title)}
+                  className="shrink-0 max-md:min-h-11"
+                >
+                  {labels.unlinkParent}
+                </Button>
+              )}
+            </div>
+          ) : (
+            !parentSelect && (
+              <span className="text-[13px] text-lumen-text-secondary">
+                {labels.parentNone}
+              </span>
+            )
+          )}
+          {parentSelect && parentOptions.length > 0 && (
+            <select
+              aria-label={labels.parentLabel}
+              value={goal.parentGoalId ?? ""}
+              onChange={(e) => onChangeParent(e.target.value || null)}
+              className={cn(
+                "h-9 w-full rounded-md border border-lumen-border bg-lumen-bg px-2 text-sm text-lumen-text",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11 max-md:text-base",
+              )}
+            >
+              <option value="">{labels.parentNone}</option>
+              {parentOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.periodKind
+                    ? `${labels.tree.kinds[option.periodKind]}: ${option.title}`
+                    : option.title}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
       )}
 
       <section aria-label={labels.todosHeading}>
-        <h3 className={SUB_HEADING}>{labels.todosHeading}</h3>
+        <h3 className={SUB_HEADING}>
+          {labels.todosHeading}{" "}
+          <span data-goal-todo-count className="tabular-nums">
+            {node.todos.length}
+          </span>
+        </h3>
         {node.todos.length === 0 ? (
           <p className="text-xs text-lumen-text-secondary">
             {labels.todosEmpty}
@@ -161,7 +247,10 @@ export function GoalDetailPanel({
         ) : (
           <ul className="flex flex-col">
             {node.todos.map((todo) => (
-              <li key={todo.id} className="flex items-center gap-1">
+              <li
+                key={todo.id}
+                className="group/todo flex items-center gap-1 rounded-lumen-sm transition-colors hover:bg-lumen-hover"
+              >
                 <TodoStatusCheckbox
                   status={todo.status}
                   onChange={(next) => onSetTodoStatus(todo.id, next)}
@@ -169,12 +258,18 @@ export function GoalDetailPanel({
                   label={labels.tree.status}
                   itemName={todo.title}
                 />
+                {/* The name ticks the todo, as on the tree's rows (#2388). */}
                 <button
                   type="button"
-                  onClick={() => onOpenTodo(todo.id)}
-                  aria-label={labels.tree.formatOpenTodo(todo.title)}
+                  onClick={() =>
+                    onSetTodoStatus(todo.id, toggledTodoStatus(todo.status))
+                  }
+                  aria-label={(todo.status === "DONE"
+                    ? labels.tree.formatMarkTodoOpen
+                    : labels.tree.formatMarkTodoDone)(todo.title)}
+                  // The whole row carries the hover, so the name adds none.
                   className={cn(
-                    "min-w-0 flex-1 truncate rounded-lumen-sm px-2 py-1.5 text-left text-[13px] hover:bg-lumen-hover max-md:min-h-11",
+                    "min-w-0 flex-1 cursor-pointer truncate rounded-lumen-sm px-2 py-1.5 text-left text-[13px] max-md:min-h-11",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
                     todo.status === "DONE"
                       ? "text-lumen-text-tertiary line-through"
@@ -183,9 +278,29 @@ export function GoalDetailPanel({
                 >
                   {todo.title}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => onOpenTodo(todo.id)}
+                  aria-label={labels.tree.formatOpenTodo(todo.title)}
+                  title={labels.tree.formatOpenTodo(todo.title)}
+                  className={TODO_ROW_ICON}
+                >
+                  <Pencil size={14} aria-hidden />
+                </button>
               </li>
             ))}
           </ul>
+        )}
+        {onLinkTodos && (
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={onLinkTodos}
+            leadingIcon={<Link2 size={14} aria-hidden />}
+            className="mt-2 max-md:min-h-11"
+          >
+            {labels.linkTodos}
+          </Button>
         )}
       </section>
 

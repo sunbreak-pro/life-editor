@@ -50,10 +50,16 @@ describe("getDataService", () => {
 });
 
 describe("SyncProvider sends the outbox", () => {
-  const versions: Record<string, number[]> = { todos: [], notes: [], all: [] };
+  const versions: Record<string, number[]> = {
+    todos: [],
+    notes: [],
+    dailies: [],
+    all: [],
+  };
   function Probe() {
     versions.todos!.push(useSyncDomains("todos"));
     versions.notes!.push(useSyncDomains("notes"));
+    versions.dailies!.push(useSyncDomains("dailies"));
     versions.all!.push(useSyncDomains(...SYNC_DOMAINS));
     return null;
   }
@@ -63,6 +69,7 @@ describe("SyncProvider sends the outbox", () => {
     sendOutbox.mockResolvedValue(undefined);
     versions.todos = [];
     versions.notes = [];
+    versions.dailies = [];
     versions.all = [];
     status = null;
     render(
@@ -93,7 +100,7 @@ describe("SyncProvider sends the outbox", () => {
     hidden.mockRestore();
   });
 
-  it("bumps only the domains the run says moved", async () => {
+  it("bumps only the domains the run changed", async () => {
     const onSent = sendOutbox.mock.calls[0]![0];
     await act(async () => {
       onSent(["todos"]);
@@ -101,6 +108,7 @@ describe("SyncProvider sends the outbox", () => {
     });
     expect(versions.todos!.at(-1)).toBe(1);
     expect(versions.notes!.at(-1)).toBe(0);
+    expect(versions.dailies!.at(-1)).toBe(0);
     expect(versions.all!.at(-1)).toBe(1);
 
     // #2337: a note's send moves notes, which the Todo list does not read.
@@ -111,6 +119,15 @@ describe("SyncProvider sends the outbox", () => {
     expect(versions.todos!.at(-1)).toBe(1);
     expect(versions.notes!.at(-1)).toBe(1);
     expect(versions.all!.at(-1)).toBe(2);
+
+    await act(async () => {
+      onSent(["dailies"]);
+      await new Promise((r) => setTimeout(r, 320));
+    });
+    expect(versions.todos!.at(-1)).toBe(1);
+    expect(versions.notes!.at(-1)).toBe(1);
+    expect(versions.dailies!.at(-1)).toBe(1);
+    expect(versions.all!.at(-1)).toBe(3);
   });
 
   // #2337: the app-start send may have failed, and nothing else would fire.

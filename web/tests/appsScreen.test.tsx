@@ -14,6 +14,8 @@ import {
   type ExtensionApp,
   type ExtensionAppInput,
 } from "@life-editor/shared";
+import en from "../../shared/src/i18n/locales/en.json";
+import ja from "../../shared/src/i18n/locales/ja.json";
 import { AppsScreen } from "../src/apps/AppsScreen";
 import { createBumpableSync, stubDataService } from "./helpers";
 
@@ -99,6 +101,20 @@ function unregisteredSlugs(): string[] {
   ).map((el) => el.dataset.unregisteredSlug ?? "");
 }
 
+function keyGuides(): HTMLElement[] {
+  return Array.from(
+    document.querySelectorAll<HTMLElement>("[data-apps-key-guide]"),
+  );
+}
+
+/** The key procedure sits in the same box as the button it explains. */
+function expectGuideBeside(button: HTMLElement) {
+  const guides = keyGuides();
+  expect(guides).toHaveLength(1);
+  expect(guides[0].parentElement).toBe(button.parentElement);
+  expect(guides[0].textContent).toMatch(/gateway-key/);
+}
+
 function fillField(label: string, value: string) {
   fireEvent.change(screen.getByLabelText(label), { target: { value } });
 }
@@ -118,7 +134,7 @@ describe("AppsScreen", () => {
     const open = await screen.findByRole("button", { name: "Register an app" });
     // The empty state explains the section and points at the key procedure.
     screen.getByText(/Extension apps are small apps/);
-    screen.getByText(/gateway-key/);
+    expectGuideBeside(open);
 
     fireEvent.click(open);
     const dialog = screen.getByRole("dialog");
@@ -137,6 +153,19 @@ describe("AppsScreen", () => {
     });
     within(card("scale")).getByText("Body scale");
     within(card("scale")).getByText("No records yet");
+    // Once the list has an app, the procedure moves up beside the header
+    // button instead of trailing under the list (#2512).
+    expectGuideBeside(
+      screen.getByRole("button", { name: "Register an app" }),
+    );
+  });
+
+  it("keeps PR numbers out of the key procedure in both languages", () => {
+    // Someone opening the Apps screen cannot follow a PR number (#2512).
+    for (const guide of [en.apps.keyGuide, ja.apps.keyGuide]) {
+      expect(guide).not.toMatch(/PR\s*#?\d/);
+      expect(guide).toMatch(/gateway-key\.mjs/);
+    }
   });
 
   it("offers no register button while the first read is pending", () => {
@@ -337,5 +366,16 @@ describe("AppsScreen", () => {
     ).toBeNull();
     expect(screen.queryByRole("button", { name: "Register" })).toBeNull();
     expect(unregisteredSlugs()).toEqual(["scale"]);
+    // No register button here, so no key procedure either (#2512).
+    expect(keyGuides()).toEqual([]);
+  });
+
+  it("shows no key procedure in the narrow empty state", async () => {
+    mockMatchMedia(false);
+    renderApps(makeDS());
+
+    await screen.findByText(/Extension apps are small apps/);
+    expect(keyGuides()).toEqual([]);
+    expect(screen.queryByText(/gateway-key/)).toBeNull();
   });
 });

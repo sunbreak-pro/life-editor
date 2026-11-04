@@ -111,7 +111,7 @@ export const SlashMenu = forwardRef<SlashMenuHandle, SlashMenuProps>(
 
     if (items.length === 0) {
       return (
-        <div className="min-w-[15rem] rounded-lumen-md border border-lumen-border bg-lumen-bg px-3 py-2 text-sm text-lumen-text-tertiary shadow-lumen-md">
+        <div className="w-[16rem] rounded-lumen-md border border-lumen-border bg-lumen-bg px-3 py-2 text-sm text-lumen-text-tertiary shadow-lumen-md">
           {emptyLabel}
         </div>
       );
@@ -124,7 +124,7 @@ export const SlashMenu = forwardRef<SlashMenuHandle, SlashMenuProps>(
         // Inline cap beats the class when the placer supplies one (see
         // ItemLinkMenu — the two pickers stay one system).
         style={{ maxHeight }}
-        className="max-h-72 min-w-[15rem] overflow-y-auto rounded-lumen-md border border-lumen-border bg-lumen-bg p-1 shadow-lumen-md"
+        className="max-h-72 w-[16rem] overflow-y-auto rounded-lumen-md border border-lumen-border bg-lumen-bg p-1 shadow-lumen-md"
       >
         {items.map((item, index) => {
           const isActive = index === selected;
@@ -146,14 +146,18 @@ export const SlashMenu = forwardRef<SlashMenuHandle, SlashMenuProps>(
                 "flex w-full items-center gap-2.5 rounded-lumen-sm px-2.5 py-1.5 text-left text-sm",
                 // Touch sizing below 768px — same 44px floor as ItemLinkMenu.
                 "max-md:min-h-11 max-md:px-3 max-md:text-sm",
+                // #2586: the highlight is the hover fill. The pointer moves the
+                // highlight (onMouseEnter above), so a second colour for "under
+                // the pointer" would only ever show for a frame.
                 isActive
-                  ? "bg-lumen-accent-subtle text-lumen-text"
+                  ? "bg-lumen-hover text-lumen-text"
                   : "text-lumen-text-secondary hover:bg-lumen-hover",
               ].join(" ")}
             >
-              <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lumen-sm border border-lumen-border bg-lumen-bg text-lumen-text-secondary">
-                <Icon size={14} aria-hidden />
-              </span>
+              <Icon
+                aria-hidden
+                className="h-[0.9rem] w-[0.9rem] shrink-0 text-lumen-text-secondary"
+              />
               {item.title}
             </button>
           );

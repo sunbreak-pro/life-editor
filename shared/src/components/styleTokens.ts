@@ -34,9 +34,19 @@ export const FOCUS_RING_TIGHT =
 export const FOCUS_RING_ON_ACCENT =
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lumen-text";
 
-/** Standard form-field shell (schedule editors). */
-export const FIELD =
+/**
+ * A multi-line field that sets its own `min-h-*` (#2427). Everything FIELD is
+ * except the phone floor: `cn` is a plain join, so a second `min-height` would
+ * lose to the `max-md:` one on a phone whatever order they were passed in.
+ */
+export const FIELD_MULTILINE =
   "w-full rounded-lumen-md border border-lumen-border bg-lumen-bg px-2.5 py-2 text-sm text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
+
+/**
+ * Standard form-field shell (schedule editors). `max-md:min-h-11` is the 44px
+ * floor on a phone (#2427); it adds height only, so no row gets wider for it.
+ */
+export const FIELD = `${FIELD_MULTILINE} max-md:min-h-11`;
 
 /** Caption label above a FIELD input. */
 export const FIELD_LABEL = "text-xs text-lumen-text-secondary";
@@ -99,6 +109,25 @@ export const CARD_BTN_TAP = "max-md:min-h-11";
  */
 export const TAP_TARGET_TALL =
   "relative after:absolute after:inset-x-0 after:top-1/2 after:h-11 after:-translate-y-1/2 after:content-['']";
+
+/**
+ * Narrow-only 44px hit area for a small toggle TRACK (#2517).
+ *
+ * The settings switches are a 36x20 track with a sliding thumb: growing the box
+ * would redraw the control, and Desktop must not move at all. So the track
+ * keeps its size and a transparent `::after` hangs a 44x44 square centred on
+ * it, on BOTH axes — unlike TAP_TARGET_TALL, whose `inset-x-0` keeps the
+ * control's own width, which here is the 36px that falls short.
+ *
+ * px rather than rem on purpose: the floor is a finger, not text, and the
+ * Settings font-size step would otherwise move it (FrequencyEditor's weekday
+ * chips made the same call). The caller must already be `relative` — the
+ * track is, because the thumb is positioned inside it. It overhangs ~12px
+ * above and below, so it is only safe where the neighbours sit further away
+ * than that (the settings rows use `gap-3` and nothing tappable beside).
+ */
+export const SWITCH_TAP_NARROW =
+  "max-md:after:absolute max-md:after:left-1/2 max-md:after:top-1/2 max-md:after:h-[44px] max-md:after:w-[44px] max-md:after:-translate-x-1/2 max-md:after:-translate-y-1/2 max-md:after:content-['']";
 
 /**
  * Disabled treatment for accent-FILLED buttons (#1474).

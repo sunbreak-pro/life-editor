@@ -17,6 +17,7 @@ import {
   type DataService,
   type SectionId,
 } from "@life-editor/shared";
+import { DailyMergeNotice } from "./components/DailyMergeNotice";
 import { GlobalShortcuts } from "./GlobalShortcuts";
 import { ItemPanelHost } from "./schedule/ItemPanelHost";
 import { MaterialsCountsBridge } from "./MaterialsCountsBridge";
@@ -121,6 +122,7 @@ export function AppProviders({
     <ToastProvider dismissLabel={t("common.close")}>
       <SyncProvider>
         <OutboxNoticeHost />
+        <DailyMergeNotice />
         <MaterialsCountsBridge
           dataService={dataService}
           onCounts={onMaterialsCounts}

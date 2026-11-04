@@ -46,3 +46,29 @@ connect セクションのタスクキューを確認しました。**自分宛�
 - `shared-fix` の自分宛は #181 `[all]` のみ。connect 行は v1 gutter（PR #194 merged）+ v2 adoption（Issue #206 CLOSED / PR #212 merged）で完了済み → #181 本文の connect 行を `[x]` に更新 + 完了コメント投稿済み
 - **#181 の close 判断はそちら（chat-main）にお願いします**。残チェック行 = schedule / work / settings / trash
 - セッション開始時に `git merge origin/main` をクリーン取り込み済み（コンフリクト無し）。`git diff origin/main HEAD` は空 = 自ブランチ内容は main と完全一致で、新規 PR / push すべきコード差分はありません
+
+## 2026-11-02 → @chat-main
+
+13 Issue の PR 化が終わりました。こちらから merge はしていません。open は #2438 #2440 #2449 #2451 #2452 #2456 #2459 の 7 本です。実ブラウザの確認と Issue の close をお願いします。起票の依頼は次のとおりです。どれも作業の範囲外で見つけたものです。
+
+- **上の目標の select が過去期間の親を「なし」と表示する**: `goalParentOptions`（`GoalsTodosScreen.tsx:437`）。
+- **親候補の文字列が i18n の外にある**: `GoalDetailPanel.tsx:146`。
+- **`assertParent` が素の Error を投げる**: `mcp-server/src/handlers/goalHandlers.ts`。code が `failed` になる（CLAUDE.md §5）。
+- **親の規則をゆるめた決定が台帳にない**: 2026-10-31 の回答。古い記述は D-20260928-briefing-4、`plans/2026-10-03-briefing-goals-redesign.md:116`、`docs/design/briefs/briefing.md:34,372`、`tier-1-core.md`、`mobile-scope.md:18` に残っている。
+- **目標の行のアイコンがスマホで常時表示でない**: `iconClass`。タブレット幅のホバーも同じ。
+- **Todo の操作の失敗で「目標を保存できませんでした」と出る**: `connect.goals.writeFailed`。
+- **時刻の候補一覧の Esc がパネルごと閉じる**: `TimeRangeField`。`useEscapeLayer` で直せるはず。
+- **`GoalPickerField` の見出しが過去の週にも「今週」と出る**。
+- **`role="switch"` の共有部品がない**、**Esc のあと + ボタンへフォーカスが戻らない**、**`lumen-bg-secondary` がダークで右パネルの背景と同じ色になる**（`ItemRoleBadge`）。
+- **カレンダーのチップの吹き出しで日またぎの Todo の時刻を変えると 15 分に縮むはず**: `ItemPanelHost` / `CalendarTab` の `onRetime` → `handleTodoChipMove`。コードを読んだだけで未実行。
+- **ノートの子孫の削除が同時送信で、途中の失敗で親だけ消える可能性がある**: `useNotesUnifiedCRUD.ts:302`。未確認。#2388 で Todo は順次に直した。
+- **朝刊の目標の削除は #2405 の選ぶダイアログを通らない**。
+- **過去期間の目標の「＋」は今の期間に作る**: 仕様として確かめる。
+- **`web/tests/dailyBodyPending.test.tsx` が全件並列で 1 度だけ落ちた**: 単独 3 回は緑。原因は未確認。
+
+## 2026-11-02（2）→ @chat-main
+
+判断 D-20261102-connect-1〜7 にこうだいさんの回答が付きました。次の 2 件をお願いします。
+
+- **#2405 の完了条件の文を直す**（D-20261102-connect-3 = A）: 残した下の目標は、何かがつながっていれば木の一番上に出ます。「未接続の目標」へ移るのは、何もつながっていない目標だけです。
+- **event の呼び名をそろえる Issue の起票**（D-20261102-connect-6 = A）: タグ画面の右パネルの棒と一覧で「予定」と「イベント」が食い違っています（#2409 / PR #2451）。1 画面だけ直さず、全画面の呼び名をまとめてそろえます。

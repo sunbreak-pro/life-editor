@@ -152,3 +152,59 @@ describe("stampsEqual", () => {
     expect(stampsEqual(null, "2026-10-01T09:12:00Z")).toBe(false);
   });
 });
+
+describe("mergeDocBlocks keeps both sides (#2336)", () => {
+  const body = (...lines: string[]) =>
+    JSON.stringify({
+      type: "doc",
+      content: lines.map((text) => ({
+        type: "paragraph",
+        content: [{ type: "text", text }],
+      })),
+    });
+
+  it("keeps a block edited on one side and deleted on the other", () => {
+    const base = body("a", "b", "c");
+    const edited = body("a", "b2", "c");
+    const deleted = body("a", "c");
+    const expected = ["a", "b2", "c"];
+    expect(texts(mergeDocBlocks(base, edited, deleted).merged)).toEqual(
+      expected,
+    );
+    expect(texts(mergeDocBlocks(base, deleted, edited).merged)).toEqual(
+      expected,
+    );
+  });
+
+  it("keeps both days written from nothing, mine first", () => {
+    const { merged, hasConflict } = mergeDocBlocks(
+      "",
+      body("mine"),
+      body("theirs"),
+    );
+    expect(hasConflict).toBe(true);
+    expect(texts(merged)).toEqual(["mine", "theirs"]);
+  });
+
+  it.each(["2026", "true", '"x"', "null", "[]", "{}", "[1,2]"])(
+    "reads the plain-text body %s as text",
+    (plain) => {
+      expect(docBlocks(plain).map(blockText)).toEqual([plain]);
+      expect(sameDocContent(plain, "")).toBe(false);
+      expect(texts(mergeDocBlocks("", body("mine"), plain).merged)).toEqual([
+        "mine",
+        plain,
+      ]);
+    },
+  );
+
+  it("reads a doc with no content as empty", () => {
+    expect(docBlocks('{"type":"doc"}')).toEqual([]);
+    expect(docBlocks('{"type":"doc","content":[]}')).toEqual([]);
+  });
+
+  it("does not lose a plain-text body that happens to parse as JSON", () => {
+    const { merged } = mergeDocBlocks("", body("mine"), "2026");
+    expect(texts(merged)).toEqual(["mine", "2026"]);
+  });
+});

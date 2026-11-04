@@ -8,6 +8,7 @@ import {
   MonthFullChips,
   monthCellFold,
   useMonthCellDrop,
+  type MonthChipKindLabels,
 } from "./MonthGridParts";
 import type { TodoCalendarDrop } from "./todoCalendarDrag";
 import {
@@ -65,10 +66,11 @@ export interface MonthGridItem {
   completed?: boolean;
   isAllDay?: boolean;
   /**
-   * The colour of the tag that speaks for this item (#1580), or undefined to
-   * keep the variant colours. A hex, because it is the user's own value off
-   * `wiki_tags.color` — the host resolves WHICH tag (buildItemTagColors) and
-   * this is only the answer.
+   * The colour of the tag that speaks for this item (#1580), drawn as the
+   * left line since #2623, or undefined to draw that line in the kind's
+   * colour (a holiday: the Settings colour, #1626). A hex, because it is the
+   * user's own value off `wiki_tags.color` — the host resolves WHICH tag
+   * (buildItemTagColors) and this is only the answer.
    */
   tagColor?: string | null;
 }
@@ -168,6 +170,11 @@ export interface MonthGridProps {
    */
   formatCreateLabel?: (dateKey: string) => string;
   /**
+   * Already-translated names for the kind mark at the head of each Desktop
+   * chip (#2551). Pass a stable object — the grid is memoised (#1582).
+   */
+  chipKindLabels?: MonthChipKindLabels;
+  /**
    * Mobile density (#1401): fixed-height cells, a title list instead of chips
    * (up to 4 lines, the last one the remainder when there are more), a smaller
    * day badge, and no side borders or corner radius, so the grid can run edge
@@ -197,6 +204,7 @@ function MonthGridImpl({
   formatDayLabel = (k) => k,
   formatCreateLabel = (k) => k,
   formatShowMoreLabel = (k) => k,
+  chipKindLabels,
   compact = false,
   ariaLabel,
   className,
@@ -413,6 +421,7 @@ function MonthGridImpl({
                         ? formatShowMoreLabel(dateKey)
                         : undefined
                     }
+                    kindLabels={chipKindLabels}
                     onSelectItem={onSelectItem}
                     onItemActivate={onItemActivate}
                     onItemDoubleClick={onItemDoubleClick}

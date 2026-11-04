@@ -278,6 +278,29 @@ describe("put on tomorrow", () => {
     ).toHaveLength(2);
   });
 
+  // #2503 — beside the time field and the button, the title had about 125px
+  // of a 390px sheet. Below md it takes its own line and the controls wrap
+  // under it; at md and up the row stays as it was. jsdom has no layout, so
+  // the classes are pinned here and the position is checked in a browser.
+  it("gives the title a line of its own below md only", () => {
+    renderPaper({ tomorrowTodos: [candidate] });
+    const title = screen.getByText("企画書を直す");
+    const row = title.closest("li")!;
+    expect(row).toHaveClass("flex", "flex-wrap");
+    expect(title).toHaveClass("min-w-0", "flex-1", "max-md:basis-full");
+    expect(title.className.split(/\s+/)).not.toContain("basis-full");
+    // The controls follow the title inside the same row, so the wrap puts
+    // them on the next line rather than beside it.
+    const put = screen.getByRole("button", {
+      name: "Put on tomorrow: 企画書を直す 企画書を通す",
+    });
+    expect(row.contains(put)).toBe(true);
+    expect(
+      title.compareDocumentPosition(put) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(title.contains(put)).toBe(false);
+  });
+
   it("shows where a placed row went instead of its button", () => {
     renderPaper({
       tomorrowTodos: [{ ...candidate, placed: { time: "09:00" } }],

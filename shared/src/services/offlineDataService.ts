@@ -1,6 +1,12 @@
 import type { DataService } from "./DataService";
 import type { SyncDomain } from "../context/syncDomains";
 import type { TodoNode } from "../types/todoTree";
+import {
+  createOfflineDailyOverrides,
+  deliverDailyEntry,
+  type KnownDailies,
+} from "./offlineDaily";
+import { isOffline } from "../state/connectivity";
 import { patchDomainSnapshot } from "../state/domainSnapshotStore";
 import {
   dropNoteFromSnapshot,
@@ -21,8 +27,7 @@ import {
   refreshOutboxCounts,
   removeOutboxEntry,
   withTimeout,
-  type OutboxEntry,
-  type TodoOutboxEntry,
+  type TodoCreateEntry,
 } from "../state/outbox";
 
 /*
@@ -56,7 +61,9 @@ import {
  * Deleting a row that waits takes the entry out, as an undo does. Any other edit
  * of one is rejected, and the banner says so.
  *
- * Notes keep their half next door (`offlineNotes.ts`, #2337).
+ * The Daily body has its own overrides and its own delivery (#2336 —
+ * `offlineDaily.ts`); only the sender's loop below is shared. Notes keep their
+ * half next door the same way (`offlineNotes.ts`, #2337).
  */
 
 /** Ids seen on the server by this page, shared with the sender. */
@@ -76,19 +83,35 @@ export type OwnerResolver = () => Promise<string | null>;
  * `getSession()` is local, unlike `getUser()`. With an expired token and no
  * network it reports an error and no session; the user has not changed, so the
  * last known id still names the box. Only a clean "no session" clears it.
+ *
+ * #2334: a page opened offline has no last known id, and that error can take
+ * 50 seconds to arrive (`offlineSession.ts`). So while offline the stored session
+ * answers first, and it also answers when `getSession()` reports that error. A
+ * session that was signed out is no longer stored, so it cannot answer.
  */
-export function sessionOwner(auth: {
-  getSession: () => Promise<{
-    data: { session: { user: { id: string } } | null };
-    error: unknown;
-  }>;
-}): OwnerResolver {
+export function sessionOwner(
+  auth: {
+    getSession: () => Promise<{
+      data: { session: { user: { id: string } } | null };
+      error: unknown;
+    }>;
+  },
+  readStored: OwnerResolver = () => Promise.resolve(null),
+): OwnerResolver {
   let last: string | null = null;
   return async () => {
+    if (isOffline()) {
+      const stored = await readStored();
+      if (stored !== null) {
+        last = stored;
+        return stored;
+      }
+    }
     try {
       const { data, error } = await auth.getSession();
       if (data.session) last = data.session.user.id;
       else if (!error) last = null;
+      else last ??= await readStored();
     } catch {
       // Keep `last`, for the same reason.
     }
@@ -143,9 +166,9 @@ function markSentInSnapshot(id: string): void {
   );
 }
 
-async function readTodoCreates(userId: string): Promise<TodoOutboxEntry[]> {
+async function readTodoCreates(userId: string): Promise<TodoCreateEntry[]> {
   return (await readOutbox(userId)).filter(
-    (e): e is TodoOutboxEntry => isSendable(e) && e.kind === "todo.create",
+    (e): e is TodoCreateEntry => isSendable(e) && e.kind === "todo.create",
   );
 }
 
@@ -153,7 +176,7 @@ async function readTodoCreates(userId: string): Promise<TodoOutboxEntry[]> {
  * For the paths that also run online: a box that hangs must not stop the list
  * loading or an undo completing. The callers fall back to the plain service.
  */
-function readTodoCreatesOnline(userId: string): Promise<TodoOutboxEntry[]> {
+function readTodoCreatesOnline(userId: string): Promise<TodoCreateEntry[]> {
   return withTimeout(readTodoCreates(userId), OUTBOX_READ_TIMEOUT_MS);
 }
 
@@ -162,6 +185,8 @@ export function createOfflineDataService(
   owner: OwnerResolver,
   landed: LandedTodos = new Set(),
   dropped: DroppedTodos = new Set(),
+  known: KnownDailies = new Map(),
+  onDailyHeld: () => void = () => {},
 ): DataService {
   /** The row of each write that failed, until a write of that id lands. */
   const failedRows = new Map<string, TodoNode>();
@@ -202,7 +227,7 @@ export function createOfflineDataService(
    */
   const dropEntry = async (
     userId: string,
-    entry: OutboxEntry,
+    entry: TodoCreateEntry,
   ): Promise<void> => {
     await removeOutboxEntry(userId, entry.opId);
     failedRows.delete(entry.itemId);
@@ -296,9 +321,15 @@ export function createOfflineDataService(
     }
   };
 
-  let wrapped: DataService | null = null;
   const overrides: Partial<DataService> = {
     ...noteOverrides(inner, owner, dropped, () => wrapped),
+    ...createOfflineDailyOverrides(
+      inner,
+      owner,
+      known,
+      () => wrapped,
+      onDailyHeld,
+    ),
 
     async fetchTodoTree() {
       const rows = await inner.fetchTodoTree();
@@ -402,7 +433,7 @@ export function createOfflineDataService(
 
   // A Proxy cannot lose a method: anything not overridden above reaches
   // `inner`, whether the interface has a hundred members or a hundred and one.
-  wrapped = new Proxy(inner, {
+  const wrapped: DataService = new Proxy(inner, {
     get(target, prop, receiver) {
       if (typeof prop === "string" && Object.hasOwn(overrides, prop))
         return Reflect.get(overrides, prop, receiver);
@@ -413,12 +444,20 @@ export function createOfflineDataService(
   return wrapped;
 }
 
+/** Called after a run with the Sync domains whose rows it changed. */
+export type OutboxSent = (domains: SyncDomain[]) => void;
+
 export interface OutboxSender {
   /**
    * Send what waits, then tell `onSent` which domains' rows moved, if any left
    * the box. Never rejects.
    */
-  run(onSent: (domains: SyncDomain[]) => void): Promise<void>;
+  run(onSent: OutboxSent): Promise<void>;
+  /**
+   * A day's edit was just held. Sends now if online, and once more after a run
+   * under way, whose last look at the box may have come before the edit.
+   */
+  nudge(onSent: OutboxSent): void;
 }
 
 /*
@@ -428,22 +467,51 @@ export interface OutboxSender {
  * goes out with it and an undo made during a run is honoured. A retryable
  * failure stops the run, so a child never goes before its parent. A refused entry
  * counts as a change too: the list still shows it until it is read again.
+ *
+ * An entry that can wait without holding up the rest (`later`) is passed over
+ * for this run: Todos must not stay unsent until a db push adds the Daily RPC.
  */
 export function createOutboxSender(
-  inner: Pick<DataService, "createTodoIfAbsent"> & NoteSendTarget,
+  inner: Pick<
+    DataService,
+    | "createTodoIfAbsent"
+    | "saveDailyIfUnchanged"
+    | "listLinksFromItem"
+    | "createItemLink"
+    | "deleteItemLink"
+  > &
+    NoteSendTarget,
   owner: OwnerResolver,
   landed: LandedTodos = new Set(),
   dropped: DroppedTodos = new Set(),
+  known: KnownDailies = new Map(),
 ): OutboxSender {
   let running: Promise<void> | null = null;
+  let again: OutboxSent | null = null;
 
   const drain = async (userId: string): Promise<Set<SyncDomain>> => {
     const changed = new Set<SyncDomain>();
+    const later = new Set<string>();
     for (;;) {
-      const next = (await readOutbox(userId)).find(isSendable);
+      const next = (await readOutbox(userId)).find(
+        (e) => isSendable(e) && !later.has(e.opId),
+      );
       if (next === undefined) return changed;
       const entry = await claimOutboxEntry(userId, next.opId);
       if (entry === null) continue;
+      if (entry.kind === "daily.upsert") {
+        const step = await deliverDailyEntry(
+          inner,
+          userId,
+          entry,
+          known,
+          changed,
+        );
+        if (step === "stop") return changed;
+        if (step === "later") later.add(entry.opId);
+        else changed.add("dailies");
+        continue;
+      }
       try {
         if (isNoteEntry(entry)) {
           await sendNoteEntry(inner, userId, entry);
@@ -478,9 +546,7 @@ export function createOutboxSender(
     }
   };
 
-  const once = async (
-    onSent: (domains: SyncDomain[]) => void,
-  ): Promise<void> => {
+  const once = async (onSent: OutboxSent): Promise<void> => {
     const userId = await owner();
     await refreshOutboxCounts(userId);
     if (userId === null || navigator.onLine === false) return;
@@ -492,14 +558,24 @@ export function createOutboxSender(
     await refreshOutboxCounts(await owner());
   };
 
+  const run = (onSent: OutboxSent): Promise<void> => {
+    running ??= once(onSent)
+      .catch((e: unknown) => console.warn("[outbox] send", e))
+      .finally(() => {
+        running = null;
+        const next = again;
+        again = null;
+        if (next !== null) void run(next);
+      });
+    return running;
+  };
+
   return {
-    run(onSent) {
-      running ??= once(onSent)
-        .catch((e: unknown) => console.warn("[outbox] send", e))
-        .finally(() => {
-          running = null;
-        });
-      return running;
+    run,
+    nudge(onSent) {
+      if (navigator.onLine === false) return;
+      if (running !== null) again = onSent;
+      else void run(onSent);
     },
   };
 }

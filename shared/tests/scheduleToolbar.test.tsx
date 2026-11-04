@@ -173,3 +173,101 @@ describe("ScheduleToolbar filter count", () => {
     expect(badge()).toBeNull();
   });
 });
+
+/*
+ * #2562 — the toolbar's widths. jsdom has no layout, so the container queries
+ * cannot fire here; what these pin is the class each width switches on, plus
+ * the accessible name that must not depend on which one is showing.
+ */
+describe("ScheduleToolbar wide-pane labels", () => {
+  const holidayLabels = {
+    ...base.labels,
+    hideHolidays: "Hide holidays",
+    holidaysHidden: "2 holidays hidden",
+  };
+
+  it("shows the holiday words only from the 55.5rem pane up", () => {
+    const { unmount } = render(
+      <ScheduleToolbar
+        {...base}
+        labels={holidayLabels}
+        onToggleHolidays={() => {}}
+      />,
+    );
+    const off = screen.getByRole("button", { name: "Hide holidays" });
+    const text = screen.getByText("Hide holidays");
+    expect(off.contains(text)).toBe(true);
+    // Hidden by default, shown by the container query; the box widens with it.
+    expect(text.className).toContain("hidden");
+    expect(text.className).toContain("@min-[55.5rem]:inline");
+    expect(off.className).toContain("@min-[55.5rem]:w-auto");
+    unmount();
+
+    render(
+      <ScheduleToolbar
+        {...base}
+        labels={holidayLabels}
+        onToggleHolidays={() => {}}
+        holidaysHidden
+      />,
+    );
+    screen.getByRole("button", { name: "2 holidays hidden" });
+    expect(screen.getByText("2 holidays hidden").className).toContain(
+      "@min-[55.5rem]:inline",
+    );
+  });
+
+  it("folds the repeat notice to its bare count in a narrow pane", () => {
+    render(
+      <ScheduleToolbar
+        {...base}
+        onToggleRepeats={() => {}}
+        repeatsHidden
+        hiddenRepeatCount={3}
+      />,
+    );
+    // The name still says the whole sentence; only the drawn text shortens.
+    const btn = screen.getByRole("button", { name: "3 hidden" });
+    expect(screen.getByText("3 hidden").className).toContain("@max-3xl:hidden");
+    const count = btn.querySelector("[data-repeat-count]");
+    expect(count?.textContent).toBe("3");
+    expect(count?.className).toContain("@max-3xl:inline");
+  });
+
+  it("draws no bare count while repeats are shown", () => {
+    render(
+      <ScheduleToolbar
+        {...base}
+        onToggleRepeats={() => {}}
+        hiddenRepeatCount={0}
+      />,
+    );
+    expect(document.querySelector("[data-repeat-count]")).toBeNull();
+  });
+
+  it("gives every toolbar box the same height", () => {
+    render(
+      <ScheduleToolbar
+        {...base}
+        labels={holidayLabels}
+        onToggleRepeats={() => {}}
+        onToggleHolidays={() => {}}
+        onOpenFilter={() => {}}
+        onAddEvent={() => {}}
+      />,
+    );
+    const boxes = [
+      screen.getByRole("button", { name: "Today" }),
+      screen.getByRole("button", { name: "Previous" }),
+      screen.getByRole("button", { name: "Next" }),
+      screen.getByRole("button", { name: "Hide holidays" }),
+      screen.getByRole("button", { name: "Hide repeats" }),
+      screen.getByRole("tablist"),
+      screen.getByRole("button", { name: "Filter by tag" }),
+      screen.getByRole("button", { name: "Add event" }),
+    ];
+    for (const box of boxes) {
+      expect(box.className).toMatch(/(^|\s)(size|h)-\[2\.0833rem\](\s|$)/);
+    }
+  });
+});

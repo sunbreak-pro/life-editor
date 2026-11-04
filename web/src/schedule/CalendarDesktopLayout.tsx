@@ -203,6 +203,17 @@ export function CalendarDesktopLayout({
     [t],
   );
 
+  // #2551: the names of the chip kind marks — memoised for the same #1582
+  // reason as the formatters above.
+  const chipKindLabels = useMemo(
+    () => ({
+      event: t("scheduleScreen.chipKindEvent"),
+      task: t("scheduleScreen.chipKindTask"),
+      routine: t("scheduleScreen.chipKindRoutine"),
+    }),
+    [t],
+  );
+
   /*
    * #1584: the + button's accessible name. It carries the DAY, because the +
    * is now the cell's only keyboard stop on this width and 42 buttons all
@@ -308,6 +319,7 @@ export function CalendarDesktopLayout({
             formatDayLabel={format.fullDay}
             formatCreateLabel={formatCreateLabel}
             formatShowMoreLabel={formatShowMoreLabel}
+            chipKindLabels={chipKindLabels}
             ariaLabel={t("scheduleScreen.calendar")}
             // #2049: a floor, not a height. Five chips per cell make six rows
             // taller than most windows; held to `h-full`, the grid's own
@@ -323,6 +335,7 @@ export function CalendarDesktopLayout({
                 date: fullDay(more.dateKey),
               })}
               closeLabel={t("common.close")}
+              kindLabels={chipKindLabels}
               onItemActivate={handlers.onItemActivate}
               onClose={closeMore}
             />
@@ -386,6 +399,7 @@ export function CalendarDesktopLayout({
         onChangeView={toolbar.onChangeView}
         onToggleRepeats={toolbar.onToggleRepeats}
         repeatsHidden={toolbar.repeatsHidden}
+        hiddenRepeatCount={toolbar.hiddenRepeats}
         onToggleHolidays={toolbar.onToggleHolidays}
         holidaysHidden={toolbar.holidaysHidden}
         onOpenFilter={toolbar.onOpenFilter}

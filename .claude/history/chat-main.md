@@ -1,5 +1,27 @@
 # HISTORY (chat-main)
 
+### 2026-11-03 - worktree の片付け・並列 PR の衝突の調査と重なり検査（#2492）・PR 46 本の merge・main の CI 修理（#2534 / #2538）
+
+#### 概要
+
+ユーザー依頼「不要な worktree とファイルを消して。並列で PR を出すと衝突が起きるので、worktree ごとに触るファイルが区切られているかを調べて、必要なら直して」と、その後の「たまっている PR の merge を始めて」「main に戻して残りを消化して」。worktree 5 本と残骸を消し、衝突の原因を調べて重なり検査の仕組みを PR #2492 で入れ、open PR を下書き 2 本以外すべて merge した。途中で main の CI が赤くなったので、修理の PR を出して緑に戻した。
+
+#### 変更点
+
+- **片付け**: worktree 5 本を削除した（refactor-core / work-refine / mobile-refine / analytics-refine / mcp-tools。ブランチは残した）。登録が外れた残骸フォルダ 6 個、メインの作業コピーの `shots/`（40MB）、workspaces 直下にあった 9 月のログ 11 個も消した。`routine` は空のまま別プロセスが使っていて消せていない
+- **衝突の調査**（Workflow・Sonnet 3 体で調査 → Sonnet で決定 → Opus で実装 → Sonnet 2 体で検証）: レーンとパスの対応表がなく、着手前にも PR 前にもファイルの重なりを見る手順がなかった。直近 4 週間の PR 151 本のうち 12 本で衝突を確認した。同じ機能ファイルを触る PR の組 86 組のうち 60 組は、同じレーンの別 Issue 同士だった
+- **PR #2492**（merged `4b159f0d`）: 担当表 `.claude/scripts/lane-ownership.json`、検査スクリプト `scope-overlap.mjs` とその単体テスト、docs-lint の (g) を足し、worktree-policy / issue-prompter / issue-dispatch / `_TEMPLATE.md` / CLAUDE.md §7.4 / Issue フォームに手順を入れた
+- **merge**: 46 本。メインの作業コピーが別セッションの検証で埋まっていて merge-round が動かせなかったので、同じ事前確認（先頭の一致・mergeable・CI 全緑）を scratchpad のスクリプトに書き、`gh pr merge <n> --squash` で 1 本ずつ merge した。回の前の main は `ce170034`
+- **main の CI 修理**: #2469 が `GoalDetailLabels` に 2 項目を足したところへ、#2482 のテストが古いラベルを渡していた（どちらも単体では緑）。#2534 を起票し、PR #2538 で固定データに 2 行足した。CI が赤だった 8 本は `gh pr update-branch` で今の main を取り込ませてから merge した
+- **#2465 の衝突**: `ANSWERS.md` だけだったので、一時 worktree で両側の追記を残して解き、fast-forward で push してから merge した
+
+#### 実測・知見
+
+- **単体で緑の 2 本が組み合わさって main を壊す型の 2 例目**（1 例目 = 2026-09-22）。片方が型を広げ、もう片方が新しい固定データでその型を使う組み合わせだった。scope-overlap は同じファイルの重なりしか見ないので、この型は拾えない
+- **CI の再実行は当時の merge ref のまま走る**。main の修理のあとに PR の CI を直すには、`gh pr update-branch` で新しい push を起こす。PR を閉じて開き直す方法は auto mode に止められた
+- **`git checkout main` は `.claude/settings.json` の deny に入っている**。メインの作業コピーを main に戻すのはこうだいさんの手番になる
+- **ほかのセッションが per-issue の worktree（fix-24xx〜25xx）を作っては消している**。調べた数分後に消えていることがあるので、worktree を前提にした指示文は渡す直前に `git worktree list` で確かめる
+
 ### 2026-10-08 (2) - 拡張アプリの立ち位置を決めて計画書 Draft + 決定 2 件（D-20261008-main-1 / -2・PR #2158）
 
 #### 概要
@@ -91,54 +113,5 @@
 - **記録の片付け候補（未実施）**: 回答済み判断の台帳化 4 件（D-20260905-shared-fix-1 は PR #1913 で実装済み・台帳未作成）/ memory 7 本の「未回答」表記 / `memory/chat-schedule-refine.md:98-100` の conflict 残骸 / CLAUDE.md:59 の閉じた Epic #321 参照 / ANSWERS.md:117 の旧パス / known-issues INDEX 集計行 / 未起票 3 件（ErrorBoundary 不在箇所・狭幅ツアーの z 順・Connect 一括操作の進捗表示）/ 未追跡 = Draft 計画書 `2026-09-02-fable-51-harness-retune.md`（commit か削除の判断）と `shots/` 71 枚 6.4 MB（`.gitignore` 候補）
 - **環境**: Bash の複合コマンドで `cd` すると cwd が漂流し、以後の相対パスが全部外れる（`.claude/comm/decisions` に落ちたまま `ls shared/src` が「無い」と返った）。`git -C` / `npm --prefix` / 絶対パスで書く。`MSYS_NO_PATHCONV=1 git -C /c/...` は `-C` 側の変換まで止めて失敗するので `C:/...` 形で渡す。PostToolUse の formatter は `.claude/**/*.md` の表を整形し直すため、触っていない表の hunk（9 行）が diff に混ざった → HEAD の内容を splice で戻した
 - **サブエージェントの申告差**: role-engineer は依頼した `Co-Authored-By: Claude Fable 5.1` を使わず自分のモデル名で署名した（squash merge で潰れるので放置）。amend + force-push の依頼は git-workflow の規約を理由に断り、追いコミットにした（正しい判断）
-
-### 2026-09-19 - 他レーンの受信を実測で裁く → #1677 の依存解除・#1679 を実ブラウザ確認して close
-
-#### 概要
-
-connect-refine-d3 と materials-refine-d7 から受信 4 件。報告はすべて `origin/main` で実測してから裁いた。#1676 の着地を確認して #1677 の依存を解除し、materials の次の 4 本を確定。溜まっていた chat-main の手番のうち #1679 を実ブラウザで確認して close した。
-
-#### 変更点
-
-- **#1677 にコメント**（`issuecomment-5739197309`）: 依存 A が解除された旨と、使える部品 3 つの import 元・責務境界
-- **#1680 / #1674 を close + #1722 / #1723 を起票**: どちらも DoD は全項目 PASS だが、#1680 の実装が狭幅で新しい不具合を生んでいた
-- **#1671 を close**（`issuecomment-5740202141`）: 4 項目とも合格。レポート = `.claude/docs/reports/2026-09-19-issue-1671-mobile-verify.html`（Artifact v1 = https://claude.ai/artifact/GViM22WEXXGeFkximaYQLm・スクショ 5 枚を `shots/` で同梱）
-- **#1679 を close**（`issuecomment-5740155396`）: DoD 全項目 PASS。ローカル main を 7 コミット遅れから `0d508a86` へ ff、dev server + `playwright-ui-verifier` で実測
-
-#### 実測・知見
-
-- PR #1685 は 2026-09-17 14:11 UTC merge・#1676 は CLOSED・#1677 は OPEN（`section:materials`）
-- 部品は `shared/src/components/TagHub/` に実在し、`shared/src/index.ts:833` → `components/index.ts:476` → `TagHub/index.ts` の `export *` 3 段で `@life-editor/shared` から届く
-- `TagActionsMenu` の責務境界がコード側で明示されている: 削除は「要求」でホストが確認レイヤーを持ち、識別系 3 項目は `TagHubEditField` を返すので `TagHubEditBlock` にそのまま渡せる
-- **materials レーンの次の 4 本を確定**（issue-prompter で実測）: 未着手 = #1677 / #1687 / #1688 / #1689（4 本とも依存宣言なし）。除外 = #1680（PR #1693 open）/ #1674（PR #1699 open）/ #1679（PR #1683 merged だが Issue は open）
-- 🛑 **#1679 は chat-main の手番**: PR #1683 の本文が「Not checked in a real browser. worktree policy keeps playwright on chat-main」と明記。DoD の「Desktop 幅で全項目が押せる」を実ブラウザで確認してから close する（PR は `Refs #1679` なので自動 close されていない）
-- **#1679 は PASS**（実測値）: Daily エディタカードの computed `min-height` = 270px（`min-h-60` = 15rem × root 18px）・`min-h-0` は残存なし。本文が空の日でカード下端 y=414 に対しメニュー下端 y=281 = **余白 133px**。viewport 高さ 700px でも 270px を維持。`elementFromPoint` で各行の中心と下端 3px 手前を叩いて最前面を確認。Mobile 390x844 では kebab がカード外のヘッダー行にあり `overflow-hidden` の影響を受けない。6 セクション巡回で console error 0
-- ⚠️ **#1679 は構造としては直っていない**: `Menu` が portal されずカード内に描画される形は修正前のまま。**項目が 3 行を超えると再発する**（現状の余白 133px が 36px 行 3 つ分）。再発時は min-height を積まず portal 化を検討する、と Issue に申し送り済み
-- **#1671 も PASS**（390x844・dark・実データ）: #1516 = 末尾 9px の輝度が 400 → 11 で地色に溶ける（`mask-image` 実測 = `linear-gradient(to right, rgb(0,0,0) calc(100% - 9px), rgba(0,0,0,0))`）/ #1515 = スクロール容器が 331 対 331 で祖先に横溢れゼロ（起票時は 339 対 331）/ #1558 = 4 要素とも 49.5x49.5、gap 中央（x=243 と x=263.3）は容器が返り隣を誤爆しない / #1517 = 4 タブの y が 371.4 で揃い高さ 33。console error 増分 0
-- **再起票しなかった所見 2 件**（Issue にコメント済み）: ドロワーのタブ帯は 98.3x33 で 44px 床の対象外（`::after` が `content: none`）/ 「Move to today」は `opacity-0` + `group-hover` でデスクトップ Chrome では見えず、`[@media(hover:none)]:opacity-100` の実機挙動はこの環境で確認できない
-- **chat-main の実ブラウザ手番を棚卸しした**（merged PR × open Issue の突き合わせ）: `gh pr list --state merged --limit 120` の**タイトル**に Issue 番号を持つものだけを数え、tracker / outbox / docs ブランチの PR 37 本を除外すると 6 件。うち実ブラウザ待ちは #1680 / #1674（本文に "Not checked in a real browser"）と #1637 / #1638（PR 本文の未チェック項目に「実ブラウザ（chat-main）」）。残り 2 件は正常な open（#1644 = 2 本目の PR 待ち / #1642 = リファクタリング継続中）
-- **突き合わせは PR タイトルで絞る**: 本文の `#<n>` を拾うと tracker PR が「今日触った Issue」を列挙するため誤検出が 15 件まで膨らむ。実装 PR は `fix(x): ... (#1679)` の形でタイトルに Issue を持つので、タイトルだけ見ると 6 件に落ちる
-- 🛑 **#1637 / #1638 の残項目**: #1637 = チップのバブルと Todo 詳細の両方から変換 → Undo → Redo、あわせて「変換 → 別セクション → 戻る」で Undo が消えるか（計画書 #1642 の B-01 = Schedule の Provider が unmount で履歴を全部消す形が 5 本ある）。#1638 = 計画書 §6 の S11 / S12（各操作の直後に Undo → Redo・繰り返しでダイアログが出る）
-- **#1722 の再実測は合格 → close**: 360 / 390 / 430 の 3 幅で星グループ右端 297.7 がカード右端（342 / 372 / 412）の内側、星 1 個 49.5x49.5 で 44px 床を維持、`elementFromPoint` で 5 個とも中心が自ボタン。1440 は横 1 行のまま（見出しと星の中心 y の差 3px 未満・星 31.5px）。**読み取り専用カードは呼び出し元が存在せず画面から到達できない**（`DailyView.tsx:672` が常に `onSelectMood` を渡す）
-- **Connect Step 12 を通した → BLOCKING 2 件 + 設計差分 3 件を起票**: #1732（右パネルを開いたまま複数選択すると選択バーが崩れる。中央カラム 590px で en は 2 行折り返しでボタンの塗りから文字がはみ出し、ja は「2 件を選択中」が「2 …」に切り詰め。**en と ja で壊れ方が違う**）/ #1733（Mobile のエラートーストが下部タブバーに重なる。タブバー上端 783.6 に対しトースト下端 826）/ #1734（設計差分 3 件 = Mobile 上部バーが M1 と違う・リンク追加シートに「候補（N）」が無い・トーストのアイコンが AlertCircle でなく丸ドット）
-- **一括操作 10 件の体感を実測**（計画書 §Risks の宿題）: タグを付ける = 件数反映 2,881ms / DOM 3,744ms、外す = 件数 45ms（楽観更新）/ DOM 2,447ms。選択は直後に解除され Untagged 34 → 24 → 34、開発 9 → 19 → 9 と往復。**「詰まる」とまでは言えないが、押した直後に何も変わらない時間が 1 秒以上ある**。進捗表示は無い
-- **計画書は `.claude/archive/2026-09-14-connect-tag-link-workbench.md`**（Status COMPLETED で archive 済み）
-- ⚠️ **#1715 は CI 緑でも merge しない**（schedule-refine からの申し送り + `git merge-tree --write-tree origin/main origin/claude/schedule-todo-tab-filter-1641` が **exit 1** で実測）: #1640（PR #1712）がトレイ上の単一作成ピルを廃止して見出し 2 か所へ移したのに対し、#1715 はその行がある前提でフィルタ行を作る。merge すると「+ Todo」ピルが 2 つ・ツアーアンカー `schedule-todo-add` も DOM に 2 つ・`web/tests/scheduleSidebar.test.tsx:431` が落ちる。**CI のチェックは古い base の上で走るので、緑は「いまの main と合う」を意味しない**
-- **08:05 UTC 時点の着地**: Connect の 4 本（#1696 / #1698 / #1703 / #1709）と #1714 / #1710 が全部 merged。materials も #1687 / #1688 / #1713（#1677）/ #1720 が merged。**Connect ワークベンチが揃ったので Step 12 の実ブラウザ検証が chat-main の手番になった**
-- **#1722 は materials が PR #1724 で修正**（実測から 30 分）: 狭幅だけヘッダーを `flex-col` にして星を独立した行へ出し、`md:` 以上は元の `flex-row` + `justify-between` に戻す。切り替えは `onSelectMood` の有無なので読み取り専用カードは 1 行のまま。44px 床は維持し、保険の `flex-wrap` も追加。**再実測（360 / 390 / 430）は merge 後の chat-main 手番**
-- 🔴 **#1722 起票（#1680 の回帰）**: Mobile 幅で夕刊カードの気分の星 5 個のうち 1〜2 個が画面外に出て押せない。`DailyEveningCard.tsx:71` の `MOOD_STAR_BUTTON` が `max-md:min-h-11 max-md:min-w-11` を持つため狭幅で 1 個 50px になり、5 個のグループ 256.5px が見出し（右端 167.9）と `justify-between` で並んでカード（右端 372）をはみ出す。親が横スクロールを出さないので到達不能。実測 = 360 で 82px 超過 / 390 で 52px / 430 で 12px / 540 以上は収まる。**読み取り専用の `<span>` + 15px アイコン（約 83px）なら収まっていた = #1680 で入った差分**
-- **#1723 起票（既存・データ損失なし）**: 夕刊だけの日で `stripEveningSection` が `content: []` の doc を返し TipTap のスキーマ検証に落ちる（警告 2 本）。**本文も夕刊も壊れない**ことを実測とコード両方で確認 — `DailyView.tsx:382` の `handleEditorUpdate` が保存前に `mergeEveningSection` で夕刊を戻す安全弁を持つ（`:378` のコメントが明言）。実害はコンソールのノイズだけ
-- **#1680 の検証で触った値はすべて戻した**: 9/12 の気分をなしへ・9/10 を 2 へ・振り返りの文字数も元どおり（326 文字）。Daily 8 件 / Notes 20 件のまま増えていない。アップロードは 5 回とも Supabase に届く前に abort したので Storage にオブジェクトは無い
-- **IME は CDP で代替確認した**: `Input.imeSetComposition` で変換中にして `keyCode 229` の Enter を送り、段落数が変わらないことを実測。**macOS WebKit の「`isComposing: false` + `keyCode 229`」経路は Chromium では再現できない**ので、そこは未確認のまま残る
-- **connect-refine が 4 Issue 分の PR を open にした**（#1643〜#1646 のうち残り 3 Issue）: #1644 = PR #1696（一括タグ API + タグ統合）と PR #1698（複数選択と選択バー）、#1645 = PR #1703（右パネルの近傍モード）、#1646 = PR #1709（Mobile 3 段 + docs 追随・計画書は COMPLETED で archive 済み）、tracker は別枠の PR #1710。**merge 順は #1714 → #1698 → #1703 → #1709 → #1710**（全部 base = main だが後ろが前を含む）。固有分は 571 / 680 / 980 / 844
-- **#1696 は 07:16 UTC に merge 済み**（`e432edeb`）。`connectScreen.test.tsx` の race 修正（PR #1714 = `await waitFor` で 9 行）を 4 本に cherry-pick する作業より merge の方が早く、**#1696 だけ +571/-1 のまま = main に race が残った**。#1698 以降は +9 が乗っている
-- ⚠️ **squash merge と「前を含む PR」の組み合わせ**: #1698 の差分は #1696 の内容を丸ごと含むが、main 側は squash で SHA が別物。同じ変更を再適用する形になるので、前の PR が merge されるたびに取り込みと衝突確認が要る
-- **CI が走らない PR がある**: #1698 / #1703 / #1709 は `statusCheckRollup` が 0 件（起動した形跡なし）。#1710 は FAILURE のまま。**行数と CI は別々に見る** — 「4 本とも緑」と読んだ最初の実測は、checks が 0 件の PR を「bad none」と数えていた
-- **CONFLICTING は connect-refine が解消し、ロケール合流を実測で裏取りした**: 3 本とも MERGEABLE に戻り CI も起動。衝突の本体は `ConnectScreen.tsx` / `TagHubView.tsx` / `TagHub/index.ts` / `connectScreen.test.tsx` とロケール 2 本で、コードは「こちらが main の上位集合」として自分側を採用。**危なかったのはロケール**で、自分側を採用した最初の解消では main が先に得ていた 23 キー（`materials.daily.evening*` / `scheduleScreen.undoRepeat*` / `work.history.*` / `attachment.uploading`）が消え `DailyView.tsx` の `t()` が型エラーになっていた。main を土台にキー単位で合流し直したとの報告を実測し、**「main にあってブランチに無いキー」は en / ja とも 3 本すべてで 0 件**
-- **`_one` サフィックスの en-only は欠損ではない**: i18next の複数形で、英語だけが one / other の 2 形を持つ。main の時点で 8 件あり #1698 で 2 件増えた（`connect.selection.failed_one` / `selected_one`）。**ja にあって en に無いキーは全ブランチ 0 件**なので、i18n の両 catalog 不変式は守られている。キー数の左右差を見ただけで「片側漏れ」と判定しない
-- **main 取り込みで行数が実態に落ちた**: #1698 = +1260 → **+695**（900 行の目安を下回った）・#1703 = +2240 → +1675・#1709 = +3084 → +2520。前の PR の内容が差分から抜けたため
-- 🛑 **chat-main の手番が 2 つ増えた**（4 本の main 着地後）: 計画書 Step 12 の実ブラウザ検証（1440×900 の 1a〜2f と 390×844 の Mobile 1a〜1l・light / dark）と、一括操作 10 件の体感実測
-- **判断キューは作業コピーに現れない経路で積まれていた**: connect-refine は D-20260919-connect-1 を tracker PR #1710 に載せたので、merge されるまで `.claude/comm/decisions/chat-connect-refine.md` は「open エントリ無し」のまま。指摘して PR 本文へ全文を貼ってもらった。**tracker PR に積んだ判断は merge されるまで誰の目にも触れない** — 急ぐものは PR 本文に貼る
-- **D-20260919-connect-1**（Mobile 上部バーに「＋」を置くか）: 推奨・放置時とも A = 現状維持。narrow ヘッダーは shell の形状 enum で、末尾アクションを足すと `MainScreen.tsx`（#1646 の Scope 外）に触るため。レール下端の追加行が narrow でも入口として出ている
 
 > 古いエントリは [`archive/2026-09/chat-main.md`](./archive/2026-09/chat-main.md)・[`archive/2026-08/chat-main.md`](./archive/2026-08/chat-main.md)・[`archive/2026-07/chat-main.md`](./archive/2026-07/chat-main.md)・[`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照
