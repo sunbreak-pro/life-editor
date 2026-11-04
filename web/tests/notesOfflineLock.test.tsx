@@ -156,7 +156,14 @@ const rowDelete = () =>
     name: "materials.notes.deleteNote: Alpha",
   }) as HTMLButtonElement;
 
+/** Offline the list keeps only pinned and offline-made notes (#2334). */
+const listedOffline = (): void => {
+  state.notes = [note({ id: "note-a", isPinned: true })];
+};
+
 describe("the list row", () => {
+  beforeEach(listedOffline);
+
   it("turns its bin off offline and says why", () => {
     render(<NotesView />);
     expect(rowDelete().disabled).toBe(true);
@@ -318,6 +325,8 @@ describe("a write that did not run", () => {
 });
 
 describe("the row's context menu", () => {
+  beforeEach(listedOffline);
+
   const open = () => {
     const row = screen
       .getByRole("button", { name: "Alpha" })
@@ -354,6 +363,8 @@ describe("the row's context menu", () => {
 });
 
 describe("the narrow row's sheet", () => {
+  beforeEach(listedOffline);
+
   it("turns rename and delete off and says why", () => {
     state.isWide = false;
     render(<NotesView />);
