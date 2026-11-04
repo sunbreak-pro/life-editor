@@ -90,13 +90,14 @@ describe("_headers", () => {
 });
 
 describe("the offline band's copy", () => {
-  it("says view only, and that a new Todo is the one thing held", () => {
+  it("says view only, and that other changes need a connection", () => {
     expect(ja.offline.message).toContain("オフライン — 見るだけ");
     expect(ja.offline.message).toContain("Todo");
     expect(ja.offline.message).toContain("送信します");
-    expect(ja.offline.message).toContain("ほかの変更は保存されません");
+    // #2337: other changes need a connection; nothing typed is thrown away.
+    expect(ja.offline.message).toContain("ほかの変更には接続が必要です");
     expect(en.offline.message).toContain("view only");
     expect(en.offline.message).toContain("Todo");
-    expect(en.offline.message).toContain("Other changes are not saved");
+    expect(en.offline.message).toContain("Other changes need a connection");
   });
 });
