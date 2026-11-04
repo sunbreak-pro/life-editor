@@ -48,7 +48,8 @@ export interface HeaderTabsProps {
 
 /*
  * Desktop-standard underline tab strip (target-IA header tabs). Active tab =
- * 2px accent underline + primary text + font-medium; inactive = secondary
+ * 2px accent underline + primary text + font-semibold (#2619, the
+ * prototype's 600 — 500 read too close to the unselected 400); inactive = secondary
  * text, hover lifts to primary + hover surface. Optional accent-subtle badge
  * pill (tabular-nums). WAI-ARIA tablist with roving tabindex: ←/→ move focus
  * across tabs and activate (automatic activation). Pure presentation: labels
@@ -154,7 +155,7 @@ export function HeaderTabs({
                 "transition-colors focus-visible:outline-none",
                 "focus-visible:ring-2 focus-visible:ring-lumen-accent",
                 active
-                  ? "border-b-2 border-lumen-accent font-medium text-lumen-text"
+                  ? "border-b-2 border-lumen-accent font-semibold text-lumen-text"
                   : "rounded-t-[6px] border-b-2 border-transparent text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
               )}
             >
