@@ -231,26 +231,28 @@ describe("AppShell (narrow) — safe-area insets", () => {
     expect(owners[0].tagName).toBe("NAV");
   });
 
-  it("fills its host's frame instead of sizing itself to the screen", () => {
+  it("takes its height from the shared shell token, capped by its host's frame", () => {
     mockMatchMedia(false);
     renderShell();
 
+    // #1037: the iOS home-screen app hands out a small viewport one status bar
+    // SHORT of the screen, so a literal `h-[100svh]` ends the shell above the
+    // bottom edge and leaves a blank band under the tab bar. The token carries
+    // that correction (tokens.css) and the host's `body { min-height }` reads
+    // the same one — inlining either side back to `100svh` re-splits them.
+    //
     // #2622: the host stacks the offline / new-version banners above the
-    // shell inside a frame of --app-shell-height (web/src/App.tsx), so the
-    // shell takes what the banners leave. A shell that sized itself to the
-    // screen again — the token, `h-screen`, or a literal `100svh` (which also
-    // loses the iOS correction, #1037) — would push the bottom tab bar a
-    // banner's height off the screen.
+    // shell inside a frame of the same token (web/src/App.tsx). Without the
+    // cap, a banner pushed the bottom tab bar a banner's height off screen.
     const cls = shellRoot().className.split(/\s+/);
-    expect(cls).toContain("h-full");
+    expect(cls).toContain("h-[var(--app-shell-height)]");
+    expect(cls).toContain("max-h-full");
     expect(cls).not.toContain("h-screen");
-    expect(cls).not.toContain("h-[var(--app-shell-height)]");
-    expect(cls.some((c) => /\d+(s|d|l)?vh/.test(c))).toBe(false);
   });
 });
 
 /*
- * #2622 on the wide shell: same rule as the narrow one above. The Desktop
+ * #2622 on the wide shell: it fills the host's frame outright. The Desktop
  * root was `h-screen`, which under a banner made the page taller than the
  * window and cut off the bottom of every section.
  */

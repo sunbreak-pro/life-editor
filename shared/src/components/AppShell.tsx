@@ -308,13 +308,17 @@ export function AppShell({
   // The screen's height is --app-shell-height (shared/src/styles/tokens.css),
   // not a literal `100svh`: in the iOS home-screen app the small viewport
   // comes out one status bar short of the screen, and the token adds that
-  // strip back (#1037). Since #2622 the token sits on the host's frame
-  // (web/src/App.tsx), which stacks the offline / new-version banners above
-  // this shell; the shell is `h-full` and takes what the banners leave, so the
-  // bottom tab bar stays on screen while one is showing. The host's
-  // `body { min-height }` reads the same token, the pairing #631 relies on.
+  // strip back (#1037). The host's `body { min-height }` reads the same
+  // token, the pairing #631 relies on (pinned by
+  // web/tests/shellHeightLockstep.test.ts).
+  //
+  // `max-h-full` (#2622): the host's frame (web/src/App.tsx) is the same
+  // token tall and stacks the offline / new-version banners above this
+  // shell, so the cap makes the shell take only what the banners leave and
+  // the bottom tab bar stays on screen while one is showing. With no banner
+  // the cap equals the token and nothing moves.
   return (
-    <div className="flex h-full flex-col bg-lumen-bg text-lumen-text pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)]">
+    <div className="flex h-[var(--app-shell-height)] max-h-full flex-col bg-lumen-bg text-lumen-text pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)]">
       <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
       {/*
        * The bar stands down while typing (#608) by going INVISIBLE, not by

@@ -319,7 +319,8 @@ function App() {
       {/*
        * #2622: the banners and the body share one frame of the screen's
        * height. The banners keep their own height; the body takes the rest
-       * (`min-h-0 flex-1`), and AppShell fills it with `h-full`. Stacked as
+       * (`min-h-0 flex-1`), which AppShell fills (`h-full`, or the token capped
+       * by `max-h-full` on the narrow shell). Stacked as
        * plain siblings, a banner pushed a 100vh shell a banner's height past
        * the bottom of the screen and cut off its last row (the bottom tab bar
        * on a phone).
@@ -335,8 +336,13 @@ function App() {
        * here.
        */}
       <div className="flex h-[var(--app-shell-height)] flex-col">
-        <OfflineBanner />
-        <AppUpdateBanner />
+        {/* The cap is for the failed-send band, which prints the unsent
+            Todos' text in full: a few of them on a phone would otherwise
+            squeeze the body to nothing. One-line bands never reach it. */}
+        <div className="max-h-[40%] shrink-0 overflow-y-auto">
+          <OfflineBanner />
+          <AppUpdateBanner />
+        </div>
         <div className="min-h-0 flex-1 overflow-y-auto">{body}</div>
       </div>
       {/*
