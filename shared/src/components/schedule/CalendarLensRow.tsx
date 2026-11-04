@@ -71,11 +71,7 @@ export function CalendarLensRow({
           heading over an ad-hoc tick list with no chips — there is no group
           on the row for it to name. */}
       {chips.length > 0 && (
-        <span
-          aria-hidden
-          data-lens-heading
-          className="text-xs text-lumen-text-tertiary"
-        >
+        <span aria-hidden className="text-xs text-lumen-text-tertiary">
           {labels.filterLabel}
         </span>
       )}

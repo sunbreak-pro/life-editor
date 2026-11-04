@@ -113,9 +113,8 @@ export interface ScheduleToolbarProps {
 
 /*
  * #2562: every box on the row is the same 2.0833rem (37.5px at the default
- * 18px root), the height the prototype gives them. Before, the icon buttons
- * were size-7 and the text ones took their height from padding, so no two
- * kinds of button lined up.
+ * 18px root), the height the prototype gives them, so icon and text buttons
+ * line up.
  */
 const ICON_BTN =
   "flex size-[2.0833rem] items-center justify-center rounded-lumen-sm border border-lumen-border-strong text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
