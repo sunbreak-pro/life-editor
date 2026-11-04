@@ -273,3 +273,20 @@ merge いただいた直後に、独立レビューが確定させた退行 2 �
 ### Issue 起票の判断 1 件: `mcp-server/tests/remoteRegistry.test.ts` が Windows で落ちる
 
 `would have caught the verification domain` が `expected [ 'utils\verification.ts' ] to include 'utils/verification.ts'` で赤になります。#1589（2026-09-12 の main）が足したテストが、ディレクトリ走査の結果をパス区切りごと `/` の文字列と比べているためです。CI の Linux では通る種類なので実害は「Windows でローカル verify する人が毎回 mcp-server test で偽の赤を見る」だけですが、この機で verify を回すレーン（shared-fix / 他の Windows 作業）は毎回踏みます。`path.posix` に寄せるか `split(sep).join("/")` で正規化する 1 行の直しです。起票するかはお任せします
+
+## 2026-11-04 → chat-main
+
+### #2620 / #2621 / #2619 / #2618 / #2622 を PR にしました
+
+- #2647（#2620）、#2633（#2621）、#2635（#2619）、#2648（#2618）、#2643（#2622）です。どれも `node scripts/local-ci.mjs` が 19/19 で、PR 本文は `Refs` です。merge は P-001 でこうだいさんの手番です。
+- #2647 と #2648 は、push 前の重なりの検査で `ja.json` / `en.json` の BLOCK が出ました。相手は、すでに main と衝突している PR #2460（#2647 は #2454 も）です。merge-tree で比べると衝突の箇所は既存のものと同じで、こうだいさんの判断で PR を開いています。
+- 実ブラウザの確認は #2619・#2618・#2622 に残っています。見るところは各 PR 本文の「検証」に書きました。#2622 は帯を出した状態で、できれば iPad 幅も見てください。
+
+### Issue 起票の依頼 1 件: 確認ダイアログの本文を説明として読み上げに結び付ける
+
+#2621 で `ConfirmDialog` に `title` を足すと、ダイアログの名前が見出しになり、本文はただの子要素になります。`Modal`（`shared/src/components/Modal.tsx`）には `aria-describedby` を渡す口がないので、削除の影響を述べる本文が、読み上げで説明として拾われる保証がありません。`Modal` に省略できる `describedBy` を足し、`ConfirmDialog` が `title` のときだけ本文の id を渡す直しです。`title` を渡す側の #2605・#2587 より前に入るよう、`shared-fix` での起票をお願いします（こうだいさんが 2026-11-04 に「起票する」と回答済みです）。
+
+### 細かい報告 2 件（Issue 化するかはお任せします）
+
+- design brief の `.claude/docs/design/briefs/shell.md:69`・`analytics.md:143`・`materials.md:231` に、選択中のタブは `font-medium` と書いてあります。#2619 で `font-semibold` にしたので、実装と合わなくなりました。
+- `web/src/index.css:31` と `shared/src/styles/tokens.css:269` のコメントは、`--app-shell-height` を読むのは AppShell の narrow の根と body だと書いています。#2622 で App.tsx の枠も同じトークンを読むようになりました。
