@@ -276,7 +276,7 @@ function App() {
   const hydrated = userId === null || hydratedFor === userId;
   if (!ready || (session && !recovering && !hydrated)) {
     body = (
-      <div className="min-h-screen bg-lumen-bg text-lumen-text flex items-center justify-center">
+      <div className="h-full bg-lumen-bg text-lumen-text flex items-center justify-center">
         <p className="text-lumen-text-secondary">Loading…</p>
       </div>
     );
@@ -316,9 +316,29 @@ function App() {
         cancel: t("common.cancel"),
       }}
     >
-      <OfflineBanner />
-      <AppUpdateBanner />
-      {body}
+      {/*
+       * #2622: the banners and the body share one frame of the screen's
+       * height. The banners keep their own height; the body takes the rest
+       * (`min-h-0 flex-1`), and AppShell fills it with `h-full`. Stacked as
+       * plain siblings, a banner pushed a 100vh shell a banner's height past
+       * the bottom of the screen and cut off its last row (the bottom tab bar
+       * on a phone).
+       *
+       * The height is --app-shell-height rather than `h-dvh`: it is the token
+       * the narrow shell already used and `body { min-height }` reads
+       * (web/src/index.css, #631), and it carries the iOS home-screen
+       * correction (#1037) that a bare viewport unit would lose.
+       *
+       * `overflow-y-auto` is for AuthScreen, which sizes itself to the whole
+       * screen (`min-h-svh`): under a banner it scrolls inside the body
+       * instead of pushing the page. The shell fits exactly and never scrolls
+       * here.
+       */}
+      <div className="flex h-[var(--app-shell-height)] flex-col">
+        <OfflineBanner />
+        <AppUpdateBanner />
+        <div className="min-h-0 flex-1 overflow-y-auto">{body}</div>
+      </div>
       {/*
        * #1251: the policy and the terms, mounted ABOVE the session gate.
        * Living inside AuthScreen meant they vanished the moment you signed
