@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { afterEach, describe, it, expect, vi, beforeEach } from "vitest";
 import {
   render,
   screen,
@@ -750,19 +750,21 @@ describe("LinkPanel — candidate rows on narrow (#2474)", () => {
  */
 describe("LinkPanel — popover stays inside its pane (#2618)", () => {
   const PANE_LEFT = 200;
+  const PANE_RIGHT = 1000;
+
+  // A failed expect must not leave the rect stub on for the next test.
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
   function stubRects(triggerName: string, triggerRight: number) {
     return vi
       .spyOn(HTMLElement.prototype, "getBoundingClientRect")
       .mockImplementation(function (this: HTMLElement) {
-        const left =
-          this.getAttribute("aria-label") === triggerName
-            ? triggerRight - 24
-            : this.dataset.testid === "pane"
-              ? PANE_LEFT
-              : 0;
-        const right =
-          this.getAttribute("aria-label") === triggerName ? triggerRight : left;
+        const isTrigger = this.getAttribute("aria-label") === triggerName;
+        const isPane = this.dataset.testid === "pane";
+        const left = isTrigger ? triggerRight - 24 : isPane ? PANE_LEFT : 0;
+        const right = isTrigger ? triggerRight : isPane ? PANE_RIGHT : 0;
         return {
           left,
           right,
@@ -820,6 +822,15 @@ describe("LinkPanel — popover stays inside its pane (#2618)", () => {
     await openPicker();
     expect(classesOf(pickerPanel())).toContain("right-0");
     expect(classesOf(pickerPanel())).not.toContain("left-0");
+    spy.mockRestore();
+  });
+
+  it("still hangs from the right edge with exactly a panel's width of room", async () => {
+    // 440 − 240 = 200, the pane's left edge itself.
+    const spy = stubRects(i18n.t("materials.links.add"), PANE_LEFT + 240);
+    renderInPane();
+    await openPicker();
+    expect(classesOf(pickerPanel())).toContain("right-0");
     spy.mockRestore();
   });
 

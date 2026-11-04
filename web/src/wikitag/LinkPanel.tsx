@@ -208,41 +208,55 @@ const POPOVER_WIDTH_REM = 15;
  * there is not a full panel's width to the left does it flip to hang from the
  * left edge and grow right.
  *
+ * When neither side has a full panel's width (a pane narrower than the
+ * panel plus the trigger), the side with more room wins, so the panel loses
+ * as little as it can past the pane's edge.
+ *
  * Kept a pure function of numbers so the rule reads on its own; the reading
  * of the DOM is in `measurePopoverAlign`.
  */
 function popoverAlignFor(room: {
+  triggerLeft: number;
   triggerRight: number;
   panelWidth: number;
   boundaryLeft: number;
+  boundaryRight: number;
 }): PopoverAlign {
-  return room.triggerRight - room.panelWidth >= room.boundaryLeft
-    ? "end"
-    : "start";
+  const roomLeftward = room.triggerRight - room.boundaryLeft;
+  const roomRightward = room.boundaryRight - room.triggerLeft;
+  if (roomLeftward >= room.panelWidth) return "end";
+  if (roomRightward >= room.panelWidth) return "start";
+  return roomLeftward >= roomRightward ? "end" : "start";
 }
 
 /*
- * The left edge the panel must not cross is the nearest ancestor that clips
+ * The edges the panel must not cross are the nearest ancestor that clips
  * (the detail pane's scroller), not the viewport: the nav occupies the
  * viewport's left, and a panel that only clears the viewport still lands
- * under it.
+ * under it. With no clipping ancestor, the viewport is the boundary.
  */
 function measurePopoverAlign(trigger: HTMLElement | null): PopoverAlign {
   if (!trigger) return "end";
   let boundaryLeft = 0;
+  let boundaryRight = window.innerWidth;
   for (let el = trigger.parentElement; el; el = el.parentElement) {
     const { overflowX } = getComputedStyle(el);
     if (overflowX && overflowX !== "visible") {
-      boundaryLeft = el.getBoundingClientRect().left;
+      const pane = el.getBoundingClientRect();
+      boundaryLeft = pane.left;
+      boundaryRight = pane.right;
       break;
     }
   }
   const rootFontSize =
     parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  const rect = trigger.getBoundingClientRect();
   return popoverAlignFor({
-    triggerRight: trigger.getBoundingClientRect().right,
+    triggerLeft: rect.left,
+    triggerRight: rect.right,
     panelWidth: POPOVER_WIDTH_REM * rootFontSize,
     boundaryLeft,
+    boundaryRight,
   });
 }
 
