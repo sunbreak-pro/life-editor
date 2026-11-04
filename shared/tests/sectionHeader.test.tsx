@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { Clock } from "lucide-react";
 import { SectionHeader, HeaderTabs } from "../src/components";
 
 /*
@@ -232,6 +233,52 @@ describe("SectionHeader", () => {
     const titleColumn = withTitle.container.firstElementChild
       ?.firstElementChild as HTMLElement;
     expect(titleColumn.className).not.toContain("pt-3");
+  });
+
+  /*
+   * #2552 — sections without a tab band show the sidebar's icon before the
+   * title, so the header alone says which section is open. The heading text
+   * stays the accessible name; a tab band replaces the icon along with the
+   * title.
+   */
+  describe("section icon (#2552)", () => {
+    it("draws the icon before the title at 18px, hidden from assistive tech", () => {
+      const { container } = render(<SectionHeader title="Schedule" icon={Clock} />);
+      const svg = container.querySelector("svg");
+      expect(svg).not.toBeNull();
+      expect(svg?.getAttribute("aria-hidden")).toBe("true");
+      expect(svg?.getAttribute("width")).toBe("18");
+      expect(svg?.getAttribute("class")).toContain("text-lumen-text-secondary");
+      const heading = screen.getByRole("heading", { name: "Schedule" });
+      expect(
+        svg!.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    });
+
+    it("draws no icon when none is given", () => {
+      const { container } = render(<SectionHeader title="Work" />);
+      expect(container.querySelector("svg")).toBeNull();
+    });
+
+    it("draws no icon when a tab band stands in for the title", () => {
+      render(
+        <SectionHeader
+          title="ignored"
+          icon={Clock}
+          tabs={
+            <HeaderTabs
+              divider={false}
+              tabs={[{ id: "a", label: "Tab A" }]}
+              activeTab="a"
+              onSelect={() => {}}
+            />
+          }
+        />,
+      );
+      const tablist = screen.getByRole("tablist");
+      const header = tablist.closest(".border-b") as HTMLElement;
+      expect(header.querySelector("svg.lucide-clock")).toBeNull();
+    });
   });
 
   /*
