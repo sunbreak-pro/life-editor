@@ -349,6 +349,27 @@ describe("NotesView — desktop (wide)", () => {
     expect(screen.queryByTestId("link-panel")).toBeNull();
   });
 
+  it.each([
+    ["wide", true],
+    ["narrow", false],
+  ])("names the body's three inputs under it on %s (#2554)", (_, isWide) => {
+    state.isWide = isWide;
+    state.selectedId = "note-a";
+    render(<NotesView />);
+
+    const hint = screen.getByTestId("note-body-hint");
+    expect(
+      Array.from(hint.querySelectorAll("kbd")).map((k) => k.textContent),
+    ).toEqual(["/", "[["]);
+    expect(hint.textContent).toBe(
+      "/materials.notes.bodyHint.slash" +
+        "materials.notes.bodyHint.separator" +
+        "[[materials.notes.bodyHint.link" +
+        "materials.notes.bodyHint.separator" +
+        "materials.notes.bodyHint.format",
+    );
+  });
+
   it("does not mount the body editor over a password-locked note", () => {
     state.notes = [
       note({ id: "note-locked", title: "Sealed", hasPassword: true }),

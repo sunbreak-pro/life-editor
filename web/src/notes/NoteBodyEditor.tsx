@@ -187,6 +187,32 @@ function NoteBodySession({
         tableTags={tableItems?.wiringFor(noteId)}
         className={className}
       />
+      {/*
+       * #2554: the slash menu, "[[" links and the selection's format bar were
+       * all there with nothing on screen saying so, so a first-time writer had
+       * no way to find them. One quiet line under the body names all three, on
+       * every note (the prototype shows it always, not only on an empty body).
+       * Not on a locked body: none of the three works when it cannot be typed.
+       * Daily has its own editor and does not get it.
+       */}
+      {!note.isEditLocked && (
+        <p
+          data-testid="note-body-hint"
+          className="mt-2 text-xs text-lumen-text-tertiary"
+        >
+          <kbd className={HINT_KEY}>/</kbd>
+          {t("materials.notes.bodyHint.slash")}
+          {t("materials.notes.bodyHint.separator")}
+          <kbd className={HINT_KEY}>[[</kbd>
+          {t("materials.notes.bodyHint.link")}
+          {t("materials.notes.bodyHint.separator")}
+          {t("materials.notes.bodyHint.format")}
+        </p>
+      )}
     </>
   );
 }
+
+// font-sans (#1672): Tailwind preflight sets <kbd> in the monospace stack.
+const HINT_KEY =
+  "rounded border border-lumen-border bg-lumen-bg px-1 py-px font-sans text-[11px] font-medium text-lumen-text-secondary";

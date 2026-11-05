@@ -528,6 +528,12 @@
       "deleteConfirmBody": "Delete “{{name}}”? It goes to the trash, so you can restore it later.",
       "deleteConfirmAction": "Delete",
       "bodyPlaceholder": "Write your note…",
+      "bodyHint": {
+        "slash": " to insert a block",
+        "link": " to link",
+        "format": "select text to format",
+        "separator": ", "
+      },
       "untitled": "(untitled)",
       "lockedHint": "This note is locked",
       "offlineLocked": "You are offline, so renaming, pinning and deleting notes are off until you reconnect.",
