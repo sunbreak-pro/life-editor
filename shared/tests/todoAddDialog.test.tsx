@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { TodoAddDialog, type TodoAddDialogLabels } from "../src/components";
+import ja from "../src/i18n/locales/ja.json";
 
 /*
  * Kanban "add a todo" overlay (#586 pins). The behavior under guard is the
@@ -11,11 +12,11 @@ import { TodoAddDialog, type TodoAddDialogLabels } from "../src/components";
  */
 
 const LABELS: TodoAddDialogLabels = {
-  title: "Add todo",
+  title: "Add a Todo",
   titleLabel: "Title",
-  titlePlaceholder: "What needs doing?",
   submit: "Add",
   cancel: "Cancel",
+  close: "Close",
 };
 
 function dialogProps(overrides?: Partial<Parameters<typeof TodoAddDialog>[0]>) {
@@ -28,14 +29,41 @@ function dialogProps(overrides?: Partial<Parameters<typeof TodoAddDialog>[0]>) {
   };
 }
 
+// The input is found by its "Title" label, since #2572 dropped the placeholder.
 function titleInput(): HTMLInputElement {
-  return screen.getByPlaceholderText("What needs doing?");
+  return screen.getByRole("textbox", { name: "Title" });
 }
 
 describe("TodoAddDialog", () => {
   it("renders nothing while closed", () => {
     render(<TodoAddDialog {...dialogProps({ open: false })} />);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("shows the heading it is given (#2572)", () => {
+    render(<TodoAddDialog {...dialogProps()} />);
+    expect(
+      screen.getByRole("heading", { name: "Add a Todo" }),
+    ).toBeInTheDocument();
+  });
+
+  it("words the ja heading as \"Todo の追加\" (#2572)", () => {
+    // useTodoAddDialog feeds labels.title from this key; the wiring itself
+    // lives in web/ and is left to the real-browser check.
+    expect(ja.scheduleScreen.todoAddDialogHeading).toBe("Todo の追加");
+  });
+
+  it("closes from the top-right × (#2572)", () => {
+    const props = dialogProps();
+    render(<TodoAddDialog {...props} />);
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(props.onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the title label and no placeholder (#2572)", () => {
+    render(<TodoAddDialog {...dialogProps()} />);
+    expect(screen.getByText("Title")).toBeInTheDocument();
+    expect(titleInput()).not.toHaveAttribute("placeholder");
   });
 
   it("disables submit for empty and whitespace-only titles", () => {
