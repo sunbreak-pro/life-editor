@@ -55,6 +55,8 @@ try {
   const round = JSON.parse(readFileSync(marker, "utf8"));
   if (!(Date.now() - Date.parse(round.startedAt) <= ROUND_TTL_MS))
     decide("ask", "merge-round の回が始まってから 2 時間を過ぎたので確認します。finish して plan からやり直してください。");
+  if (!round.verifiedTree)
+    decide("ask", "merge-round の回に手元の CI の記録が無いので確認します（plan の手元 CI が緑のときだけ start が回を作ります）。");
   if (!round.prs?.includes(Number(m[1])))
     decide("ask", `#${m[1]} は今回の事前確認を通った一覧にないので確認します。`);
   if (!round.checked?.[m[1]] || round.checked[m[1]] !== round.heads?.[m[1]])
