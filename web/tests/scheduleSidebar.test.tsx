@@ -3,6 +3,8 @@ import { render, screen, fireEvent, within } from "@testing-library/react";
 import { agendaRowHeightPx, type AgendaItem } from "@life-editor/shared";
 import { ScheduleSidebar } from "../src/schedule/ScheduleSidebar";
 import type { ScheduleSidebarProps } from "../src/schedule/ScheduleSidebar";
+import en from "../../shared/src/i18n/locales/en.json";
+import ja from "../../shared/src/i18n/locales/ja.json";
 
 /*
  * #889 — the Schedule rightSidebar, pulled out of CalendarTab.
@@ -604,11 +606,11 @@ describe("ScheduleSidebar — the todo tray after the board (#1153)", () => {
     const onAddToday = vi.fn();
     render(<ScheduleSidebar {...withTray({ onAdd, onAddToday })} />);
 
-    fireEvent.click(screen.getByText("scheduleScreen.todoAddTodayCta"));
+    fireEvent.click(screen.getByText("scheduleScreen.todoAddTodayLink"));
     expect(onAddToday).toHaveBeenCalledTimes(1);
     expect(onAdd).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByText("scheduleScreen.todoAddCta"));
+    fireEvent.click(screen.getByText("scheduleScreen.todoAddLink"));
     expect(onAdd).toHaveBeenCalledTimes(1);
     expect(onAddToday).toHaveBeenCalledTimes(1);
   });
@@ -623,12 +625,12 @@ describe("ScheduleSidebar — the todo tray after the board (#1153)", () => {
    */
   it("keeps the filter row free of a create pill", () => {
     render(<ScheduleSidebar {...withTray()} />);
-    expect(screen.getAllByText("scheduleScreen.todoAddCta")).toHaveLength(1);
+    expect(screen.getAllByText("scheduleScreen.todoAddLink")).toHaveLength(1);
     expect(
       document.querySelectorAll("[data-tour-id='schedule-todo-add']"),
     ).toHaveLength(1);
     // The pill that IS there heads the "その他" list, not the filter row.
-    const pill = screen.getByText("scheduleScreen.todoAddCta");
+    const pill = screen.getByText("scheduleScreen.todoAddLink");
     expect(pill.closest("[data-todo-filter-row]")).toBeNull();
   });
 
@@ -636,8 +638,8 @@ describe("ScheduleSidebar — the todo tray after the board (#1153)", () => {
     // It creates a TODO. On the flow or the repeat list it would read as
     // creating whatever that tab is showing.
     render(<ScheduleSidebar {...makeProps({ tab: "flow" })} />);
-    expect(screen.queryByText("scheduleScreen.todoAddCta")).toBeNull();
-    expect(screen.queryByText("scheduleScreen.todoAddTodayCta")).toBeNull();
+    expect(screen.queryByText("scheduleScreen.todoAddLink")).toBeNull();
+    expect(screen.queryByText("scheduleScreen.todoAddTodayLink")).toBeNull();
   });
 });
 
@@ -798,7 +800,7 @@ describe("ScheduleSidebar — the Todo tab's day (#2281)", () => {
     render(<ScheduleSidebar {...makeProps({ tab: "todo" })} />);
     screen.getByText("scheduleScreen.todoTodayHeading");
     screen.getByText("scheduleScreen.todoEmptyToday");
-    screen.getByRole("button", { name: "scheduleScreen.todoAddTodayCta" });
+    screen.getByRole("button", { name: "scheduleScreen.todoAddTodayLink" });
     const today = screen.getByRole("button", { name: "scheduleScreen.today" });
     expect((today as HTMLButtonElement).disabled).toBe(true);
   });
@@ -826,7 +828,7 @@ describe("ScheduleSidebar — the Todo tab's day (#2281)", () => {
       empty.compareDocumentPosition(others) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     // The pill adds to the day the heading names, and says so.
-    screen.getByRole("button", { name: "scheduleScreen.todoAddDayCta" });
+    screen.getByRole("button", { name: "scheduleScreen.todoAddDayLink" });
     const today = screen.getByRole("button", { name: "scheduleScreen.today" });
     expect((today as HTMLButtonElement).disabled).toBe(false);
   });
@@ -851,7 +853,7 @@ describe("ScheduleSidebar — the Todo tab's day (#2281)", () => {
     render(<ScheduleSidebar {...makeProps({ tab: "todo", isWide: false })} />);
     for (const name of [
       "scheduleScreen.today",
-      "scheduleScreen.todoFilterOpen",
+      "scheduleScreen.todoFilterButtonName",
     ]) {
       const cls = screen.getByRole("button", { name }).className.split(/\s+/);
       expect(cls).toContain("max-md:min-h-11");
@@ -860,6 +862,127 @@ describe("ScheduleSidebar — the Todo tab's day (#2281)", () => {
       expect(cls).not.toContain("min-h-11");
       expect(cls).not.toContain("min-w-11");
     }
+  });
+});
+
+/*
+ * #2568 — the Todo tab's top rows and heading actions in the prototype's
+ * shape. jsdom has no layout, so the markers and the class contract that
+ * produce the look are what is pinned.
+ */
+describe("ScheduleSidebar — the Todo tab's prototype shape (#2568)", () => {
+  it("marks the day as today only while it is today", () => {
+    const first = render(<ScheduleSidebar {...makeProps({ tab: "todo" })} />);
+    const day = document.querySelector("[data-todo-day-row]")!;
+    const mark = day.querySelector("[data-todo-day-today]");
+    expect(mark?.textContent).toContain("scheduleScreen.todoDayTodayMark");
+    // The mark rides on the day itself, between ‹ and ›.
+    expect(mark?.parentElement?.textContent).toContain("Tue, Oct 20");
+    first.unmount();
+
+    render(
+      <ScheduleSidebar
+        {...makeProps({
+          tab: "todo",
+          todo: { day: makeDay({ heading: "10/21（水）の Todo" }) },
+        })}
+      />,
+    );
+    expect(document.querySelector("[data-todo-day-today]")).toBeNull();
+    expect(screen.queryByText(/scheduleScreen\.todoDayTodayMark/)).toBeNull();
+  });
+
+  it("outlines the ‹ › faces without framing the 44px box on narrow", () => {
+    render(<ScheduleSidebar {...makeProps({ tab: "todo", isWide: false })} />);
+    for (const name of [
+      "scheduleScreen.todoDayPrev",
+      "scheduleScreen.todoDayNext",
+    ]) {
+      const btn = screen.getByRole("button", { name });
+      expect(btn.className.split(/\s+/)).not.toContain("border");
+      const face = btn.querySelector("span");
+      expect(face?.className.split(/\s+/)).toEqual(
+        expect.arrayContaining(["border", "border-lumen-border-strong"]),
+      );
+      expect(face?.className).not.toContain("max-md:");
+    }
+  });
+
+  it("labels the filter button, full width, with the count after the word", () => {
+    render(
+      <ScheduleSidebar
+        {...makeProps({
+          tab: "todo",
+          todo: { filter: makeFilter({ activeCount: 2 }) },
+        })}
+      />,
+    );
+    const btn = screen.getByRole("button", {
+      name: "scheduleScreen.todoFilterActive",
+    });
+    expect(btn.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(["w-full", "justify-start"]),
+    );
+    const word = within(btn).getByText("scheduleScreen.todoFilterButton");
+    const count = btn.querySelector("[data-todo-filter-count]")!;
+    expect(
+      word.compareDocumentPosition(count) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // Inline after the word, not pinned to the icon's corner.
+    expect(count.className).not.toContain("absolute");
+    const row = document.querySelector("[data-todo-filter-row]")!;
+    expect(row.className).not.toContain("justify-end");
+  });
+
+  // A voice command reads the visible word, so the name must contain it.
+  it.each([
+    ["ja", ja],
+    ["en", en],
+  ])("keeps the filter button's visible word in its %s name", (_, cat) => {
+    const s = cat.scheduleScreen;
+    expect(s.todoFilterButtonName.startsWith(s.todoFilterButton)).toBe(true);
+    expect(s.todoFilterActive_other.startsWith(s.todoFilterButton)).toBe(true);
+  });
+
+  it("draws both heading actions as unfilled text buttons", () => {
+    render(
+      <ScheduleSidebar
+        {...makeProps({
+          tab: "todo",
+          todo: {
+            placed: [{ id: "t1", title: "Buy milk", completed: false }],
+            addable: [{ id: "a1", title: "Read the spec" }],
+          },
+        })}
+      />,
+    );
+    for (const name of [
+      "scheduleScreen.todoAddTodayLink",
+      "scheduleScreen.todoAddLink",
+    ]) {
+      const cls = screen.getByRole("button", { name }).className;
+      expect(cls).not.toContain("bg-lumen-accent");
+      expect(cls.split(/\s+/)).not.toContain("border");
+    }
+    expect(
+      screen
+        .getByRole("button", { name: "scheduleScreen.todoAddLink" })
+        .getAttribute("data-tour-id"),
+    ).toBe("schedule-todo-add");
+  });
+
+  it("gives the 'other' rows the tag line too", () => {
+    render(
+      <ScheduleSidebar
+        {...makeProps({
+          tab: "todo",
+          todo: { addable: [{ id: "a1", title: "Read the spec", meta: "11/8" }] },
+        })}
+      />,
+    );
+    const line = document.querySelector("[data-addable-meta-line]")!;
+    expect(line.textContent).toContain("11/8");
+    expect(line.textContent).toContain("tag:a1");
   });
 });
 
@@ -874,7 +997,9 @@ describe("ScheduleSidebar — the Todo tab's filter (#1641)", () => {
     render(
       <ScheduleSidebar {...makeProps({ tab: "todo", todo: { ...rows } })} />,
     );
-    screen.getByRole("button", { name: "scheduleScreen.todoFilterOpen" });
+    screen.getByRole("button", {
+      name: "scheduleScreen.todoFilterButtonName",
+    });
     expect(document.querySelector("[data-todo-filter-count]")).toBeNull();
   });
 
@@ -898,7 +1023,7 @@ describe("ScheduleSidebar — the Todo tab's filter (#1641)", () => {
       <ScheduleSidebar {...makeProps({ tab: "todo", todo: { ...rows } })} />,
     );
     const btn = screen.getByRole("button", {
-      name: "scheduleScreen.todoFilterOpen",
+      name: "scheduleScreen.todoFilterButtonName",
     });
     expect(
       screen.queryByLabelText("scheduleScreen.todoFilterPanel"),
@@ -1018,7 +1143,7 @@ describe("#1832 — the sidebar's own controls meet the 44px touch floor", () =>
     expect(cls.split(" ")).not.toContain("min-h-11");
   });
 
-  it.each(["scheduleScreen.todoAddTodayCta", "scheduleScreen.todoAddCta"])(
+  it.each(["scheduleScreen.todoAddTodayLink", "scheduleScreen.todoAddLink"])(
     "gives the Todo tab's %s pill a 44px hit area without growing it (#2010)",
     (name) => {
       render(
