@@ -204,6 +204,19 @@ life-editor/
 | Android 友達配布 | 未署名 .apk 手渡し  | **未署名**（"提供元不明アプリ許可"、$0）      | —                                                                           |
 | Web URL          | Cloudflare Workers  | $0（#600・静的アセットは無料無制限）          | **公開済み = `https://life-editor.sunbreak-pro.workers.dev`**（2026-08-09） |
 
+#### 手元から配る手順（2026-11-06〜・#2664）
+
+2026-11-05 から GitHub Actions が支払いのロックで起動しなくなりました。billing は払わない方針（「完成まで $0 厳守」）なので、配布はすべて手元から打ちます。main に merge しただけでは、どれも本番に届きません。`.github/workflows/` のファイルは、Actions を再開したときの経路として残しています。`ci.yml` は `node scripts/local-ci.mjs` が読むので消しません。
+
+| 配るもの | コマンド | 事前に要るもの |
+| --- | --- | --- |
+| Web（公開 URL） | `cd web && npm run deploy`（`scripts/deploy-web.mjs`。ビルドの前に `npm ci` もするなら `npm run deploy -- --install`、配布の手前で止めるなら `-- --dry-run`） | `npx wrangler@4 login` と、`VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`（環境変数か `web/.env.production.local`） |
+| Remote MCP（スマホ用） | `cd mcp-server && npm run deploy` | `npx wrangler@4 login`。シークレットは `npx wrangler@4 secret put <NAME>` で Cloudflare 側に入っている |
+| 拡張アプリ用の窓口 | `cd mcp-server && npm run deploy:gateway` | 同上 |
+| デスクトップ版 | Windows で `cd desktop && npm run build:win`、Mac で `npm run build:mac` を打ち、できたインストーラを `gh release create desktop-v<版> --draft <ファイル>` で上げる | `shared` と `web` の `npm ci`、ビルド時の Supabase の値（Web と同じ） |
+
+Web の配布は、ビルドのあとに `web/dist` の中身（`index.html`・PWA のファイル・アイコン・`sw.js` が全チャンクを載せているか）を確かめ、欠けていれば配布せずに止まります。この確認は `scripts/deploy-web.mjs` の 1 か所にだけ書いてあり、`deploy-web.yml` も同じスクリプトを呼びます。
+
 #### Phase 1-5 中の iOS 運用ポリシー
 
 - 自分の iPhone のみ。**友達 iPhone への配布はやらない**

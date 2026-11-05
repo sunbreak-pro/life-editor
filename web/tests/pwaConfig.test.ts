@@ -1,4 +1,14 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import en from "../../shared/src/i18n/locales/en.json";
@@ -58,13 +68,67 @@ describe("the web build", () => {
     expect(read("vite.config.ts")).toMatch(/\bVitePWA\(pwaOptions\)/);
   });
 
+  /*
+   * #2664: the check moved from the workflow's bash into scripts/deploy-web.mjs,
+   * which both the hand deploy and the workflow call. Run against a fixture
+   * rather than matched as text, so a rewrite of the check cannot keep the
+   * words and lose the behaviour.
+   */
+  const verifyScript = resolve(webRoot, "../scripts/deploy-web.mjs");
+  const DIST_FILES = [
+    "index.html",
+    "manifest.webmanifest",
+    "icon-192.png",
+    "icon-512.png",
+    "apple-touch-icon.png",
+  ];
+  function fixtureDist(swLists: string[]): string {
+    const dist = mkdtempSync(join(tmpdir(), "deploy-web-"));
+    mkdirSync(join(dist, "assets"));
+    for (const f of DIST_FILES)
+      writeFileSync(join(dist, f), "<title>Life Editor</title>");
+    writeFileSync(join(dist, "assets", "index-abc.js"), "");
+    writeFileSync(join(dist, "assets", "NotesScreen-def.js"), "");
+    writeFileSync(
+      join(dist, "sw.js"),
+      swLists.map((c) => `"assets/${c}"`).join(","),
+    );
+    return dist;
+  }
+  const verify = (dist: string) =>
+    spawnSync(
+      process.execPath,
+      [verifyScript, "--verify-only", "--dist", dist],
+      {
+        encoding: "utf8",
+      },
+    );
+
   it("is checked before it deploys: the worker exists and lists every chunk", () => {
-    const deploy = readFileSync(
+    const complete = fixtureDist(["index-abc.js", "NotesScreen-def.js"]);
+    const missingChunk = fixtureDist(["index-abc.js"]);
+    try {
+      expect(verify(complete).status).toBe(0);
+      const bad = verify(missingChunk);
+      expect(bad.status).toBe(1);
+      expect(bad.stderr).toContain("assets/NotesScreen-def.js");
+      rmSync(join(complete, "sw.js"));
+      expect(verify(complete).status).toBe(1);
+    } finally {
+      rmSync(complete, { recursive: true, force: true });
+      rmSync(missingChunk, { recursive: true, force: true });
+    }
+  });
+
+  it("runs that check on both deploy routes", () => {
+    const workflow = readFileSync(
       resolve(webRoot, "../.github/workflows/deploy-web.yml"),
       "utf8",
     );
-    expect(deploy).toContain("test -f web/dist/sw.js");
-    expect(deploy).toContain('grep -qF "assets/$(basename "$chunk")" web/dist/sw.js');
+    expect(workflow).toContain("node scripts/deploy-web.mjs --verify-only");
+    expect(JSON.parse(read("package.json")).scripts.deploy).toBe(
+      "node ../scripts/deploy-web.mjs",
+    );
   });
 });
 

@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "node ../scripts/deploy-web.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
