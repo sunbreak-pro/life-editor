@@ -1,7 +1,7 @@
 import {
   ChevronDown,
-  ChevronRight,
-  FileStack,
+  ChevronUp,
+  LayoutTemplate,
   Pencil,
   Trash2,
 } from "lucide-react";
@@ -17,13 +17,21 @@ import { FOCUS_RING } from "../styleTokens";
  * same reason Trash does: both are collections of this tab's rows that are not
  * in the main list, and the sidebar is where this tab keeps its navigation.
  *
- * Collapsed by default and shaped exactly like the Trash disclosure below it,
- * so a sidebar that now holds three lists still reads as one column rather than
- * three competing panels.
+ * Collapsed by default, so a sidebar that holds several lists still reads as
+ * one column rather than competing panels.
  *
  * EDIT IS AN ICON, NOT THE ROW. A template row is not a thing to "open" the way
  * a note row is — there is no reading view for it — so the row itself does not
  * navigate. The pencil says what the only action is.
+ *
+ * PINNED TO THE BOTTOM, OPENING UPWARD (#2580). At the end of a long note list
+ * the heading was only reachable by scrolling past every note, and opening it
+ * pushed the rows further down still. The panel now sticks to the bottom edge
+ * of the sidebar's scroll well and its rows open above the heading, so the
+ * heading stays where the pointer already is. Sticky rather than a fixed
+ * flex footer: the well is the shared RightSidebarContents scroller (every
+ * section's sidebar and the narrow drawer), and this keeps the change inside
+ * the Notes panel. The opaque subsidebar fill is what the list scrolls under.
  *
  * Pure presentation (§3.1 / §6.4): every mutation is a host callback and every
  * string arrives already translated.
@@ -71,30 +79,44 @@ export function TemplateListPanel({
   labels,
   className,
 }: TemplateListPanelProps) {
-  return (
-    <div className={cn("border-t border-lumen-border pt-1", className)}>
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={open}
-        className={cn(
-          "flex w-full items-center gap-2 rounded-lumen-md px-1 py-2 text-[12.5px] text-lumen-text-secondary hover:bg-lumen-hover",
-          FOCUS_RING,
-        )}
-      >
-        {open ? (
-          <ChevronDown size={13} aria-hidden className="shrink-0" />
-        ) : (
-          <ChevronRight size={13} aria-hidden className="shrink-0" />
-        )}
-        <FileStack size={14} aria-hidden className="shrink-0" />
-        <span className="truncate">
-          {labels.heading}（{templates.length}）
-        </span>
-      </button>
+  const heading = (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      className={cn(
+        "flex w-full items-center gap-2 rounded-lumen-md px-1 py-2 text-[12.5px] text-lumen-text-secondary hover:bg-lumen-hover",
+        FOCUS_RING,
+      )}
+    >
+      {/* Points the way the rows open: up while closed, down to fold them. */}
+      {open ? (
+        <ChevronDown size={13} aria-hidden className="shrink-0" />
+      ) : (
+        <ChevronUp size={13} aria-hidden className="shrink-0" />
+      )}
+      <LayoutTemplate
+        size={14}
+        aria-hidden
+        data-testid="template-heading-icon"
+        className="shrink-0"
+      />
+      <span className="truncate">
+        {labels.heading}（{templates.length}）
+      </span>
+    </button>
+  );
 
+  return (
+    <div
+      data-testid="template-list-panel"
+      className={cn(
+        "sticky bottom-0 z-10 flex-none border-t border-lumen-border bg-lumen-bg-subsidebar pt-1",
+        className,
+      )}
+    >
       {open && (
-        <div className="pb-2">
+        <div className="pt-1">
           {loading ? (
             <p className="px-1 text-sm text-lumen-text-secondary">
               {labels.loading}
@@ -119,6 +141,12 @@ export function TemplateListPanel({
                       "[@media(hover:none)]:select-none [@media(hover:none)]:[-webkit-touch-callout:none]",
                     )}
                   >
+                    <LayoutTemplate
+                      size={14}
+                      aria-hidden
+                      data-testid="template-row-icon"
+                      className="shrink-0 text-lumen-text-tertiary"
+                    />
                     <span className="min-w-0 flex-1 truncate text-lumen-text-secondary">
                       {title}
                     </span>
@@ -153,6 +181,7 @@ export function TemplateListPanel({
           )}
         </div>
       )}
+      {heading}
     </div>
   );
 }
