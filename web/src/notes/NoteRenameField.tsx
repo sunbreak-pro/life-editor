@@ -12,10 +12,12 @@ export function NoteRenameField({
   value,
   label,
   onCommit,
+  disabled = false,
 }: {
   value: string;
   label: string;
   onCommit: (title: string) => void;
+  disabled?: boolean;
 }): React.JSX.Element {
   const [draft, setDraft] = useState(value);
   // The last name written from here, so the blur that follows an Enter does
@@ -32,6 +34,7 @@ export function NoteRenameField({
       {label}
       <input
         value={draft}
+        disabled={disabled}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => {

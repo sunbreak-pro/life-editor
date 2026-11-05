@@ -7,11 +7,15 @@ import {
 import type { NoteNode } from "../types/note";
 import type { DataService } from "../services/DataService";
 import {
+  noteWriteBlock,
+  NoteWriteBlockedError,
+  notesWritesBlockedOffline,
   reportNoteWriteError,
   type NoteWriteErrorHandler,
 } from "./notesWriteError";
 import { generateId } from "../utils/generateId";
 import { afterSettled } from "../utils/undoRedo/pendingWrite";
+import type { UndoCommand } from "../utils/undoRedo/UndoRedoManager";
 import type { UndoRedoLike } from "./useTodoTreeHistory";
 import { buildNoteNode, collectNoteSubtree } from "./notesUnifiedHelpers";
 import {
@@ -51,6 +55,22 @@ export interface UseNotesUnifiedCRUDParams {
    * string is stored as the title (see UseNotesUnifiedAPIOptions).
    */
   untitledTitle: string;
+}
+
+/** An undo or redo of a rename, pin or delete waits for the connection (#2337). */
+function pushNeedingConnection(
+  push: UndoRedoLike["push"],
+  command: UndoCommand,
+): void {
+  const guarded = (run: () => void | Promise<void>) => () =>
+    notesWritesBlockedOffline()
+      ? Promise.reject(new NoteWriteBlockedError("offline"))
+      : run();
+  push("note", {
+    ...command,
+    undo: guarded(command.undo),
+    redo: guarded(command.redo),
+  });
 }
 
 export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
@@ -117,7 +137,16 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
             .createNoteUnified(
               buildNoteNode(id, newNote.title, resolvedParentId, now),
             )
-            .then(() => {
+            .then((created) => {
+              // #2337: held in the outbox. The mark stays until a read
+              // replaces this row with the sent one.
+              if (created?.createdOffline) {
+                setNotes((prev) =>
+                  prev.map((n) =>
+                    n.id === id ? { ...n, createdOffline: true } : n,
+                  ),
+                );
+              }
               if (resolvedContent) {
                 return ds.updateNoteUnified(id, { content: resolvedContent });
               }
@@ -190,6 +219,14 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
       const isContentOnly =
         Object.keys(updates).length === 1 && "content" in updates;
 
+      const blocked = isContentOnly
+        ? null
+        : noteWriteBlock(notesRef.current.find((n) => n.id === id));
+      if (blocked) {
+        reportNoteWriteError("update", blocked, onWriteError);
+        return;
+      }
+
       if (!isContentOnly) {
         const prev = notesRef.current.find((n) => n.id === id);
         if (prev) {
@@ -201,7 +238,7 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
           if ("color" in updates) prevValues.color = prev.color;
           if ("icon" in updates) prevValues.icon = prev.icon;
 
-          push("note", {
+          pushNeedingConnection(push, {
             label: "updateNote",
             undo: () => {
               const now = new Date().toISOString();
@@ -267,6 +304,11 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
 
   const softDeleteNote = useCallback(
     (id: string, opts?: { skipUndo?: boolean }) => {
+      const blocked = noteWriteBlock(notesRef.current.find((n) => n.id === id));
+      if (blocked) {
+        reportNoteWriteError("delete", blocked, onWriteError);
+        return;
+      }
       // `ds.softDeleteNoteUnified` only flips is_deleted on the single row.
       // For a note that has nested children that would orphan every
       // descendant, so we collect the whole subtree here and soft-delete it
@@ -309,7 +351,7 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
       void landed.catch((e) => reportNoteWriteError("delete", e, onWriteError));
 
       if (!opts?.skipUndo) {
-        push("note", {
+        pushNeedingConnection(push, {
           label: "softDeleteNote",
           undo: async () => {
             setNotes((p) => [...subtree, ...p]);
@@ -346,6 +388,11 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
   const togglePin = useCallback(
     (id: string) => {
       const note = notesRef.current.find((n) => n.id === id);
+      const blocked = noteWriteBlock(note);
+      if (blocked) {
+        reportNoteWriteError("pin", blocked, onWriteError);
+        return;
+      }
       if (!note) return;
       const newPinned = !note.isPinned;
       const prevPinned = note.isPinned;
@@ -361,7 +408,7 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
       const landed = ds.updateNoteUnified(id, { isPinned: newPinned });
       void landed.catch((e) => reportNoteWriteError("pin", e, onWriteError));
 
-      push("note", {
+      pushNeedingConnection(push, {
         label: "togglePin",
         undo: async () => {
           setNotes((p) =>

@@ -613,6 +613,63 @@ describe("useBriefingData — attaching a note to a create (#892)", () => {
     );
   });
 
+  // #2337: offline the create is held and returns, so only the link fails.
+  it("trashes a note it just made when the link fails", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const saved = scheduleItem({ id: "s-new", date: TODAY, title: "Coffee" });
+    const { result, ds } = renderData(
+      {},
+      {
+        createScheduleItem: vi.fn().mockResolvedValue(saved),
+        createNoteUnified: vi.fn().mockResolvedValue(undefined),
+        createItemLink: vi.fn().mockRejectedValue(new Error("Failed to fetch")),
+        softDeleteNoteUnified: vi.fn().mockResolvedValue(undefined),
+      },
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () =>
+      result.current.handleCreateEvent("Coffee", slot("13:00", "14:00"), [{
+        kind: "new",
+        title: "Why this meeting",
+      }]),
+    );
+
+    const created = () =>
+      (mockOf(ds, "createNoteUnified").mock.calls[0]?.[0] as { id: string }).id;
+    await waitFor(() =>
+      expect(mockOf(ds, "softDeleteNoteUnified")).toHaveBeenCalledWith(
+        created(),
+      ),
+    );
+    spy.mockRestore();
+  });
+
+  it("leaves an existing note alone when the link fails", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const saved = scheduleItem({ id: "s-new", date: TODAY, title: "Coffee" });
+    const { result, ds } = renderData(
+      { notes: [makeNote("n1")] },
+      {
+        createScheduleItem: vi.fn().mockResolvedValue(saved),
+        createItemLink: vi.fn().mockRejectedValue(new Error("Failed to fetch")),
+        softDeleteNoteUnified: vi.fn().mockResolvedValue(undefined),
+      },
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () =>
+      result.current.handleCreateEvent("Coffee", slot("13:00", "14:00"), [{
+        kind: "existing",
+        id: "n1",
+      }]),
+    );
+
+    await waitFor(() => expect(spy).toHaveBeenCalled());
+    expect(mockOf(ds, "softDeleteNoteUnified")).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
   it("keeps the created item when attaching the note fails", async () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     const saved = scheduleItem({ id: "s-new", date: TODAY, title: "Coffee" });

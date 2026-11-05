@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
 import {
+  NoteWriteBlockedError,
   NotesUnifiedProvider,
   useToast,
   useTranslation,
   type DataService,
+  type NoteWriteBlock,
   type NoteWriteOp,
 } from "@life-editor/shared";
 
@@ -48,6 +50,12 @@ const WRITE_FAILED_COPY = {
 
 export { WRITE_FAILED_COPY };
 
+/** #2337: a write that never ran says why, not "try again in a moment". */
+const WRITE_BLOCKED_COPY = {
+  offline: "materials.notes.offlineLocked",
+  unsent: "materials.notes.unsentLocked",
+} as const satisfies Record<NoteWriteBlock, string>;
+
 export function NotesUnifiedHost({
   dataService,
   children,
@@ -62,8 +70,15 @@ export function NotesUnifiedHost({
       dataService={dataService}
       // #1953: a note created without a title is named in the UI language.
       untitledTitle={t("common.untitled")}
-      onWriteError={(operation) =>
-        showToast("danger", t(WRITE_FAILED_COPY[operation]))
+      onWriteError={(operation, error) =>
+        showToast(
+          "danger",
+          t(
+            error instanceof NoteWriteBlockedError
+              ? WRITE_BLOCKED_COPY[error.block]
+              : WRITE_FAILED_COPY[operation],
+          ),
+        )
       }
     >
       {children}

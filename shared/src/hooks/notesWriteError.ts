@@ -39,3 +39,41 @@ export function reportNoteWriteError(
   logServiceError("Notes", operation, error);
   onWriteError?.(operation, error);
 }
+
+/**
+ * While offline a rename, a pin and a delete do not run at all (#2337): the note
+ * bodies that wait in the outbox are compared by version, and these would add
+ * kinds of conflict the plan keeps out. Screens disable them; this is what stops
+ * the routes a screen does not draw, such as an undo.
+ */
+export function notesWritesBlockedOffline(): boolean {
+  return typeof navigator !== "undefined" && navigator.onLine === false;
+}
+
+/** `offline`: no connection. `unsent`: this note is not on the server yet. */
+export type NoteWriteBlock = "offline" | "unsent";
+
+/** A write that did not run at all, so the host can name the real reason. */
+export class NoteWriteBlockedError extends Error {
+  readonly block: NoteWriteBlock;
+
+  constructor(block: NoteWriteBlock) {
+    super(
+      block === "offline"
+        ? "offline: this change needs a connection"
+        : "unsent: this note is still waiting to be sent",
+    );
+    this.name = "NoteWriteBlockedError";
+    this.block = block;
+  }
+}
+
+/** Why a rename, a pin or a delete of this note cannot run now, if it cannot. */
+export function noteWriteBlock(
+  note: { createdOffline?: boolean } | undefined,
+): NoteWriteBlockedError | null {
+  if (notesWritesBlockedOffline()) return new NoteWriteBlockedError("offline");
+  return note?.createdOffline === true
+    ? new NoteWriteBlockedError("unsent")
+    : null;
+}

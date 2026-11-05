@@ -75,8 +75,11 @@ const box = async () =>
     e.kind === "todo.create" ? [e.payload.node] : [],
   );
 
-/** These suites send Todos only: the Daily half is in offlineDaily.test.tsx. */
-const createOutboxSender = (
+/**
+ * These suites send Todos only: the Daily half is in offlineDaily.test.tsx and
+ * the note half in offlineNotes.test.tsx.
+ */
+const todoSender = (
   inner: Parameters<typeof stubDataService>[0],
   ...rest: Parameters<typeof realOutboxSender> extends [unknown, ...infer R]
     ? R
@@ -269,7 +272,7 @@ describe("an edit of a row that landed but was not re-read", () => {
       owner,
       landed,
     );
-    const sender = createOutboxSender(
+    const sender = todoSender(
       { createTodoIfAbsent: vi.fn().mockResolvedValue(undefined) },
       owner,
       landed,
@@ -287,7 +290,7 @@ describe("an edit of a row that landed but was not re-read", () => {
     const stored = () =>
       readDomainSnapshot<TodoNode[]>("todoTree", SOURCE, undefined)?.data ?? [];
     const sendAll = () =>
-      createOutboxSender(
+      todoSender(
         { createTodoIfAbsent: vi.fn().mockResolvedValue(undefined) },
         owner,
       ).run(vi.fn());
@@ -327,7 +330,7 @@ describe("an edit of a row that landed but was not re-read", () => {
     it("leaves a row that still waits looking new", async () => {
       writeDomainSnapshot("todoTree", SOURCE, undefined, []);
       await wrap().syncTodoTree([added("x")]);
-      await createOutboxSender(
+      await todoSender(
         {
           createTodoIfAbsent: vi
             .fn()
@@ -394,7 +397,7 @@ describe("deleting a Todo that waits", () => {
     const removeTodoMetaIfOrphan = vi.fn().mockResolvedValue(undefined);
     const ds = wrap({ removeTodoMetaIfOrphan });
     await ds.syncTodoTree([added("t")]);
-    await createOutboxSender(
+    await todoSender(
       {
         createTodoIfAbsent: vi
           .fn()
@@ -499,7 +502,7 @@ describe("while an entry waits", () => {
       const ds = createOfflineDataService(inner, owner, landed, dropped);
       const row = added("t");
       await enqueueTodoCreate(user, row);
-      await createOutboxSender(
+      await todoSender(
         {
           createTodoIfAbsent: vi
             .fn()
@@ -532,7 +535,7 @@ describe("while an entry waits", () => {
       );
       const row = added("t");
       await enqueueTodoCreate(user, row);
-      await createOutboxSender(
+      await todoSender(
         { createTodoIfAbsent: vi.fn().mockResolvedValue(undefined) },
         owner,
         landed,
@@ -825,7 +828,7 @@ describe("the sender", () => {
   const send = vi.fn();
   const inner = { createTodoIfAbsent: send };
   const run = async (onSent = vi.fn()) => {
-    await createOutboxSender(inner, owner).run(onSent);
+    await todoSender(inner, owner).run(onSent);
     return onSent;
   };
   beforeEach(() => {
@@ -951,7 +954,7 @@ describe("the sender", () => {
     const onLine = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
     await run();
     onLine.mockRestore();
-    await createOutboxSender(inner, async () => null).run(vi.fn());
+    await todoSender(inner, async () => null).run(vi.fn());
     expect(send).not.toHaveBeenCalled();
     expect(await readOutbox(user)).toHaveLength(1);
   });
@@ -992,15 +995,15 @@ describe("the sender", () => {
       },
     });
     await Promise.all([
-      createOutboxSender(inner, owner).run(vi.fn()),
-      createOutboxSender(inner, owner).run(vi.fn()),
+      todoSender(inner, owner).run(vi.fn()),
+      todoSender(inner, owner).run(vi.fn()),
     ]);
     expect(send).toHaveBeenCalledTimes(1);
   });
 
   it("runs once at a time in a tab without navigator.locks", async () => {
     await enqueueTodoCreate(user, added("t"));
-    const sender = createOutboxSender(inner, owner);
+    const sender = todoSender(inner, owner);
     await Promise.all([sender.run(vi.fn()), sender.run(vi.fn())]);
     expect(send).toHaveBeenCalledTimes(1);
   });

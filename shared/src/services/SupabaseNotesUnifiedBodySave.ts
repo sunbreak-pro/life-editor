@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { NoteBodySaveResult, NoteBodySnapshot } from "../types/note";
 import { contentJsonToString, contentStringToJson } from "./contentJson";
 import { noteOwnWrite } from "./ownWriteLedger";
+import { OutboxSendError } from "../state/outbox";
 
 /*
  * The version-checked body save (#2057) — a collaborator of
@@ -55,14 +56,21 @@ export class SupabaseNotesUnifiedBodySave {
 
     const contentJson = contentStringToJson(content);
     if (!this.rpcMissing) {
-      const { data, error } = await this.client.rpc("update_note_content", {
-        p_id: id,
-        p_content: contentJson,
-        p_expected_updated_at: expectedUpdatedAt,
-      });
+      const { data, error, status } = await this.client.rpc(
+        "update_note_content",
+        {
+          p_id: id,
+          p_content: contentJson,
+          p_expected_updated_at: expectedUpdatedAt,
+        },
+      );
       if (!error) return this.landed(id, this.fromRpc(data));
       if (!isMissingFunction(error)) {
-        throw new Error(`saveNoteBodyUnified failed: ${error.message}`);
+        throw new OutboxSendError(
+          `saveNoteBodyUnified failed: ${error.message}`,
+          status,
+          error.code,
+        );
       }
       this.rpcMissing = true;
     }
@@ -94,7 +102,11 @@ export class SupabaseNotesUnifiedBodySave {
   async getNoteBodySnapshotUnified(
     id: string,
   ): Promise<NoteBodySnapshot | null> {
-    const { data: meta, error: metaErr } = await this.client
+    const {
+      data: meta,
+      error: metaErr,
+      status: metaStatus,
+    } = await this.client
       .from("items_meta")
       .select("updated_at")
       .eq("id", id)
@@ -102,15 +114,27 @@ export class SupabaseNotesUnifiedBodySave {
       .eq("is_deleted", false)
       .maybeSingle();
     if (metaErr)
-      throw new Error(`getNoteBodySnapshotUnified meta: ${metaErr.message}`);
+      throw new OutboxSendError(
+        `getNoteBodySnapshotUnified meta: ${metaErr.message}`,
+        metaStatus,
+        metaErr.code,
+      );
     if (!meta) return null;
-    const { data: payload, error: payErr } = await this.client
+    const {
+      data: payload,
+      error: payErr,
+      status: payStatus,
+    } = await this.client
       .from("notes_payload")
       .select("content_json")
       .eq("item_id", id)
       .maybeSingle();
     if (payErr)
-      throw new Error(`getNoteBodySnapshotUnified payload: ${payErr.message}`);
+      throw new OutboxSendError(
+        `getNoteBodySnapshotUnified payload: ${payErr.message}`,
+        payStatus,
+        payErr.code,
+      );
     if (!payload) return null;
     return {
       content: contentJsonToString(
@@ -144,7 +168,7 @@ export class SupabaseNotesUnifiedBodySave {
     contentJson: unknown,
     expectedUpdatedAt: string,
   ): Promise<NoteBodySaveResult> {
-    const { data, error } = await this.client
+    const { data, error, status } = await this.client
       .from("items_meta")
       .update({ updated_at: new Date().toISOString() })
       .eq("id", id)
@@ -153,16 +177,24 @@ export class SupabaseNotesUnifiedBodySave {
       .eq("updated_at", expectedUpdatedAt)
       .select("updated_at");
     if (error)
-      throw new Error(`saveNoteBodyUnified meta failed: ${error.message}`);
+      throw new OutboxSendError(
+        `saveNoteBodyUnified meta failed: ${error.message}`,
+        status,
+        error.code,
+      );
     const moved = (data ?? []) as Array<{ updated_at: string }>;
     if (moved.length === 0) return this.refused(id);
 
-    const { error: payErr } = await this.client
+    const { error: payErr, status: payStatus } = await this.client
       .from("notes_payload")
       .update({ content_json: contentJson })
       .eq("item_id", id);
     if (payErr)
-      throw new Error(`saveNoteBodyUnified payload failed: ${payErr.message}`);
+      throw new OutboxSendError(
+        `saveNoteBodyUnified payload failed: ${payErr.message}`,
+        payStatus,
+        payErr.code,
+      );
     return { status: "saved", updatedAt: moved[0].updated_at };
   }
 }

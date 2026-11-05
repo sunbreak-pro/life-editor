@@ -1,8 +1,9 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import type { Editor } from "@tiptap/core";
 import {
   logServiceError,
   NoteConflictBanner,
+  subscribeNoteConflicts,
   useBodySyncSession,
   useTranslation,
   type NoteBodySaveResult,
@@ -128,6 +129,13 @@ function NoteBodySession({
     onAdopted: (content) => bodySync.adoptNoteBody(noteId, content),
     onError: (e) => logServiceError("Notes", "saveNoteBody", e),
   });
+
+  // #2337: the outbox's send found a conflict on the note open here.
+  const { raiseConflict } = session;
+  useEffect(
+    () => subscribeNoteConflicts(noteId, raiseConflict),
+    [noteId, raiseConflict],
+  );
 
   return (
     <>

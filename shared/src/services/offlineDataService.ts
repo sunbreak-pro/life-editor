@@ -9,6 +9,12 @@ import {
 import { isOffline } from "../state/connectivity";
 import { patchDomainSnapshot } from "../state/domainSnapshotStore";
 import {
+  dropNoteFromSnapshot,
+  noteOverrides,
+  sendNoteEntry,
+  type NoteSendTarget,
+} from "./offlineNotes";
+import {
   claimOutboxEntry,
   classifySendFailure,
   enqueueTodoCreate,
@@ -16,6 +22,7 @@ import {
   isOfflineFailure,
   isSendable,
   OUTBOX_READ_TIMEOUT_MS,
+  isNoteEntry,
   readOutbox,
   refreshOutboxCounts,
   removeOutboxEntry,
@@ -55,7 +62,8 @@ import {
  * of one is rejected, and the banner says so.
  *
  * The Daily body has its own overrides and its own delivery (#2336 —
- * `offlineDaily.ts`); only the sender's loop below is shared.
+ * `offlineDaily.ts`); only the sender's loop below is shared. Notes keep their
+ * half next door the same way (`offlineNotes.ts`, #2337).
  */
 
 /** Ids seen on the server by this page, shared with the sender. */
@@ -314,6 +322,7 @@ export function createOfflineDataService(
   };
 
   const overrides: Partial<DataService> = {
+    ...noteOverrides(inner, owner, dropped, () => wrapped),
     ...createOfflineDailyOverrides(
       inner,
       owner,
@@ -439,7 +448,10 @@ export function createOfflineDataService(
 export type OutboxSent = (domains: SyncDomain[]) => void;
 
 export interface OutboxSender {
-  /** Send what waits, then call `onSent` if any left the box. Never rejects. */
+  /**
+   * Send what waits, then tell `onSent` which domains' rows moved, if any left
+   * the box. Never rejects.
+   */
   run(onSent: OutboxSent): Promise<void>;
   /**
    * A day's edit was just held. Sends now if online, and once more after a run
@@ -467,7 +479,8 @@ export function createOutboxSender(
     | "listLinksFromItem"
     | "createItemLink"
     | "deleteItemLink"
-  >,
+  > &
+    NoteSendTarget,
   owner: OwnerResolver,
   landed: LandedTodos = new Set(),
   dropped: DroppedTodos = new Set(),
@@ -500,6 +513,11 @@ export function createOutboxSender(
         continue;
       }
       try {
+        if (isNoteEntry(entry)) {
+          await sendNoteEntry(inner, userId, entry);
+          changed.add("notes");
+          continue;
+        }
         await inner.createTodoIfAbsent(entry.payload.node, {
           ownerId: userId,
           retried: entry.attempts > 1,
@@ -507,13 +525,17 @@ export function createOutboxSender(
       } catch (e) {
         const verdict = classifySendFailure(e);
         if (verdict === "retry") return changed;
-        if (verdict === "failed") {
+        // A note entry has no "already there" reading: its text would be gone.
+        if (verdict === "failed" || isNoteEntry(entry)) {
           await failOutboxEntry(userId, entry, String(e));
+          changed.add(isNoteEntry(entry) ? "notes" : "todos");
+          // An existing note keeps its row: only the edit was refused.
+          if (entry.kind === "note.body") continue;
           // A changed-rows read lays changes over the stored list, and the
           // server has none for a row it refused, so only this takes it out.
           dropped.add(entry.itemId);
-          dropFromSnapshot(entry.itemId);
-          changed.add("todos");
+          if (isNoteEntry(entry)) dropNoteFromSnapshot(entry.itemId);
+          else dropFromSnapshot(entry.itemId);
           continue;
         }
       }

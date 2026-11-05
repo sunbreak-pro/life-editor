@@ -117,7 +117,8 @@ describe("outbox store", () => {
 
   it("reads a kind this app does not know as present but not sendable", () => {
     const entry = {
-      kind: "note.body",
+      // A kind no released app knows: note kinds are known since #2337.
+      kind: "record.create",
       schemaVersion: OUTBOX_SCHEMA_VERSION,
     } as unknown as Parameters<typeof isSendable>[0];
     expect(isSendable(entry)).toBe(false);

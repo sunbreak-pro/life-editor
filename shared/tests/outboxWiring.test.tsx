@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, render, waitFor } from "@testing-library/react";
 import { useSyncDomains } from "../src/hooks/useSyncDomains";
 import { SYNC_DOMAINS, type SyncDomain } from "../src/context/syncDomains";
+import { requestOutboxSend } from "../src/state/outbox";
 
 /*
  * #2335 — where the outbox plugs in: one wrapped DataService for the whole page,
@@ -31,9 +32,10 @@ const factory = await vi.importActual<
   typeof import("../src/services/dataServiceFactory")
 >("../src/services/dataServiceFactory");
 
-const sendOutbox = vi.fn<(onSent: (d: SyncDomain[]) => void) => Promise<void>>();
+type OnSent = (domains: SyncDomain[]) => void;
+const sendOutbox = vi.fn<(onSent: OnSent) => Promise<void>>();
 vi.mock("../src/services/dataServiceFactory", () => ({
-  sendOutbox: (onSent: () => void) => sendOutbox(onSent),
+  sendOutbox: (onSent: OnSent) => sendOutbox(onSent),
 }));
 
 const { SyncProvider } = await import("../src/context/SyncContext");
@@ -48,9 +50,15 @@ describe("getDataService", () => {
 });
 
 describe("SyncProvider sends the outbox", () => {
-  const versions: Record<string, number[]> = { todos: [], dailies: [], all: [] };
+  const versions: Record<string, number[]> = {
+    todos: [],
+    notes: [],
+    dailies: [],
+    all: [],
+  };
   function Probe() {
     versions.todos!.push(useSyncDomains("todos"));
+    versions.notes!.push(useSyncDomains("notes"));
     versions.dailies!.push(useSyncDomains("dailies"));
     versions.all!.push(useSyncDomains(...SYNC_DOMAINS));
     return null;
@@ -60,6 +68,7 @@ describe("SyncProvider sends the outbox", () => {
     sendOutbox.mockReset();
     sendOutbox.mockResolvedValue(undefined);
     versions.todos = [];
+    versions.notes = [];
     versions.dailies = [];
     versions.all = [];
     status = null;
@@ -98,14 +107,39 @@ describe("SyncProvider sends the outbox", () => {
       await new Promise((r) => setTimeout(r, 320));
     });
     expect(versions.todos!.at(-1)).toBe(1);
+    expect(versions.notes!.at(-1)).toBe(0);
     expect(versions.dailies!.at(-1)).toBe(0);
     expect(versions.all!.at(-1)).toBe(1);
+
+    // #2337: a note's send moves notes, which the Todo list does not read.
+    await act(async () => {
+      onSent(["notes"]);
+      await new Promise((r) => setTimeout(r, 320));
+    });
+    expect(versions.todos!.at(-1)).toBe(1);
+    expect(versions.notes!.at(-1)).toBe(1);
+    expect(versions.all!.at(-1)).toBe(2);
 
     await act(async () => {
       onSent(["dailies"]);
       await new Promise((r) => setTimeout(r, 320));
     });
     expect(versions.todos!.at(-1)).toBe(1);
+    expect(versions.notes!.at(-1)).toBe(1);
     expect(versions.dailies!.at(-1)).toBe(1);
+    expect(versions.all!.at(-1)).toBe(3);
+  });
+
+  // #2337: the app-start send may have failed, and nothing else would fire.
+  it("once, soon after saves are held online, however many there are", async () => {
+    expect(sendOutbox).toHaveBeenCalledTimes(1);
+    requestOutboxSend();
+    requestOutboxSend();
+    expect(sendOutbox).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(sendOutbox).toHaveBeenCalledTimes(2), {
+      timeout: 1500,
+    });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(sendOutbox).toHaveBeenCalledTimes(2);
   });
 });

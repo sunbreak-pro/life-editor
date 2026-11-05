@@ -22,6 +22,30 @@ const LABELS = {
   pinnedLabel: "Pinned",
 };
 
+// #2337: a host that asked for the focus keeps asking until it hears back, and
+// the title would then take the focus when the note is reopened online.
+describe("NoteDetailPanel asked to focus a read-only title", () => {
+  it("leaves the focus alone and still reports back", () => {
+    const onTitleAutoFocused = vi.fn();
+    render(
+      <NoteDetailPanel
+        noteId="note-a"
+        title="Held"
+        isPinned={false}
+        onTitleCommit={() => {}}
+        onTogglePin={() => {}}
+        onDelete={() => {}}
+        autoFocusTitle
+        onTitleAutoFocused={onTitleAutoFocused}
+        offlineReason="offline"
+        {...LABELS}
+      />,
+    );
+    expect(document.activeElement).not.toBe(screen.getByLabelText("Note title"));
+    expect(onTitleAutoFocused).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("NoteDetailPanel", () => {
   it("renders the title, tag slot and content editor", () => {
     render(

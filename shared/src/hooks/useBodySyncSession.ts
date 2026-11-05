@@ -37,6 +37,10 @@ import {
  *    the host shows the choice: keep mine / take theirs / keep both (D-2).
  *  - A conflict still open when the editor goes away (the user switched notes)
  *    is settled as "keep both", so neither side's text is lost.
+ *  - A send from the outbox can find the conflict instead (#2337), and it has
+ *    already kept this body in a note of its own. The host passes that on with
+ *    `raiseConflict`. Going away then leaves the server's version alone, unless
+ *    something was typed since.
  *  - On open, the body is checked against the server once. The host's body and
  *    version are two separate memories, and a save that never landed can leave
  *    them describing different writes; saving against that pair would pass
@@ -123,6 +127,12 @@ export interface BodySyncSession {
   conflict: BodyConflict | null;
   replacement: BodyReplacement | null;
   resolve: (choice: BodyConflictChoice) => void;
+  /** A conflict found by the outbox's send; `mine` is already kept elsewhere. */
+  raiseConflict: (found: {
+    base: string;
+    mine: string;
+    theirs: BodyRemote;
+  }) => void;
 }
 
 /** A refused save is retried this many times when only the version moved. */
@@ -172,6 +182,8 @@ export function useBodySyncSession(
   const disposedRef = useRef(false);
   /** The conflict settled as "both" on the way out; see `commit`. */
   const departedConflictRef = useRef<BodyConflict | null>(null);
+  /** The body `raiseConflict` said is already kept elsewhere. */
+  const keptElsewhereRef = useRef<string | null>(null);
 
   const [conflict, setConflict] = useState<BodyConflict | null>(null);
   const [replacement, setReplacement] = useState<BodyReplacement | null>(null);
@@ -286,6 +298,7 @@ export function useBodySyncSession(
       const open = conflictRef.current;
       if (!open) return;
       conflictRef.current = null;
+      keptElsewhereRef.current = null;
       setConflict(null);
       const mine =
         optionsRef.current.readEditor() ?? pendingRef.current ?? open.mine;
@@ -325,6 +338,15 @@ export function useBodySyncSession(
     /** "Keep both" without a screen to ask on (see the file header). */
     settleOnDeparture(open: BodyConflict) {
       const mine = pendingRef.current ?? open.mine;
+      const kept = keptElsewhereRef.current;
+      if (kept !== null && sameDocContent(mine, kept)) {
+        departedConflictRef.current = open;
+        conflictRef.current = null;
+        pendingRef.current = null;
+        baseRef.current = open.theirs;
+        optionsRef.current.onAdopted?.(open.theirs.content);
+        return;
+      }
       const merged = mergeDocBlocks(
         open.base,
         mine,
@@ -487,5 +509,16 @@ export function useBodySyncSession(
     ops.current.resolve(choice);
   }, []);
 
-  return { markDirty, commit, conflict, replacement, resolve };
+  const raiseConflict = useCallback<BodySyncSession["raiseConflict"]>(
+    ({ base, mine, theirs }) => {
+      if (disposedRef.current) return;
+      baseRef.current = { content: base, updatedAt: baseRef.current.updatedAt };
+      baseGenRef.current += 1;
+      keptElsewhereRef.current = mine;
+      ops.current.enterConflict(theirs);
+    },
+    [],
+  );
+
+  return { markDirty, commit, conflict, replacement, resolve, raiseConflict };
 }

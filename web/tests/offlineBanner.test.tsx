@@ -160,9 +160,14 @@ describe("OfflineBanner", () => {
   it("names what is kept and what is not, in both catalogs", () => {
     expect(en.offline.message).toContain("Todo");
     expect(en.offline.message).toContain("Daily");
+    expect(en.offline.message).toContain("pinned notes");
     expect(ja.offline.message).toContain("Todo");
     expect(ja.offline.message).toContain("デイリー");
-    // Daily entries wait in the same box, so the counts do not say "Todo".
+    expect(ja.offline.message).toContain("ピン留めしたノート");
+    // #2337: other changes need a connection; they are not "never saved".
+    expect(en.offline.message).not.toContain("not saved");
+    expect(ja.offline.message).not.toContain("保存されません");
+    // Daily and note entries wait in the same box, so the counts do not say "Todo".
     for (const key of [
       "pending",
       "failed",

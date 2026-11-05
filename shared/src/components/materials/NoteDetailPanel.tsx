@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -96,6 +97,8 @@ function NoteTitleInput({
   isMain,
   autoFocus = false,
   onAutoFocused,
+  readOnly = false,
+  describedBy,
 }: {
   noteId: string;
   initialTitle: string;
@@ -107,6 +110,9 @@ function NoteTitleInput({
   autoFocus?: boolean;
   /** Fired once the focus has been taken, so the host can stop asking. */
   onAutoFocused?: () => void;
+  /** No renaming right now (#2337); `describedBy` is the line that says why. */
+  readOnly?: boolean;
+  describedBy?: string;
 }) {
   const [draft, setDraft] = useState(initialTitle);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -118,7 +124,12 @@ function NoteTitleInput({
     onCommitRef.current = onCommit;
   });
 
-  const flush = () => {
+  const readOnlyRef = useRef(readOnly);
+  useEffect(() => {
+    readOnlyRef.current = readOnly;
+  });
+
+  const commitPending = () => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
@@ -129,10 +140,30 @@ function NoteTitleInput({
     }
   };
 
+  /*
+   * #2337 — a title typed just before the connection dropped. A commit now would
+   * be refused and leave the draft showing a name nothing holds, so it waits for
+   * the field to be editable again. The effect below runs after the ref above.
+   */
+  const flush = () => {
+    if (readOnlyRef.current) {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = null;
+      return;
+    }
+    commitPending();
+  };
+
   useEffect(() => {
-    // flush only touches refs (stable for this component lifetime), so an
-    // empty dep array is correct — same as NoteTitleInput / RichTextEditor.
-    return () => flush();
+    if (!readOnly) flush();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readOnly]);
+
+  useEffect(() => {
+    // commitPending only touches refs (stable for this component lifetime), so
+    // an empty dep array is correct — same as RichTextEditor. Going away is the
+    // last chance: a refusal here reaches the host, which says so.
+    return () => commitPending();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -165,12 +196,18 @@ function NoteTitleInput({
    * effect, not a layout one: on narrow widths the create also closes the
    * drawer, whose own cleanup hands the focus back to the button that opened
    * it — a layout effect would run first and lose.
+   *
+   * #2337: a read-only field takes no focus, and still reports back. The host
+   * would otherwise keep asking, and the title would grab the focus when the note
+   * is reopened later, online, by someone who came to read it.
    */
   useEffect(() => {
     if (!autoFocus) return;
-    const field = inputRef.current ?? areaRef.current;
-    field?.focus();
-    field?.select();
+    if (!readOnly) {
+      const field = inputRef.current ?? areaRef.current;
+      field?.focus();
+      field?.select();
+    }
     onAutoFocused?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -213,6 +250,8 @@ function NoteTitleInput({
         }}
         onBlur={flush}
         aria-label={label}
+        readOnly={readOnly}
+        aria-describedby={describedBy}
         className={cn(
           // #2227: the tags share this row, so the title keeps a floor of its
           // own and the tags wrap under it once both no longer fit.
@@ -233,6 +272,8 @@ function NoteTitleInput({
       onChange={(e) => onChange(e.target.value)}
       onBlur={flush}
       aria-label={label}
+      readOnly={readOnly}
+      aria-describedby={describedBy}
       className={cn(
         // #2227: the tags share this row, so the title keeps a floor of its
         // own and the tags wrap under it once both no longer fit.
@@ -268,6 +309,12 @@ export interface NoteDetailPanelProps {
   onTogglePin: (id: string) => void;
   /** Soft-delete the note (host injects the mutation). */
   onDelete: (id: string) => void;
+  /**
+   * Set while offline or while this note waits to be sent, already translated
+   * (#2337): the title is read-only, pin and delete are off, and this line under
+   * the title says why.
+   */
+  offlineReason?: string;
   /** Already-translated aria-label for the title input (§6.4). */
   titleLabel: string;
   /** Open with the title focused and selected (#1842 — a fresh note). */
@@ -402,6 +449,7 @@ export function NoteDetailPanel({
   onTitleCommit,
   onTogglePin,
   onDelete,
+  offlineReason,
   titleLabel,
   autoFocusTitle = false,
   onTitleAutoFocused,
@@ -429,6 +477,8 @@ export function NoteDetailPanel({
   const hasTagRow = tagsSlot != null || linksSlot != null;
   const [menuOpen, setMenuOpen] = useState(false);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  const offlineReasonId = useId();
+  const offline = offlineReason !== undefined;
 
   /*
    * #2058 — publish the sticky header's height for the body's own sticky
@@ -561,6 +611,8 @@ export function NoteDetailPanel({
               isMain={isMain}
               autoFocus={autoFocusTitle}
               onAutoFocused={onTitleAutoFocused}
+              readOnly={offline}
+              describedBy={offline ? offlineReasonId : undefined}
             />
             {hasTagRow && (
               // #2291: below the breakpoint the tag / link row sits under the
@@ -635,6 +687,7 @@ export function NoteDetailPanel({
                 <MenuItem
                   className={MENU_ITEM_TAP_FLOOR}
                   icon={<Pin size={14} aria-hidden />}
+                  disabled={offline}
                   onSelect={() => {
                     onTogglePin(noteId);
                     setMenuOpen(false);
@@ -706,6 +759,7 @@ export function NoteDetailPanel({
                   className={MENU_ITEM_TAP_FLOOR}
                   icon={<Trash2 size={14} aria-hidden />}
                   variant="danger"
+                  disabled={offline}
                   onSelect={() => {
                     onDelete(noteId);
                     setMenuOpen(false);
@@ -717,6 +771,15 @@ export function NoteDetailPanel({
             </div>
           </div>
         </div>
+
+        {offline && (
+          <p
+            id={offlineReasonId}
+            className="m-0 text-xs text-lumen-text-secondary"
+          >
+            {offlineReason}
+          </p>
+        )}
 
         {/* One full-width rule between the header and the body (#2033), the
           same at both widths — it replaced the "内容" caption the mobile sheet

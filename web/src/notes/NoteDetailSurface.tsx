@@ -111,6 +111,8 @@ export interface NoteDetailSurfaceProps {
   onTagContextMenu?: (tagId: string, event: MouseEvent) => void;
   /** The same panel from a hold on the chip (#2395). Narrow only. */
   onTagLongPress?: (tagId: string, chip: HTMLElement) => void;
+  /** While offline: why the title, pin and delete are off (#2337). */
+  offlineReason?: string;
 }
 
 export function NoteDetailSurface({
@@ -133,6 +135,7 @@ export function NoteDetailSurface({
   onTitleAutoFocused,
   onTagContextMenu,
   onTagLongPress,
+  offlineReason,
 }: NoteDetailSurfaceProps) {
   const hasPassword = note.hasPassword === true;
   return (
@@ -150,6 +153,7 @@ export function NoteDetailSurface({
       onTitleCommit={onTitleCommit}
       onTogglePin={onTogglePin}
       onDelete={onDelete}
+      offlineReason={offlineReason}
       titleLabel={labels.title}
       pinLabel={labels.pin}
       unpinLabel={labels.unpin}

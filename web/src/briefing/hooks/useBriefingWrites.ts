@@ -202,6 +202,7 @@ export function useBriefingWrites({
       // and link, and one failing leaves the others standing.
       for (const draft of drafts) {
         void (async () => {
+          let createdNoteId: string | null = null;
           try {
             let noteId = draft.kind === "existing" ? draft.id : null;
             if (draft.kind === "new") {
@@ -220,6 +221,7 @@ export function useBriefingWrites({
                 updatedAt: now,
               });
               noteId = id;
+              createdNoteId = id;
             }
             // Direction is item → note, matching DailyView and Schedule's own
             // attachment: the thing with the date owns the link, and the note
@@ -235,6 +237,16 @@ export function useBriefingWrites({
             }
           } catch (err) {
             console.error("[BriefingScreen] attaching the note failed", err);
+            // #2337: offline the create is held and only the link fails, so a
+            // retry would stack blank notes, each sent later with no link. The
+            // same clean-up Schedule's panel does.
+            if (createdNoteId !== null) {
+              await ds
+                .softDeleteNoteUnified(createdNoteId)
+                .catch((e: unknown) =>
+                  console.error("[BriefingScreen] trashing the note failed", e),
+                );
+            }
           }
         })();
       }

@@ -119,6 +119,13 @@ export {
   type DailyMerge,
 } from "./state/dailyMerges";
 export {
+  reportNoteSeparated,
+  subscribeNoteConflicts,
+  subscribeNoteSeparated,
+  type NoteSendConflict,
+  type NoteSeparatedNotice,
+} from "./state/noteSendEvents";
+export {
   signUp,
   signIn,
   signOut,
@@ -630,9 +637,11 @@ export {
   type NoteSortDirection,
 } from "./hooks/useNotesUnifiedAPI";
 // #1761 — the host needs the operation names to translate a failed write.
-export type {
-  NoteWriteOp,
-  NoteWriteErrorHandler,
+export {
+  NoteWriteBlockedError,
+  type NoteWriteBlock,
+  type NoteWriteOp,
+  type NoteWriteErrorHandler,
 } from "./hooks/notesWriteError";
 
 // Routine domain — context (Pattern A) + hook (DI: dataService/undoRedo).

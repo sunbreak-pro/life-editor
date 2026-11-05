@@ -67,6 +67,10 @@ export interface SidebarContextMenusOptions {
   onRenameNote: (id: string, title: string) => void;
   /** The host's delete flow, confirmation and all. */
   onDeleteNote: (id: string) => void;
+  /** While offline: why rename and delete are off (#2337). */
+  offlineReason?: string;
+  /** Why they are off on a note still waiting to be sent (#2337). */
+  unsentReason?: string;
 }
 
 export interface SidebarContextMenus {
@@ -93,10 +97,14 @@ export function useSidebarContextMenus({
   notes,
   onRenameNote,
   onDeleteNote,
+  offlineReason,
+  unsentReason,
 }: SidebarContextMenusOptions): SidebarContextMenus {
   const { t } = useTranslation();
   const wiki = useWikiTagsUnifiedContext();
   const { allTags } = wiki;
+  const lockReasonOf = (note: NoteNode | null): string | undefined =>
+    offlineReason ?? (note?.createdOffline ? unsentReason : undefined);
 
   // ---- Tag menu + editor ------------------------------------------------
 
@@ -239,6 +247,8 @@ export function useSidebarContextMenus({
   const noteTitle = menuNote
     ? menuNote.title || t("materials.notes.untitled")
     : "";
+  const menuLockReason = lockReasonOf(menuNote);
+  const sheetLockReason = lockReasonOf(sheetNote);
 
   // One block, two frames: a popover at the pointer on Desktop, a sheet on
   // narrow (#2008).
@@ -335,12 +345,18 @@ export function useSidebarContextMenus({
                   it reads and writes assignments through the tags context on
                   its own, so adding and removing here needs no second path. */}
               <TagPicker itemId={menuNote.id} size="sm" />
+              {menuLockReason !== undefined && (
+                <p className="text-xs text-lumen-text-secondary">
+                  {menuLockReason}
+                </p>
+              )}
             </div>
           }
           actions={[
             {
               id: "rename",
               label: t("materials.notes.renameNote"),
+              disabled: menuLockReason !== undefined,
               // The popover's inline input is IME-safe (#551) — Enter while a
               // conversion is open does not commit.
               inlineInput: {
@@ -356,6 +372,7 @@ export function useSidebarContextMenus({
               id: "delete",
               label: t("materials.notes.deleteNote"),
               danger: true,
+              disabled: menuLockReason !== undefined,
               onSelect: () => {
                 onDeleteNote(menuNote.id);
                 setNoteMenu(null);
@@ -385,17 +402,24 @@ export function useSidebarContextMenus({
               value={sheetNote.title}
               label={t("materials.notes.renameNote")}
               onCommit={(title) => onRenameNote(sheetNote.id, title)}
+              disabled={sheetLockReason !== undefined}
             />
             <TagPicker itemId={sheetNote.id} />
+            {sheetLockReason !== undefined && (
+              <p className="text-xs text-lumen-text-secondary">
+                {sheetLockReason}
+              </p>
+            )}
             <button
               type="button"
+              disabled={sheetLockReason !== undefined}
               onClick={() => {
                 const id = sheetNote.id;
                 setSheetNoteId(null);
                 onDeleteNote(id);
               }}
               className={cn(
-                "flex min-h-11 items-center gap-2 self-start rounded-lumen-md px-3 text-sm text-lumen-danger hover:bg-lumen-hover",
+                "flex min-h-11 items-center gap-2 self-start rounded-lumen-md px-3 text-sm text-lumen-danger hover:bg-lumen-hover disabled:opacity-50",
                 FOCUS_RING,
               )}
             >
