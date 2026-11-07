@@ -49,6 +49,15 @@ function checkboxRule(): string {
   );
 }
 
+/** The box's drawn size in px, from `--todo-checkbox-size`. */
+function declaredSize(): number {
+  const declared = Number(
+    /--todo-checkbox-size:\s*(\d+(?:\.\d+)?)px/.exec(checkboxRule())?.[1],
+  );
+  expect(declared, "no --todo-checkbox-size in the rule").not.toBeNaN();
+  return declared;
+}
+
 describe("the Materials task-list checkbox keeps its size (#1183 / #1368)", () => {
   it("declares an explicit box rather than leaving the UA default", () => {
     const rule = checkboxRule();
@@ -56,13 +65,14 @@ describe("the Materials task-list checkbox keeps its size (#1183 / #1368)", () =
     expect(rule, "no height — back to the UA's ~13px").toMatch(/height:\s*\S/);
   });
 
-  it("is the same size the shared todo checkbox draws", () => {
+  it("is 2-3px larger than the shared todo checkbox (#2671)", () => {
+    const declared = declaredSize();
+    // #2671: a little larger than <TodoStatusCheckbox> so it holds its own
+    // beside a numbered list's numbers. The shared constant stays where it is
+    // (the Schedule panel and the briefing draw it); this gap is the relation.
+    expect(declared - TODO_CHECKBOX_ICON_PX).toBeGreaterThanOrEqual(2);
+    expect(declared - TODO_CHECKBOX_ICON_PX).toBeLessThanOrEqual(3);
     const rule = checkboxRule();
-    const declared = Number(
-      /--todo-checkbox-size:\s*(\d+(?:\.\d+)?)px/.exec(rule)?.[1],
-    );
-    expect(declared, "no --todo-checkbox-size in the rule").not.toBeNaN();
-    expect(declared).toBe(TODO_CHECKBOX_ICON_PX);
     // Declared once and used for both axes — a rule that repeats the number
     // can go half-stale.
     expect(rule).toMatch(/width:\s*var\(--todo-checkbox-size\)/);
@@ -73,7 +83,7 @@ describe("the Materials task-list checkbox keeps its size (#1183 / #1368)", () =
     // The editor body is 0.875rem = 14px and the label is 1.6em tall, so the
     // box has 22.4px to sit in. The mobile floor only ever raises the font,
     // which makes that box taller — this is the tight case.
-    expect(TODO_CHECKBOX_ICON_PX).toBeLessThanOrEqual(0.875 * 16 * 1.6);
+    expect(declaredSize()).toBeLessThanOrEqual(0.875 * 16 * 1.6);
   });
 
   it("is bigger than the default it replaced", () => {
@@ -145,7 +155,8 @@ describe("the Materials task-list checkbox is thumb-sized on narrow (#1523)", ()
   /** The touch floor from mobile-scope.md, in px. */
   const TOUCH_TARGET_PX = 44;
   const rem = (px: number) => `${px / 16}rem`;
-  const AREA = '  .note-editor .ProseMirror ul[data-type="taskList"] li > label::before {';
+  const AREA =
+    '  .note-editor .ProseMirror ul[data-type="taskList"] li > label::before {';
 
   /**
    * The narrow-width block the touch rules live in — found FROM those rules
@@ -193,6 +204,18 @@ describe("the Materials task-list checkbox is thumb-sized on narrow (#1523)", ()
     // The pseudo-element spans the label's width, so widening the label is what
     // stops the area covering the first characters of the text beside it.
     expect(narrow()).toContain(`min-width: ${rem(TOUCH_TARGET_PX)}`);
+  });
+
+  it("keeps the larger box's left edge where the 20px one had it (#2671)", () => {
+    // The label centres the box in its 44px column, so a box grown by d moves
+    // its left edge d/2 to the left. A left margin of d moves it back: the
+    // centred content is then d wider, and its left edge is the old one.
+    const rule = block(
+      '  .note-editor .ProseMirror ul[data-type="taskList"] li > label > input {',
+      "\n  }",
+    );
+    const margin = Number(/margin-left:\s*(\d+(?:\.\d+)?)px/.exec(rule)?.[1]);
+    expect(margin).toBe(declaredSize() - TODO_CHECKBOX_ICON_PX);
   });
 
   it("leaves the drawn box the size the shared control draws", () => {
