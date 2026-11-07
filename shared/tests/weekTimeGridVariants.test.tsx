@@ -348,3 +348,115 @@ describe("WeekTimeGrid — tag colour on the block's line (#1580 / #2623)", () =
     expect(block.style.height).not.toBe("");
   });
 });
+
+/*
+ * #2563 — the week's all-day chips wear the month chip's colouring (#2623):
+ * the kind's light face and ink, and the 3px left line in the tag's colour
+ * when one speaks for the item, else the kind's. 1.25rem tall like the month
+ * chip; the holiday keeps its Settings colour and gets the same height.
+ */
+describe("WeekTimeGrid — all-day chips coloured like the month (#2563)", () => {
+  const LANE: WeekTimeGridItem[] = [
+    {
+      id: "ad-event",
+      date: "2026-07-06",
+      title: "Trip",
+      startTime: "00:00",
+      endTime: "00:00",
+      isAllDay: true,
+      variant: "event",
+    },
+    {
+      id: "ad-routine",
+      date: "2026-07-07",
+      title: "Laundry",
+      startTime: "00:00",
+      endTime: "00:00",
+      isAllDay: true,
+      variant: "routine",
+      tagColor: "#1e3a8a",
+    },
+    {
+      id: "ad-todo",
+      date: "2026-07-08",
+      title: "Pay rent",
+      startTime: "00:00",
+      endTime: "00:00",
+      isAllDay: true,
+      variant: "task",
+    },
+    {
+      id: "ad-holiday",
+      date: "2026-07-09",
+      title: "Sea Day",
+      startTime: "00:00",
+      endTime: "00:00",
+      isAllDay: true,
+      variant: "holiday",
+    },
+  ];
+
+  it("gives each kind its own face and line", () => {
+    renderGrid({ items: LANE });
+    const trip = screen.getByTitle("Trip");
+    expect(trip.className.split(" ")).toEqual(
+      expect.arrayContaining([
+        "bg-lumen-chip-event-bg",
+        "text-lumen-chip-event-fg",
+        "border-l-[3px]",
+        "border-l-lumen-chip-event-dot",
+      ]),
+    );
+    const todo = screen.getByTitle("Pay rent");
+    expect(todo.className.split(" ")).toEqual(
+      expect.arrayContaining([
+        "bg-lumen-chip-task-bg",
+        "border-l-lumen-chip-task-dot",
+      ]),
+    );
+    // The old one-look-for-all chip is gone.
+    for (const chip of [trip, todo]) {
+      expect(chip.className.split(" ")).not.toContain("bg-lumen-bg-secondary");
+      expect(chip.className.split(" ")).not.toContain("border-lumen-accent");
+    }
+  });
+
+  it("draws a tagged chip's line in the tag's colour, over the kind's face", () => {
+    renderGrid({ items: LANE });
+    const chip = screen.getByTitle("Laundry");
+    expect(chip.style.borderLeftColor).toBe("rgb(30, 58, 138)");
+    expect(chip.className).toContain("bg-lumen-chip-routine-bg");
+    expect(chip.className).not.toContain("border-l-lumen-chip-routine-dot");
+  });
+
+  it("makes every lane chip 1.25rem tall, the holiday included", () => {
+    renderGrid({ items: LANE });
+    for (const title of ["Trip", "Laundry", "Pay rent", "Sea Day"]) {
+      expect(screen.getByTitle(title).className.split(" ")).toContain("h-5");
+    }
+  });
+
+  it("keeps the todo mark and draws no kind mark on the others", () => {
+    renderGrid({ items: LANE });
+    expect(screen.getByTitle("Pay rent").querySelector("svg")).not.toBeNull();
+    expect(screen.getByTitle("Trip").querySelector("svg")).toBeNull();
+    expect(screen.getByTitle("Laundry").querySelector("svg")).toBeNull();
+  });
+
+  it("marks the selected chip with the 1px accent ring", () => {
+    render(
+      <WeekTimeGrid
+        data={{
+          weekStart: "2026-07-05",
+          items: LANE,
+          todayKey: "2026-07-09",
+          selectedId: "ad-event",
+        }}
+        labels={{ weekdays: WEEKDAYS, allDay: "All-day" }}
+      />,
+    );
+    const picked = screen.getByTitle("Trip");
+    expect(picked.className).toContain("ring-1 ring-lumen-accent");
+    expect(picked.className.split(" ")).not.toContain("ring-2");
+  });
+});

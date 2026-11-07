@@ -260,6 +260,15 @@ export function CalendarDesktopLayout({
     anchor: HTMLElement;
   } | null>(null);
   const anchorDate = data.anchorDate;
+
+  // #2563: each「今日」press bumps this, and the week grid scrolls its
+  // now-line back to the opening position. The grid's own opening scroll runs
+  // once at mount, and a press on the week already shown remounts nothing.
+  const [scrollToNowSignal, setScrollToNowSignal] = useState(0);
+  const handleToday = useCallback(() => {
+    toolbar.onToday();
+    setScrollToNowSignal((n) => n + 1);
+  }, [toolbar]);
   const handleShowMore = useCallback(
     (dateKey: string, anchor: HTMLElement) =>
       // A second press on the same "他 N 件" closes it again.
@@ -370,7 +379,11 @@ export function CalendarDesktopLayout({
               onDropAllDay: handlers.onDropAllDay,
               onDropTodo: handlers.onDropTodo,
             }}
-            display={{ todoInteractive: true, fillHeight: true }}
+            display={{
+              todoInteractive: true,
+              fillHeight: true,
+              scrollToNowSignal,
+            }}
             format={{ dayDate: format.dayDate }}
           />
         </div>
@@ -391,7 +404,7 @@ export function CalendarDesktopLayout({
       <ScheduleToolbar
         className="shrink-0 flex-wrap gap-y-2"
         periodLabel={toolbar.periodLabel}
-        onToday={toolbar.onToday}
+        onToday={handleToday}
         onPrev={toolbar.onPrev}
         onNext={toolbar.onNext}
         view={view}

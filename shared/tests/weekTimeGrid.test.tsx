@@ -759,3 +759,60 @@ describe("WeekTimeGrid — stacked overlaps and the all-day fold (#2221)", () =>
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });
+
+/*
+ * #2563 — the hour axis leaves 0 時 blank, and the opening scroll leaves 1.5
+ * hours above the now-line. The scroll re-runs on `scrollToNowSignal` (the
+ * host's「今日」) and on nothing else. jsdom keeps a written scrollTop, which
+ * is all these read.
+ */
+describe("WeekTimeGrid — the axis's top and the opening scroll (#2563)", () => {
+  const scrollBox = (container: HTMLElement): HTMLElement =>
+    container.querySelector<HTMLElement>('[data-week-grid="scroll"]')!;
+
+  function renderAt(nowMinutes: number, signal?: number) {
+    return (
+      <WeekTimeGrid
+        data={{
+          weekStart: "2026-06-14",
+          items,
+          todayKey: "2026-06-14",
+          nowMinutes,
+        }}
+        labels={{ weekdays: WEEKDAYS, allDay: "All-day" }}
+        display={{ scrollToNowSignal: signal }}
+      />
+    );
+  }
+
+  it("draws no label at 0 時, and the rest as before", () => {
+    const { container } = render(renderAt(600));
+    const axis = container.querySelector('[data-week-grid="time"]')!
+      .firstElementChild!;
+    const labels = Array.from(axis.querySelectorAll(":scope > div")).map(
+      (row) => row.textContent,
+    );
+    expect(labels[0]).toBe("");
+    expect(labels[1]).toBe("01:00");
+    expect(labels).toHaveLength(24);
+    expect(screen.queryByText("00:00")).toBeNull();
+  });
+
+  it("opens with the now-line 1.5 hours below the top", () => {
+    const { container } = render(renderAt(600)); // 10:00 at 48px/hour = 480px
+    expect(scrollBox(container).scrollTop).toBe(480 - 72);
+  });
+
+  it("scrolls back on the「今日」signal, and not on a clock tick", () => {
+    const { container, rerender } = render(renderAt(600, 0));
+    const box = scrollBox(container);
+    expect(box.scrollTop).toBe(408);
+    // The user scrolls away; a tick of the clock alone must not yank it back.
+    box.scrollTop = 100;
+    rerender(renderAt(601, 0));
+    expect(box.scrollTop).toBe(100);
+    // The host's「今日」: back to the opening position, at the live time.
+    rerender(renderAt(660, 1)); // 11:00 = 528px
+    expect(box.scrollTop).toBe(528 - 72);
+  });
+});
