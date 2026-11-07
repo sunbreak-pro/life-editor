@@ -7,6 +7,8 @@ import {
   type GoalTreeLabels,
   type GoalTreeModel,
 } from "../src";
+import { GoalStatus } from "../src/components/goalTree/GoalTreeView";
+import { separateCompleted } from "../src/components/goalTree/buildGoalTreeModel";
 
 /*
  * The goal tree's hierarchy lines (#2282). jsdom has no layout, so these pin
@@ -97,7 +99,9 @@ const LABELS: GoalTreeLabels = {
   addTodoLabel: "Add a todo",
   addTodoPlaceholder: "Todo",
   dragToMove: "Drag to move",
-  dropHere: "Move here",
+  addUnderTooltip: "Add below",
+  editTooltip: "Rename",
+  deleteTooltip: "Delete",
   formatEdit: (title) => `Edit goal: ${title}`,
   formatAddUnder: (title) => `Add under: ${title}`,
   formatDelete: (title) => `Delete goal: ${title}`,
@@ -319,6 +323,45 @@ describe("GoalTreeView progress (#2606)", () => {
       expect(row.querySelector(".bg-lumen-accent-secondary")).toBeNull();
       expect(row.querySelector("[style]")).toBeNull();
     }
+  });
+
+  it("draws the period badge as a borderless soft box and the title in semibold (#2607)", () => {
+    renderTree();
+    const row = screen.getByRole("button", { name: /^Week: Run 3 times — / });
+    const badge = row.querySelector("[data-goal-period-badge]") as HTMLElement;
+    expect(badge.textContent).toBe("This week");
+    expect(badge.className).toContain("bg-lumen-bg-secondary");
+    expect(badge.className).toContain("rounded-lumen-sm");
+    expect(badge.className).toContain("text-lumen-text-secondary");
+    expect(badge.className).not.toMatch(/\bborder\b/);
+    expect(badge.className).not.toContain("rounded-full");
+    const title = row.querySelector("[data-goal-title]") as HTMLElement;
+    expect(title.className).toContain("font-semibold");
+    expect(title.className).not.toContain("font-medium");
+  });
+
+  it("marks an achieved goal with a success pill holding the word alone (#2607)", () => {
+    // An achieved goal leaves the drawn tree (#2368), so the chip is rendered
+    // on its own from the goal's node.
+    const achieved = separateCompleted(
+      model([
+        ...GOALS.slice(0, 2),
+        goal({
+          id: "w1",
+          title: "Run 3 times",
+          parentGoalId: "m1",
+          periodEndDecision: "achieved",
+        }),
+      ]),
+    ).completed.goals[0];
+    if (!achieved) throw new Error("no achieved goal");
+    const { container } = render(
+      <GoalStatus node={achieved} labels={LABELS} bar={false} />,
+    );
+    const pill = container.querySelector("[data-goal-achieved]") as HTMLElement;
+    expect(pill.textContent).toBe("Achieved");
+    expect(pill.className).toContain("bg-lumen-success-subtle");
+    expect(pill.querySelector("svg")).toBeNull();
   });
 
   it("draws no visible tree heading or period legend, but keeps the tree's spoken name", () => {
