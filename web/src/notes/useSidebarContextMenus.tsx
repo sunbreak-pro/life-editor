@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState, type MouseEvent } from "react";
-import { Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import {
   BottomSheet,
   ConfirmDialog,
@@ -356,6 +356,7 @@ export function useSidebarContextMenus({
             {
               id: "rename",
               label: t("materials.notes.renameNote"),
+              icon: <Pencil />,
               disabled: menuLockReason !== undefined,
               // The popover's inline input is IME-safe (#551) — Enter while a
               // conversion is open does not commit.
@@ -371,6 +372,7 @@ export function useSidebarContextMenus({
             {
               id: "delete",
               label: t("materials.notes.deleteNote"),
+              icon: <Trash2 />,
               danger: true,
               disabled: menuLockReason !== undefined,
               onSelect: () => {

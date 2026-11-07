@@ -268,6 +268,21 @@ describe("Notes sidebar — right-clicking a note (#1677)", () => {
     within(panel).getByTestId("tag-picker");
   });
 
+  it("marks rename with a pencil and delete with a bin (#2597)", () => {
+    render(<NotesView />);
+    rightClick(noteRow("Alpha"));
+
+    const panel = screen.getByLabelText("Alpha: materials.notes.rowActions");
+    const rename = within(panel)
+      .getByText("materials.notes.renameNote")
+      .closest("button");
+    const remove = within(panel)
+      .getByText("materials.notes.deleteNote")
+      .closest("button");
+    expect(rename?.querySelector("svg.lucide-pencil")).not.toBeNull();
+    expect(remove?.querySelector("svg.lucide-trash-2")).not.toBeNull();
+  });
+
   it("renames the note from the panel's inline input", () => {
     render(<NotesView />);
     rightClick(noteRow("Alpha"));
