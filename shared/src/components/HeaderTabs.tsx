@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "./cn";
 import { tourAnchor } from "./tour/anchor";
 
@@ -13,6 +14,11 @@ export interface HeaderTab {
    * Materials → Todos unfinished count).
    */
   badge?: number | string;
+  /**
+   * Glyph drawn before the label (#2631). Decorative — the label names the
+   * tab — so it is aria-hidden. Omit it and the tab is drawn as before.
+   */
+  icon?: LucideIcon;
   /**
    * `data-tour-id` for the tutorial tour (#1124). Per-tab rather than derived
    * from `id`: the ids here are section-local ("todo" exists under Schedule
@@ -134,6 +140,7 @@ export function HeaderTabs({
       >
         {tabs.map((tab, i) => {
           const active = tab.id === activeTab;
+          const Icon = tab.icon;
           return (
             <button
               key={tab.id}
@@ -159,6 +166,19 @@ export function HeaderTabs({
                   : "rounded-t-[6px] border-b-2 border-transparent text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
               )}
             >
+              {Icon && (
+                <Icon
+                  size={16}
+                  aria-hidden
+                  // The prototype's colours: accent on the selected tab,
+                  // tertiary on the rest, which hover leaves alone so the
+                  // label is what lifts.
+                  className={cn(
+                    "shrink-0",
+                    active ? "text-lumen-accent" : "text-lumen-text-tertiary",
+                  )}
+                />
+              )}
               <span>{tab.label}</span>
               {tab.badge != null && (
                 <span className="inline-flex h-[18px] items-center rounded-lumen-sm bg-lumen-accent-subtle px-1.5 text-xs font-medium tabular-nums text-lumen-accent">

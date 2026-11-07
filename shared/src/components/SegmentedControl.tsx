@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import type { KeyboardEvent } from "react";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "./cn";
 import { stepSegmentFocus } from "./segmentedKeyNav";
 import { TAP_TARGET_TALL } from "./styleTokens";
@@ -9,6 +10,11 @@ export interface SegmentedOption {
   id: string;
   /** Already-translated segment label (§6.4). */
   label: string;
+  /**
+   * Glyph drawn before the label (#2631), the narrow echo of HeaderTab's.
+   * aria-hidden; omit it and the segment is drawn as before.
+   */
+  icon?: LucideIcon;
   /**
    * `data-tour-id` for the tutorial tour (#1124). Per-segment rather than
    * derived from `id` for the same reason HeaderTabs takes one: the ids here
@@ -245,6 +251,7 @@ export function SegmentedControl({
     >
       {options.map((option, i) => {
         const active = option.id === value;
+        const Icon = option.icon;
         return (
           <button
             key={option.id}
@@ -270,6 +277,7 @@ export function SegmentedControl({
               // unaffected: the height is still content + padding, and the
               // text was already in the middle of it.
               "flex flex-1 items-center justify-center rounded-lumen-sm text-center",
+              Icon && "gap-1",
               singleLineLabels && !truncateLabels && "whitespace-nowrap",
               // min-w-0: a flex item will not shrink below its content
               // without it, and the label's ellipsis never gets a chance.
@@ -286,6 +294,16 @@ export function SegmentedControl({
                 : "text-lumen-text-secondary",
             )}
           >
+            {Icon && (
+              <Icon
+                size={14}
+                aria-hidden
+                className={cn(
+                  "shrink-0",
+                  active ? "text-lumen-accent" : "text-lumen-text-tertiary",
+                )}
+              />
+            )}
             {truncateLabels ? (
               <span className="min-w-0 truncate">{option.label}</span>
             ) : (
