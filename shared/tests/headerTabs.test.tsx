@@ -279,8 +279,8 @@ describe("HeaderTabs", () => {
 
 describe("HeaderTabs — the glyph before the label (#2631)", () => {
   const WITH_ICONS: HeaderTab[] = [
-    { id: "morning", label: "Morning", icon: Sunrise },
-    { id: "evening", label: "Evening", icon: Sunset },
+    { id: "morning", label: "Morning", icon: <Sunrise /> },
+    { id: "evening", label: "Evening", icon: <Sunset /> },
     { id: "plain", label: "Plain" },
   ];
 
@@ -294,7 +294,7 @@ describe("HeaderTabs — the glyph before the label (#2631)", () => {
 
     const glyph = morning.querySelector("svg");
     expect(glyph).not.toBeNull();
-    expect(glyph?.getAttribute("aria-hidden")).toBe("true");
+    expect(glyph?.parentElement?.getAttribute("aria-hidden")).toBe("true");
     expect(evening.querySelector("svg")).not.toBeNull();
     expect(plain.querySelector("svg")).toBeNull();
   });
@@ -309,7 +309,8 @@ describe("HeaderTabs — the glyph before the label (#2631)", () => {
     const off = screen
       .getByRole("tab", { name: "Evening" })
       .querySelector("svg");
-    expect(on?.getAttribute("class")).toContain("text-lumen-accent");
-    expect(off?.getAttribute("class")).toContain("text-lumen-text-tertiary");
+    // lucide draws in currentColor, so the tint sits on the wrapper.
+    expect(on?.parentElement?.className).toContain("text-lumen-accent");
+    expect(off?.parentElement?.className).toContain("text-lumen-text-tertiary");
   });
 });

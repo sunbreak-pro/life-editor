@@ -18,7 +18,9 @@ import type { AnalyticsTab } from "@life-editor/shared";
  * command palette reads it too. 記録 is not among the prototype's four
  * Analytics tabs, so it takes the nearest meaning.
  *
- * A .ts file of its own because the web lint (react-refresh) lets a .tsx
+ * Component types, not elements: useShellChrome.tsx turns each into the
+ * element the tabs take. A .ts file of its own because the web lint
+ * (react-refresh) lets a .tsx
  * module export components only, and connectTabs.test.tsx needs these maps.
  */
 export const ANALYTICS_TAB_ICON: Record<AnalyticsTab, LucideIcon> = {

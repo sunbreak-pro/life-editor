@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
-import type { LucideIcon } from "lucide-react";
 import { cn } from "./cn";
 import { tourAnchor } from "./tour/anchor";
 
@@ -15,10 +14,16 @@ export interface HeaderTab {
    */
   badge?: number | string;
   /**
-   * Glyph drawn before the label (#2631). Decorative — the label names the
-   * tab — so it is aria-hidden. Omit it and the tab is drawn as before.
+   * Glyph drawn before the label (#2631): a lucide element the host builds,
+   * left unsized and uncoloured. The tab sizes it (16px) and colours it —
+   * accent when selected, tertiary otherwise — through its wrapper, which is
+   * aria-hidden because the label already names the tab. A node rather than
+   * a component type, as the other shared parts take icons: shared and web
+   * resolve their own copies of lucide-react's types, so a component type
+   * built in web does not type-check against shared's. Omit it and the tab
+   * is drawn as before.
    */
-  icon?: LucideIcon;
+  icon?: ReactNode;
   /**
    * `data-tour-id` for the tutorial tour (#1124). Per-tab rather than derived
    * from `id`: the ids here are section-local ("todo" exists under Schedule
@@ -140,7 +145,6 @@ export function HeaderTabs({
       >
         {tabs.map((tab, i) => {
           const active = tab.id === activeTab;
-          const Icon = tab.icon;
           return (
             <button
               key={tab.id}
@@ -166,18 +170,19 @@ export function HeaderTabs({
                   : "rounded-t-[6px] border-b-2 border-transparent text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
               )}
             >
-              {Icon && (
-                <Icon
-                  size={16}
+              {tab.icon != null && (
+                <span
                   aria-hidden
                   // The prototype's colours: accent on the selected tab,
                   // tertiary on the rest, which hover leaves alone so the
-                  // label is what lifts.
+                  // label is what lifts. lucide draws in currentColor.
                   className={cn(
-                    "shrink-0",
+                    "inline-flex shrink-0 [&>svg]:size-4",
                     active ? "text-lumen-accent" : "text-lumen-text-tertiary",
                   )}
-                />
+                >
+                  {tab.icon}
+                </span>
               )}
               <span>{tab.label}</span>
               {tab.badge != null && (

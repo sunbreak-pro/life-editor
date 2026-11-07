@@ -258,8 +258,8 @@ describe("SegmentedControl", () => {
 
 describe("SegmentedControl — the glyph before the label (#2631)", () => {
   const WITH_ICONS: SegmentedOption[] = [
-    { id: "tags", label: "Tags", icon: Tag },
-    { id: "goals", label: "Goals", icon: Target },
+    { id: "tags", label: "Tags", icon: <Tag /> },
+    { id: "goals", label: "Goals", icon: <Target /> },
     { id: "plain", label: "Plain" },
   ];
 
@@ -277,13 +277,12 @@ describe("SegmentedControl — the glyph before the label (#2631)", () => {
     const plain = screen.getByRole("tab", { name: "Plain" });
 
     const glyph = tags.querySelector("svg");
-    expect(glyph?.getAttribute("aria-hidden")).toBe("true");
-    expect(glyph?.getAttribute("class")).toContain("text-lumen-accent");
+    expect(glyph?.parentElement?.getAttribute("aria-hidden")).toBe("true");
+    expect(glyph?.parentElement?.className).toContain("text-lumen-accent");
     expect(
       screen
         .getByRole("tab", { name: "Goals" })
-        .querySelector("svg")
-        ?.getAttribute("class"),
+        .querySelector("svg")?.parentElement?.className,
     ).toContain("text-lumen-text-tertiary");
     expect(tags.className).toContain("gap-1");
     expect(plain.querySelector("svg")).toBeNull();

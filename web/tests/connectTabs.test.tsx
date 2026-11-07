@@ -35,8 +35,8 @@ describe("Connect tabs (#2108)", () => {
   it("leads both tabs with their glyph at both widths (#2631)", () => {
     const band = connectTabBand({
       defs: [
-        { id: "tags", label: "タグ", icon: CONNECT_TAB_ICON.tags },
-        { id: "goals", label: "目標と Todo", icon: CONNECT_TAB_ICON.goals },
+        { id: "tags", label: "タグ", icon: <CONNECT_TAB_ICON.tags /> },
+        { id: "goals", label: "目標と Todo", icon: <CONNECT_TAB_ICON.goals /> },
       ],
       active: "tags",
       onSelect: vi.fn(),
@@ -49,7 +49,7 @@ describe("Connect tabs (#2108)", () => {
       const tabs = Array.from(view.container.querySelectorAll('[role="tab"]'));
       expect(tabs).toHaveLength(2);
       for (const tab of tabs) {
-        expect(tab.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+        expect(tab.querySelector('[aria-hidden="true"] > svg')).not.toBeNull();
       }
       view.unmount();
     }
