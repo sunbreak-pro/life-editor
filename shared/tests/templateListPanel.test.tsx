@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { TemplateListPanel } from "../src/components";
 
 /*
@@ -106,5 +106,68 @@ describe("TemplateListPanel pinned footer (#2580)", () => {
     const heading = screen.getByRole("button", { expanded: false });
     expect(heading.querySelector("svg.lucide-chevron-up")).not.toBeNull();
     expect(screen.queryByText("Weekly review")).toBeNull();
+  });
+});
+
+/*
+ * #2625 — a press on the row applies that template to the open note; the
+ * pencil and the bin keep their own callbacks.
+ */
+describe("TemplateListPanel row press (#2625)", () => {
+  function renderWithApply(applyDisabledReason?: string) {
+    const handlers = { onEdit: vi.fn(), onDelete: vi.fn(), onApply: vi.fn() };
+    render(
+      <TemplateListPanel
+        templates={[{ id: "tpl-a", title: "Weekly review" }]}
+        open
+        onToggle={vi.fn()}
+        {...handlers}
+        applyDisabledReason={applyDisabledReason}
+        labels={{ ...LABELS, apply: "Apply to the open note" }}
+      />,
+    );
+    return handlers;
+  }
+
+  it("calls onApply with the row's id, and the pencil and bin call theirs", () => {
+    const { onEdit, onDelete, onApply } = renderWithApply();
+    const row = screen.getByRole("button", {
+      name: "Apply to the open note: Weekly review",
+    });
+    expect(row.getAttribute("title")).toBe("Apply to the open note");
+    fireEvent.click(row);
+    expect(onApply).toHaveBeenCalledExactlyOnceWith("tpl-a");
+    expect(onEdit).not.toHaveBeenCalled();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Edit template: Weekly review" }),
+    );
+    expect(onEdit).toHaveBeenCalledExactlyOnceWith("tpl-a");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Delete template: Weekly review" }),
+    );
+    expect(onDelete).toHaveBeenCalledExactlyOnceWith("tpl-a");
+    expect(onApply).toHaveBeenCalledTimes(1);
+  });
+
+  it("turns the rows off and says why when there is no note to apply to", () => {
+    const { onApply } = renderWithApply("Open a note first");
+    const row = screen.getByRole("button", {
+      name: "Apply to the open note: Weekly review",
+    }) as HTMLButtonElement;
+    expect(row.disabled).toBe(true);
+    expect(screen.getByTestId("template-apply-reason").textContent).toBe(
+      "Open a note first",
+    );
+    fireEvent.click(row);
+    expect(onApply).not.toHaveBeenCalled();
+    // Editing a template does not need a note.
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Edit template: Weekly review",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(false);
   });
 });

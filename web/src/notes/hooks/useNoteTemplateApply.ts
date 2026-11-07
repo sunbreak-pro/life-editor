@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   isEmptyDocJson,
   type DataService,
@@ -59,6 +59,11 @@ export interface NoteTemplateApply {
   pending: NoteTemplateApplyPending | null;
   /** Open the picker and (re)read the list. */
   begin: () => void;
+  /**
+   * Open the dialog with `id` already picked (#2625 — a press on a template
+   * row in the sidebar): straight to the confirm step once its body is in.
+   */
+  beginWith: (id: string) => void;
   pick: (id: string) => void;
   /** Close the whole thing, picked template and all. */
   close: () => void;
@@ -70,9 +75,13 @@ export function useNoteTemplateApply(
   const [open, setOpen] = useState(false);
   const [templates, setTemplates] = useState<TemplateApplyItem[] | null>(null);
   const [pending, setPending] = useState<NoteTemplateApplyPending | null>(null);
+  // Bumped by every open and close, so a body read that lands after the user
+  // has moved on (closed, or opened another) does not reopen a confirm.
+  const session = useRef(0);
 
   const begin = useCallback(() => {
     if (!dataService) return;
+    session.current += 1;
     setPending(null);
     setOpen(true);
     // Re-read on every open: a template registered a minute ago has to be in
@@ -111,7 +120,26 @@ export function useNoteTemplateApply(
     [dataService, templates],
   );
 
+  const beginWith = useCallback(
+    (id: string) => {
+      if (!dataService) return;
+      // The picker opens first and stays as the fallback: if the body read
+      // fails, the user is left choosing from the list instead of nothing.
+      begin();
+      const mine = session.current;
+      void dataService
+        .getNoteUnified(id)
+        .then((full) => {
+          if (full == null || session.current !== mine) return;
+          setPending({ id: full.id, title: full.title, content: full.content });
+        })
+        .catch((e) => console.error("getNoteUnified (template) failed", e));
+    },
+    [dataService, begin],
+  );
+
   const close = useCallback(() => {
+    session.current += 1;
     setOpen(false);
     setPending(null);
   }, []);
@@ -122,6 +150,7 @@ export function useNoteTemplateApply(
     loading: open && templates === null,
     pending,
     begin,
+    beginWith,
     pick,
     close,
   };
