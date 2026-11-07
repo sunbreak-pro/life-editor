@@ -125,6 +125,13 @@ export interface TodayTodoTrayLabels {
    */
   openAddable?: string;
   emptyAddable: string;
+  /**
+   * One line for when every shown list is empty (#2571), e.g. "Todo はまだ
+   * ありません". Given, it replaces the per-heading empty lines in that case
+   * only; the headings and their actions stay, so a todo can still be added.
+   * Omitted (Briefing), the per-heading lines show as before.
+   */
+  emptyAll?: string;
   /** Accessible name / title for the title button that jumps to Todos. */
   openInTodos: string;
   /** Accessible name for the per-row delete button (pair with onDelete). */
@@ -638,7 +645,8 @@ function Group({
   headingAction?: ReactNode;
   strongHeading?: boolean;
   rows: TodayTodoRow[];
-  empty: string;
+  /** `null` while the tray's single all-empty line speaks for this group. */
+  empty: string | null;
   onToggleComplete: (id: string) => void;
   onSetStatus?: (id: string, status: TodoStatus) => void;
   onOpenTodo: (id: string) => void;
@@ -665,9 +673,11 @@ function Group({
         {headingAction}
       </div>
       {rows.length === 0 ? (
-        <p className="py-2 text-center text-xs text-lumen-text-secondary">
-          {empty}
-        </p>
+        empty !== null && (
+          <p className="py-2 text-center text-xs text-lumen-text-secondary">
+            {empty}
+          </p>
+        )
       ) : (
         <ul role="list" className="flex flex-col">
           {rows.map((row) => (
@@ -739,8 +749,26 @@ export function TodayTodoTray({
     statusLabels: labels.statusLabels,
     strongHeading: strongHeadings,
   };
+  /*
+   * #2571: with both lists in view and nothing in either, the per-heading
+   * lines would say "none" twice; one line says it once. Only when the host
+   * passes the copy, and only when neither list is filtered away — a hidden
+   * list may still hold todos, so "none yet" would be false.
+   */
+  const allEmpty =
+    !!labels.emptyAll &&
+    !hideToday &&
+    !hideOther &&
+    placed.length === 0 &&
+    unplaced.length === 0 &&
+    addable.length === 0;
   return (
     <div className={cn("flex flex-col gap-4", className)}>
+      {allEmpty && (
+        <p className="py-2 text-center text-xs text-lumen-text-secondary">
+          {labels.emptyAll}
+        </p>
+      )}
       {!hideToday && (
         <Group
           {...shared}
@@ -749,7 +777,7 @@ export function TodayTodoTray({
           // Time-less first, the order every other surface files all-day items
           // in (BriefingView's schedule sort, AgendaList's two blocks).
           rows={singleList ? [...unplaced, ...placed] : placed}
-          empty={labels.emptyPlaced}
+          empty={allEmpty ? null : labels.emptyPlaced}
           allDayLabel={singleList ? labels.allDay : undefined}
         />
       )}
@@ -758,7 +786,7 @@ export function TodayTodoTray({
           {...shared}
           heading={labels.unplacedHeading ?? ""}
           rows={unplaced}
-          empty={labels.emptyUnplaced ?? ""}
+          empty={allEmpty ? null : (labels.emptyUnplaced ?? "")}
         />
       )}
       {!hideOther && (
@@ -770,9 +798,11 @@ export function TodayTodoTray({
             {headingActions?.addable}
           </div>
           {addable.length === 0 ? (
-            <p className="py-2 text-center text-xs text-lumen-text-secondary">
-              {labels.emptyAddable}
-            </p>
+            !allEmpty && (
+              <p className="py-2 text-center text-xs text-lumen-text-secondary">
+                {labels.emptyAddable}
+              </p>
+            )
           ) : (
             <ul role="list" className="flex flex-col">
               {addable.map((a) => (

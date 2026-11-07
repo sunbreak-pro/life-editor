@@ -711,6 +711,13 @@ export function ScheduleSidebar({
           addAction: t("scheduleScreen.todoMoveToToday"),
           moveOut: t("scheduleScreen.todoMoveToOthers"),
           emptyAddable: t("scheduleScreen.todoEmptyOthers"),
+          // #2571: one line when both lists are empty. Not while a filter is
+          // narrowing — then the card above already says what happened, and
+          // "no todos yet" would be false.
+          emptyAll:
+            filter.activeCount > 0
+              ? undefined
+              : t("scheduleScreen.todoEmptyAll"),
           // The tray's rows draw the same checkbox the paper does (#1368), so
           // they name themselves with the same status words rather than the
           // old "complete" — even here, where the press still writes the

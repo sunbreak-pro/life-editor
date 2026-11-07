@@ -10,6 +10,7 @@ import {
 import {
   TodayTodoTray,
   type TodayTodoTrayLabels,
+  type TodayTodoTrayProps,
 } from "../src/components/schedule/TodayTodoTray";
 
 /*
@@ -845,5 +846,68 @@ describe("#2010 — the other-row + keeps its tap area and its painted size", ()
     );
     // Unprefixed, so the painted square is the same size on both layouts.
     expect(square?.className).not.toContain("max-md:");
+  });
+});
+
+/*
+ * #2571: with nothing in either list, Schedule says so once instead of twice.
+ * Opt-in through labels.emptyAll, so Briefing's tray keeps its lines.
+ */
+describe("TodayTodoTray — one line when every list is empty (#2571)", () => {
+  const none = { placed: [], unplaced: [], addable: [] };
+  const withAll = { ...labels, emptyAll: "no todos yet" };
+  const renderTray = (
+    over: Partial<TodayTodoTrayProps> = {},
+  ) =>
+    render(
+      <TodayTodoTray
+        {...none}
+        onToggleComplete={noop}
+        onOpenTodo={noop}
+        onAddCandidate={noop}
+        singleList
+        labels={withAll}
+        {...over}
+      />,
+    );
+
+  it("says it once, and keeps both headings and their actions", () => {
+    renderTray({
+      headingActions: {
+        placed: <button type="button">add today</button>,
+        addable: <button type="button">add other</button>,
+      },
+    });
+    expect(screen.getAllByText("no todos yet")).toHaveLength(1);
+    expect(screen.queryByText("empty placed")).toBeNull();
+    expect(screen.queryByText("empty addable")).toBeNull();
+    screen.getByText("placed");
+    screen.getByText("add");
+    screen.getByRole("button", { name: "add today" });
+    screen.getByRole("button", { name: "add other" });
+  });
+
+  it("keeps the per-heading line when only today is empty", () => {
+    renderTray({ addable: rows.addable });
+    screen.getByText("empty placed");
+    expect(screen.queryByText("no todos yet")).toBeNull();
+  });
+
+  it("keeps the per-heading line when only the other list is empty", () => {
+    renderTray({ placed: rows.placed });
+    screen.getByText("empty addable");
+    expect(screen.queryByText("no todos yet")).toBeNull();
+  });
+
+  it("does not claim 'none yet' while a list is hidden", () => {
+    renderTray({ hideOther: true });
+    screen.getByText("empty placed");
+    expect(screen.queryByText("no todos yet")).toBeNull();
+  });
+
+  it("leaves a host without the copy as it was (Briefing)", () => {
+    renderTray({ labels });
+    screen.getByText("empty placed");
+    screen.getByText("empty addable");
   });
 });

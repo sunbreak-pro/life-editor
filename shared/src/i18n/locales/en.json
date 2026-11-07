@@ -931,6 +931,7 @@
     "todoDayTodayMark": "· Today",
     "todoOthersHeading": "Other todos",
     "todoEmptyOthers": "No other open todos",
+    "todoEmptyAll": "No todos yet",
     "todoMoveToToday": "Move to today",
     "todoMoveToOthers": "Take off today",
     "todoRowEdit": "Edit this todo",

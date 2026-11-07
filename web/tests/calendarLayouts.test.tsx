@@ -238,8 +238,10 @@ function renderNarrow(
 /** The calendar itself — both layouts name their grid with the same key. */
 const calendarShowing = () =>
   screen.queryByRole("grid", { name: "scheduleScreen.calendar" }) !== null;
+// Since #2571 the loading card is a skeleton: the copy names its status
+// region instead of being printed.
 const loadingShowing = () =>
-  screen.queryByText("scheduleScreen.loading") !== null;
+  screen.queryByRole("status", { name: "scheduleScreen.loading" }) !== null;
 const errorCardShowing = () =>
   screen.queryByText("scheduleScreen.loadError") !== null;
 

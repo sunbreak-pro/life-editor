@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { LoadErrorCard } from "../LoadErrorCard";
+import { SkeletonList } from "../SkeletonList";
 
 /*
  * The calendar's three status surfaces (#296) — "loading", "could not load",
@@ -45,16 +47,28 @@ export interface ScheduleLoadErrorLabels {
 }
 
 export interface ScheduleLoadingCardProps {
-  /** Already-translated "loading" line (§6.4). */
+  /**
+   * Already-translated "loading" line (§6.4). Not printed: it names the
+   * skeleton's status region, so a screen reader still hears it.
+   */
   label: string;
 }
+
+// The prototype's loading bars (#2571): eight short bars of varying length,
+// so the wait reads as "rows are coming" rather than as a blank card.
+const LOADING_BAR_WIDTHS = ["82%", "64%", "74%", "58%"] as const;
 
 /** Nothing to draw yet — the first range fetch is still in flight. */
 export function ScheduleLoadingCard({ label }: ScheduleLoadingCardProps) {
   return (
-    <div className="rounded-md border border-lumen-border bg-lumen-bg-secondary px-4 py-10 text-center text-sm text-lumen-text-secondary">
-      {label}
-    </div>
+    <SkeletonList
+      rows={8}
+      rowHeight={14}
+      gap={12}
+      widths={LOADING_BAR_WIDTHS}
+      label={label}
+      className="px-1 py-4"
+    />
   );
 }
 
@@ -63,19 +77,18 @@ export interface ScheduleErrorCardProps {
   onRetry: () => void;
 }
 
-/** The fetch failed and there is nothing to keep on screen — offer the retry. */
+/**
+ * The fetch failed and there is nothing to keep on screen — offer the retry.
+ * The shared danger card (#2620) since #2571, so the schedule says "could not
+ * load" the way the other screens do.
+ */
 export function ScheduleErrorCard({ labels, onRetry }: ScheduleErrorCardProps) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-md border border-lumen-border bg-lumen-bg-secondary px-4 py-10 text-center">
-      <p className="text-sm text-lumen-text-secondary">{labels.message}</p>
-      <button
-        type="button"
-        onClick={onRetry}
-        className="rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-      >
-        {labels.retry}
-      </button>
-    </div>
+    <LoadErrorCard
+      message={labels.message}
+      retryLabel={labels.retry}
+      onRetry={onRetry}
+    />
   );
 }
 

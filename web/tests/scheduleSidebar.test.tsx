@@ -797,7 +797,16 @@ describe("ScheduleSidebar — the Todo tab's day (#2281)", () => {
   });
 
   it("keeps today's heading and disables 今日 while on today", () => {
-    render(<ScheduleSidebar {...makeProps({ tab: "todo" })} />);
+    // One "other" todo, so today's own empty line shows rather than the
+    // single all-empty line (#2571).
+    render(
+      <ScheduleSidebar
+        {...makeProps({
+          tab: "todo",
+          todo: { addable: [{ id: "task-9", title: "Other" }] },
+        })}
+      />,
+    );
     screen.getByText("scheduleScreen.todoTodayHeading");
     screen.getByText("scheduleScreen.todoEmptyToday");
     screen.getByRole("button", { name: "scheduleScreen.todoAddTodayLink" });
@@ -810,7 +819,10 @@ describe("ScheduleSidebar — the Todo tab's day (#2281)", () => {
       <ScheduleSidebar
         {...makeProps({
           tab: "todo",
-          todo: { day: makeDay({ heading: "10/21（水）の Todo" }) },
+          todo: {
+            day: makeDay({ heading: "10/21（水）の Todo" }),
+            addable: [{ id: "task-9", title: "Other" }],
+          },
         })}
       />,
     );
@@ -1096,6 +1108,42 @@ describe("ScheduleSidebar — the Todo tab's filter (#1641)", () => {
       />,
     );
     expect(screen.queryByText("scheduleScreen.todoFilterEmpty")).toBeNull();
+  });
+
+  // #2571: no todos in either list reads as one line, not one per heading.
+  it("says once that there are no todos, keeping both add buttons", () => {
+    render(
+      <ScheduleSidebar
+        {...makeProps({
+          tab: "todo",
+          todo: { placed: [], unplaced: [], addable: [] },
+        })}
+      />,
+    );
+    expect(screen.getAllByText("scheduleScreen.todoEmptyAll")).toHaveLength(1);
+    expect(screen.queryByText("scheduleScreen.todoEmptyToday")).toBeNull();
+    expect(screen.queryByText("scheduleScreen.todoEmptyOthers")).toBeNull();
+    screen.getByRole("button", { name: "scheduleScreen.todoAddTodayLink" });
+    screen.getByRole("button", { name: "scheduleScreen.todoAddLink" });
+  });
+
+  it("does not say 'no todos yet' when a filter emptied the lists", () => {
+    render(
+      <ScheduleSidebar
+        {...makeProps({
+          tab: "todo",
+          todo: {
+            ...rows,
+            filter: makeFilter({
+              activeCount: 1,
+              apply: () => ({ placed: [], unplaced: [], addable: [] }),
+            }),
+          },
+        })}
+      />,
+    );
+    screen.getByText("scheduleScreen.todoFilterEmpty");
+    expect(screen.queryByText("scheduleScreen.todoEmptyAll")).toBeNull();
   });
 });
 

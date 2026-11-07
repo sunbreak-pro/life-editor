@@ -926,6 +926,7 @@
     "todoDayTodayMark": "· 今日",
     "todoOthersHeading": "その他の Todo",
     "todoEmptyOthers": "その他の Todo はありません",
+    "todoEmptyAll": "Todo はまだありません",
     "todoMoveToToday": "本日分へ移す",
     "todoMoveToOthers": "その他へ移す",
     "todoRowEdit": "この Todo を編集",
