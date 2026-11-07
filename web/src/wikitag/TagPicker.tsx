@@ -425,8 +425,17 @@ export function TagPicker({
         {addLabel ? (
           <span>{addLabel}</span>
         ) : (
-          assignments.length === 0 &&
-          !loading && <span>{t("materials.tags.pickerLabelShort")}</span>
+          // Wide widths always name the button (#2617): a bare "+" after the
+          // chips did not read as "add a tag". Narrow widths keep the bare "+"
+          // once a tag is on, so the single-row strip keeps the width #2474 /
+          // #2291 won back for the chips.
+          <span
+            className={
+              assignments.length === 0 && !loading ? undefined : "max-md:hidden"
+            }
+          >
+            {t("materials.tags.pickerLabelShort")}
+          </span>
         )}
       </button>
 

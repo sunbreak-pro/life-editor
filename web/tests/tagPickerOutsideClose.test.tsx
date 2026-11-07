@@ -86,7 +86,7 @@ describe("TagPicker closes on an outside press inside the Desktop frame (#2448)"
     renderInFrame(vi.fn());
     await openPicker();
 
-    fireEvent.mouseDown(screen.getByPlaceholderText("Search or create tag…"));
+    fireEvent.mouseDown(screen.getByPlaceholderText("Search or create a tag"));
 
     expect(menu()).not.toBeNull();
   });

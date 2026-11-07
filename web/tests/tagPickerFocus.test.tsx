@@ -165,9 +165,33 @@ describe("TagPicker — the add button's words (#2401)", () => {
     expect(button.textContent).toBe("Tag it");
   });
 
-  it("keeps the plus alone once a tag is on, without them", async () => {
+  // #2617: without words of their own, wide widths still name the button once
+  // a tag is on; only narrow widths drop back to the bare "+".
+  it("keeps its own words once a tag is on, hidden only at narrow widths", async () => {
     renderWords();
     await waitFor(() => screen.getByText("Work"));
-    expect(screen.getByRole("button", { name: "Add tag" }).textContent).toBe("");
+    const button = screen.getByRole("button", { name: "Add tag" });
+    expect(button.textContent).toBe("Add tag");
+    const words = button.querySelector("span");
+    expect(words?.className).toContain("max-md:hidden");
+  });
+
+  it("opens on the search field, focused, when pressed with a tag on", async () => {
+    renderWords();
+    await waitFor(() => screen.getByText("Work"));
+    fireEvent.click(screen.getByRole("button", { name: "Add tag" }));
+    const field = screen.getByPlaceholderText("Search or create a tag");
+    expect(document.activeElement).toBe(field);
+  });
+});
+
+describe("TagPicker — the add button with nothing assigned (#2617)", () => {
+  it("names the button at every width", async () => {
+    renderPicker();
+    const button = await screen.findByRole("button", { name: "Add tag" });
+    await waitFor(() => expect(button.textContent).toBe("Add tag"));
+    expect(button.querySelector("span")?.className ?? "").not.toContain(
+      "max-md:hidden",
+    );
   });
 });
