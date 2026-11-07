@@ -1,4 +1,4 @@
-import { Repeat, Trash2 } from "lucide-react";
+import { Repeat } from "lucide-react";
 import { cn } from "../cn";
 
 /*
@@ -9,24 +9,15 @@ import { cn } from "../cn";
  * malformed one that fires on no day at all — the #407 zombie shape). This list
  * is that route: jump to the next occurrence, or delete a routine that has none.
  *
- * #467 mounts the same panel on Mobile, where the scope is viewing only. That
- * is expressed by leaving `onDelete` off rather than by a `readOnly` flag — one
- * source of truth for "is deleting offered here", with no second boolean to
- * fall out of step with the callback.
+ * #467 mounts the same panel on Mobile, where the scope is viewing only. Since
+ * #2569 no row offers a delete at either width, so the two are the same list.
  *
- * #1279: deleting still asks first, but the question is no longer this panel's.
- * The row used to ARM in place — it swapped itself for a confirm band — which
- * left one sidebar asking in two visibly different ways, because the Todo
- * delete beside it already went through <ConfirmDialog> (#707). Two defects
- * rode along with the inline shape, both while the question was ON SCREEN and
- * still unanswered: arming unmounted the very button that had been pressed, so
- * focus fell to <body> before the user could answer, and the band carried no
- * `role="alert"`, so a screen reader never announced what it was asking. The
- * dialog takes focus and is named by the question itself, which fixes both.
- * (What it does not fix is AFTER a confirmed delete: focus is restored to the
- * trash button, which then unmounts with the row — the same <body> it always
- * ended on. Only the refusal path lands somewhere.) `onDelete` therefore fires
- * on the FIRST press here — it REQUESTS the delete rather than performing it.
+ * #2569 took the trash off the row. The row's panel already carries「削除」on
+ * Desktop (ScheduleOverlays' repeat bubble, #1678, behind the host's
+ * <ConfirmDialog> since #1279), and the no-occurrence row opens that panel
+ * too, so the series stays deletable from one place instead of two — and the row became the prototype's borderless two-line shape: the
+ * name, then the frequency on the left and「次 …」on the right. The time left
+ * the row; the panel's summary is where it is read (#2574).
  *
  * Pure presentation (§3.1 / §6.4): rows arrive already formatted and translated,
  * every action is a callback. lumen-* tokens only (§5).
@@ -35,7 +26,10 @@ import { cn } from "../cn";
 export interface RepeatListRow {
   id: string;
   title: string;
-  /** Already-formatted start time (e.g. "7:00"); "" when the routine has none. */
+  /**
+   * Already-formatted start time (e.g. "7:00"); "" when the routine has none.
+   * Not drawn on the row since #2569 — the row's panel reads it (#2574).
+   */
   timeLabel: string;
   /** Already-translated frequency summary (e.g. "毎日" / "月・水・金"). */
   frequencyLabel: string;
@@ -53,8 +47,8 @@ export interface RepeatListPanelLabels {
   empty: string;
   /** Stands in for the date when the routine fires on no day. */
   never: string;
-  /** Accessible name for the per-row delete button. */
-  delete: string;
+  /** The next occurrence's line, e.g.「次 10月11日（日）」(#2569). */
+  next: (date: string) => string;
 }
 
 export interface RepeatListPanelProps {
@@ -69,18 +63,6 @@ export interface RepeatListPanelProps {
    * pressed at all.
    */
   onOpen: (id: string, pos: { x: number; y: number }) => void;
-  /**
-   * REQUEST deletion of the whole series. The host puts the question (#1279),
-   * so this fires on the first press — it is not the write.
-   *
-   * **Omit to render the list read-only** — #467 puts this panel on Mobile,
-   * where the scope is viewing only (mobile-scope.md #5) and deleting a series
-   * is the least recoverable thing on this screen (undo restores the template
-   * but not the occurrences it cascaded). Without it no row shows the delete
-   * affordance at all, which is the honest shape: a control that is present
-   * but refuses reads as broken.
-   */
-  onDelete?: (id: string) => void;
   labels: RepeatListPanelLabels;
   className?: string;
 }
@@ -88,7 +70,6 @@ export interface RepeatListPanelProps {
 export function RepeatListPanel({
   rows,
   onOpen,
-  onDelete,
   labels,
   className,
 }: RepeatListPanelProps) {
@@ -106,72 +87,51 @@ export function RepeatListPanel({
   }
 
   return (
-    <ul role="list" className={cn("flex flex-col gap-1.5", className)}>
-      {rows.map((r) => {
-        const meta = [
-          r.frequencyLabel,
-          r.timeLabel,
-          r.nextLabel ?? labels.never,
-        ]
-          .filter(Boolean)
-          .join(" · ");
-        const body = (
-          <>
-            <Repeat
-              aria-hidden
-              className="size-3 shrink-0 text-lumen-chip-routine-fg"
-              strokeWidth={2.5}
-            />
-            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span className="truncate text-sm font-medium text-lumen-text">
+    <ul role="list" className={cn("flex flex-col gap-0.5", className)}>
+      {rows.map((r) => (
+        <li key={r.id}>
+          {/*
+           * Every row is pressable since #1678, the no-occurrence one
+           * included: the press opens the panel that reads and edits the
+           * SERIES, and a series with nothing on the calendar is exactly the
+           * one a user most needs to open (#407's zombies live here). What
+           * that row cannot do — jump to an occurrence — is disabled inside
+           * the panel, where it can say so. Deleting lives there too (#2569).
+           */}
+          <button
+            type="button"
+            onClick={(e) => onOpen(r.id, { x: e.clientX, y: e.clientY })}
+            // #2083: the 44px floor on narrow, where this row is a tap
+            // target in the drawer. Desktop keeps its mouse-sized box.
+            className="flex w-full min-w-0 flex-col gap-0.5 rounded-lumen-md px-2 py-1.5 text-left max-md:min-h-11 transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <Repeat
+                aria-hidden
+                className="size-3 shrink-0 text-lumen-info"
+                strokeWidth={2.5}
+              />
+              <span className="min-w-0 flex-1 truncate text-sm font-medium text-lumen-text">
                 {r.title}
               </span>
-              <span className="truncate text-xs text-lumen-text-secondary">
-                {meta}
+            </span>
+            {/* pl-5 = the icon's 0.75rem + the gap's 0.5rem, so the second
+                line starts under the name. The date never shrinks: a long
+                frequency truncates first, so「次 …」stays readable at 390px. */}
+            <span
+              data-repeat-row-meta=""
+              className="flex min-w-0 items-baseline gap-2 pl-5 text-xs text-lumen-text-secondary"
+            >
+              <span className="min-w-0 flex-1 truncate">
+                {r.frequencyLabel}
+              </span>
+              <span className="shrink-0 whitespace-nowrap tabular-nums">
+                {r.nextLabel == null ? labels.never : labels.next(r.nextLabel)}
               </span>
             </span>
-          </>
-        );
-        // Read-only (no onDelete): a row that can neither be opened nor deleted
-        // is plain text. It still has to be listed — this panel is the only
-        // place a routine with no occurrence exists at all (#407's zombies),
-        // and hiding it on Mobile would make "why is nothing on my calendar?"
-        // unanswerable there.
-        return (
-          <li
-            key={r.id}
-            className="flex items-center gap-1 rounded-lumen-md border border-lumen-border bg-lumen-bg pr-1"
-          >
-            {/*
-             * Every row is pressable since #1678, the no-occurrence one
-             * included: the press opens the panel that reads and edits the
-             * SERIES, and a series with nothing on the calendar is exactly
-             * the one a user most needs to open (#407's zombies live here).
-             * What that row cannot do — jump to an occurrence — is disabled
-             * inside the panel, where it can say so.
-             */}
-            <button
-              type="button"
-              onClick={(e) => onOpen(r.id, { x: e.clientX, y: e.clientY })}
-              // #2083: the 44px floor on narrow, where this row is a tap
-              // target in the drawer. Desktop keeps its mouse-sized box.
-              className="flex min-w-0 flex-1 items-center gap-2 rounded-lumen-md px-3 py-2 text-left max-md:min-h-11 transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-            >
-              {body}
-            </button>
-            {onDelete && (
-              <button
-                type="button"
-                aria-label={`${labels.delete}: ${r.title}`}
-                onClick={() => onDelete(r.id)}
-                className="shrink-0 rounded-lumen-md p-1.5 text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-              >
-                <Trash2 aria-hidden className="size-4" />
-              </button>
-            )}
-          </li>
-        );
-      })}
+          </button>
+        </li>
+      ))}
     </ul>
   );
 }
