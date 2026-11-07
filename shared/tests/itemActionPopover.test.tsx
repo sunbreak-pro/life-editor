@@ -284,12 +284,16 @@ describe("ItemActionPopover — in-place edit of the summary (#2222)", () => {
     return { onCommit, onClose };
   }
 
-  it("carries the hint on the target and hides the edit-detail button while editing", () => {
+  it("keeps the hint for screen readers only and hides the edit-detail button while editing", () => {
     renderEditable();
     const target = screen.getByText("Gym").closest(
       "[data-item-quick-edit-target]",
     ) as HTMLElement;
-    expect(target.getAttribute("title")).toBe(LABELS.hint);
+    // #2632: no native tooltip, and the hint line never shows on screen.
+    expect(target.hasAttribute("title")).toBe(false);
+    const hint = screen.getByText(LABELS.hint);
+    expect(hint.classList.contains("sr-only")).toBe(true);
+    expect(target.getAttribute("aria-describedby")).toBe(hint.id);
     expect(screen.getByText("Edit detail")).toBeTruthy();
 
     fireEvent.doubleClick(target);

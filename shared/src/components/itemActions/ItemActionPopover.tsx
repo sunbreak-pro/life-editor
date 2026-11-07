@@ -395,16 +395,17 @@ export function ItemActionPopover({
       </div>
     ) : null;
 
-  // #2222: an editable summary is a focusable target with a hover tint and a
-  // hint that says how to edit it. Not a <button>: the host's summary holds
-  // block content, and a double-click is not a press.
+  // #2222: an editable summary is a focusable target with a hover tint. Not a
+  // <button>: the host's summary holds block content, and a double-click is
+  // not a press. #2632: the how-to-edit hint is for screen readers only — no
+  // visible line and no native tooltip, so the tint, the text cursor and the
+  // focus ring are the only visual cues left.
   const summaryBlock =
     quickEditForm ??
     (quickEdit ? (
       <div
         data-item-quick-edit-target=""
         tabIndex={0}
-        title={quickEdit.labels.hint}
         aria-describedby={hintId}
         onDoubleClick={startQuickEdit}
         onKeyDown={(e) => {
@@ -414,13 +415,10 @@ export function ItemActionPopover({
             startQuickEdit();
           }
         }}
-        className="group mx-1 cursor-text rounded-lumen-md px-2 py-2 text-xs text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+        className="mx-1 cursor-text rounded-lumen-md px-2 py-2 text-xs text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
       >
         {summary}
-        <p
-          id={hintId}
-          className="mt-1 hidden text-[11px] text-lumen-text-secondary group-hover:block group-focus-visible:block"
-        >
+        <p id={hintId} className="sr-only">
           {quickEdit.labels.hint}
         </p>
       </div>
