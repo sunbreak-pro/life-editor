@@ -593,6 +593,10 @@ export function ScheduleOverlays({
       title={t("scheduleScreen.addItem")}
       onClose={create.onClose}
       size={notePickerOpen && create.panel ? "panel" : "lg"}
+      // #2566: the corner ×, as the other Schedule panels have had since
+      // #2219. The footer's キャンセル stays; the × is where a dialog's close
+      // is looked for first.
+      closeLabel={t("common.close")}
     >
       {create.panel && (
         <ItemCreatePanel

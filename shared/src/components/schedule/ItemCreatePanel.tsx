@@ -27,6 +27,7 @@ import {
 } from "../styleTokens";
 import { SegmentedControl } from "../SegmentedControl";
 import { SegmentedToggle } from "../SegmentedToggle";
+import { TagHeadingIcon } from "../TagHeadingIcon";
 import { TimeRangeField } from "../TimeRangeField";
 import { AllDayCheck } from "./AllDayCheck";
 import {
@@ -161,13 +162,16 @@ export type ItemCreateMemoTarget =
 export type ItemCreateNotePickerPlacement = "side" | "sheet" | "inline";
 
 export interface ItemCreatePanelLabels {
-  /** Already-translated accessible name for the item-type tablist. */
+  /** Heading (and accessible name) of the item-type tablist, 「種類」. */
   typeLabel: string;
   typeEvent: string;
   typeTodo: string;
-  /** Already-translated aria-label for the shared item-title input. */
+  /** Heading of the shared item-title input, 「タイトル」(#2566). */
   title: string;
-  /** Per-type placeholder for the item-title input. */
+  /**
+   * Per-type placeholder for the item-title input. Not drawn since #2566 —
+   * the input has its heading instead, as the prototype draws it.
+   */
   eventPlaceholder: string;
   todoPlaceholder: string;
   /** Field label of the target-day input. */
@@ -190,7 +194,7 @@ export interface ItemCreatePanelLabels {
   placeTodoAndOpen?: string;
   /** #2406: the footer's Cancel. Drawn only with `onCancel` beside it. */
   cancel?: string;
-  /** Accessible name for the new / existing radiogroup (todo tab). */
+  /** Heading (and accessible name) of the new / existing radiogroup, 「追加方法」. */
   sourceLabel: string;
   sourceNew: string;
   sourceExisting: string;
@@ -373,6 +377,12 @@ export interface ItemCreateTagOption {
   name: string;
   /** The tag's own colour, drawn as a dot on its label. */
   color?: string | null;
+  /**
+   * The tag's stored icon, drawn at the head of its row in the list (#2566,
+   * through TagHeadingIcon like every other tag surface — #1291). Omitted or
+   * null draws the generic tag glyph.
+   */
+  icon?: string | null;
 }
 
 /**
@@ -1006,7 +1016,9 @@ function TagField({
       {open && (
         <div
           id={listId}
-          className="absolute left-0 top-full z-20 mt-1 w-56 rounded-lumen-md border border-lumen-border bg-lumen-bg py-1 shadow-lumen-lg"
+          // #2566: above the button. The field sits near the dialog's foot,
+          // so a list opening downward covered「キャンセル」and「追加」.
+          className="absolute bottom-full left-0 z-20 mb-1 w-52 rounded-lumen-md border border-lumen-border bg-lumen-bg py-1 shadow-lumen-lg"
         >
           {pool.tags.length === 0 ? (
             <p className={HINT}>{pool.labels.empty}</p>
@@ -1031,14 +1043,10 @@ function TagField({
                         FOCUS_RING_TIGHT,
                       )}
                     >
-                      <span
-                        aria-hidden
-                        className="size-2 shrink-0 rounded-full bg-lumen-border"
-                        style={
-                          tag.color
-                            ? { backgroundColor: tag.color }
-                            : undefined
-                        }
+                      <TagHeadingIcon
+                        icon={tag.icon ?? null}
+                        color={tag.color ?? null}
+                        size={14}
                       />
                       <span className="min-w-0 flex-1 truncate">
                         {tag.name}
@@ -1430,40 +1438,58 @@ export function ItemCreatePanel({
   return (
     <div className="flex items-start gap-4">
       <div className="flex min-w-0 flex-1 flex-col gap-3">
-        <SegmentedControl
-          options={[
-            { id: "event", label: labels.typeEvent },
-            { id: "task", label: labels.typeTodo },
-          ]}
-          value={type}
-          onChange={(id) => setType(id as ItemCreateType)}
-          label={labels.typeLabel}
-        />
-        {type === "task" && (
-          <SegmentedToggle
-            options={[
-              { value: "new" as const, label: labels.sourceNew },
-              { value: "existing" as const, label: labels.sourceExisting },
-            ]}
-            value={todoSource}
-            onChange={setTodoSource}
-            label={labels.sourceLabel}
-          />
-        )}
-        {type === "event" && offersExistingEvents && (
-          <SegmentedToggle
-            options={[
-              { value: "new" as const, label: labels.sourceNew },
-              { value: "existing" as const, label: labels.sourceExisting },
-            ]}
-            value={eventSource}
-            onChange={(source) => {
-              setEventSource(source);
-              if (source === "existing") eventPool?.onOpen();
-            }}
-            label={labels.sourceLabel}
-          />
-        )}
+        {/* #2566: each switch under its own heading, the two side by side
+            (the prototype's add dialog). They were two full-width tracks
+            stacked with the names in aria-label only. A phone stacks them
+            again below `sm`: half of a 390px sheet cannot hold
+            「新規作成 / 既存から選ぶ」without crushing the labels. */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <span aria-hidden className={FIELD_LABEL}>
+              {labels.typeLabel}
+            </span>
+            <SegmentedControl
+              options={[
+                { id: "event", label: labels.typeEvent },
+                { id: "task", label: labels.typeTodo },
+              ]}
+              value={type}
+              onChange={(id) => setType(id as ItemCreateType)}
+              label={labels.typeLabel}
+            />
+          </div>
+          {(type === "task" || offersExistingEvents) && (
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <span aria-hidden className={FIELD_LABEL}>
+                {labels.sourceLabel}
+              </span>
+              {type === "task" ? (
+                <SegmentedToggle
+                  options={[
+                    { value: "new" as const, label: labels.sourceNew },
+                    { value: "existing" as const, label: labels.sourceExisting },
+                  ]}
+                  value={todoSource}
+                  onChange={setTodoSource}
+                  label={labels.sourceLabel}
+                />
+              ) : (
+                <SegmentedToggle
+                  options={[
+                    { value: "new" as const, label: labels.sourceNew },
+                    { value: "existing" as const, label: labels.sourceExisting },
+                  ]}
+                  value={eventSource}
+                  onChange={(source) => {
+                    setEventSource(source);
+                    if (source === "existing") eventPool?.onOpen();
+                  }}
+                  label={labels.sourceLabel}
+                />
+              )}
+            </div>
+          )}
+        </div>
         {copying && eventPool ? (
           <PickerList
             options={eventPool.options}
@@ -1487,18 +1513,19 @@ export function ItemCreatePanel({
             noMatchLabel={labels.todoPickerNoMatch}
           />
         ) : (
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !isImeComposing(e)) submitPrimary();
-            }}
-            placeholder={
-              type === "event" ? labels.eventPlaceholder : labels.todoPlaceholder
-            }
-            aria-label={labels.title}
-            className={FIELD}
-          />
+          // #2566: a heading over the input, and no placeholder — the
+          // prototype's form, where every field is named above itself.
+          <label className="flex min-w-0 flex-col gap-1.5">
+            <span className={FIELD_LABEL}>{labels.title}</span>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !isImeComposing(e)) submitPrimary();
+              }}
+              className={FIELD}
+            />
+          </label>
         )}
         {/* Date, start, end and all-day on one line (#2406, the Claude Design
             proposal; #940 had the times on a row of their own). The date input

@@ -58,6 +58,8 @@ export function useCreatePanelTags(): CreatePanelTagsApi {
         id: tag.id,
         name: tag.name,
         color: tag.color,
+        // #2566: the list draws each tag's own icon (TagHeadingIcon).
+        icon: tag.icon,
       })),
       tagsOf,
       onStagedChange,

@@ -1118,3 +1118,20 @@ describe("ScheduleOverlays — the tag filter panel's frame (#2142)", () => {
     expect(dialog.className).toContain("max-h-[calc(100dvh-2rem)]");
   });
 });
+
+/*
+ * #2566 — the Desktop add dialog has the corner × the other Schedule panels
+ * got in #2219, and it closes the dialog. The footer's キャンセル stays.
+ */
+describe("ScheduleOverlays — the add dialog's corner close (#2566)", () => {
+  const PANEL = { date: "2026-08-20", start: "10:00", end: "11:00" };
+
+  it("draws a × on Desktop that closes the dialog", () => {
+    const { props } = renderOverlays({ create: { panel: PANEL } });
+    const dialog = screen.getByRole("dialog", { name: "scheduleScreen.addItem" });
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "common.close" }),
+    );
+    expect(props.create.onClose).toHaveBeenCalled();
+  });
+});
