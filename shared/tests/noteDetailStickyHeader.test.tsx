@@ -231,8 +231,8 @@ describe("NoteDetailPanel narrow title row (#2467)", () => {
   });
 
   it.each([
-    ["main", "main" as const, "min-h-[calc(35px+0.25rem)]"],
-    ["sidebar", "sidebar" as const, "min-h-[calc(1.203125rem+0.75rem+2px)]"],
+    ["main", "main" as const, "min-h-[calc(1.5625rem+0.25rem)]"],
+    ["sidebar", "sidebar" as const, "min-h-[calc(1.4609375rem+0.25rem)]"],
   ])(
     "keeps the pin and kebab on the title's first line from md up (%s)",
     (_, variant, lineFloor) => {

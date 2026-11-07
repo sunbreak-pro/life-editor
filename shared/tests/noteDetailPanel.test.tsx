@@ -41,7 +41,9 @@ describe("NoteDetailPanel asked to focus a read-only title", () => {
         {...LABELS}
       />,
     );
-    expect(document.activeElement).not.toBe(screen.getByLabelText("Note title"));
+    expect(document.activeElement).not.toBe(
+      screen.getByLabelText("Note title"),
+    );
     expect(onTitleAutoFocused).toHaveBeenCalledTimes(1);
   });
 });
@@ -389,5 +391,81 @@ describe("NoteDetailPanel", () => {
     // ...but the tag row, the rule and the body do not (their slots were
     // undefined).
     expect(screen.queryByTestId("note-detail-divider")).not.toBeInTheDocument();
+  });
+});
+
+/*
+ * #2584 — the kebab menu as the prototype lists it: pin / unpin, register as
+ * a template, apply a template, set / remove the password, a rule, delete.
+ * Icons are told apart by lucide's own class name, the only handle an
+ * aria-hidden glyph has.
+ */
+describe("NoteDetailPanel kebab menu (#2584)", () => {
+  function openMenu(isPinned: boolean, withPassword = false) {
+    render(
+      <NoteDetailPanel
+        noteId="note-a"
+        title="menu note"
+        isPinned={isPinned}
+        onTitleCommit={() => {}}
+        onTogglePin={() => {}}
+        onDelete={() => {}}
+        onRegisterTemplate={() => {}}
+        registerTemplateLabel="Register as template"
+        onApplyTemplate={() => {}}
+        applyTemplateLabel="Apply a template"
+        {...(withPassword
+          ? {
+              onRemovePassword: () => {},
+              removePasswordLabel: "Remove password",
+            }
+          : { onSetPassword: () => {}, setPasswordLabel: "Set password" })}
+        {...LABELS}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+    return screen.getByRole("menu");
+  }
+
+  const iconOf = (item: HTMLElement) =>
+    item.querySelector("svg")?.getAttribute("class") ?? "";
+
+  it("lists the rows in order with a rule before delete", () => {
+    const menu = openMenu(false);
+    const parts = Array.from(
+      menu.querySelectorAll('[role="menuitem"], [role="separator"]'),
+    ).map((el) =>
+      el.getAttribute("role") === "separator" ? "---" : el.textContent,
+    );
+    expect(parts).toEqual([
+      "Pin note",
+      "Register as template",
+      "Apply a template",
+      "Set password",
+      "---",
+      "Delete note",
+    ]);
+  });
+
+  it("draws the prototype's icons", () => {
+    openMenu(false);
+    const item = (name: string) => screen.getByRole("menuitem", { name });
+    expect(iconOf(item("Pin note"))).toContain("lucide-pin");
+    expect(iconOf(item("Register as template"))).toContain(
+      "lucide-layout-template",
+    );
+    expect(iconOf(item("Apply a template"))).toContain("lucide-file-input");
+    expect(iconOf(item("Set password"))).toContain("lucide-lock");
+    expect(iconOf(item("Delete note"))).toContain("lucide-trash");
+  });
+
+  it("draws PinOff on the unpin row and LockOpen on the remove row", () => {
+    openMenu(true, true);
+    expect(
+      iconOf(screen.getByRole("menuitem", { name: "Unpin note" })),
+    ).toContain("lucide-pin-off");
+    expect(
+      iconOf(screen.getByRole("menuitem", { name: "Remove password" })),
+    ).toContain("lucide-lock-open");
   });
 });

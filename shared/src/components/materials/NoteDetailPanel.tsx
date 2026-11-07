@@ -8,12 +8,13 @@ import {
   type ReactNode,
 } from "react";
 import {
-  FileDown,
-  FileStack,
+  FileInput,
+  LayoutTemplate,
   Lock,
   LockOpen,
   MoreHorizontal,
   Pin,
+  PinOff,
   Trash2,
 } from "lucide-react";
 import { cn } from "../cn";
@@ -55,16 +56,17 @@ const MENU_ITEM_TAP_FLOOR = "max-md:min-h-11";
 /*
  * #2467 — the floor of the box that holds the pin and the kebab: one title
  * line, written from the title field's own classes in NoteTitleInput. "main"
- * is `text-[28px] leading-tight py-0.5` (35px + 0.25rem); "sidebar" is
- * `text-sm leading-snug py-1.5` plus a 1px border (0.875rem x 1.375 + 0.75rem
- * + 2px). The header row aligns to the top from md up, so the actions centre
- * on the title's first line even when the tags wrap under it. Keep these in
- * step with the title classes. It is a floor, not a height: below the
+ * is `text-[1.25rem] leading-tight py-0.5` (1.25rem x 1.25 + 0.25rem);
+ * "sidebar" is `text-[1.0625rem] leading-snug py-0.5` (1.0625rem x 1.375 +
+ * 0.25rem) — #2584 took the sizes from the prototype and the sidebar field's
+ * border off. The header row aligns to the top from md up, so the actions
+ * centre on the title's first line even when the tags wrap under it. Keep
+ * these in step with the title classes. It is a floor, not a height: below the
  * breakpoint the 44px kebab hit box (#1840) is taller and wins.
  */
 const ACTIONS_LINE_BOX = {
-  main: "min-h-[calc(35px+0.25rem)]",
-  sidebar: "min-h-[calc(1.203125rem+0.75rem+2px)]",
+  main: "min-h-[calc(1.5625rem+0.25rem)]",
+  sidebar: "min-h-[calc(1.4609375rem+0.25rem)]",
 } as const;
 
 /*
@@ -99,6 +101,7 @@ function NoteTitleInput({
   onAutoFocused,
   readOnly = false,
   describedBy,
+  onEnter,
 }: {
   noteId: string;
   initialTitle: string;
@@ -113,6 +116,8 @@ function NoteTitleInput({
   /** No renaming right now (#2337); `describedBy` is the line that says why. */
   readOnly?: boolean;
   describedBy?: string;
+  /** Enter in the title (#2584): the panel moves the focus into the body. */
+  onEnter?: () => void;
 }) {
   const [draft, setDraft] = useState(initialTitle);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -218,7 +223,8 @@ function NoteTitleInput({
    * title was cut off with no way to read the rest. A title is still one
    * line of text: Enter does not add a break (an Enter that commits an IME
    * conversion is left alone), and a pasted break becomes a space. Past two
-   * lines the field scrolls inside its own box.
+   * lines the field scrolls inside its own box. Since #2584 that Enter moves
+   * the focus into the body, as it does in the prototype.
    *
    * The height follows the text: reset to `auto` so the field can shrink,
    * then set from scrollHeight plus the border, which scrollHeight leaves
@@ -246,7 +252,10 @@ function NoteTitleInput({
         value={draft}
         onChange={(e) => onChange(e.target.value.replace(/[\r\n]+/g, " "))}
         onKeyDown={(e) => {
-          if (e.key === "Enter" && !isImeComposing(e)) e.preventDefault();
+          if (e.key !== "Enter" || isImeComposing(e)) return;
+          e.preventDefault();
+          flush();
+          onEnter?.();
         }}
         onBlur={flush}
         aria-label={label}
@@ -257,8 +266,11 @@ function NoteTitleInput({
           // own and the tags wrap under it once both no longer fit.
           "min-w-40 flex-1 text-lumen-text",
           "block resize-none overflow-y-auto leading-snug",
-          "max-h-[calc(2lh+0.75rem+2px)]",
-          "rounded-lumen-md border border-lumen-border bg-lumen-bg px-2 py-1.5 text-sm font-medium",
+          "max-h-[calc(2lh+0.25rem)]",
+          // #2584: a heading like the Desktop one, at the prototype's 1.0625rem
+          // — no border, no field background. The `--field-font-size` opts out
+          // of the mobile field floor for the reason given on the input below.
+          "border-none bg-transparent px-0 py-0.5 text-[1.0625rem] [--field-font-size:1.0625rem] font-bold placeholder:text-lumen-text-tertiary",
           FOCUS_RING,
         )}
       />
@@ -270,6 +282,12 @@ function NoteTitleInput({
       ref={inputRef}
       value={draft}
       onChange={(e) => onChange(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key !== "Enter" || isImeComposing(e)) return;
+        e.preventDefault();
+        flush();
+        onEnter?.();
+      }}
       onBlur={flush}
       aria-label={label}
       readOnly={readOnly}
@@ -278,18 +296,18 @@ function NoteTitleInput({
         // #2227: the tags share this row, so the title keeps a floor of its
         // own and the tags wrap under it once both no longer fit.
         "min-w-40 flex-1 text-lumen-text",
-        // "main" → borderless 28px bold heading (same size/font as the Daily
-        // date title, 2026-07-19: the only visual difference between Notes and
-        // Daily should be the tag/link affordances). The compact "sidebar"
-        // field is the textarea above.
+        // "main" → borderless bold heading. 1.25rem since #2584 (the
+        // prototype's size, and the size the Daily date title moves to in
+        // #2591); it was 28px. The compact "sidebar" field is the textarea
+        // above.
         //
-        // `[--field-font-size:28px]` opts this one field out of the mobile font
-        // floor (#1134 / styles/tokens.css). That floor exists to lift fields
-        // ABOVE iOS's 16px auto-zoom trigger, and it resolves to the parent's
-        // size when a field has no override — which would quietly flatten this
-        // heading to body size on a phone. 28px is already well over the
-        // trigger, so the override only has to repeat the size beside it.
-        "border-none bg-transparent px-0 py-0.5 text-[28px] [--field-font-size:28px] font-bold leading-tight tracking-tight placeholder:text-lumen-text-tertiary",
+        // `[--field-font-size:1.25rem]` opts this one field out of the mobile
+        // font floor (#1134 / styles/tokens.css). That floor exists to lift
+        // fields ABOVE iOS's 16px auto-zoom trigger, and it resolves to the
+        // parent's size when a field has no override — which would quietly
+        // flatten this heading to body size on a phone. 1.25rem is already over
+        // the trigger, so the override only has to repeat the size beside it.
+        "border-none bg-transparent px-0 py-0.5 text-[1.25rem] [--field-font-size:1.25rem] font-bold leading-tight tracking-tight placeholder:text-lumen-text-tertiary",
         FOCUS_RING,
       )}
     />
@@ -481,6 +499,20 @@ export function NoteDetailPanel({
   const offline = offlineReason !== undefined;
 
   /*
+   * #2584 — Enter in the title goes on into the body. The editor arrives as a
+   * slot, so the panel looks for its editable root inside the wrapper rather
+   * than asking the host for a handle; a locked note's overlay has none, and
+   * then the Enter only commits the title.
+   */
+  const contentRef = useRef<HTMLDivElement>(null);
+  const focusBody = () => {
+    const body = contentRef.current?.querySelector<HTMLElement>(
+      '[contenteditable="true"]',
+    );
+    body?.focus();
+  };
+
+  /*
    * #2058 — publish the sticky header's height for the body's own sticky
    * parts (see NOTE_STICKY_HEADER_HEIGHT_VAR). Measured, not computed: the
    * header's height depends on how many lines the tag / link row wraps to.
@@ -613,6 +645,7 @@ export function NoteDetailPanel({
               onAutoFocused={onTitleAutoFocused}
               readOnly={offline}
               describedBy={offline ? offlineReasonId : undefined}
+              onEnter={focusBody}
             />
             {hasTagRow && (
               // #2291: below the breakpoint the tag / link row sits under the
@@ -686,7 +719,13 @@ export function NoteDetailPanel({
               >
                 <MenuItem
                   className={MENU_ITEM_TAP_FLOOR}
-                  icon={<Pin size={14} aria-hidden />}
+                  icon={
+                    isPinned ? (
+                      <PinOff size={14} aria-hidden />
+                    ) : (
+                      <Pin size={14} aria-hidden />
+                    )
+                  }
                   disabled={offline}
                   onSelect={() => {
                     onTogglePin(noteId);
@@ -701,7 +740,7 @@ export function NoteDetailPanel({
                 {onRegisterTemplate && registerTemplateLabel && (
                   <MenuItem
                     className={MENU_ITEM_TAP_FLOOR}
-                    icon={<FileStack size={14} aria-hidden />}
+                    icon={<LayoutTemplate size={14} aria-hidden />}
                     onSelect={() => {
                       onRegisterTemplate();
                       setMenuOpen(false);
@@ -718,7 +757,7 @@ export function NoteDetailPanel({
                 {onApplyTemplate && applyTemplateLabel && (
                   <MenuItem
                     className={MENU_ITEM_TAP_FLOOR}
-                    icon={<FileDown size={14} aria-hidden />}
+                    icon={<FileInput size={14} aria-hidden />}
                     onSelect={() => {
                       onApplyTemplate();
                       setMenuOpen(false);
@@ -755,6 +794,13 @@ export function NoteDetailPanel({
                     {removePasswordLabel}
                   </MenuItem>
                 )}
+                {/* #2584 — the line that sets the one row that removes the note
+                    apart from the rows that change it. */}
+                <div
+                  role="separator"
+                  data-testid="note-menu-separator"
+                  className="my-1 h-px bg-lumen-border"
+                />
                 <MenuItem
                   className={MENU_ITEM_TAP_FLOOR}
                   icon={<Trash2 size={14} aria-hidden />}
@@ -802,6 +848,7 @@ export function NoteDetailPanel({
       {/* Content — injected editor + a min-height floor via the wrapper. */}
       {contentEditor != null && (
         <div
+          ref={contentRef}
           className={cn(
             "flex flex-col",
             isMain
