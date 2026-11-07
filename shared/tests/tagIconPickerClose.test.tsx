@@ -160,6 +160,7 @@ describe("TagHubEditBlock — the tag edit block passes the close label through 
         onEdit={vi.fn()}
         onDropEdit={vi.fn()}
         onSave={vi.fn()}
+        onCancel={vi.fn()}
         onDelete={vi.fn()}
         labels={TAG_HUB_LABELS.edit}
       />,

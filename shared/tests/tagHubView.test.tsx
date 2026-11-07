@@ -456,7 +456,21 @@ describe("TagHubView — editing a tag", () => {
     const { props } = editProps();
     renderHub({ selectedTagId: "t-work", editOpen: true, ...props });
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
-    expect(screen.getByText("Saved")).toBeTruthy();
+    // No "Saved" text any more (#2603): the disabled button says it.
+    expect(screen.queryByText("Saved")).toBeNull();
+  });
+
+  it("hands Cancel to the host, which drops the draft and closes (#2603)", () => {
+    const onEditCancel = vi.fn();
+    const { props } = editProps();
+    renderHub({
+      selectedTagId: "t-work",
+      editOpen: true,
+      ...props,
+      onEditCancel,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onEditCancel).toHaveBeenCalledTimes(1);
   });
 
   it("drafts a colour from the swatch that was pressed", () => {

@@ -67,6 +67,7 @@ function renderEditBlock(): HTMLElement {
       onEdit={vi.fn()}
       onDropEdit={vi.fn()}
       onSave={vi.fn()}
+      onCancel={vi.fn()}
       onDelete={vi.fn()}
       labels={LABELS}
     />,
@@ -163,6 +164,7 @@ describe("tag icon picker inside a BottomSheet (#2389)", () => {
           onEdit={vi.fn()}
           onDropEdit={vi.fn()}
           onSave={vi.fn()}
+          onCancel={vi.fn()}
           onDelete={vi.fn()}
           labels={LABELS}
         />
