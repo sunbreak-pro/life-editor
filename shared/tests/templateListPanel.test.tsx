@@ -59,3 +59,52 @@ describe("TemplateListPanel rows (#2032)", () => {
     expect(edit.nextElementSibling).toBe(bin);
   });
 });
+
+describe("TemplateListPanel pinned footer (#2580)", () => {
+  it("sticks to the bottom of the sidebar on an opaque fill", () => {
+    renderOpen();
+    const panel = screen.getByTestId("template-list-panel");
+    for (const cls of ["sticky", "bottom-0", "bg-lumen-bg-subsidebar"]) {
+      expect(panel.classList.contains(cls)).toBe(true);
+    }
+  });
+
+  it("marks the heading and every row with the template glyph", () => {
+    renderOpen();
+    const heading = screen.getByRole("button", { expanded: true });
+    expect(
+      heading.querySelector('[data-testid="template-heading-icon"]'),
+    ).not.toBeNull();
+    expect(heading.querySelector("svg.lucide-layout-template")).not.toBeNull();
+    const row = screen.getByText("Weekly review").closest("li")!;
+    expect(
+      row.querySelector('[data-testid="template-row-icon"]'),
+    ).not.toBeNull();
+  });
+
+  it("opens the rows above the heading", () => {
+    renderOpen();
+    const heading = screen.getByRole("button", { expanded: true });
+    const row = screen.getByText("Weekly review").closest("li")!;
+    // DOCUMENT_POSITION_FOLLOWING: the heading comes after the row.
+    expect(
+      row.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("points the chevron up while closed", () => {
+    render(
+      <TemplateListPanel
+        templates={[{ id: "tpl-a", title: "Weekly review" }]}
+        open={false}
+        onToggle={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        labels={LABELS}
+      />,
+    );
+    const heading = screen.getByRole("button", { expanded: false });
+    expect(heading.querySelector("svg.lucide-chevron-up")).not.toBeNull();
+    expect(screen.queryByText("Weekly review")).toBeNull();
+  });
+});
