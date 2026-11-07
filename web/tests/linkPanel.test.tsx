@@ -24,7 +24,8 @@ import {
  * this suite protects is that Enter commits the highlighted row at all.
  *
  * #2391 took the title and the X off the chip: it is a square with its kind's
- * icon now, named for the title, and a link is removed from the "+" popover.
+ * icon now, named for the title. #2630 took the "linked" list out of the "+"
+ * popover, so a link comes off from the chip's panel only.
  * jsdom has no layout, so what the design measures (the sizes, the 44px hit
  * area) is pinned as the classes that produce it.
  *
@@ -94,6 +95,9 @@ function kindName(role: string): string {
 }
 
 /** A chip's accessible name: the kind AND the title it no longer shows. */
+/** Named at call time, after the suite has set the language. */
+const unlinkLabel = (): string => i18n.t("materials.links.unlink");
+
 function chipName(role: string, title: string): string {
   return i18n.t("materials.links.chipName", {
     kind: kindName(role),
@@ -286,18 +290,35 @@ describe("LinkPanel — rows open their target (#749)", () => {
     });
   });
 
-  it("removes an outgoing link from the + popover", async () => {
+  it("removes an outgoing link from the chip's panel", async () => {
+    state.outgoing = [link({ id: "l1", to: "note-2" })];
+    render(<LinkPanel itemId="note-1" loadTargets={loadTargets} />);
+
+    await follow("note", "Kitchen rebuild", unlinkLabel());
+
+    expect(state.removeItemLinks).toHaveBeenCalledExactlyOnceWith(["l1"]);
+  });
+
+  it("only adds from the + popover: no linked list, and linked items stay out (#2630)", async () => {
     state.outgoing = [link({ id: "l1", to: "note-2" })];
     render(<LinkPanel itemId="note-1" loadTargets={loadTargets} />);
     await openPicker();
 
-    fireEvent.click(
-      await screen.findByRole("button", {
-        name: i18n.t("materials.links.remove", { title: "Kitchen rebuild" }),
-      }),
+    const options = await screen.findAllByRole("option");
+    expect(options.some((o) => o.textContent?.includes("Kitchen rebuild"))).toBe(
+      false,
     );
-
-    expect(state.removeItemLinks).toHaveBeenCalledExactlyOnceWith(["l1"]);
+    const dialog = screen.getByRole("dialog", {
+      name: i18n.t("materials.links.pickerDialog"),
+    });
+    expect(within(dialog).queryByText("Kitchen rebuild")).toBeNull();
+    expect(within(dialog).queryByRole("list")).toBeNull();
+    // The only buttons left are the candidates themselves.
+    expect(
+      within(dialog)
+        .queryAllByRole("button")
+        .filter((b) => b.getAttribute("role") !== "option"),
+    ).toHaveLength(0);
   });
 });
 
@@ -306,14 +327,13 @@ describe("LinkPanel — direction is not part of the vocabulary (#884)", () => {
     state.outgoing = [link({ id: "l1", from: "note-1", to: "note-2" })];
     state.incoming = [link({ id: "l2", from: "note-2", to: "note-1" })];
     render(<LinkPanel itemId="note-1" loadTargets={loadTargets} />);
-    await openPicker();
 
-    const remove = await screen.findAllByRole("button", {
-      name: i18n.t("materials.links.remove", { title: "Kitchen rebuild" }),
+    const chips = await screen.findAllByRole("button", {
+      name: chipName("note", "Kitchen rebuild"),
     });
-    expect(remove).toHaveLength(1);
+    expect(chips).toHaveLength(1);
 
-    fireEvent.click(remove[0]);
+    await follow("note", "Kitchen rebuild", unlinkLabel());
 
     expect(state.removeItemLinks).toHaveBeenCalledExactlyOnceWith(["l1", "l2"]);
   });
@@ -321,13 +341,8 @@ describe("LinkPanel — direction is not part of the vocabulary (#884)", () => {
   it("offers a remove action on a backlink too", async () => {
     state.incoming = [link({ id: "l2", from: "note-2", to: "note-1" })];
     render(<LinkPanel itemId="note-1" loadTargets={loadTargets} />);
-    await openPicker();
 
-    fireEvent.click(
-      await screen.findByRole("button", {
-        name: i18n.t("materials.links.remove", { title: "Kitchen rebuild" }),
-      }),
-    );
+    await follow("note", "Kitchen rebuild", unlinkLabel());
 
     expect(state.removeItemLinks).toHaveBeenCalledExactlyOnceWith(["l2"]);
   });
@@ -493,20 +508,14 @@ describe("LinkPanel — deleted link target (#1292)", () => {
     expect(onNavigateToItem).not.toHaveBeenCalled();
   });
 
-  it("can still be removed from the + popover, where it is named", async () => {
+  it("can still be removed from its chip's panel", async () => {
     state.outgoing = [link({ id: "l1", to: "task-77" })];
     render(<LinkPanel itemId="note-1" loadTargets={loadWithDeleted} />);
-    await openPicker();
 
     const label = i18n.t("materials.links.deletedTarget", {
       title: "Return the extra tiles",
     });
-    expect(await screen.findByText(label)).toBeTruthy();
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: i18n.t("materials.links.remove", { title: label }),
-      }),
-    );
+    await follow("task", label, unlinkLabel());
 
     expect(state.removeItemLinks).toHaveBeenCalledExactlyOnceWith(["l1"]);
   });
@@ -672,15 +681,13 @@ describe("LinkPanel — icon-only chips (#2391)", () => {
     expect(strip.contains(add)).toBe(false);
   });
 
-  it("gives the popover's rows and removal the 44px floor on narrow", async () => {
-    await renderRow();
+  it("gives the popover's rows the 44px floor on narrow", async () => {
+    // Nothing linked: renderRow links all four kinds, which empties the list.
+    render(<LinkPanel itemId="note-1" loadTargets={loadTargets} />);
     await openPicker();
 
-    const remove = await screen.findByRole("button", {
-      name: i18n.t("materials.links.remove", { title: "Kitchen rebuild" }),
-    });
-    expect(remove.className).toContain("max-md:min-h-11");
-    expect(remove.className).toContain("max-md:min-w-11");
+    const [option] = await screen.findAllByRole("option");
+    expect(option.className).toContain("max-md:min-h-11");
   });
 
   it("offers an event with its day, and finds it by that day", async () => {
@@ -696,21 +703,6 @@ describe("LinkPanel — icon-only chips (#2391)", () => {
     expect(options[0].textContent).toContain(kindName("event"));
   });
 
-  it("returns the focus to the field after a removal, so Escape still closes", async () => {
-    state.outgoing = [link({ id: "l1", to: "note-2" })];
-    render(<LinkPanel itemId="note-1" loadTargets={loadTargets} />);
-    const input = await openPicker();
-    const remove = await screen.findByRole("button", {
-      name: i18n.t("materials.links.remove", { title: "Kitchen rebuild" }),
-    });
-
-    remove.focus();
-    fireEvent.click(remove);
-    await waitFor(() => expect(document.activeElement).toBe(input));
-
-    fireEvent.keyDown(input, { key: "Escape" });
-    expect(screen.queryByRole("combobox")).toBeNull();
-  });
 });
 
 describe("LinkPanel — candidate rows on narrow (#2474)", () => {
