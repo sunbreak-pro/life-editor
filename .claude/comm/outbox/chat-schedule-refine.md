@@ -713,3 +713,19 @@ PR #929（#897）の独立監査（role-qa + life-editor-sync-auditor）で、**
 - **作るもの**: 真ん中の日付を試作の「10/10（土）」の形（全角のかっこ）にする。同じラベルを使うほかの画面に波及しないかを、着手時に grep で確かめる。
 - **あわせて片付けるもの**: #2568 で使われなくなった i18n のキー 4 つ（`todoAddCta` / `todoAddTodayCta` / `todoAddDayCta` / `todoFilterOpen`）の削除。#2568 は「既存の値を書き換えない」決まりで残しています。削除の前に呼び出し元がゼロか grep で確かめます。
 - **依存**: PR #2653 の merge 後に origin/main から切ります。ja.json / en.json を触るので、PR #2460 の扱いが決まっていなければ scope-overlap が BLOCK を出します（#2564・#2568・#2572 と同じ見かけの衝突）。
+
+## 2026-11-07 — 起票依頼 1 件と、Issue 本文の依存欄の直し 1 件（chat-main へ）
+
+こうだいさんが 2026-11-07 に、次の 2 つを選びました。
+
+### (1) 追加パネルの使われなくなった仮文字の欄を消す（`section:schedule` / `type:feature` 想定、sev なし）
+
+- **残った理由**: #2566（PR #2681）で、追加パネルの題の入力欄は仮文字を描かず、見出し「タイトル」を持つ形になりました。ただ、文言を渡す欄 `ItemCreatePanelLabels.eventPlaceholder` / `todoPlaceholder` は型に残しています。消すには #2566 の Scope の外を触る必要があったためです。
+- **作るもの**: 2 つの欄を `shared/src/components/schedule/ItemCreatePanel.tsx` の型から消し、渡している `web/src/schedule/scheduleCopy.ts:331-332` の 2 行も消します。呼び出し元がゼロになった i18n のキー（`scheduleScreen.quickAddPlaceholder` / `scheduleScreen.todoPlaceholder`）も消します。キーを消す前に、ほかに使う所がないか grep で確かめます。
+- **触るテスト**: 部品データに 2 つの欄を書いているテスト約 8 本です（`createPanelTapTargets` / `goalPickerField` / `itemCreatePanel` / `quickCaptureSheet` / `scheduleNarrowFieldShrink` / web の `monthCreatePanelRerender` / `scheduleOverlayHost` / `scheduleOverlays`）。
+- **依存**: PR #2681 の merge 後に origin/main から切ります。
+
+### (2) #2569 の本文の「依存する作業」の 1 行目を #2574 にする
+
+- **頼みたいこと**: こうだいさんは「PR #2679（#2569）は #2574 の merge を待つ」を選びました。merge-round は Issue 本文の `## 依存する作業` の次の 1 行から依存を拾います。今の #2569 の 1 行目は scope-overlap の注意書きで、PR #2460 と #2454 を依存と読んでしまい、#2574 は拾いません。1 行目を「#2574（吹き出しの要約に時刻を出す）の merge 後に merge する」にして、注意書きはその下へ移してください。
+- PR #2679 の本文の先頭にも、同じ待ちを書いておきます。
