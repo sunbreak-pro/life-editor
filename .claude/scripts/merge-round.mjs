@@ -16,8 +16,9 @@
 //   node .claude/scripts/merge-round.mjs autofix-push <n>           解いた結果を確かめて PR のブランチへ push する
 //   node .claude/scripts/merge-round.mjs autofix-abort <n>          一時 worktree を片付ける
 //
+// CI の緑は GitHub Actions を見ず、plan が一時 worktree（merge-verify）で scripts/local-ci.mjs を回して決める（Actions 停止中の代わり）。
 // 状態は git の共通ディレクトリ（.git/merge-round/）に置く。commit されず、worktree からも同じ場所を指す。
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 
@@ -75,25 +76,10 @@ const writeJson = (p, v) => {
 
 // ---------- 読み取り ----------
 const PR_FIELDS =
-  "number,title,headRefName,headRefOid,baseRefName,isDraft,body,labels,mergeable,mergeStateStatus,files,statusCheckRollup,createdAt";
+  "number,title,headRefName,headRefOid,baseRefName,isDraft,body,labels,mergeable,mergeStateStatus,files,createdAt";
 
 function openPrs() {
   return ghJson("pr", "list", "-R", REPO, "--state", "open", "--limit", "100", "--json", PR_FIELDS);
-}
-
-function ciState(rollup) {
-  const failing = [];
-  const pending = [];
-  for (const c of rollup ?? []) {
-    const name = c.name ?? c.context ?? "?";
-    if (c.__typename === "StatusContext") {
-      if (c.state === "PENDING" || c.state === "EXPECTED") pending.push(name);
-      else if (c.state !== "SUCCESS") failing.push(name);
-    } else if (c.status !== "COMPLETED") pending.push(name);
-    else if (!["SUCCESS", "SKIPPED", "NEUTRAL"].includes(c.conclusion)) failing.push(name);
-  }
-  if (!rollup?.length) return { state: "none", failing, pending };
-  return { state: failing.length ? "fail" : pending.length ? "pending" : "pass", failing, pending };
 }
 
 function issueRefs(pr) {
@@ -152,7 +138,7 @@ function worktrees() {
   }
   const [main, ...rest] = out;
   // chat-main が衝突を直すために作る一時 worktree（autofix-<n>）はレーンに数えない
-  const lanes = rest.filter((wt) => !basename(wt.path).startsWith(AUTOFIX_PREFIX));
+  const lanes = rest.filter((wt) => !basename(wt.path).startsWith(AUTOFIX_PREFIX) && !basename(wt.path).startsWith(VERIFY_PREFIX));
   for (const wt of lanes) {
     wt.slug = basename(wt.path);
     wt.dirty = tryRun("git", ["-C", wt.path, "status", "--porcelain", "--untracked-files=no"]).out !== "";
@@ -223,14 +209,112 @@ function mainCi() {
   return runs?.[0] ?? null;
 }
 
+// ---------- ローカル CI（GitHub Actions の代わり） ----------
+// Actions が支払いのロックで動かないあいだ、PR の CI の緑は手元で作る。
+// 順番に重ねた一時 worktree（merge-verify）で scripts/local-ci.mjs を回し、緑になった組み合わせの
+// tree と PR の head を plan.json に記録する。start は、その記録どおりの一覧だけを回に入れる。
+const VERIFY_PREFIX = "merge-verify";
+const BILLING = /billing issue|recent account payments|spending limit/i;
+
+// 1 回ぶんの local-ci。出力は .git/merge-round/verify/<label>.log に残す
+function runLocalCi(cwd, label) {
+  const r = spawnSync(process.execPath, ["scripts/local-ci.mjs"], {
+    cwd,
+    encoding: "utf8",
+    maxBuffer: 256 * 1024 * 1024,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const out = `${r.stdout ?? ""}${r.stderr ?? ""}`;
+  mkdirSync(join(STATE, "verify"), { recursive: true });
+  const log = join(STATE, "verify", `${label}.log`);
+  writeFileSync(log, out);
+  if (r.error) return { green: false, failing: [`local-ci を起動できない（${r.error.message}）`], log };
+  if (r.status === 0) return { green: true, failing: [], log };
+  // local-ci の最後の行「FAILED: [job] step, …」から落ちたステップを取る
+  const m = out.match(/FAILED: (.+)$/m);
+  return { green: false, failing: m ? m[1].split(", ") : ["（終了コードだけ。ログを見る）"], log };
+}
+
+// base の上に PR を順に merge する。衝突した PR は外して返す（同じ tree を再現できるよう、順番どおりに重ねる）
+function stackOn(path, base, prs) {
+  const g = (...args) => tryRun("git", ["-C", path, ...args]);
+  g("merge", "--abort");
+  g("reset", "--hard");
+  // ignored（node_modules）は消さない。npm ci は local-ci 自身が回す
+  g("clean", "-fd");
+  if (g("checkout", "--detach", "-f", base).code !== 0) die(`検査用 worktree を ${base.slice(0, 8)} に合わせられない（${path}）`);
+  const kept = [];
+  const conflicted = [];
+  for (const pr of prs) {
+    if (g("merge", "--no-ff", "--no-edit", "-m", `merge-round verify #${pr.number}`, pr.headOid).code === 0) kept.push(pr);
+    else {
+      g("merge", "--abort");
+      conflicted.push(pr);
+    }
+  }
+  return { kept, conflicted, tree: g("rev-parse", "HEAD^{tree}").out };
+}
+
+function stackAndRun(path, base, prs, label) {
+  const { kept, conflicted, tree } = stackOn(path, base, prs);
+  if (!kept.length) return { green: false, failing: ["重ねられる PR が無い"], log: null, tree: null, keptPrs: [], conflicted };
+  const r = runLocalCi(path, label);
+  return { green: r.green, failing: r.failing, log: r.log, tree, keptPrs: kept, conflicted };
+}
+
+// 順番どおりに全部重ねて local-ci。赤なら 1 本ずつ確かめ、通ったものだけを重ね直して確かめる
+function verifyRound(prs, base, stamp) {
+  const path = scratchPath(VERIFY_PREFIX);
+  if (!existsSync(path)) git("worktree", "add", "--detach", path, base);
+  const first = stackAndRun(path, base, prs, `${stamp}-all`);
+  if (first.green) return { ...first, kept: first.keptPrs.map((p) => p.number), reds: {}, allRed: false };
+
+  const reds = {};
+  const singles = [];
+  for (const pr of prs) {
+    const one = stackAndRun(path, base, [pr], `${stamp}-${pr.number}`);
+    if (one.green) singles.push(pr);
+    else reds[pr.number] = one.failing;
+  }
+  if (!singles.length) return { green: false, tree: null, kept: [], conflicted: first.conflicted, reds, allRed: true, log: first.log };
+  const rest = stackAndRun(path, base, singles, `${stamp}-rest`);
+  return {
+    ...rest,
+    kept: rest.keptPrs.map((p) => p.number),
+    conflicted: [...first.conflicted, ...rest.conflicted],
+    reds,
+    allRed: false,
+  };
+}
+
+// 検査用 worktree の場所（worktree-policy: リポジトリの外に絶対パスで置く）
+function scratchPath(name) {
+  return resolve(worktrees().main.path, "..", "workspaces", "life-editor", name).replace(/\\/g, "/");
+}
+
+// Actions が支払いの理由で止まっているか。文言が出ているか、どのステップも始まっていないとき
+function billingLocked(run) {
+  const id = run?.url?.match(/\/runs\/(\d+)/)?.[1];
+  if (!id || run.conclusion === "success") return false;
+  const r = tryRun("gh", ["run", "view", id, "-R", REPO, "--json", "jobs"]);
+  if (r.code !== 0) return false;
+  if (BILLING.test(r.out)) return true;
+  const jobs = JSON.parse(r.out || "{}").jobs ?? [];
+  const started = jobs.some((j) => (j.steps ?? []).some((s) => s.conclusion && s.conclusion !== "skipped"));
+  return jobs.length > 0 && !started;
+}
+
 // ---------- plan ----------
 function plan(onlyArg) {
   git("fetch", "origin", "--prune", "--quiet");
   const only = onlyArg ? new Set(onlyArg.split(",").map(Number)) : null;
   const base = git("rev-parse", "origin/main");
   const ci = mainCi();
-  // cancelled は concurrency で古い実行が止められただけなので赤に数えない
-  const mainRed = Boolean(ci && ci.status === "completed" && ["failure", "timed_out", "startup_failure"].includes(ci.conclusion));
+  const locked = Boolean(ci && ci.status === "completed" && billingLocked(ci));
+  // cancelled は concurrency で古い実行が止められただけなので赤に数えない。支払いのロックも赤に数えない
+  const mainRed = Boolean(
+    ci && ci.status === "completed" && !locked && ["failure", "timed_out", "startup_failure"].includes(ci.conclusion),
+  );
   const { lanes } = worktrees();
   const prs = openPrs().filter((pr) => !only || only.has(pr.number));
 
@@ -241,14 +325,13 @@ function plan(onlyArg) {
     const issues = refs.map(issue);
     const lane = laneFor(pr, lanes, issues);
     const files = pr.files.map((f) => f.path);
-    const c = ciState(pr.statusCheckRollup);
     // GitHub の mergeable は merge 直後しばらく UNKNOWN なので、衝突は手元の merge-tree で決める
     const conflicts = conflictFiles(pr.headRefOid);
     const item = {
       number: pr.number, title: pr.title, branch: pr.headRefName, headOid: pr.headRefOid, kind, refs, files,
-      createdAt: pr.createdAt, ci: c, mergeable: pr.mergeable, conflicts,
+      createdAt: pr.createdAt, conflicts,
       lane: lane ? { slug: lane.slug, path: lane.path, branch: lane.branch, dirty: lane.dirty, head: lane.head } : null,
-      deps: [], verdict: "merge", reason: "事前確認を通った",
+      deps: [], ci: null, verdict: "merge", reason: "事前確認を通った",
     };
     const hold = (reason) => Object.assign(item, { verdict: "hold", reason });
     const fix = (reason) => Object.assign(item, { verdict: "fix", reason });
@@ -263,9 +346,6 @@ function plan(onlyArg) {
     const frozen = issues.find((i) => i?.labels?.some((l) => l.name === "status:frozen"));
     if (frozen) return hold(`Issue #${frozen.number} が status:frozen`);
     if (conflicts.length) return fix(`main と衝突（${conflicts.join(", ")}）`);
-    if (c.state === "fail") return fix(`CI が赤（${c.failing.join(", ")}）`);
-    if (c.state === "pending") return hold(`CI が実行中（${c.pending.join(", ")}）`);
-    if (c.state === "none") return hold("CI が走っていない");
     if (lane && lane.branch === pr.headRefName && lane.dirty)
       return hold(`レーン ${lane.slug} に未コミットの変更があり、作業中`);
     if (lane && lane.branch === pr.headRefName && lane.head !== pr.headRefOid)
@@ -313,7 +393,7 @@ function plan(onlyArg) {
     for (let i = 0; i < ka.length; i++) if (ka[i] !== kb[i]) return ka[i] - kb[i];
     return 0;
   };
-  const order = [];
+  let order = [];
   const left = new Set(ready);
   while (left.size) {
     const free = [...left].filter((it) =>
@@ -324,15 +404,52 @@ function plan(onlyArg) {
     left.delete(pick);
   }
 
-  const result = { createdAt: new Date().toISOString(), base, mainCi: ci, mainRed, items, order: order.map((o) => o.number) };
+  // ローカル CI: 順番どおりに重ねて検査する。main が赤のときは revert 以外を検査しても使わないので省く
+  let local = null;
+  if (order.length && !mainRed) {
+    const stamp = new Date().toISOString().replace(/\D/g, "").slice(0, 14);
+    local = verifyRound(order, base, stamp);
+    for (const pr of local.conflicted) Object.assign(pr, { verdict: "fix", reason: "他の PR と積み重ねると衝突" });
+    for (const [n, failing] of Object.entries(local.reds)) {
+      const it = items.find((x) => x.number === Number(n));
+      Object.assign(it, { verdict: "fix", reason: `ローカル CI が赤（${failing.join(", ") || "不明"}）`, ci: { state: "fail", failing } });
+    }
+    order = order.filter((it) => local.kept.includes(it.number));
+    // 落ちた PR に依存していた PR は、検査した組み合わせから外れるので使えない
+    const keptRefs = new Set(order.flatMap((i) => i.refs));
+    const broken = order.some((it) => it.deps.some((d) => covers.has(d) && !keptRefs.has(d)));
+    if (!local.green || broken) {
+      const why = !local.green ? "組み合わせのローカル CI が赤（1 本ずつは通る）" : "依存先がローカル CI の組み合わせから外れた";
+      for (const it of order) Object.assign(it, { verdict: "hold", reason: why });
+      order = [];
+    }
+  }
+
+  const result = {
+    createdAt: new Date().toISOString(),
+    base,
+    mainCi: ci,
+    mainLocked: locked,
+    mainRed,
+    items,
+    order: order.map((o) => o.number),
+    localCi: local && order.length
+      ? { green: true, base, tree: local.tree, heads: Object.fromEntries(order.map((o) => [o.number, o.headOid])), numbers: order.map((o) => o.number), log: local.log }
+      : local ? { green: false, base, tree: null, heads: {}, numbers: [], log: local.log } : null,
+  };
   writeJson(PLAN, result);
   printPlan(result);
+  if (local?.allRed) die("すべての PR が 1 本ずつでもローカル CI で赤。main 自身が手元で赤い疑い（SKILL.md の「main が赤いとき」）。", 3);
   if (mainRed)
     die(`main の CI が赤い（${ci.url}）。revert の PR だけを merge できる。SKILL.md の「main が赤いとき」を先に済ませる。`, 3);
 }
 
 function printPlan(p) {
-  console.log(`# merge-round plan  base=${p.base.slice(0, 8)}  main CI=${p.mainCi ? `${p.mainCi.status}/${p.mainCi.conclusion || "-"}` : "不明"}\n`);
+  const mainText = p.mainCi
+    ? `${p.mainCi.status}/${p.mainCi.conclusion || "-"}${p.mainLocked ? "（支払いのロックで Actions が止まっている。手元の CI で代える）" : ""}`
+    : "不明";
+  const localText = p.localCi ? (p.localCi.green ? "緑" : "赤") : "未実行";
+  console.log(`# merge-round plan  base=${p.base.slice(0, 8)}  main CI=${mainText}  ローカル CI=${localText}\n`);
   console.log("| 順番 | PR | 判定 | 理由 | レーン | 題 |");
   console.log("| ---- | -- | ---- | ---- | ------ | -- |");
   const label = { merge: "merge", fix: "直してもらう", hold: "今回は見送り" };
@@ -354,17 +471,26 @@ function start() {
   const prev = readJson(ACTIVE);
   if (prev) die(`回 ${prev.id} が閉じていない。finish してから始める。`);
   if (!p.order.length) die("merge できる PR が 0 本。fixes で直してもらう分の指示文だけ出す。", 0);
-  if (p.mainRed && p.items.some((i) => p.order.includes(i.number) && i.kind !== "revert"))
-    die("main の CI が赤いので、revert 以外の PR では始めない。");
+  if (!p.localCi?.green) die("ローカル CI の組み合わせが緑になっていない。plan の表を見て直し、plan を回し直す。");
+  if (p.localCi.numbers.join(",") !== p.order.join(",")) die("plan の検査と一覧が違う。plan を回し直す。");
   git("fetch", "origin", "--prune", "--quiet");
   if (git("rev-parse", "origin/main") !== p.base) die("plan の後に main が進んだ。戻る地点がずれるので plan を回し直す。");
   const id = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z");
-  const heads = Object.fromEntries(p.items.filter((i) => p.order.includes(i.number)).map((i) => [i.number, i.headOid]));
-  writeJson(ACTIVE, { id, startedAt: new Date().toISOString(), base: p.base, prs: p.order, heads, checked: {} });
+  writeJson(ACTIVE, {
+    id,
+    startedAt: new Date().toISOString(),
+    base: p.base,
+    prs: p.order,
+    heads: p.localCi.heads,
+    verifiedTree: p.localCi.tree,
+    checked: {},
+  });
   console.log(`回 ${id} を始めた。戻る地点（この回の前の main）= ${p.base}`);
+  console.log(`検査した組み合わせの tree = ${p.localCi.tree}`);
   console.log(`merge する順番: ${p.order.map((n) => `#${n}`).join(" → ")}`);
 }
 
+// merge 直前の確認。CI は GitHub に聞かず、手元の検査の head と今の head が同じかを見る
 function check(nArg) {
   requireChatMain();
   const n = prNumber(nArg);
@@ -373,15 +499,13 @@ function check(nArg) {
   if (!a.prs.includes(n)) die(`#${n} は今回の一覧に無い。`, 6);
   for (let i = 0; i < 20; i++) {
     const pr = ghJson(
-      "pr", "view", String(n), "-R", REPO, "--json", "state,mergeable,mergeStateStatus,headRefOid,labels,isDraft,baseRefName,statusCheckRollup",
+      "pr", "view", String(n), "-R", REPO, "--json", "state,mergeable,mergeStateStatus,headRefOid,labels,isDraft,baseRefName",
     );
     if (pr.state === "MERGED") return die(`#${n} は merge 済み。`, 10);
     if (pr.state !== "OPEN") return die(`#${n} は ${pr.state}。`, 7);
     if (pr.labels.some((l) => l.name === HOLD_LABEL)) return die(`#${n} に ${HOLD_LABEL} が付いた。飛ばす。`, 8);
     if (pr.isDraft || pr.baseRefName !== "main") return die(`#${n} が下書きになったか、宛先が main でなくなった。飛ばす。`, 9);
-    if (pr.headRefOid !== a.heads[String(n)]) return die(`#${n} は plan の後に push された。今回は飛ばす。`, 5);
-    const c = ciState(pr.statusCheckRollup);
-    if (c.state !== "pass") return die(`#${n} の CI が通っていない（${c.state}）。飛ばす。`, 11);
+    if (pr.headRefOid !== a.heads[String(n)]) return die(`#${n} は手元の検査の後に push された。今回は飛ばす。`, 5);
     if (pr.mergeable === "CONFLICTING") return die(`#${n} は前の merge で main と衝突した。fixes に回す。`, 3);
     if (pr.mergeable === "MERGEABLE") {
       // hook は、この印がある PR の、この head だけを通す
@@ -412,8 +536,23 @@ function finish() {
   console.log(`回 ${a.id} を閉じた。main ${a.base.slice(0, 8)} → ${after.slice(0, 8)}、merge ${merged.length} 本。`);
   console.log("戻すときは新しい順に revert する（SKILL.md「merge した後に戻す」）:");
   for (const m of [...merged].reverse()) console.log(`  #${m.number} ${m.mergeCommit}  ${m.title}`);
+
+  // 全部 merge できたときだけ、main の tree が検査した tree と一致するかを見る
+  if (merged.length === a.prs.length) {
+    const tree = git("rev-parse", "origin/main^{tree}");
+    if (tree === a.verifiedTree) console.log(`main の tree は検査した tree と一致（${tree.slice(0, 8)}）。`);
+    else
+      console.log(
+        `注意: main の tree が検査した tree と違う（検査 ${a.verifiedTree.slice(0, 8)} / main ${tree.slice(0, 8)}）。` +
+          "merge の途中で main が動いたか、squash の内容が検査と違う。次の回の前に確かめる。",
+      );
+  } else {
+    console.log("一部だけ merge したので、tree の一致は比べない。");
+  }
+
   const ci = mainCi();
-  console.log(`main の CI: ${ci ? `${ci.status}/${ci.conclusion || "-"} ${ci.headSha?.slice(0, 8)} ${ci.url}` : "不明"}`);
+  if (ci && billingLocked(ci)) console.log("main の CI: Actions が支払いのロックで止まっている（手元の CI で代えた。こうだいさんの手番）。");
+  else console.log(`main の CI: ${ci ? `${ci.status}/${ci.conclusion || "-"} ${ci.headSha?.slice(0, 8)} ${ci.url}` : "不明"}`);
 }
 
 function status() {
@@ -422,6 +561,7 @@ function status() {
 }
 
 // ---------- fixes ----------
+// plan が「直してもらう」と決めた PR を、レーンごとの /goal にまとめる。CI の赤は plan の手元 CI の結果
 function modelFor(entries) {
   let tier = 0;
   for (const e of entries) {
@@ -439,26 +579,28 @@ function modelFor(entries) {
 }
 
 function fixes() {
+  const p = readJson(PLAN);
+  if (!p) die("plan.json が無い。先に plan を回す。");
   git("fetch", "origin", "--prune", "--quiet");
+  if (git("rev-parse", "origin/main") !== p.base)
+    console.log("注意: plan の後に main が進んだ。衝突の結果が変わるので、plan を回し直してから直す。\n");
   const { lanes, all } = worktrees();
   const prompted = readJson(PROMPTED, {});
   const failed = readJson(join(STATE, "autofix-failed.json"), {});
   const groups = new Map();
   const unrouted = [];
   const auto = [];
-  for (const pr of openPrs()) {
-    if (pr.isDraft || pr.baseRefName !== "main" || pr.labels.some((l) => l.name === HOLD_LABEL)) continue;
-    const conflicts = conflictFiles(pr.headRefOid);
-    const c = ciState(pr.statusCheckRollup);
-    if (!conflicts.length && c.state !== "fail") continue;
-    // plan で見送りになる PR（マイグレーション入り・凍結中）にはレーンへの指示を出さない
-    if (touchesMigration(pr.headRefOid)) continue;
-    const issues = issueRefs(pr).map(issue);
-    if (issues.some((i) => i?.labels?.some((l) => l.name === "status:frozen"))) continue;
-    const lane = laneFor(pr, lanes, issues);
-    const entry = { number: pr.number, branch: pr.headRefName, head: pr.headRefOid, conflicts, ci: c.state === "fail" ? c.failing : null };
+  for (const it of p.items.filter((i) => i.verdict === "fix")) {
+    const entry = {
+      number: it.number,
+      branch: it.branch,
+      head: it.headOid,
+      conflicts: it.conflicts,
+      ci: it.ci?.failing?.length ? it.ci.failing : null,
+    };
+    const lane = it.lane ? lanes.find((w) => w.slug === it.lane.slug) : null;
     // 文書・lockfile・翻訳ファイルだけの衝突で、どのレーンもそのブランチを開いていなければ chat-main が直す
-    if (!entry.ci && mechanical(conflicts) && !checkedOut(all, pr.headRefName, pr.headRefOid) && failed[pr.number] !== pr.headRefOid) auto.push(entry);
+    if (!entry.ci && mechanical(entry.conflicts) && !checkedOut(all, it.branch, it.headOid) && failed[it.number] !== it.headOid) auto.push(entry);
     else if (!lane) unrouted.push(entry);
     else {
       if (!groups.has(lane.slug)) groups.set(lane.slug, { lane, entries: [] });
@@ -520,10 +662,9 @@ const AUTOFIX_DIR = join(STATE, "autofix");
 const AUTOFIX_FAILED = join(STATE, "autofix-failed.json");
 const autofixState = (n) => join(AUTOFIX_DIR, `${n}.json`);
 function autofixPath(n) {
-  // worktree-policy: <repos-parent>/workspaces/life-editor/<slug>（絶対パス）
-  const mainPath = worktrees().main.path;
-  return resolve(mainPath, "..", "workspaces", "life-editor", `${AUTOFIX_PREFIX}${n}`).replace(/\\/g, "/");
+  return scratchPath(`${AUTOFIX_PREFIX}${n}`);
 }
+
 const MARKER = (file) => (/\.md$/i.test(file) ? /^(<{7}|>{7})( |$)/m : /^(<{7}|={7}|>{7})( |$)/m);
 
 function autofixStart(nArg) {
