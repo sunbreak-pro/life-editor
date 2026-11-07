@@ -201,12 +201,14 @@ describe("Notes sidebar rows on narrow (#2032)", () => {
   it("clamps the title to two lines instead of one", () => {
     render(<NotesView />);
     const title = screen.getByRole("button", { name: "Alpha" });
-    const text = title.querySelector("span")!;
+    // The title line (#2576) holds the clamped title text.
+    const text = title.querySelector("span > span")!;
     expect(text.classList.contains("max-md:line-clamp-2")).toBe(true);
     expect(text.classList.contains("max-md:whitespace-normal")).toBe(true);
     expect(title.classList.contains("max-md:whitespace-normal")).toBe(true);
-    // The row grows with the second line rather than clipping it.
-    expect(row().classList.contains("max-md:h-auto")).toBe(true);
+    // The row grows with the second line rather than clipping it: since
+    // #2576 it has floors only, no fixed height to clip at.
+    expect(row().className).not.toMatch(/(^|\s)h-\[/);
   });
 
   it("deletes from the sheet, closing it before the question", async () => {

@@ -1,4 +1,4 @@
-import { memo, type MouseEvent } from "react";
+import { memo, useId, type MouseEvent } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import {
   ChevronRight,
@@ -46,6 +46,12 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
   draggable = true,
   deleteDisabledReason,
   createdOfflineLabel,
+  excerpt,
+  updatedLabel,
+  tagName,
+  tagColor,
+  tagIcon,
+  extraTagCount = 0,
 }: {
   node: NoteNode;
   dragId: string;
@@ -80,6 +86,19 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
   deleteDisabledReason?: string;
   /** The mark on a note still waiting to be sent (#2337). */
   createdOfflineLabel?: string;
+  /**
+   * The rows' second and third lines (#2576): the body's first line, "Updated
+   * …", and the first tag. Primitives rather than a details object, so the
+   * memo above keeps comparing by value. A locked note never gets an excerpt
+   * — its body is not read, and the row hides one if it is handed one.
+   */
+  excerpt?: string;
+  updatedLabel?: string;
+  tagName?: string;
+  tagColor?: string | null;
+  tagIcon?: string | null;
+  /** Tags past the first, drawn as "+n" beside its chip. */
+  extraTagCount?: number;
 }) {
   // #2032: on a phone a hold that drifted a few px picked the row up, and the
   // hold itself selected the title. The drag (#312) is a pointer gesture for
@@ -95,6 +114,12 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
   // Not spread at all on a touch row: `disabled` stops the sensors, but the
   // attributes would still make the row a tab stop that announces a drag.
   const dragProps = dragOff ? {} : { ...attributes, ...listeners };
+  const shownExcerpt = node.hasPassword ? undefined : excerpt || undefined;
+  // The button is NAMED by its title line, as it was when that line was all
+  // it held; the excerpt and the date describe it rather than rename it.
+  const titleLineId = useId();
+  const detailsId = useId();
+  const hasMeta = updatedLabel !== undefined || tagName !== undefined;
 
   return (
     // Grip removed (#312): the whole row is the drag activator now — press-drag
@@ -126,17 +151,18 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
       // The hint describes the drag, which a touch row does not have.
       aria-label={dragOff ? undefined : dragHintLabel}
       className={cn(
-        "group relative flex items-center gap-2 rounded-lumen-md border px-2",
+        // items-start since #2576: the row is three lines tall, and the pin
+        // and the right-hand button belong beside the TITLE, not the middle.
+        "group relative flex items-start gap-2 rounded-lumen-md border px-2",
         // A hold must not start a text selection or iOS's callout (#2032).
         touchRow && "select-none [-webkit-touch-callout:none]",
-        // #1560: 36px is the mouse row; below `md` it floors at 44 (min-h-11).
-        // A `min-h-*` rather than a second `h-*`, because `cn` is a plain
-        // string join — two height utilities would be settled by Tailwind's
-        // emit order instead of by call order (#830) — and min-height beats
-        // height in CSS whichever way that lands.
-        "h-[36px] text-sm max-md:min-h-11",
+        // #2576: content height (three lines), floored at the old 36px mouse
+        // row; below `md` the floor is 44 (min-h-11, #1560). Floors only, so
+        // `cn`'s plain string join never has two of the same utility to settle
+        // (#830).
+        "min-h-[36px] py-1.5 text-sm max-md:min-h-11",
         // #2291: a touch row grows with a title clamped to two lines.
-        touchRow && "max-md:h-auto max-md:py-1",
+        touchRow && "max-md:py-1",
         isDragging && "opacity-40",
         selected
           ? "border-lumen-accent bg-lumen-accent-subtle"
@@ -157,7 +183,8 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
        */}
       <span
         aria-hidden={!node.isPinned}
-        className="flex h-[14px] w-[14px] shrink-0 items-center justify-center"
+        // h-5 = the title line's box (text-sm), so the pin sits on line 1.
+        className="flex h-5 w-[14px] shrink-0 items-center justify-center"
       >
         {node.isPinned && (
           <Pin size={13} aria-label="Pinned" className="text-lumen-accent" />
@@ -167,12 +194,15 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
       <button
         type="button"
         onClick={() => onSelect(node.id)}
+        aria-labelledby={titleLineId}
+        aria-describedby={shownExcerpt || hasMeta ? detailsId : undefined}
         className={cn(
           // #1560: this button IS the tap target the audit measured at 22.5,
           // and a row floored at 44 with a 22.5 button inside it is still a
           // 22.5 tap target. `self-stretch` fills the floored row; below `md`
           // only, so the Desktop row keeps the content-height box it has had.
-          "flex flex-1 items-center gap-1.5 truncate text-left max-md:self-stretch",
+          // A column since #2576: title line, excerpt, then updated + tag.
+          "flex min-w-0 flex-1 flex-col items-stretch gap-0.5 text-left max-md:self-stretch max-md:justify-center",
           // #2291: in the 332px drawer one line held about eight characters,
           // so notes that start alike could not be told apart. Two lines on a
           // touch row; Desktop keeps the single truncated line.
@@ -181,29 +211,67 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
         )}
       >
         <span
-          className={cn(
-            touchRow
-              ? "truncate max-md:line-clamp-2 max-md:whitespace-normal max-md:break-words"
-              : "truncate",
-            node.isPinned ? "font-medium" : "",
-            selected ? "text-lumen-accent" : "text-lumen-text",
-          )}
+          id={titleLineId}
+          className="flex min-h-5 min-w-0 items-center gap-1.5"
         >
-          {node.title || "(untitled)"}
-        </span>
-        {node.hasPassword && (
-          <Lock
-            size={12}
-            aria-label="Password protected"
-            className="shrink-0 text-lumen-text-tertiary"
-          />
-        )}
-        {/* The unsent text exists only on this device until the mark goes. */}
-        {node.createdOffline && createdOfflineLabel && (
-          <span className="shrink-0 rounded-lumen-sm border border-lumen-border px-1 text-xs text-lumen-text-secondary">
-            {createdOfflineLabel}
+          <span
+            className={cn(
+              touchRow
+                ? "truncate max-md:line-clamp-2 max-md:whitespace-normal max-md:break-words"
+                : "truncate",
+              node.isPinned ? "font-medium" : "",
+              selected ? "text-lumen-accent" : "text-lumen-text",
+            )}
+          >
+            {node.title || "(untitled)"}
           </span>
-        )}
+          {node.hasPassword && (
+            <Lock
+              size={12}
+              aria-label="Password protected"
+              className="shrink-0 text-lumen-text-tertiary"
+            />
+          )}
+          {/* The unsent text exists only on this device until the mark goes. */}
+          {node.createdOffline && createdOfflineLabel && (
+            <span className="shrink-0 rounded-lumen-sm border border-lumen-border px-1 text-xs text-lumen-text-secondary">
+              {createdOfflineLabel}
+            </span>
+          )}
+        </span>
+        <span id={detailsId} className="contents">
+          {shownExcerpt && (
+            <span
+              data-testid="note-row-excerpt"
+              className="truncate text-xs text-lumen-text-secondary"
+            >
+              {shownExcerpt}
+            </span>
+          )}
+          {hasMeta && (
+            <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-lumen-text-tertiary">
+              {updatedLabel !== undefined && (
+                <span className="shrink-0 tabular-nums">{updatedLabel}</span>
+              )}
+              {tagName !== undefined && (
+                <span
+                  data-testid="note-row-tag"
+                  className="flex min-w-0 items-center gap-1 rounded-full border border-lumen-border bg-lumen-bg-secondary px-1.5 text-lumen-text-secondary"
+                >
+                  <TagHeadingIcon
+                    icon={tagIcon ?? null}
+                    color={tagColor ?? null}
+                    size={11}
+                  />
+                  <span className="truncate">{tagName}</span>
+                </span>
+              )}
+              {tagName !== undefined && extraTagCount > 0 && (
+                <span className="shrink-0 tabular-nums">+{extraTagCount}</span>
+              )}
+            </span>
+          )}
+        </span>
       </button>
 
       {/* #2032 — the edit a Desktop right-click opens (#1677). #2291: the
@@ -241,7 +309,8 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
           disabled={deleteDisabledReason !== undefined}
           title={deleteDisabledReason}
           className={cn(
-            "shrink-0 text-lumen-text-tertiary opacity-0 transition-opacity",
+            // md:mt — centred on the 20px title line of a row aligned to the top.
+            "shrink-0 text-lumen-text-tertiary opacity-0 transition-opacity md:mt-[3px]",
             "hover:text-lumen-danger focus-visible:opacity-100 group-hover:opacity-100",
             "disabled:cursor-not-allowed disabled:hover:text-lumen-text-tertiary disabled:group-hover:opacity-50",
             /*

@@ -194,3 +194,65 @@ describe("DesktopTagHeading — memo must not swallow a prop change", () => {
     expect(screen.getByRole("button", { name: "Expand Work" })).toBeTruthy();
   });
 });
+
+/*
+ * #2576 — the row's second and third lines. Rendered directly, like the memo
+ * cases above, so a failure names the row rather than the screen.
+ */
+describe("DesktopNoteRow — three lines (#2576)", () => {
+  it("draws the excerpt, the updated date and the first tag with +n", () => {
+    render(
+      inDnd(
+        <DesktopNoteRow
+          node={note({ id: "note-a", title: "Plan" })}
+          selected={false}
+          excerpt="First line of the body"
+          updatedLabel="Updated today 09:05"
+          tagName="Work"
+          tagColor="#336699"
+          tagIcon={null}
+          extraTagCount={2}
+          {...rowProps()}
+        />,
+      ),
+    );
+    expect(screen.getByText("Plan")).toBeTruthy();
+    expect(screen.getByText("First line of the body")).toBeTruthy();
+    expect(screen.getByText("Updated today 09:05")).toBeTruthy();
+    expect(screen.getByTestId("note-row-tag").textContent).toBe("Work");
+    expect(screen.getByText("+2")).toBeTruthy();
+  });
+
+  it("draws no +n for a single tag", () => {
+    render(
+      inDnd(
+        <DesktopNoteRow
+          node={note({ id: "note-a" })}
+          selected={false}
+          tagName="Work"
+          {...rowProps()}
+        />,
+      ),
+    );
+    expect(screen.getByTestId("note-row-tag")).toBeTruthy();
+    expect(screen.queryByText(/^\+\d+$/)).toBeNull();
+  });
+
+  it("never shows the excerpt of a locked note", () => {
+    render(
+      inDnd(
+        <DesktopNoteRow
+          node={note({ id: "note-a", hasPassword: true })}
+          selected={false}
+          excerpt="secret text"
+          updatedLabel="Updated 11/3"
+          {...rowProps()}
+        />,
+      ),
+    );
+    expect(screen.queryByText("secret text")).toBeNull();
+    expect(screen.queryByTestId("note-row-excerpt")).toBeNull();
+    // The date still shows: it is not the body.
+    expect(screen.getByText("Updated 11/3")).toBeTruthy();
+  });
+});

@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import { DndContext, DragOverlay, pointerWithin } from "@dnd-kit/core";
-import { ChevronLeft, ChevronRight, FileText, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText, Pin, Search } from "lucide-react";
 import {
   EmptyState,
   SidebarListControls,
@@ -95,6 +95,42 @@ export interface NotesSidebarListLabels {
   createdOffline: string;
   /** Why a note still waiting to be sent cannot be deleted (#2337). */
   unsentLocked: string;
+  /** The default list's two group headings (#2576); the count sits beside. */
+  pinnedHeading: string;
+  allHeading: string;
+  /** A row's third line (#2576): "Updated today HH:MM" / "Updated M/D". */
+  updatedToday: (time: string) => string;
+  updatedOn: (date: string) => string;
+}
+
+/** What a row shows under its title besides the date (#2576). */
+export interface NoteRowDetails {
+  excerpt?: string;
+  /** The note's live tags, first one drawn as a chip and the rest as "+n". */
+  tags: readonly { name: string; color: string | null; icon: string | null }[];
+}
+
+/**
+ * "Updated today 14:05" for a note touched today, "Updated 11/3" otherwise
+ * (#2576) — in the device's own time zone, which is the day the user means.
+ */
+function formatNoteUpdated(
+  iso: string,
+  now: Date,
+  labels: Pick<NotesSidebarListLabels, "updatedToday" | "updatedOn">,
+): string | undefined {
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) return undefined;
+  const sameDay =
+    at.getFullYear() === now.getFullYear() &&
+    at.getMonth() === now.getMonth() &&
+    at.getDate() === now.getDate();
+  if (sameDay) {
+    const hh = String(at.getHours()).padStart(2, "0");
+    const mm = String(at.getMinutes()).padStart(2, "0");
+    return labels.updatedToday(`${hh}:${mm}`);
+  }
+  return labels.updatedOn(`${at.getMonth() + 1}/${at.getDate()}`);
 }
 
 export interface NotesSidebarListProps {
@@ -172,6 +208,8 @@ export interface NotesSidebarListProps {
   onEditNote?: (noteId: string) => void;
   /** While offline: why a row cannot be deleted (#2337). */
   offlineReason?: string;
+  /** A row's excerpt and tags (#2576); without it the rows show the date only. */
+  rowDetails?: (node: NoteNode) => NoteRowDetails;
   onCreateNote: () => void;
   dnd: NoteTagDnd;
 
@@ -218,6 +256,7 @@ export function NotesSidebarList({
   onTagLongPress,
   onEditNote,
   offlineReason,
+  rowDetails,
   onCreateNote,
   dnd,
   templatesSlot,
@@ -286,6 +325,22 @@ export function NotesSidebarList({
   const deleteLockOf = (node: NoteNode): string | undefined =>
     offlineReason ?? (node.createdOffline ? labels.unsentLocked : undefined);
 
+  // One clock read per render, so every row agrees on what "today" is.
+  const now = new Date();
+  /** The second and third lines of a row, as the row's primitive props. */
+  const detailProps = (node: NoteNode) => {
+    const details = rowDetails?.(node);
+    const [first, ...rest] = details?.tags ?? [];
+    return {
+      excerpt: details?.excerpt,
+      updatedLabel: formatNoteUpdated(node.updatedAt, now, labels),
+      tagName: first?.name,
+      tagColor: first?.color,
+      tagIcon: first?.icon,
+      extraTagCount: rest.length,
+    };
+  };
+
   /** A row of the default list or of "Other items" — never a drag source. */
   const flatRow = (node: NoteNode, onSelect: (id: string) => void) => (
     <DesktopNoteRow
@@ -303,6 +358,7 @@ export function NotesSidebarList({
       dragHintLabel={labels.assignTagHint}
       deleteDisabledReason={deleteLockOf(node)}
       createdOfflineLabel={labels.createdOffline}
+      {...detailProps(node)}
     />
   );
 
@@ -315,6 +371,19 @@ export function NotesSidebarList({
   const othersTitle = labels.otherItems(otherNotes.length);
   const othersRows = otherNotes.map((node) => flatRow(node, selectFromOthers));
   const othersInline = othersShown && othersPresentation === "inline";
+
+  /*
+   * #2576: the default list in two groups, "Pinned" over "All". A pinned note
+   * is drawn in the first group only. The counts take in every match, the
+   * rows past the 15th included: a heading names its group, not the slice of
+   * it drawn here. With nothing pinned there is one group.
+   */
+  const pinnedRows = defaultNotes.filter((n) => n.isPinned);
+  const restRows = defaultNotes.filter((n) => !n.isPinned);
+  const pinnedCount =
+    pinnedRows.length + otherNotes.filter((n) => n.isPinned).length;
+  const restCount =
+    restRows.length + otherNotes.filter((n) => !n.isPinned).length;
 
   return (
     <div className="flex flex-col gap-2">
@@ -440,11 +509,51 @@ export function NotesSidebarList({
             {othersRows}
           </OtherNotesList>
         ) : listMode === "flat" ? (
-          /* #2061 — the default list: pinned → current sort, 15 rows. */
+          /* #2061 — the default list: pinned → current sort, 15 rows, in the
+             two #2576 groups. */
           <div className="flex flex-col gap-1">
-            <ul className="flex flex-col gap-0.5">
-              {defaultNotes.map((node) => flatRow(node, onSelectNote))}
-            </ul>
+            {pinnedCount > 0 && (
+              <section
+                aria-label={labels.pinnedHeading}
+                className="flex flex-col gap-1"
+              >
+                <ListGroupHeading
+                  icon={
+                    <Pin size={12} aria-hidden className="text-lumen-accent" />
+                  }
+                  label={labels.pinnedHeading}
+                  count={pinnedCount}
+                />
+                <ul className="flex flex-col gap-0.5">
+                  {pinnedRows.map((node) => flatRow(node, onSelectNote))}
+                </ul>
+              </section>
+            )}
+            {restCount > 0 && (
+              <section
+                aria-label={labels.allHeading}
+                className={cn(
+                  "flex flex-col gap-1",
+                  // The rule and the 0.75rem between the two groups.
+                  pinnedCount > 0 && "mt-3 border-t border-lumen-border pt-3",
+                )}
+              >
+                <ListGroupHeading
+                  icon={
+                    <FileText
+                      size={12}
+                      aria-hidden
+                      className="text-lumen-text-secondary"
+                    />
+                  }
+                  label={labels.allHeading}
+                  count={restCount}
+                />
+                <ul className="flex flex-col gap-0.5">
+                  {restRows.map((node) => flatRow(node, onSelectNote))}
+                </ul>
+              </section>
+            )}
             {otherNotes.length > 0 && (
               <button
                 ref={setOthersTrigger}
@@ -514,6 +623,7 @@ export function NotesSidebarList({
                             dragHintLabel={labels.assignTagHint}
                             deleteDisabledReason={deleteLockOf(node)}
                             createdOfflineLabel={labels.createdOffline}
+                            {...detailProps(node)}
                           />
                         ))}
                       </ul>
@@ -558,5 +668,29 @@ export function NotesSidebarList({
        * presenting it as a Notes feature misdescribed it.
        */}
     </div>
+  );
+}
+
+/**
+ * A group heading of the default list (#2576). Sticky, so the group a row
+ * belongs to stays named while the list scrolls under it.
+ */
+function ListGroupHeading({
+  icon,
+  label,
+  count,
+}: {
+  icon: ReactNode;
+  label: string;
+  count: number;
+}) {
+  return (
+    <h3 className="sticky top-0 z-[1] flex h-[1.875rem] shrink-0 items-center gap-1.5 rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary px-2 text-xs font-bold text-lumen-text">
+      {icon}
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      <span className="shrink-0 font-medium tabular-nums text-lumen-text-tertiary">
+        {count}
+      </span>
+    </h3>
   );
 }
