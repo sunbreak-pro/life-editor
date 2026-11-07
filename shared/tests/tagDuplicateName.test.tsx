@@ -210,6 +210,7 @@ describe("TagHubEditBlock — the reason under the fields (#1847)", () => {
         onEdit={vi.fn()}
         onDropEdit={vi.fn()}
         onSave={vi.fn()}
+        onCancel={vi.fn()}
         onDelete={vi.fn()}
         error={TAG_HUB_LABELS.edit.duplicateName}
         labels={TAG_HUB_LABELS.edit}
@@ -232,10 +233,77 @@ describe("TagHubEditBlock — the reason under the fields (#1847)", () => {
         onEdit={vi.fn()}
         onDropEdit={vi.fn()}
         onSave={vi.fn()}
+        onCancel={vi.fn()}
         onDelete={vi.fn()}
         labels={TAG_HUB_LABELS.edit}
       />,
     );
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+});
+
+describe("TagHubEditBlock — Cancel throws the draft away (#2603)", () => {
+  const TAGS = [
+    { id: "t-work", name: "Work", color: null, icon: null },
+    { id: "t-idle", name: "Idle", color: null, icon: null },
+  ];
+
+  /** The host's wiring: the drafts hook behind the block, as ConnectScreen has it. */
+  function Host({ onClose }: { onClose: () => void }): React.JSX.Element {
+    const drafts = useTagEditDrafts(TAGS, {
+      setTagName: async () => undefined,
+      setTagIcon: async () => undefined,
+      setTagColor: async () => undefined,
+    });
+    return (
+      <TagHubEditBlock
+        tag={WORK}
+        edits={drafts.editsFor(WORK.id)}
+        dirty={drafts.isDirty(WORK.id)}
+        onEdit={(patch) => drafts.edit(WORK.id, patch)}
+        onDropEdit={(field) => drafts.drop(WORK.id, field)}
+        onSave={() => void drafts.save(WORK.id)}
+        onCancel={() => {
+          drafts.discard(WORK.id);
+          onClose();
+        }}
+        onDelete={vi.fn()}
+        error={
+          drafts.errorFor(WORK.id) === "duplicate"
+            ? TAG_HUB_LABELS.edit.duplicateName
+            : null
+        }
+        labels={TAG_HUB_LABELS.edit}
+      />
+    );
+  }
+
+  it("drops the typed name and the refusal, and asks the host to close", async () => {
+    const onClose = vi.fn();
+    render(<Host onClose={onClose} />);
+    const name = screen.getByLabelText(
+      TAG_HUB_LABELS.edit.nameLabel,
+    ) as HTMLInputElement;
+
+    fireEvent.change(name, { target: { value: "Idle" } });
+    fireEvent.click(
+      screen.getByRole("button", { name: TAG_HUB_LABELS.edit.save }),
+    );
+    // The duplicate is still refused as before.
+    await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
+
+    fireEvent.click(
+      screen.getByRole("button", { name: TAG_HUB_LABELS.edit.cancel }),
+    );
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(name.value).toBe("Work");
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(
+      (
+        screen.getByRole("button", {
+          name: TAG_HUB_LABELS.edit.save,
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
   });
 });

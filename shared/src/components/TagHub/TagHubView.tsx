@@ -84,6 +84,8 @@ export interface TagHubViewProps {
   onEditChange?: (patch: TagRowEdits) => void;
   onEditDrop?: (field: keyof TagRowEdits) => void;
   onEditSave?: () => void;
+  /** The block's Cancel: drop the draft and close the block (#2603). */
+  onEditCancel?: () => void;
   /** Why the selected tag's last save did not land, translated (#1847). */
   editError?: string | null;
   /** Delete the tag — the host confirms first (it owns the dialog layer). */
@@ -150,6 +152,7 @@ export function TagHubView({
   onEditChange,
   onEditDrop,
   onEditSave,
+  onEditCancel,
   editError = null,
   onDeleteTag,
   onCreateTag,
@@ -360,6 +363,7 @@ export function TagHubView({
                 onEdit={onEditChange}
                 onDropEdit={(field) => onEditDrop?.(field)}
                 onSave={() => onEditSave?.()}
+                onCancel={() => onEditCancel?.()}
                 error={editError}
                 onDelete={() => onDeleteTag?.(selected.id)}
                 labels={labels.edit}

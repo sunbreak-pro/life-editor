@@ -7,7 +7,8 @@ import { TAG_HUB_LABELS } from "./tagHubLabels";
 /*
  * #2499 — at 390px the tag edit sheet's colour swatches were 27px and the name
  * field 38px, under the 44px touch floor (#1561), and the "Icon" / "Color"
- * labels sat halfway down their rows instead of beside the first line.
+ * labels sat halfway down their rows instead of beside the first line. #2603
+ * then put each label on top of its field, which retires the label heights.
  *
  * jsdom has no layout (CLAUDE.md §7.1), so sizes and label positions are
  * checked in a real browser. What is pinned here is the class chain that
@@ -34,6 +35,7 @@ function renderBlock(): void {
       onEdit={vi.fn()}
       onDropEdit={vi.fn()}
       onSave={vi.fn()}
+      onCancel={vi.fn()}
       onDelete={vi.fn()}
       labels={LABELS}
     />,
@@ -44,16 +46,6 @@ const swatches = (): HTMLElement[] =>
   ITEM_COLOR_PRESETS.map((preset) =>
     screen.getByRole("button", { name: preset }),
   );
-
-/** The grid that lays out the three label / control rows. */
-const fieldGrid = (): HTMLElement =>
-  screen.getByLabelText(LABELS.nameLabel).parentElement!;
-
-/** The label cell of a row, found by its text. */
-const labelCell = (text: string): HTMLElement =>
-  [...fieldGrid().children].find(
-    (el) => el.textContent === text,
-  ) as HTMLElement;
 
 beforeEach(cleanup);
 
@@ -106,55 +98,71 @@ describe("tag edit block — touch floor on narrow (#2499)", () => {
   });
 });
 
-describe("tag edit block — labels beside their control's first line (#2499)", () => {
-  it("top-aligns the rows on narrow and keeps centring on Desktop", () => {
+describe("tag edit block — each caption on top of its field (#2603)", () => {
+  /** The field wrapper a caption heads, found by the caption's text. */
+  const fieldOf = (text: string): HTMLElement => {
+    const caption = [
+      ...document.querySelectorAll("[data-taghub-edit-fields] > div > *"),
+    ].find((el) => el.textContent === text);
+    if (!caption?.parentElement) throw new Error(`no caption ${text}`);
+    return caption.parentElement;
+  };
+
+  it("stacks every caption above its control, at every width", () => {
     renderBlock();
-
-    expect(fieldGrid()).toHaveClass("items-center", "max-md:items-start");
-  });
-
-  it("gives each label the height of its control's first line", () => {
-    renderBlock();
-
-    expect(labelCell(LABELS.nameLabel)).toHaveClass(
-      "max-md:flex",
-      "max-md:items-center",
-      "max-md:min-h-11",
-    );
-    // TagIconPicker's strip is max-md:h-12.
-    expect(labelCell(LABELS.iconLabel)).toHaveClass(
-      "max-md:flex",
-      "max-md:items-center",
-      "max-md:min-h-12",
-    );
-    // One row of 44px swatches.
-    expect(labelCell(LABELS.colorLabel)).toHaveClass(
-      "max-md:flex",
-      "max-md:items-center",
-      "max-md:min-h-11",
-    );
-  });
-
-  it("keeps the labels' Desktop classes to max-md: only", () => {
-    renderBlock();
-
+    const fields = document.querySelector(
+      "[data-taghub-edit-fields]",
+    ) as HTMLElement;
+    expect(fields).toHaveClass("flex", "flex-col");
+    expect(fields.className).not.toMatch(/grid-cols|@min-|@max-/);
     for (const text of [
       LABELS.nameLabel,
       LABELS.iconLabel,
       LABELS.colorLabel,
     ]) {
-      const classes = labelCell(text).className.split(/\s+/).filter(Boolean);
-      // `@max-[16rem]:` is #2496's cramped-frame stacking, measured on the
-      // block rather than the window; it leaves the standard panel alone.
-      expect(
-        classes.every(
-          (c) => c.startsWith("max-md:") || c.startsWith("@max-[16rem]:"),
-        ),
-      ).toBe(true);
+      const field = fieldOf(text);
+      expect(field).toHaveClass("flex", "flex-col");
+      // The caption comes first, its control after it.
+      expect(field.firstElementChild?.textContent).toBe(text);
+      expect(field.children.length).toBe(2);
+      // No phone-only height to line a side caption up with a first line.
+      expect(field.firstElementChild?.className ?? "").not.toMatch(/max-md:/);
     }
+    expect(fieldOf(LABELS.nameLabel).lastElementChild).toBe(
+      screen.getByLabelText(LABELS.nameLabel),
+    );
   });
 
-  it("matches the icon label to the strip's narrow height", () => {
+  it("frames the block with the plain border on the secondary surface", () => {
+    renderBlock();
+    const block = document.querySelector("[data-taghub-edit]") as HTMLElement;
+    expect(block).toHaveClass("border", "border-lumen-border");
+    expect(block).toHaveClass("bg-lumen-bg-secondary");
+    expect(block).not.toHaveClass("border-lumen-border-strong");
+  });
+
+  it("puts delete, Cancel and Save in the footer, with no saved-state text", () => {
+    renderBlock();
+    const footer = document.querySelector(
+      "[data-taghub-edit-footer]",
+    ) as HTMLElement;
+    const names = [...footer.querySelectorAll("button")].map(
+      (b) => b.textContent,
+    );
+    expect(names).toEqual([LABELS.deleteTag, LABELS.cancel, LABELS.save]);
+    expect(footer.textContent).not.toMatch(/Saved|Unsaved/);
+    // The row wraps instead of folding a label on a narrow block.
+    expect(footer).toHaveClass("flex-wrap");
+    for (const button of footer.querySelectorAll("button")) {
+      expect(button).toHaveClass("whitespace-nowrap");
+    }
+    // Save carries no check glyph any more.
+    const save = screen.getByRole("button", { name: LABELS.save });
+    expect(save.querySelector("svg")).toBeNull();
+    expect((save as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("matches the icon strip's narrow height (the strip is unchanged)", () => {
     renderBlock();
     const strip = screen.getByRole("group", { name: LABELS.iconLabel });
 

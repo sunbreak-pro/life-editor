@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Check, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { Button } from "../Button";
 import { cn } from "../cn";
 import { ITEM_COLOR_PRESETS } from "../colorPresets";
@@ -36,25 +36,14 @@ import { type TagHubEditLabels, type TagHubTagSummary } from "./types";
  * no-hardcoded-colour rule is about theme chrome.
  */
 
-/**
- * Room above the 2nd and 3rd labels while the fields are stacked (#2496), so a
- * label reads as the head of the field under it rather than the tail of the
- * one above. The two-column layout already separates rows by its row gap.
- */
-const STACKED_LABEL_GAP = "@max-[16rem]:mt-2";
-
 /*
- * Phone layout (#2499). The rows are not one height: the icon strip and the
- * swatch grid are taller than a line of text, and `items-center` parked each
- * label halfway down its row instead of beside the row's first line. On narrow
- * the grid aligns to the top and every label is given the height of its
- * control's FIRST line (the name field's 44px floor, the 48px icon strip, one
- * 44px swatch row), so the label sits level with what it names.
- *
- * Desktop keeps `items-center` and its painted sizes — every change here is a
- * `max-md:` class.
+ * One column at every width (#2603): each caption sits on top of its field,
+ * as the prototype draws it. The two-column grid it replaces needed #2496 (a
+ * container query that stacked it once the block was too narrow) and #2499 (a
+ * phone-only height on every caption so it lined up with its field's first
+ * line); a caption above its field needs neither.
  */
-const NARROW_LABEL = "max-md:flex max-md:items-center";
+const FIELD = "flex flex-col gap-1.5";
 
 export interface TagHubEditBlockProps {
   /** The live tag being edited (the rail's own row, counts and all). */
@@ -72,6 +61,11 @@ export interface TagHubEditBlockProps {
   onEdit: (patch: TagRowEdits) => void;
   onDropEdit: (field: keyof TagRowEdits) => void;
   onSave: () => void;
+  /**
+   * Throw the unsaved edits away and close the block (#2603). The host owns
+   * both the drafts and whether the block (or the sheet around it) is open.
+   */
+  onCancel: () => void;
   onDelete: () => void;
   /**
    * Why the last save did not land, already translated (#1847) — shown under
@@ -90,10 +84,11 @@ export function TagHubEditBlock({
   onEdit,
   onDropEdit,
   onSave,
+  onCancel,
   onDelete,
   labels,
   error = null,
-}: TagHubEditBlockProps) {
+}: TagHubEditBlockProps): React.JSX.Element {
   const errorId = `taghub-edit-error-${tag.id}`;
   // Live tag underneath, the user's own edits on top. An untouched field has no
   // local state at all, so an outside rename (#586: another surface, sync, MCP)
@@ -124,35 +119,14 @@ export function TagHubEditBlock({
   return (
     <div
       data-taghub-edit=""
-      className={cn(
-        // #2496 — the block measures ITSELF (`@container`), not the window.
-        // On Desktop the detail column shrinks with the right panel, so a
-        // viewport breakpoint cannot tell a wide window with a wide panel
-        // from a wide window with a narrow one.
-        "@container flex flex-shrink-0 flex-col gap-3.5 rounded-lumen-md border border-lumen-border-strong",
-        "bg-lumen-bg-secondary p-4",
-      )}
+      className="flex flex-shrink-0 flex-col gap-3.5 rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary p-4"
     >
       <div
-        className={cn(
-          "grid items-center gap-x-4 text-sm text-lumen-text-secondary",
-          // #2496 — under 16rem the label column alone ate the row and the
-          // fields beside it folded letter by letter, so each label moves
-          // above its field instead. 16rem is under the narrowest phone
-          // (320px leaves ~262px here), so Mobile and the standard Desktop
-          // panel keep the two columns.
-          "grid-cols-1 gap-y-1.5 @min-[16rem]:grid-cols-[auto_1fr] @min-[16rem]:gap-y-3",
-          // #2499 — see NARROW_LABEL.
-          "max-md:items-start",
-        )}
+        data-taghub-edit-fields=""
+        className="flex flex-col gap-3 text-sm text-lumen-text-secondary"
       >
-        <>
-          <label
-            htmlFor={`taghub-name-${tag.id}`}
-            className={cn(NARROW_LABEL, "max-md:min-h-11")}
-          >
-            {labels.nameLabel}
-          </label>
+        <div className={FIELD}>
+          <label htmlFor={`taghub-name-${tag.id}`}>{labels.nameLabel}</label>
           <input
             id={`taghub-name-${tag.id}`}
             ref={nameRef}
@@ -177,20 +151,15 @@ export function TagHubEditBlock({
               // 44px on a phone (#1561); height only, so the row is no wider.
               "max-md:min-h-11",
               FOCUS_RING_TIGHT,
-              // An unsaved field says so on itself, not only through the
-              // footer's state text.
+              // An unsaved field says so on itself; with no "Unsaved" text in
+              // the footer (#2603), this and the save button are the signal.
               dirty && "border-lumen-accent",
             )}
           />
-        </>
+        </div>
 
-        <>
-          {/* The strip TagIconPicker draws first is 48px tall on narrow. */}
-          <span
-            className={cn(NARROW_LABEL, "max-md:min-h-12", STACKED_LABEL_GAP)}
-          >
-            {labels.iconLabel}
-          </span>
+        <div className={FIELD}>
+          <span>{labels.iconLabel}</span>
           <div className="flex items-center gap-2">
             <TagIconPicker
               current={icon}
@@ -207,14 +176,10 @@ export function TagHubEditBlock({
               }}
             />
           </div>
-        </>
+        </div>
 
-        <>
-          <span
-            className={cn(NARROW_LABEL, "max-md:min-h-11", STACKED_LABEL_GAP)}
-          >
-            {labels.colorLabel}
-          </span>
+        <div className={FIELD}>
+          <span>{labels.colorLabel}</span>
           {/*
            * The swatches are laid out INLINE rather than behind the shared
            * ColorPicker's trigger (D7): the block is already the disclosure — you
@@ -299,7 +264,7 @@ export function TagHubEditBlock({
               </label>
             </div>
           </div>
-        </>
+        </div>
       </div>
 
       {error && (
@@ -308,12 +273,13 @@ export function TagHubEditBlock({
         </p>
       )}
 
-      {/* Footer (#681's arrangement, kept): delete on the left, state text and
-          save on the right, both always in the same place — only the save
-          button's enabled state moves, with the reason spelled out beside it. */}
-      {/* #2496 — the row wraps instead of squeezing: on a narrow block the
-          state text and save drop under delete (kept right by `ml-auto`),
-          and no label inside it ever breaks. One line wherever it fits. */}
+      {/* Footer: delete on the left, Cancel and Save on the right (#2603, the
+          prototype's). No "Saved / Unsaved" text: the save button is enabled
+          only with something to save, and the name field's accent border
+          marks the draft. */}
+      {/* #2496 — the row wraps instead of squeezing: on a narrow block Cancel
+          and Save drop under delete (kept right by `ml-auto`), and no label
+          inside it ever breaks. One line wherever it fits. */}
       <div
         data-taghub-edit-footer=""
         className="flex flex-wrap items-center justify-between gap-3 border-t border-lumen-border pt-3"
@@ -332,27 +298,19 @@ export function TagHubEditBlock({
           {labels.deleteTag}
         </button>
 
-        <div className="ml-auto flex shrink-0 items-center gap-3">
-          <span
-            aria-live="polite"
-            className={cn(
-              "flex items-center gap-1.5 whitespace-nowrap text-xs",
-              dirty ? "text-lumen-text-secondary" : "text-lumen-text-tertiary",
-            )}
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            className={cn("whitespace-nowrap", CARD_BTN_TAP)}
+            onClick={onCancel}
           >
-            {dirty && (
-              <span
-                aria-hidden
-                className="h-1.5 w-1.5 rounded-full bg-lumen-warning"
-              />
-            )}
-            {dirty ? labels.unsaved : labels.saved}
-          </span>
+            {labels.cancel}
+          </Button>
           <Button
             variant="primary"
             size="sm"
             className={cn("whitespace-nowrap", CARD_BTN_TAP)}
-            leadingIcon={<Check size={13} aria-hidden />}
             onClick={onSave}
             disabled={!dirty}
           >

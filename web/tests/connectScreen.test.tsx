@@ -1136,9 +1136,40 @@ describe("ConnectScreen — what writes nothing", () => {
       target: { value: "Work log" },
     });
 
-    // The block says so on screen; the service has heard nothing (#715 — blur
-    // stopped committing, the button is the only commit).
-    screen.getByText("Unsaved");
+    // The block says so on screen — Save turns on, with no "Unsaved" text
+    // any more (#2603); the service has heard nothing (#715 — blur stopped
+    // committing, the button is the only commit).
+    expect(
+      (screen.getByRole("button", { name: "Save" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false);
+    expect(screen.queryByText("Unsaved")).toBeNull();
+    for (const method of WRITE_METHODS) {
+      expect(writes[method]).not.toHaveBeenCalled();
+    }
+  });
+
+  it("Cancel closes the editor and throws the typed name away (#2603)", async () => {
+    const { ds, writes } = makeWritableDS();
+    await renderScreen(ds);
+    openTag("Work: 4 items");
+    openEditor();
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Work log" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByLabelText("Name")).toBeNull();
+    // Reopened, the block shows the stored name, not the dropped draft.
+    openEditor();
+    expect((screen.getByLabelText("Name") as HTMLInputElement).value).toBe(
+      "Work",
+    );
+    // A dropped draft never asks before switching tags.
+    openTag("Untagged: 1 item");
+    expect(
+      screen.queryByRole("heading", { level: 2, name: "Work" }),
+    ).toBeNull();
     for (const method of WRITE_METHODS) {
       expect(writes[method]).not.toHaveBeenCalled();
     }
