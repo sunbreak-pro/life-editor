@@ -11,6 +11,11 @@ export {
   type StatusFilterChip,
 } from "./StatusFilterChips";
 export { ExcerptListItem, type ExcerptListItemProps } from "./ExcerptListItem";
+// The Daily panel's month calendar (#2588).
+export {
+  DailyMonthCalendar,
+  type DailyMonthCalendarProps,
+} from "./DailyMonthCalendar";
 export {
   NoteDetailPanel,
   NOTE_STICKY_HEADER_HEIGHT_VAR,

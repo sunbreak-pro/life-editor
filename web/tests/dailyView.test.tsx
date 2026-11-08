@@ -856,8 +856,9 @@ describe("DailyView — desktop entry panel", () => {
     // outside they read as a filter that did nothing.
     expect(screen.queryByText("materials.daily.today")).toBeNull();
     expect(screen.queryByText("materials.daily.yesterday")).toBeNull();
-    // What is left above the list: the picker, the search and the sort.
-    screen.getByLabelText("materials.daily.datePicker");
+    // What is left above the list: the calendar (#2588), the search and the
+    // sort.
+    screen.getByLabelText("materials.daily.calendar");
     screen.getByLabelText("materials.daily.filterLabel");
     screen.getByLabelText("materials.sidebar.sort");
   });

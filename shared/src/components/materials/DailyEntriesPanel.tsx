@@ -1,24 +1,26 @@
-import {
-  Calendar,
-  CalendarDays,
-  ChevronDown,
-  Pin,
-  Search,
-} from "lucide-react";
+import { Calendar, CalendarDays, Pin, Search } from "lucide-react";
 import { cn } from "../cn";
 import { EmptyState } from "../EmptyState";
+import {
+  DailyMonthCalendar,
+  type DailyMonthCalendarProps,
+} from "./DailyMonthCalendar";
 import { ExcerptListItem } from "./ExcerptListItem";
 
 /*
  * Daily past-entries panel (Materials mini-plan Step 4). The right-hand pane
  * the Daily tab pushes into the shared rightSidebar (Desktop only). Unlike the
  * Todos / Notes detail panels this is always-present content (not selection-
- * driven): a native date picker row and the chronological entry list.
+ * driven): a month calendar and the chronological entry list.
  *
  * #1189 removed the "today / yesterday" pair that used to sit above the picker.
  * Both buttons set the same selected date the picker and the entry rows set, so
  * from the outside they read as a filter — and pressing one on any day but the
  * one it named changed nothing visible in the panel itself.
+ *
+ * #2588 put a month calendar where the native date picker row was. The row
+ * showed one date and nothing else; the calendar shows which days of the month
+ * have an entry, and it is still the way to open a day nobody has written yet.
  *
  * Pure presentation, DataService-free (§3.1): every pick / select is a
  * host-injected callback, all copy is already-translated props (§6.4 — no
@@ -40,13 +42,8 @@ export interface DailyEntriesPanelEntry {
 }
 
 export interface DailyEntriesPanelProps {
-  /** Value for the native date input (YYYY-MM-DD). */
-  pickerDate: string;
-  /** Already-translated display label for the picker row (e.g. "2026/07/05"). */
-  pickerLabel: string;
-  /** Already-translated aria-label for the date input (§6.4). */
-  datePickerLabel: string;
-  onPickDate: (date: string) => void;
+  /** The month calendar at the top of the panel (#2588), passed through. */
+  calendar: DailyMonthCalendarProps;
   /** Already-translated heading (e.g. "エントリ（3）"). */
   entriesHeading: string;
   entries: DailyEntriesPanelEntry[];
@@ -64,10 +61,7 @@ export interface DailyEntriesPanelProps {
 }
 
 export function DailyEntriesPanel({
-  pickerDate,
-  pickerLabel,
-  datePickerLabel,
-  onPickDate,
+  calendar,
   entriesHeading,
   entries,
   onSelectEntry,
@@ -78,31 +72,7 @@ export function DailyEntriesPanel({
 }: DailyEntriesPanelProps) {
   return (
     <div className={cn("flex flex-col gap-3", className)}>
-      {/* Date picker row — a styled display row with an invisible native
-          <input type="date"> overlaid so the OS picker opens on click.
-          #1189 took the "today / yesterday" pair off the top of it: the two
-          buttons set the same selected date this row does, so on any day but
-          today they looked like a filter that did nothing. The card they sat in
-          went with them — one control does not need a container. */}
-      <div
-        className={cn(
-          "relative flex h-8 items-center gap-2 rounded-lumen-md border border-lumen-border bg-lumen-bg px-2.5 text-[12.5px] text-lumen-text-secondary",
-          "focus-within:outline-none focus-within:ring-2 focus-within:ring-lumen-accent",
-        )}
-      >
-        <Calendar size={13} aria-hidden className="shrink-0" />
-        <span className="min-w-0 flex-1 truncate">{pickerLabel}</span>
-        <ChevronDown size={12} aria-hidden className="shrink-0" />
-        <input
-          type="date"
-          value={pickerDate}
-          onChange={(e) => {
-            if (e.target.value) onPickDate(e.target.value);
-          }}
-          aria-label={datePickerLabel}
-          className="absolute inset-0 cursor-pointer opacity-0"
-        />
-      </div>
+      <DailyMonthCalendar {...calendar} />
 
       {/* Entry list. */}
       <div className="flex flex-col gap-1.5">

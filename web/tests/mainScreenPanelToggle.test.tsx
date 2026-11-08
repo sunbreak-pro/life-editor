@@ -143,17 +143,21 @@ describe("rightSidebar toggle name (#2390)", () => {
     ).toBeTruthy();
   });
 
-  it("goes back to the generic name on the Daily tab of the same section", () => {
+  it("names the calendar on the Daily tab of the same section (#2588)", () => {
     render(<MainScreen session={SESSION} />);
     goToSection("section.materials");
 
     selectMaterialsTab("section.daily");
 
     screen.getByTestId("daily-body");
-    expect(screen.getByRole("button", { name: "詳細を開く" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "カレンダーを開く" }));
+    expect(
+      screen.getByRole("button", { name: "カレンダーを閉じる" }),
+    ).toBeTruthy();
     expect(
       screen.queryByRole("button", { name: "ノート一覧を開く" }),
     ).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "カレンダーを閉じる" }));
 
     selectMaterialsTab("section.notes");
 

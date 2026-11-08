@@ -250,15 +250,20 @@ export const SECTION_DESCRIPTORS: Readonly<
     narrowWidth: "fluid",
     tabBand: "materials",
     narrowHeader: "tabs+hamburger",
-    // The Notes panel holds the note list (#876), so "details" names the wrong
-    // thing. Daily keeps the generic name.
+    // The Notes panel holds the note list (#876) and the Daily one opens on its
+    // month calendar (#2588), so "details" names the wrong thing on both.
     panelToggleLabelKeys: (nav) =>
       nav.materialsTab === "notes"
         ? {
             open: "materials.notes.openList",
             close: "materials.notes.closeList",
           }
-        : undefined,
+        : nav.materialsTab === "daily"
+          ? {
+              open: "materials.daily.openCalendar",
+              close: "materials.daily.closeCalendar",
+            }
+          : undefined,
     body: ({ ds, nav, loadingFallback }) => (
       <>
         {nav.materialsTab === "notes" && (

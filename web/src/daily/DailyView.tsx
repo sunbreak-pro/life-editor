@@ -395,6 +395,29 @@ export function DailyView({
     () => new Intl.DateTimeFormat(localeTag, { weekday: "short" }),
     [localeTag],
   );
+  // The month calendar's copy (#2588). 2026-11-01 is a Sunday, so the seven
+  // days after it give the names in the calendar's Sunday-first order.
+  const calendarWeekdays = useMemo(
+    () =>
+      Array.from({ length: 7 }, (_, i) =>
+        weekdayShort.format(new Date(2026, 10, 1 + i)),
+      ),
+    [weekdayShort],
+  );
+  const calendarMonthFormat = useMemo(
+    () =>
+      new Intl.DateTimeFormat(localeTag, { year: "numeric", month: "long" }),
+    [localeTag],
+  );
+  const calendarDayFormat = useMemo(
+    () =>
+      new Intl.DateTimeFormat(localeTag, {
+        month: "long",
+        day: "numeric",
+        weekday: "short",
+      }),
+    [localeTag],
+  );
 
   // The TipTap editor owns its draft and ignores initialContent changes once
   // mounted, so remount (key bump) exactly when the STORED content for the
@@ -892,6 +915,25 @@ export function DailyView({
     dailyFilterQuery,
   ]);
 
+  // Days the calendar dots (#2588): the ones whose entry has a first line to
+  // show, read the same way the list's excerpt is. A light row (#2325) has no
+  // body, but its head blocks carry that first line.
+  const markedDates = useMemo(
+    () =>
+      new Set(
+        dailies
+          .filter((d) =>
+            contentExcerpt(
+              readDailyText(
+                d.bodyLoaded === false ? d.headContent : d.content,
+              ) ?? undefined,
+            ),
+          )
+          .map((d) => d.date),
+      ),
+    [dailies],
+  );
+
   // "今日へ" accent CTA — jump the selection to today.
   const toTodayButton = (
     <button
@@ -1132,10 +1174,25 @@ export function DailyView({
           // iOS's callout. The rows only open a day, so a hold has nothing to
           // offer; narrow or any pointer that cannot hover.
           className="max-md:select-none max-md:[-webkit-touch-callout:none] [@media(hover:none)]:select-none [@media(hover:none)]:[-webkit-touch-callout:none]"
-          pickerDate={selectedDate}
-          pickerLabel={selectedDate.replaceAll("-", "/")}
-          datePickerLabel={t("materials.daily.datePicker")}
-          onPickDate={selectDay}
+          calendar={{
+            selectedDate,
+            today: todayIso,
+            markedDates,
+            onSelectDate: selectDay,
+            weekdayLabels: calendarWeekdays,
+            formatMonthLabel: (year, month) =>
+              calendarMonthFormat.format(new Date(year, month - 1, 1)),
+            formatDayLabel: (date, marked) => {
+              const [y, m, d] = date.split("-").map(Number);
+              const day = calendarDayFormat.format(new Date(y, m - 1, d));
+              return marked
+                ? t("materials.daily.calendarDayWithEntry", { day })
+                : day;
+            },
+            label: t("materials.daily.calendar"),
+            prevMonthLabel: t("materials.daily.calendarPrev"),
+            nextMonthLabel: t("materials.daily.calendarNext"),
+          }}
           entriesHeading={t("materials.daily.entriesCount", {
             count: panelEntries.length,
           })}

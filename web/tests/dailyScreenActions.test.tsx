@@ -188,6 +188,42 @@ async function renderDaily(harness: Harness) {
 }
 
 /** Moves the selection off today, through the entry panel the user uses. */
+/**
+ * Opens a day through the month calendar (#2588), paging to its month first:
+ * yesterday is last month on the 1st, and a linked day is weeks back.
+ */
+function pickDay(date: string) {
+  for (let i = 0; i < 24; i++) {
+    const day = document.querySelector<HTMLButtonElement>(
+      `button[data-date="${date}"]`,
+    );
+    if (day) {
+      fireEvent.click(day);
+      return;
+    }
+    const shown =
+      document.querySelector<HTMLButtonElement>("button[data-date]")?.dataset
+        .date;
+    if (!shown) throw new Error("the month calendar is not on screen");
+    fireEvent.click(
+      screen.getByRole("button", {
+        name:
+          date < shown
+            ? "materials.daily.calendarPrev"
+            : "materials.daily.calendarNext",
+      }),
+    );
+  }
+  throw new Error(`no calendar day ${date}`);
+}
+
+/** The day the calendar shows as open. */
+function pressedDay(): string | undefined {
+  return document.querySelector<HTMLButtonElement>(
+    'button[data-date][aria-pressed="true"]',
+  )?.dataset.date;
+}
+
 function openYesterday() {
   const entry = screen
     .getAllByRole("button")
@@ -297,10 +333,8 @@ describe("DailyView — the kebab writes to the row the date resolves to", () =>
     // Opened explicitly rather than relied on as the default: the selection
     // store is module-level and outlives the tree by design (#282), so what
     // "the open day" is depends on where the session left off. #1189 retired
-    // the "today" quick-jump, so the date picker is the way to say which day.
-    fireEvent.change(screen.getByLabelText("materials.daily.datePicker"), {
-      target: { value: TODAY },
-    });
+    // the "today" quick-jump, so the calendar is the way to say which day.
+    pickDay(TODAY);
 
     kebab();
     menuItem("materials.daily.delete");
@@ -350,11 +384,9 @@ describe("DailyView — the editor's save", () => {
       </SyncWrapper>,
     );
     await screen.findByTestId("editor");
-    // Jump to a day with no stored entry. The picker is the only route to one
-    // since #1189 — the entry list can only offer days that already exist.
-    fireEvent.change(screen.getByLabelText("materials.daily.datePicker"), {
-      target: { value: YESTERDAY },
-    });
+    // Jump to a day with no stored entry. The calendar is the only route to
+    // one since #1189 — the entry list can only offer days that already exist.
+    pickDay(YESTERDAY);
 
     fireEvent.click(screen.getByTestId("save-empty"));
 
@@ -453,18 +485,16 @@ describe("DailyView — the calendar follows a link to a day (#2393)", () => {
   }
 
   const followLink = () => fireEvent.click(screen.getByTestId("follow-link"));
-  const findPicker = () =>
-    screen.findByLabelText<HTMLInputElement>("materials.daily.datePicker");
 
   it("opens the tab on the linked day, with the calendar on that day", async () => {
     render(<LinkHost harness={makeHarness()} />);
-    expect(screen.queryByLabelText("materials.daily.datePicker")).toBeNull();
+    expect(screen.queryByLabelText("materials.daily.calendar")).toBeNull();
 
     followLink();
 
-    const picker = await findPicker();
-    await waitFor(() => expect(picker.value).toBe(LINKED));
-    screen.getByText(LINKED.replaceAll("-", "/"));
+    await screen.findByLabelText("materials.daily.calendar");
+    // LINKED is 40 days back, so the calendar has paged to its month.
+    await waitFor(() => expect(pressedDay()).toBe(LINKED));
     expect((await screen.findByTestId("editor")).textContent).toBe(
       `daily-${LINKED}`,
     );
@@ -473,19 +503,18 @@ describe("DailyView — the calendar follows a link to a day (#2393)", () => {
   it("moves a calendar that is already open on another day", async () => {
     render(<LinkHost harness={makeHarness()} />);
     followLink();
-    const picker = await findPicker();
-    await waitFor(() => expect(picker.value).toBe(LINKED));
+    await screen.findByLabelText("materials.daily.calendar");
+    await waitFor(() => expect(pressedDay()).toBe(LINKED));
 
-    // Walk away through the calendar itself, so the input has been touched.
-    fireEvent.change(picker, { target: { value: TODAY } });
+    // Walk away through the calendar itself, so it has been touched.
+    pickDay(TODAY);
     await waitFor(() =>
       expect(screen.getByTestId("editor").textContent).toBe(`daily-${TODAY}`),
     );
-    expect(picker.value).toBe(TODAY);
+    expect(pressedDay()).toBe(TODAY);
 
     followLink();
 
-    await waitFor(() => expect(picker.value).toBe(LINKED));
-    screen.getByText(LINKED.replaceAll("-", "/"));
+    await waitFor(() => expect(pressedDay()).toBe(LINKED));
   });
 });
