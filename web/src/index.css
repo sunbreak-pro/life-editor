@@ -713,16 +713,20 @@ body {
  *
  * #1183 sized it in `em` so it tracked the editor's font. That reason is spent:
  * the size that matters now is the one the paper and the Schedule tray draw,
- * and that is a px. `--todo-checkbox-size` IS the shared TODO_CHECKBOX_ICON_PX
- * — web/tests/taskListCheckboxSize.test.ts fails if the two numbers drift.
+ * and that is a px. #2671 then made THIS box 2px larger than the shared
+ * TODO_CHECKBOX_ICON_PX (20 → 22): beside a numbered list's numbers the 20px
+ * circle read as small. Only here — raising the shared constant would also
+ * grow the Schedule panel's and the briefing's circles, which nobody asked
+ * for. web/tests/taskListCheckboxSize.test.ts holds the 2–3px gap, and the
+ * mobile rule below keeps the box's left edge where the 20px one had it.
  *
  * The 44px touch floor the React control keeps is deliberately NOT copied here.
  * This box sits inside flowing text: a 44px target would reach into the lines
  * above and below and swallow clicks meant to put the caret there. The visible
- * 20px box is the whole target — still half again the ~15px it used to be.
+ * 22px box is the whole target — half again the ~15px it used to be.
  */
 .note-editor .ProseMirror ul[data-type="taskList"] input[type="checkbox"] {
-  --todo-checkbox-size: 20px;
+  --todo-checkbox-size: 22px;
   --todo-checkbox-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3C/svg%3E");
   appearance: none;
   -webkit-appearance: none;
@@ -816,6 +820,12 @@ body {
     position: relative;
     min-width: 2.75rem;
     justify-content: center;
+  }
+  /* #2671: the box is centred in its 44px column, so growing it 2px would move
+     its left edge 1px left. A left margin of the whole growth puts the edge
+     back where the 20px box had it; the extra width goes to the right. */
+  .note-editor .ProseMirror ul[data-type="taskList"] li > label > input {
+    margin-left: 2px;
   }
   .note-editor .ProseMirror ul[data-type="taskList"] li > label::before {
     content: "";
