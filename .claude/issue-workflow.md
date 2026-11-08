@@ -24,7 +24,7 @@
 
 **revert された PR は着地に数えません。** この判定は、グローバルのスキルの着地の判定より先に、main のセッションが行います。merge-round で戻した作業は、この workflow で実装し直す決まりだからです（`merge-round` スキルの「merge した後に戻す」）。戻した PR の `mergeCommit` も origin/main の祖先のままなので、この判定がないと、戻した Issue が着地済みに見えて二度と選ばれません。merged の PR #p（merge commit が `<oid>`）は、次のどちらかに当たれば着地に数えません。
 
-1. origin/main に着地した merged の PR が、#p を戻している。題が `Revert "<#p の題>"` か `revert: <#p の題> (#p)`（merge-round の書式）で、題か本文に `#p` を含むものが当たりです。
+1. origin/main に着地した merged の PR が、#p を戻している。題が `Revert "<#p の題>"` か `revert: <#p の題> (#p)`（merge-round の書式）で、題か本文に `#p` を含むものが当たりです。数えるのは merged の revert PR だけで、open や close のままの revert PR は数えません。番号は `#<p>(?!\d)` の形で照らし、直後に数字が続くものは当たりにしません（#12 で #123 を拾わないためです）。
 2. `git log origin/main --grep "This reverts commit <oid>"` が 1 件以上出る。
 
 戻した PR 自身も着地に数えません。merge-round の書式では、戻した PR の本文にも `Refs #<Issue>` が入るためです。戻した PR がさらに戻されていれば、元の PR は着地に戻ります。
@@ -124,10 +124,11 @@ notes は日本語（です・ます）で書きます。
 
 chat-main（リポジトリ直下の main の checkout）が、実行の報告を受けて次を行います。
 
-- **merge はこうだいさんが決めます。** こうだいさんが打つか、chat-main で `merge-round` スキルを起動したときだけ merge します（P-001）。merge-round は、レーンの手元に未コミットの変更がある PR と、手元と PR の先頭が食い違う PR を見送ります。そのため、merge されるまで `wf-*` の worktree には手を入れずに残します。
+- **merge はこうだいさんが決めます。** こうだいさんが打つか、chat-main で `merge-round` スキルを起動したときだけ merge します（P-001）。
+- **PR が open の `wf-*` の worktree は、merge-round の「衝突と CI の赤を振り分ける」（`fixes`）より前に外します。** 外すコマンドは `git -C C:/Users/user/orca/life-editor worktree remove C:/Users/user/orca/workspaces/life-editor/wf-<番号>` です。ブランチは origin に残るので、PR はそのまま動きます。`merge-round.mjs` は、`autofix-*` と `merge-verify` 以外の worktree をすべてレーンに数えるためです。残しておくと、誰もいない worktree 宛てに `/goal` の指示文が出ます。chat-main が衝突を直す autofix も、「レーンがブランチを開いている」と判定されて止まります。PR のない `wf-*`（全体確認で落ちたもの）は外さずに残します。
 - **実ブラウザでの確認は chat-main がします。** 画面に関わる PR は、merge の後に chat-main が playwright MCP と dev server で確かめます。db push が要る PR は、こうだいさんの作業として伝えます。
 - **Issue の close は workflow がしません。** 実ブラウザでの確認と db push が済んだあとに、こうだいさんか chat-main が手で閉じます（CLAUDE.md §7.2）。
 - **全体確認で落ちた Issue** はブランチが `wf-<番号>` の worktree に残るので、次の回では共通の除外で外れます。その worktree で直して PR まで進めるか、ブランチと worktree を消して次の回に回すかを、chat-main がこうだいさんに聞きます。
 - **notes に出た Scope の外の気づき**は、chat-main が `issue-dispatch` で起票します。
 - **記録**は、chat-main が `task-tracker` で専用のブランチ `chore/tracker-main-YYYYMMDD` に残します。実装の PR には載せません。
-- **片付け**は、PR が merge されたあとに `finished-work` スキルで `wf-*` の worktree を一覧にし、確認を取ってから消します。Windows で `Permission denied` になったときの手順は `worktree-policy` スキルの「Windows での worktree 削除」にあります。
+- **片付け**は、`finished-work` スキルで残った `wf-*` の worktree を一覧にし、確認を取ってから消します。Windows で `Permission denied` になったときの手順は `worktree-policy` スキルの「Windows での worktree 削除」にあります。

@@ -87,6 +87,8 @@ gh pr merge <n> -R sunbreak-pro/life-editor --squash
 
 ### 4. 衝突と CI の赤を振り分ける
 
+`fixes` の前に、issue-workflow が作った `wf-*` の worktree のうち PR が open のものを `git -C C:/Users/user/orca/life-editor worktree remove C:/Users/user/orca/workspaces/life-editor/wf-<番号>` で外す。ブランチは origin に残る。`merge-round.mjs` は `autofix-*` と `merge-verify` 以外の worktree をすべてレーンに数えるので、残すと誰もいない worktree 宛てに `/goal` が出て、4a の autofix も「レーンが開いている」で止まるからです（`.claude/issue-workflow.md` の「実行のあと」）。
+
 ```bash
 node .claude/scripts/merge-round.mjs fixes
 ```
