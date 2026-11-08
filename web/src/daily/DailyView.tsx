@@ -869,10 +869,13 @@ export function DailyView({
   );
 
   // "desc" renders newest-first, "asc" oldest-first (filterAndSortDailyEntries).
-  const dailyDirectionLabel =
-    dailySortDirection === "desc"
-      ? t("materials.sidebar.newest")
-      : t("materials.sidebar.oldest");
+  const dailyDirections = useMemo(
+    () => [
+      { id: "desc" as const, label: t("materials.sidebar.newest") },
+      { id: "asc" as const, label: t("materials.sidebar.oldest") },
+    ],
+    [t],
+  );
 
   const panelEntries = useMemo<DailyEntriesPanelEntry[]>(() => {
     const enriched = dailies.map((d) => {
@@ -1147,21 +1150,21 @@ export function DailyView({
   const pastEntries = (
     <RightSidebarPortal>
       <div className="flex flex-col gap-2">
-        {/* Sort mode + direction + filter (#283, modes added in #369),
-            above the past-entries panel. */}
+        {/* Filter + sort (#283, modes added in #369, one button + chip
+            panel since #2577), above the past-entries panel. */}
         <SidebarListControls
           modes={dailySortModes}
           activeModeId={dailySortMode}
           onModeChange={(id) => setDailySortMode(id as DailyListSortMode)}
           sortLabel={t("materials.sidebar.sort")}
+          modeGroupLabel={t("materials.sidebar.sortBy")}
+          directionGroupLabel={t("materials.sidebar.sortOrder")}
+          directions={dailyDirections}
           direction={dailySortDirection}
-          onToggleDirection={() =>
-            setDailySortDirection(
-              dailySortDirection === "desc" ? "asc" : "desc",
-            )
+          onDirectionChange={setDailySortDirection}
+          formatSummary={(mode, order) =>
+            t("materials.sidebar.sortSummary", { mode, order })
           }
-          directionLabel={dailyDirectionLabel}
-          directionToggleLabel={t("materials.sidebar.toggleDirection")}
           filter={{
             value: dailyFilterQuery,
             onChange: setDailyFilterQuery,

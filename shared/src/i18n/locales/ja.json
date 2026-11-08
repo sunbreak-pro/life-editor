@@ -739,6 +739,9 @@
     },
     "sidebar": {
       "sort": "並び替え",
+      "sortBy": "基準",
+      "sortOrder": "順番",
+      "sortSummary": "{{mode}}・{{order}}",
       "toggleDirection": "並び順を切り替え",
       "newest": "新しい順",
       "oldest": "古い順",

@@ -741,6 +741,9 @@
     },
     "sidebar": {
       "sort": "Sort",
+      "sortBy": "Sort by",
+      "sortOrder": "Order",
+      "sortSummary": "{{mode}} · {{order}}",
       "toggleDirection": "Toggle sort direction",
       "newest": "Newest first",
       "oldest": "Oldest first",

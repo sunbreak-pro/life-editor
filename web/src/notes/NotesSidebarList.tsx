@@ -20,6 +20,7 @@ import {
   type NoteTagGroup,
   FOCUS_RING,
   tourAnchor,
+  useTranslation,
 } from "@life-editor/shared";
 import { noteDraggableId, type NoteTagDnd } from "./useNoteTagDnd";
 import { NoteTagFilterPanel } from "./NoteTagFilterPanel";
@@ -53,6 +54,8 @@ import { TreeDragGhost } from "../components/TreeDragGhost";
  * Everything arrives as props, i18n included (§6.4): the derived list pipeline
  * is shared with the Mobile surface, so it has to stay in the host — computing
  * it here would give the two breakpoints separate copies of the same state.
+ * The one exception is the sort panel's static copy (#2577), read here because
+ * it carries no state of the list's.
  *
  * DnD: drag a note onto a tag heading = MOVE it there (#1687) — the tag of the
  * heading it came from goes, the tag it landed on arrives. The untagged bucket
@@ -269,6 +272,7 @@ export function NotesSidebarList({
    * others away — and the handlers that cause those two also close it, so it
    * does not come back by itself when the query or the tag is cleared.
    */
+  const { t } = useTranslation();
   const [othersOpen, setOthersOpen] = useState(false);
   const othersId = useId();
   // The trigger as STATE (a callback ref), not a ref object: the flyout is
@@ -385,38 +389,69 @@ export function NotesSidebarList({
   const restCount =
     restRows.length + otherNotes.filter((n) => !n.isPinned).length;
 
+  /*
+   * #2577: the order chips need BOTH directions' copy, and the host hands only
+   * the current one (`directionLabel`), so the other is read here. The mapping
+   * is useNoteListState's: for the date modes the comparator's "asc" reads as
+   * newest-first. The host's label still wins for the active chip, so the
+   * button can never say something the host did not.
+   */
+  const isTitleSort = sortMode === "title";
+  const sortDirections = (["asc", "desc"] as const).map((id) => ({
+    id,
+    label:
+      id === sortDirection
+        ? directionLabel
+        : t(
+            isTitleSort
+              ? id === "asc"
+                ? "materials.sidebar.ascending"
+                : "materials.sidebar.descending"
+              : id === "asc"
+                ? "materials.sidebar.newest"
+                : "materials.sidebar.oldest",
+          ),
+  }));
+
   return (
     <div className="flex flex-col gap-2">
-      {/* Search only. Create moved to the main-content top-right (#302); folder-
+      {/* Search + sort (#283; one button + chip panel since #2577). The search
+          box rides in the controls' slot so narrow can put the sort button to
+          its right. Create moved to the main-content top-right (#302); folder-
           create is gone — organization is tags now. */}
-      <div className="flex flex-col gap-2">
-        <div className="flex h-8 items-center gap-2 rounded-lumen-md border border-lumen-border bg-lumen-surface-sunken px-2.5">
-          <Search
-            size={13}
-            aria-hidden
-            className="shrink-0 text-lumen-text-tertiary"
-          />
-          <input
-            value={searchQuery}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            placeholder={labels.searchPlaceholder}
-            aria-label={labels.searchPlaceholder}
-            className="min-w-0 flex-1 bg-transparent text-[12.5px] text-lumen-text placeholder:text-lumen-text-tertiary focus:outline-none"
-          />
-        </div>
-      </div>
-
-      {/* Sort controls (#283) — mode picker + direction toggle above the list.
-          No filter row: title search already exists via the search box above. */}
       <SidebarListControls
+        search={
+          // Floored to the sort button's 44px square on narrow so the two
+          // sit on one line at one height.
+          <div className="flex h-8 items-center gap-2 rounded-lumen-md border border-lumen-border bg-lumen-surface-sunken px-2.5 max-md:h-11">
+            <Search
+              size={13}
+              aria-hidden
+              className="shrink-0 text-lumen-text-tertiary"
+            />
+            <input
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              placeholder={labels.searchPlaceholder}
+              aria-label={labels.searchPlaceholder}
+              className="min-w-0 flex-1 bg-transparent text-[12.5px] text-lumen-text placeholder:text-lumen-text-tertiary focus:outline-none"
+            />
+          </div>
+        }
         modes={sortModes}
         activeModeId={sortMode}
         onModeChange={onSortModeChange}
         sortLabel={labels.sort}
+        modeGroupLabel={t("materials.sidebar.sortBy")}
+        directionGroupLabel={t("materials.sidebar.sortOrder")}
+        directions={sortDirections}
         direction={sortDirection}
-        onToggleDirection={onToggleDirection}
-        directionLabel={directionLabel}
-        directionToggleLabel={labels.toggleDirection}
+        onDirectionChange={(next) => {
+          if (next !== sortDirection) onToggleDirection();
+        }}
+        formatSummary={(mode, order) =>
+          t("materials.sidebar.sortSummary", { mode, order })
+        }
       />
 
       {/* Tag filter (#369, multi-select since #1288). Since #2059 a button

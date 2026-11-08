@@ -111,10 +111,12 @@ describe("#1840 — the note detail kebab meets the 44px touch floor", () => {
 /*
  * #1975 — the sort row of the narrow Notes drawer (and the Daily list, which
  * mounts the same component). #1840 floored the rows and the bin; these two
- * were still 36 at 390px wide.
+ * were still 36 at 390px wide. Since #2577 the two are one button that opens
+ * a chip panel; on narrow the button is a 2.75rem square and the chips keep
+ * the same floor.
  */
 describe("#1975 — the sidebar sort controls meet the 44px touch floor", () => {
-  function controls(): { picker: HTMLElement; toggle: HTMLElement } {
+  function controls(): { trigger: HTMLElement; chips: HTMLElement[] } {
     render(
       <SidebarListControls
         modes={[
@@ -124,28 +126,44 @@ describe("#1975 — the sidebar sort controls meet the 44px touch floor", () => 
         activeModeId="updated"
         onModeChange={() => {}}
         sortLabel="Sort"
+        modeGroupLabel="Sort by"
+        directionGroupLabel="Order"
+        directions={[
+          { id: "desc", label: "Newest first" },
+          { id: "asc", label: "Oldest first" },
+        ]}
         direction="desc"
-        onToggleDirection={() => {}}
-        directionLabel="Newest first"
-        directionToggleLabel="Toggle order"
+        onDirectionChange={() => {}}
       />,
     );
+    const trigger = screen.getByRole("button", { name: "Sort" });
+    fireEvent.click(trigger);
+    const panel = screen.getByRole("group", { name: "Sort" });
     return {
-      picker: screen.getByRole("button", { name: "Sort" }),
-      toggle: screen.getByRole("button", { name: "Toggle order" }),
+      trigger,
+      chips: Array.from(panel.querySelectorAll("button")),
     };
   }
 
-  it("floors both buttons on narrow", () => {
-    const { picker, toggle } = controls();
-    expect(picker).toHaveClass("max-md:min-h-11");
-    expect(toggle).toHaveClass("max-md:min-h-11");
+  it("draws the button as a 44px square on narrow", () => {
+    const { trigger } = controls();
+    expect(trigger).toHaveClass(
+      "max-md:min-h-11",
+      "max-md:h-11",
+      "max-md:w-11",
+    );
   });
 
-  it("keeps the Desktop row at its mouse height", () => {
-    const { picker, toggle } = controls();
-    for (const button of [picker, toggle]) {
-      expect(button).toHaveClass("h-8");
+  it("floors every chip on narrow", () => {
+    const { chips } = controls();
+    expect(chips).toHaveLength(4);
+    for (const chip of chips) expect(chip).toHaveClass("max-md:min-h-11");
+  });
+
+  it("keeps the Desktop button and chips at their mouse height", () => {
+    const { trigger, chips } = controls();
+    expect(trigger).toHaveClass("h-8");
+    for (const button of [trigger, ...chips]) {
       expect(button.classList.contains("min-h-11")).toBe(false);
     }
   });
