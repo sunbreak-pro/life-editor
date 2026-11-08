@@ -359,26 +359,47 @@ export function MonthFullChips({
         const face = chipFace(it.variant ?? "event", it.tagColor);
         return (
           /*
-           * #1626: a holiday is drawn, not operated. It has no row behind it —
-           * its name and its date are the law's — so there is nothing for a
-           * click to open and nothing a context menu could offer. A <button>
-           * that answers no gesture reads as broken (the same argument #1584
-           * made in reverse for the chips that DO), so it is a span instead,
-           * wearing the chip's own face.
+           * #2565: a holiday opens a read-only bubble. It still has no row
+           * behind it — its name and date are the law's, so there is nothing
+           * to edit, drag or resize (no double-click, no drag here) — but the
+           * bubble names it and offers "hide holidays", which #1626's span
+           * gave no way to reach from the chip itself. The id handed back is
+           * the row's own `holiday-YYYY-MM-DD`, so the host tells it apart.
+           * No onSelectItem fallback: a holiday is never a selection.
            */
           it.variant === "holiday" ? (
-            <span
+            <button
               key={it.id}
+              type="button"
               title={it.title}
               data-holiday-chip={it.date}
+              onClick={(e) => {
+                e.stopPropagation();
+                onItemActivate?.(it.id, { x: e.clientX, y: e.clientY });
+              }}
+              onContextMenu={
+                onItemContextMenu
+                  ? (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onItemContextMenu(it.id, {
+                        x: e.clientX,
+                        y: e.clientY,
+                      });
+                    }
+                  : undefined
+              }
               style={face.style}
               className={cn(
-                "block truncate rounded px-1 py-0.5 text-left text-xs font-medium",
+                // `pointer-events-auto` for the same reason the event chips
+                // carry it: this column is pointer-events-none.
+                "pointer-events-auto block cursor-pointer truncate rounded px-1 py-0.5 text-left text-xs font-medium",
+                CELL_FOCUS,
                 face.className,
               )}
             >
               {it.title}
-            </span>
+            </button>
           ) : (
             <button
               key={it.id}

@@ -112,9 +112,37 @@ describe("MonthMorePanel", () => {
     expect(
       screen.getByRole("button", { name: "Write report" }),
     ).toBeInTheDocument();
-    // #1626: a holiday is drawn, not operated — the same rule as the cell.
-    expect(screen.queryByRole("button", { name: "Marine Day" })).toBeNull();
-    expect(screen.getByText("Marine Day")).toBeInTheDocument();
+    // #2565: a holiday opens its read-only bubble, the same as the cell's.
+    expect(
+      screen.getByRole("button", { name: "Marine Day" }),
+    ).toBeInTheDocument();
+  });
+
+  it("hands a holiday row over like any other row (#2565)", () => {
+    const { onClose, onItemActivate } = renderPanel();
+    fireEvent.click(screen.getByRole("button", { name: "Marine Day" }), {
+      detail: 1,
+      clientX: 50,
+      clientY: 60,
+    });
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onItemActivate).toHaveBeenCalledWith(
+      "h1",
+      { x: 50, y: 60 },
+      { focus: false },
+    );
+  });
+
+  it("opens a holiday row from the keyboard, asking the bubble for focus (#2565)", () => {
+    const { onItemActivate } = renderPanel();
+    fireEvent.click(screen.getByRole("button", { name: "Marine Day" }), {
+      detail: 0,
+    });
+    expect(onItemActivate).toHaveBeenCalledWith(
+      "h1",
+      { x: 0, y: 0 },
+      { focus: true },
+    );
   });
 
   it("marks each row with its kind, named like the month chips (#2551)", () => {
@@ -168,8 +196,13 @@ describe("MonthMorePanel", () => {
     expect(screen.getByRole("button", { name: "Standup" })).toHaveFocus();
   });
 
-  it("takes focus on the close button when nothing in it can be pressed", () => {
+  it("takes focus on a holiday row when it is the only one (#2565)", () => {
     renderPanel([ITEMS[2]!]);
+    expect(screen.getByRole("button", { name: "Marine Day" })).toHaveFocus();
+  });
+
+  it("takes focus on the close button when the list is empty", () => {
+    renderPanel([]);
     expect(screen.getByRole("button", { name: "Close" })).toHaveFocus();
   });
 
@@ -261,6 +294,12 @@ describe("MonthMorePanel", () => {
     expect(screen.getByRole("button", { name: "Standup" })).toHaveFocus();
     fireEvent.keyDown(list, { key: "ArrowUp" });
     expect(screen.getByRole("button", { name: "Standup" })).toHaveFocus();
+  });
+
+  it("walks onto a holiday row with the arrow keys (#2565)", () => {
+    renderPanel();
+    fireEvent.keyDown(screen.getByRole("list"), { key: "End" });
+    expect(screen.getByRole("button", { name: "Marine Day" })).toHaveFocus();
   });
 });
 

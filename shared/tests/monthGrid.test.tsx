@@ -652,6 +652,67 @@ describe("MonthGrid — tag colour on the chip's line (#1580 / #2623)", () => {
 });
 
 /*
+ * #2565 — a holiday chip opens a read-only bubble. It hands the host its own
+ * `holiday-YYYY-MM-DD` id through the same activation callback the event chips
+ * use, keeps the press off the cell's create, and is never a selection.
+ */
+describe("MonthGrid — the holiday chip is pressable (#2565)", () => {
+  const HOLIDAY: MonthGridItem = {
+    id: "holiday-2026-07-20",
+    date: "2026-07-20",
+    title: "Marine Day",
+    variant: "holiday",
+    isAllDay: true,
+  };
+
+  it("is a button that hands its id to onItemActivate, not to the create", () => {
+    const onItemActivate = vi.fn();
+    const onCreateDay = vi.fn();
+    const { onSelectItem } = renderGrid({
+      items: [HOLIDAY],
+      onItemActivate,
+      onCreateDay,
+    });
+    const chip = screen.getByRole("button", { name: "Marine Day" });
+    expect(chip.getAttribute("data-holiday-chip")).toBe("2026-07-20");
+    expect(chip.getAttribute("type")).toBe("button");
+    expect(chip.className).toContain("cursor-pointer");
+    expect(chip.className).toContain("focus-visible:ring-2");
+    fireEvent.click(chip, { clientX: 30, clientY: 40 });
+    expect(onItemActivate).toHaveBeenCalledWith("holiday-2026-07-20", {
+      x: 30,
+      y: 40,
+    });
+    expect(onCreateDay).not.toHaveBeenCalled();
+    expect(onSelectItem).not.toHaveBeenCalled();
+  });
+
+  it("is not a selection when the host passes no onItemActivate", () => {
+    const { onSelectItem } = renderGrid({ items: [HOLIDAY] });
+    fireEvent.click(screen.getByRole("button", { name: "Marine Day" }));
+    expect(onSelectItem).not.toHaveBeenCalled();
+  });
+
+  it("hands a right-click to onItemContextMenu", () => {
+    const onItemContextMenu = vi.fn();
+    renderGrid({ items: [HOLIDAY], onItemContextMenu });
+    fireEvent.contextMenu(screen.getByRole("button", { name: "Marine Day" }), {
+      clientX: 5,
+      clientY: 6,
+    });
+    expect(onItemContextMenu).toHaveBeenCalledWith("holiday-2026-07-20", {
+      x: 5,
+      y: 6,
+    });
+  });
+
+  it("leaves the compact (phone) title a plain span", () => {
+    renderGrid({ items: [HOLIDAY], compact: true, onItemActivate: vi.fn() });
+    expect(screen.queryByRole("button", { name: "Marine Day" })).toBeNull();
+  });
+});
+
+/*
  * #1581 — the phone's calendar was cramped: 70px cells that fitted three title
  * lines with nothing to spare, under a date badge sized for Desktop.
  *
