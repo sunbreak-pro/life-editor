@@ -726,10 +726,10 @@
     "tags": {
       "usageCount_other": "{{count}} 件",
       "pickerLabel": "タグ",
-      "pickerLabelShort": "タグ",
+      "pickerLabelShort": "タグを追加",
       "pickerAdd": "タグを追加",
       "pickerDialog": "タグの選択",
-      "pickerSearch": "タグを検索・作成…",
+      "pickerSearch": "タグを検索または作成",
       "pickerNoCandidates": "追加できるタグはありません",
       "pickerCreate": "「{{name}}」を作成",
       "pickerRemove": "タグ {{name}} を外す",

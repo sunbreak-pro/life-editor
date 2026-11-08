@@ -161,7 +161,7 @@ async function openPicker() {
   await act(async () => {
     fireEvent.click(trigger);
   });
-  return { trigger, field: screen.getByPlaceholderText("Search or create tag…") };
+  return { trigger, field: screen.getByPlaceholderText("Search or create a tag") };
 }
 
 const pickerDialog = () => screen.queryByRole("dialog", { name: "Tag picker" });
