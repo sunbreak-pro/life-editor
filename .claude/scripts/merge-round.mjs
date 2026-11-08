@@ -21,6 +21,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const REPO = "sunbreak-pro/life-editor";
 const RECORD_BRANCH = /^chore\/(tracker|outbox|routine)-/;
@@ -117,15 +118,22 @@ function issue(n) {
   return issueCache.get(n);
 }
 
+// 依存の行には Issue 番号だけでなく PR 番号も書かれる（scope-overlap の BLOCK を写すと PR 番号になる）。
+// n が merge 済み PR そのものなら、その merge commit で決める。Issue 番号なら、それを Refs に書いた merge 済み PR で決める。
+// open の PR の番号は merged に無く、Refs にも現れないので、未着地のまま残る
+export function landedIn(merged, n, isAncestor) {
+  const onMain = (pr) => Boolean(pr.mergeCommit?.oid) && isAncestor(pr.mergeCommit.oid);
+  const self = merged.find((pr) => pr.number === n);
+  if (self) return (self.baseRefName ?? "main") === "main" && onMain(self);
+  return merged.some((pr) => issueRefs(pr).includes(n) && onMain(pr));
+}
+
 let mergedCache = null;
 function landed(n) {
   mergedCache ??= ghJson(
-    "pr", "list", "-R", REPO, "--state", "merged", "--limit", "300", "--json", "number,headRefName,body,title,mergeCommit",
+    "pr", "list", "-R", REPO, "--state", "merged", "--limit", "300", "--json", "number,headRefName,baseRefName,body,title,mergeCommit",
   );
-  return mergedCache.some((pr) => {
-    if (!issueRefs(pr).includes(n) || !pr.mergeCommit?.oid) return false;
-    return tryRun("git", ["merge-base", "--is-ancestor", pr.mergeCommit.oid, "origin/main"]).code === 0;
-  });
+  return landedIn(mergedCache, n, (oid) => tryRun("git", ["merge-base", "--is-ancestor", oid, "origin/main"]).code === 0);
 }
 
 function worktrees() {
@@ -795,21 +803,26 @@ function cleanupAutofix(n, s) {
 }
 
 // ---------- 入口 ----------
+// 試験が landedIn を import したときに、使い方の表示で終了しないよう、直接起動のときだけ動かす
+const invokedDirectly =
+  process.argv[1] && resolve(fileURLToPath(import.meta.url)).toLowerCase() === resolve(process.argv[1]).toLowerCase();
 const [cmd, ...rest] = process.argv.slice(2);
 const flag = (name) => {
   const i = rest.indexOf(name);
   return i >= 0 ? rest[i + 1] : undefined;
 };
-switch (cmd) {
-  case "plan": plan(flag("--only")); break;
-  case "start": start(); break;
-  case "check": check(rest[0]); break;
-  case "fixes": fixes(); break;
-  case "finish": finish(); break;
-  case "status": status(); break;
-  case "autofix-start": autofixStart(rest[0]); break;
-  case "autofix-push": autofixPush(rest[0]); break;
-  case "autofix-abort": autofixAbort(rest[0]); break;
-  default:
-    die("使い方: merge-round.mjs plan [--only 1,2] | start | check <n> | fixes | finish | status | autofix-start|autofix-push|autofix-abort <n>");
+if (invokedDirectly) {
+  switch (cmd) {
+    case "plan": plan(flag("--only")); break;
+    case "start": start(); break;
+    case "check": check(rest[0]); break;
+    case "fixes": fixes(); break;
+    case "finish": finish(); break;
+    case "status": status(); break;
+    case "autofix-start": autofixStart(rest[0]); break;
+    case "autofix-push": autofixPush(rest[0]); break;
+    case "autofix-abort": autofixAbort(rest[0]); break;
+    default:
+      die("使い方: merge-round.mjs plan [--only 1,2] | start | check <n> | fixes | finish | status | autofix-start|autofix-push|autofix-abort <n>");
+  }
 }

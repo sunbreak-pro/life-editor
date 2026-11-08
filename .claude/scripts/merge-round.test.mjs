@@ -1,5 +1,6 @@
-// merge-gate の判定をテストする。実行: node --test .claude/scripts/merge-round.test.mjs
-// merge-round.mjs 本体（plan / fixes）は GitHub と全体の local-ci を使うので、ここでは触らない。
+// merge-gate の判定と、merge-round.mjs の依存の着地判定（landedIn）をテストする。
+// 実行: node --test .claude/scripts/merge-round.test.mjs
+// merge-round.mjs の plan / fixes そのものは GitHub と全体の local-ci を使うので、ここでは回さない。
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
@@ -7,6 +8,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { landedIn } from "./merge-round.mjs";
 
 const GATE = resolve(dirname(fileURLToPath(import.meta.url)), "..", "hooks", "merge-gate.mjs");
 const MERGE = "gh pr merge 5 -R sunbreak-pro/life-editor --squash";
@@ -125,4 +127,35 @@ test("回が 2 時間を過ぎたら ask にする", () => {
   } finally {
     rmSync(s.root, { recursive: true, force: true });
   }
+});
+
+// ---------- 依存の着地判定 ----------
+// merge commit が origin/main の祖先かは、試験では oid の集合で代える
+const onMain = new Set(["m2460", "m2700"]);
+const isAncestor = (oid) => onMain.has(oid);
+const merged = [
+  { number: 2460, title: "feat: x (refs #2400)", headRefName: "claude/x-2400", baseRefName: "main", body: "Refs #2400", mergeCommit: { oid: "m2460" } },
+  { number: 2700, title: "fix: y", headRefName: "claude/y-2650", baseRefName: "main", body: "Refs #2650", mergeCommit: { oid: "m2700" } },
+  { number: 2710, title: "fix: z", headRefName: "claude/z", baseRefName: "claude/base", body: "", mergeCommit: { oid: "m2460" } },
+];
+
+test("依存の行に merge 済み PR の番号（base=main・merge commit が main の祖先）があれば着地とみなす", () => {
+  assert.equal(landedIn(merged, 2460, isAncestor), true);
+});
+
+test("merge 済みでも、base が main でない PR や merge commit が main に無い PR は未着地のまま", () => {
+  assert.equal(landedIn(merged, 2710, isAncestor), false);
+  assert.equal(landedIn([{ ...merged[0], mergeCommit: { oid: "elsewhere" } }], 2460, isAncestor), false);
+});
+
+test("依存の行に open の PR の番号があれば、これまでどおり未着地とみなす", () => {
+  // open の PR は merge 済みの一覧に入らず、どの merge 済み PR の Refs にも現れない
+  assert.equal(landedIn(merged, 2663, isAncestor), false);
+});
+
+test("Issue 番号の依存は、それを Refs に書いた merge 済み PR で決める（従来どおり）", () => {
+  assert.equal(landedIn(merged, 2400, isAncestor), true);
+  assert.equal(landedIn(merged, 2650, isAncestor), true);
+  assert.equal(landedIn(merged, 2999, isAncestor), false);
+  assert.equal(landedIn([{ ...merged[0], mergeCommit: { oid: "elsewhere" } }], 2400, isAncestor), false);
 });
