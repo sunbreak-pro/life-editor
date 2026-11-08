@@ -52,7 +52,7 @@ describe("Narrow note title (#2291 item 7)", () => {
     const field = screen.getByLabelText("Note title");
     expect(field.tagName).toBe("TEXTAREA");
     expect(field.getAttribute("rows")).toBe("1");
-    expect(field.className).toContain("max-h-[calc(2lh+0.75rem+2px)]");
+    expect(field.className).toContain("max-h-[calc(2lh+0.25rem)]");
     expect(field.className).toContain("resize-none");
   });
 
@@ -171,5 +171,70 @@ describe("Tag chip remove X on narrow (#2291 item 2)", () => {
     expect(x.className).toContain("max-md:min-w-11");
     // Not the always-on square, so Desktop chips keep their size.
     expect(x.className.split(" ")).not.toContain("min-h-11");
+  });
+});
+
+/*
+ * #2584 — the narrow title as the prototype draws it: a 1.0625rem bold
+ * heading with no frame, whose Enter goes on into the body.
+ */
+describe("Narrow note title as a heading (#2584)", () => {
+  it("has no border or field background, at 1.0625rem", () => {
+    renderPanel();
+    const classes = screen.getByLabelText("Note title").className.split(/\s+/);
+    expect(classes).toContain("border-none");
+    expect(classes).toContain("bg-transparent");
+    expect(classes).toContain("text-[1.0625rem]");
+    expect(classes).toContain("font-bold");
+    expect(classes).not.toContain("border-lumen-border");
+    expect(classes).not.toContain("bg-lumen-bg");
+  });
+
+  it("moves the focus into the body on Enter, and commits the title", () => {
+    const onTitleCommit = vi.fn();
+    renderPanel({
+      onTitleCommit,
+      contentEditor: (
+        <div contentEditable suppressContentEditableWarning data-testid="body">
+          body
+        </div>
+      ),
+    });
+    const field = screen.getByLabelText("Note title");
+    field.focus();
+    fireEvent.change(field, { target: { value: "Renamed" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(document.activeElement).toBe(screen.getByTestId("body"));
+    expect(onTitleCommit).toHaveBeenCalledWith("note-a", "Renamed");
+  });
+
+  it("leaves the focus in the title while an IME is composing", () => {
+    renderPanel({
+      contentEditor: (
+        <div contentEditable suppressContentEditableWarning>
+          body
+        </div>
+      ),
+    });
+    const field = screen.getByLabelText("Note title");
+    field.focus();
+    fireEvent.keyDown(field, { key: "Enter", isComposing: true });
+    expect(document.activeElement).toBe(field);
+  });
+
+  it("does the same on the wide heading, at 1.25rem", () => {
+    renderPanel({
+      variant: "main",
+      contentEditor: (
+        <div contentEditable suppressContentEditableWarning data-testid="body">
+          body
+        </div>
+      ),
+    });
+    const field = screen.getByLabelText("Note title");
+    expect(field.className.split(/\s+/)).toContain("text-[1.25rem]");
+    field.focus();
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(document.activeElement).toBe(screen.getByTestId("body"));
   });
 });
