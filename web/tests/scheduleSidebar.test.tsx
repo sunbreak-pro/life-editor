@@ -17,9 +17,9 @@ import ja from "../../shared/src/i18n/locales/ja.json";
  *     Desktop-only (narrow reached its todos through the section's own Todo
  *     tab); that tab is retired, so a narrow fold would leave the phone with
  *     no route to a todo at all.
- *   - the repeat list withholds `onDelete` on narrow (#467): a whole series
- *     must not be deletable from a fingertip-sized target. Passing it through
- *     unconditionally leaves every other test green.
+ *   - the repeat list's rows carry no delete at either width since #2569
+ *     (#467 kept it off narrow): Desktop deletes from the row's panel, and a
+ *     whole series must not go on a fingertip-sized target.
  *   - the routine summary is Desktop-only, and its CTA is the only route from
  *     the flow tab to the repeats tab.
  *   - the repeat-filter notice (#466) shows only while the grid filter is on,
@@ -115,7 +115,6 @@ function makeProps(
       hidden: false,
       rows: [],
       onOpen: vi.fn(),
-      onDelete: vi.fn(),
       onShowHidden: vi.fn(),
       ...over.repeats,
     },
@@ -226,37 +225,19 @@ describe("ScheduleSidebar — repeats tab", () => {
     nextLabel: "Aug 17",
   };
 
-  it("offers the delete action on Desktop", () => {
-    render(
-      <ScheduleSidebar
-        {...makeProps({
-          isWide: true,
-          tab: "repeats",
-          repeats: { rows: [row] },
-        })}
-      />,
-    );
-    expect(
-      screen.getByLabelText("scheduleScreen.deleteRoutine: Morning run"),
-    ).toBeTruthy();
-  });
-
-  it("withholds it on narrow so a series cannot go on a fingertip target (#467)", () => {
-    render(
-      <ScheduleSidebar
-        {...makeProps({
-          isWide: false,
-          tab: "repeats",
-          repeats: { rows: [row] },
-        })}
-      />,
-    );
-    // The row itself is still there — viewing and navigating stay available.
-    expect(screen.getByText("Morning run")).toBeTruthy();
-    expect(
-      screen.queryByLabelText("scheduleScreen.deleteRoutine: Morning run"),
-    ).toBeNull();
-  });
+  it.each([true, false])(
+    "offers no delete on the row at isWide=%s (#2569, #467)",
+    (isWide) => {
+      render(
+        <ScheduleSidebar
+          {...makeProps({ isWide, tab: "repeats", repeats: { rows: [row] } })}
+        />,
+      );
+      // The row itself is still there — viewing and navigating stay available.
+      expect(screen.getByText("Morning run")).toBeTruthy();
+      expect(screen.queryByLabelText(/deleteRoutine/)).toBeNull();
+    },
+  );
 
   it("shows the grid-filter notice only while the filter is on, and turns it back off (#466)", () => {
     const onShowHidden = vi.fn();

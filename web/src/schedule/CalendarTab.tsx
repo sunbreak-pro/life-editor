@@ -1006,7 +1006,6 @@ export function CalendarTab({
           // #1678: the press opens the row's panel on Desktop; #2083: narrow
           // has no panel, so there the press opens the series' editor.
           onOpen: handleRepeatRowPress,
-          onDelete: handleDeleteRepeat,
           onShowHidden: handleToggleRepeats,
         }}
         todo={{

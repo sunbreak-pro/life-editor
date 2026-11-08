@@ -110,7 +110,6 @@ function makeProps(tab: "flow" | "todo" | "repeats"): ScheduleSidebarProps {
       hidden: false,
       rows: [],
       onOpen: vi.fn(),
-      onDelete: vi.fn(),
       onShowHidden: vi.fn(),
     },
     todo: {

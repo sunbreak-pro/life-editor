@@ -165,7 +165,6 @@ export interface ScheduleSidebarRepeats {
   rows: RepeatListRow[];
   /** #1678: the row was pressed — the host opens its panel at `pos`. */
   onOpen: (id: string, pos: { x: number; y: number }) => void;
-  onDelete: (id: string) => void;
   /** Turn the grid's repeat filter back off, from the notice. */
   onShowHidden: () => void;
 }
@@ -395,10 +394,10 @@ export function ScheduleSidebar({
    * #408: the repeat list that replaces the retired Routines header tab.
    *
    * #467 put it on Mobile too, viewing only (mobile-scope.md #5): tapping a row
-   * still jumps the calendar to that routine's next occurrence — that is the
-   * reachability this panel exists for, and navigating is not editing — but
-   * `onDelete` is left off, so no row offers to take a whole series away on a
-   * touch target the size of a fingertip. `repeats.hidden` is Desktop-only
+   * still reaches that routine — that is the reachability this panel exists
+   * for, and navigating is not editing. Since #2569 no row carries a delete at
+   * either width: Desktop deletes from the row's panel, and narrow has none,
+   * so a whole series never goes on a fingertip-sized target. `repeats.hidden` is Desktop-only
    * state (narrow has no toggle), so the notice below never shows there.
    *
    * #466: while the grid filter is on, this list is the surface most likely to
@@ -424,11 +423,10 @@ export function ScheduleSidebar({
       <RepeatListPanel
         rows={repeats.rows}
         onOpen={repeats.onOpen}
-        onDelete={isWide ? repeats.onDelete : undefined}
         labels={{
           empty: t("scheduleScreen.summaryEmpty"),
           never: t("scheduleScreen.repeatNeverFires"),
-          delete: t("scheduleScreen.deleteRoutine"),
+          next: (date: string) => t("scheduleScreen.repeatNext", { date }),
         }}
       />
     </div>
