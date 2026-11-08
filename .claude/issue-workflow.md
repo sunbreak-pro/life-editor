@@ -124,15 +124,15 @@ notes は日本語（です・ます）で書きます。
 
 work-finishers が、main のセッションが `runtime: true` の印を付けた Issue の PR #{{pr}}（ブランチ `{{branch}}`、worktree `{{worktree}}`）で行います。dev server と実ブラウザを worktree で使うのは、この役だけの例外です（CLAUDE.md §7.4）。ここには life-editor だけの手順を書きます。
 
-1. **ポートは 5199 に固定します。** chat-main がふだん使う 5173 と、先客がいるときに vite がずらす 5174 から離すためです。始める前に `C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -NoProfile -Command 'Get-NetTCPConnection -LocalPort 5199 -State Listen -ErrorAction SilentlyContinue'` を打ちます。何か出たら、自分が立てたものではないので止めません。動作確認は「ポート 5199 が使われていた」で見送り、PR のコメントにそう書いて chat-main に残します。
+1. **ポートは 5199 に固定します。** chat-main がふだん使う 5173 と、先客がいるときに vite がずらす 5174 から離すためです。始める前に `C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -NoProfile -Command 'Get-NetTCPConnection -LocalPort 5199 -State Listen -ErrorAction SilentlyContinue'` を打ちます。何も出なければ、ポートが空いていたことを覚えておきます。何か出たら、自分が立てたものではないので止めません。動作確認は「ポート 5199 が使われていた」で見送り、PR のコメントにそう書いて chat-main に残します。この場合は手順 2 以降に進まず、手順 9 でも何も止めません。
 2. **env のファイルを写します。** `{{worktree}}/web/.env.local` がなければ、`cp {{main}}/web/.env.local {{worktree}}/web/.env.local` を打ちます。`{{main}}` にもなければ、動作確認を見送って chat-main に残します。worktree には env のファイルがなく、ないと Supabase の初期化で画面が落ちるためです。中身は表示せず、commit しません（`web/.gitignore` の `*.local` で外れています）。
-3. **dev server を立てます。** `cd {{worktree}}/web && node node_modules/vite/bin/vite.js --port 5199 --strictPort` を、Bash の `run_in_background: true` で打ちます。npm を挟まないのは、止めるときにポートを持つプロセスが 1 つで済むためです。shared の build は要りません。web の vite は shared をソースから読むためです。`node_modules` は全体確認の `npm ci` で入っています。なければ `{{worktree}}/shared` と `{{worktree}}/web` で `npm ci` を打ちます。
-4. **答えるまで待ちます。** `curl -s -o /dev/null -w "%{http_code}" --retry 30 --retry-delay 2 --retry-connrefused http://localhost:5199/` が `200` を返せば準備ができています。`200` でなければ、起動ログの末尾を PR のコメントに書き、手順 9 で止めます。
-5. **サインインの資格情報は入力しません。** `http://localhost:5199/` を開いてサインインの画面が出たら、サインインせずに見える画面だけを確かめます。サインインの要る画面は「chat-main に残す」とコメントに書きます。ブラウザにこのポートのサインイン済みのセッションが残っていれば、そのまま使ってかまいません。
+3. **dev server を立てます。** `cd {{worktree}}/web && node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5199 --strictPort` を、Bash の `run_in_background: true` で打ちます。npm を挟まないのは、止めるときにポートを持つプロセスが 1 つで済むためです。`--host 127.0.0.1` を付けるのは、Windows では `localhost` が `::1` に向き、IPv4 で待つ server に届かないことがあるためです。shared の build は要りません。web の vite は shared をソースから読むためです。`node_modules` は全体確認の `npm ci` で入っています。なければ `{{worktree}}/shared` と `{{worktree}}/web` で `npm ci` を打ちます。
+4. **答えるまで待ち、PID を記録します。** `curl -s -o /dev/null -w "%{http_code}" --retry 30 --retry-delay 2 --retry-connrefused http://127.0.0.1:5199/` が `200` を返せば答えています。続けて `C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -NoProfile -Command 'Get-NetTCPConnection -LocalPort 5199 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Get-CimInstance Win32_Process -Filter "ProcessId=$_" | ForEach-Object { "$($_.ProcessId) $($_.CommandLine)" } }'` を打ち、出た PID を記録します。手順 1 でポートが空いていたので、いま待っているのは自分が立てた server です。念のため、コマンドラインに `vite.js` と `{{worktree}}` が入っていることも確かめます。入っていなければ、その `200` を信じません。何も止めずに動作確認を見送り、PR のコメントにそう書きます。`200` が返らないときは、起動ログの末尾を PR のコメントに書き、手順 9 に進みます。
+5. **サインインしないで見える画面だけを確かめます。** `http://127.0.0.1:5199/` を開きます。サインインの資格情報は入力しません。ブラウザの localStorage か cookie にセッションが残っていても使いません。サインインの要る画面は、いつも「chat-main に残す」とコメントに書きます。
 6. **本番のデータに書き込みません。** サインイン済みのときは、本番の Supabase にあるこうだいさんのデータを見ています。見るだけにして、項目の作成・編集・削除、設定の変更、サインアウト、アカウントの操作は一切しません。書き込まないと確かめられない完了条件は、確かめずに「chat-main に残す」とコメントに書きます。
 7. **BLOCKING に数えるのは次のときです。** Issue の完了条件のうち画面で確かめられるものが満たされないとき、白い画面かエラーの画面になるとき、変更した画面で console に新しい error が出るとき、変更した操作の主な流れが通らないときです。文言や余白の小さなずれは BLOCKING にせず、コメントに書くだけにします。
-8. **次は chat-main に残します。** マイグレーションを含む PR は確かめません。db push の前は本番のテーブルと合わず、db push はこうだいさんの作業だからです。サインインの要る画面（セッションがないとき）、mobile（Capacitor）と desktop（Electron）のアプリでの確認、IME の入力も残します。narrow の画面は、ブラウザの幅を 390px に狭めて確かめてかまいません。
-9. **結果がどうでも、最後に必ず止めます。** `C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -NoProfile -Command 'Get-NetTCPConnection -LocalPort 5199 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force }'` を打ち、ブラウザを閉じます（`browser_close`）。手順 1 の確認のコマンドをもう一度打ち、何も出ないことを確かめます。何か残っていたら、PR のコメントと報告にそう書きます。
+8. **次は chat-main に残します。** マイグレーションを含む PR は確かめません。db push の前は本番のテーブルと合わず、db push はこうだいさんの作業だからです。サインインの要る画面、mobile（Capacitor）と desktop（Electron）のアプリでの確認、IME の入力も残します。narrow の画面は、ブラウザの幅を 390px に狭めて確かめてかまいません。
+9. **結果がどうでも、最後に必ず止めます。** 止めるのは手順 4 で記録した PID だけで、`C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -NoProfile -Command 'Stop-Process -Id <記録した PID> -Force'` を打ちます。ブラウザも閉じます（`browser_close`）。そのあと手順 1 の確認のコマンドをもう一度打ち、何も出ないことを確かめます。PID を記録できなかったときと、止めたあともポートに何か残っていたときは、ほかのプロセスを止めずに、PR のコメントと報告にそう書きます。手順 1 で見送った実行は、何も止めません。
 
 ## 仕上げ
 
@@ -143,6 +143,7 @@ work-finishers が、実行のすべてのブランチが終わったあとに 1
 3. merge は、`check <n>` が 0 を返した直後に、`gh pr merge <n> -R {{repo}} --squash` を単独で打ちます。前に `cd` を付けない、`&&` でつながない、`--admin` と `--delete-branch` を付けない、の 3 つを守ります。どれかが外れると hook が確認を出します。hook は Bash の作業場所（main の checkout）で判定するので、`cd` なしで通ります。hook が ask か deny を返したら、その PR は飛ばして報告に書きます。
 4. `fixes` の前に、この実行の PR のうち open のものの `wf-*` の worktree を、`git -C {{main}} worktree remove C:/Users/user/orca/workspaces/life-editor/wf-<番号>` で外します（理由は「実行のあと」の 2 つめの項目）。全体確認で落ちて PR のない `wf-*` は外しません。
 5. `supabase db push` は打ちません。Issue も close しません。どちらもこうだいさんか chat-main の作業です。
+6. `finish` を打ったら、承認の印を `rm -f {{main}}/.git/merge-round/finisher-approved.json` で消します。途中で止めたときも、`finish` のあとに同じように消します。印は chat-main が起動前の確認で書くもので、hook（`merge-gate.mjs`）は、印が 6 時間以内に書かれていないと work-finishers の merge を deny します。残すと、次の実行でこうだいさんが選んでいなくても merge が通ってしまうためです。
 
 ## 実行のあと
 

@@ -1,11 +1,11 @@
 ---
 name: merge-round
-description: chat-main 専用。open PR を事前確認してから順番に squash merge し、文書・lockfile・翻訳だけの衝突は chat-main が一時 worktree で直し、残りの衝突と CI の赤はレーンごとの /goal 指示文にまとめ、回を閉じて戻す地点を記録する。CI は GitHub Actions を見ず手元の local-ci で決める（Actions の支払いロック中も回せる）。merge 後に戻す手順も持つ。作業レーンでの merge・db push・Issue の close には使わない。Triggers include "merge して", "まとめて merge", "PR を片付けて", "merge-round", "マージの回", "revert したい", "merge を戻したい".
+description: chat-main 専用（例外は、issue-workflow の確認で merge-round まで回すと選ばれた実行の work-finishers）。open PR を事前確認してから順番に squash merge し、文書・lockfile・翻訳だけの衝突は chat-main が一時 worktree で直し、残りの衝突と CI の赤はレーンごとの /goal 指示文にまとめ、回を閉じて戻す地点を記録する。CI は GitHub Actions を見ず手元の local-ci で決める（Actions の支払いロック中も回せる）。merge 後に戻す手順も持つ。作業レーンでの merge・db push・Issue の close には使わない。Triggers include "merge して", "まとめて merge", "PR を片付けて", "merge-round", "マージの回", "revert したい", "merge を戻したい".
 ---
 
 # merge-round — chat-main の merge を 1 回ぶんまとめる
 
-こうだいさんがこのスキルを起動したら、それがその回の merge の承認になる（POLICY P-001、D-20261102-main-1）。事前確認を通った PR は確認ダイアログなしで merge する。`hooks/merge-gate.mjs` が、回の一覧にある PR の決まった形の merge だけを通す。
+こうだいさんがこのスキルを起動したら、それがその回の merge の承認になる（POLICY P-001、D-20261102-main-1）。issue-workflow の起動前の確認でこうだいさんが「merge-round まで回す」を選んだ実行も承認に数える（下の「work-finishers が回すとき」）。事前確認を通った PR は確認ダイアログなしで merge する。`hooks/merge-gate.mjs` が、回の一覧にある PR の決まった形の merge だけを通す。
 
 宅配便の集荷にたとえると、積める荷物を全部積んでから、積めなかった荷物の送り主にまとめて連絡するやり方です。1 本 merge するたびに止まって聞くことはしない。
 
@@ -163,13 +163,14 @@ main の CI は、支払いのロックなら「手元の CI で代えた」と�
 
 グローバルの `issue-workflow` スキルの実行では、サブエージェント `work-finishers` がこのスキルを回すことがある。手順は上と同じで、違うのは次の点だけ。
 
-- 承認は、その実行の起動前の確認（chat-main の AskUserQuestion）で、こうだいさんが「merge-round まで回す」を選んだこと。これを P-001 の人の起動に数える。選ばなかった実行では回さない。
+- 承認は、その実行の起動前の確認（chat-main の AskUserQuestion）で、こうだいさんが「merge-round まで回す」を選んだこと。これを P-001 の人の起動に数える。選ばなかった実行では回さない。選んだとき、chat-main は `.git/merge-round/finisher-approved.json`（`{"approvedAt":"<ISO の時刻>"}`）を書く。
+- `finish` のあと、途中で止めたときも含めて、`rm -f <main の checkout>/.git/merge-round/finisher-approved.json` で印を消す。
 - 回の対象は、その実行が開いた PR だけにする。`plan --only <その実行の PR 番号をカンマで>` で始める。
 - 4a の衝突は、`autofix-start` の出力を Agent に渡さず、autofix の一時 worktree の中で自分で解く。サブエージェントはサブエージェントを起動できないため。解き方と確かめ方は出力の指示のとおりにし、終わったら `autofix-push` を打つ。
 - `gh pr merge` に hook が ask か deny を返したら、その PR は飛ばして報告に書く。打ち直さず、形を変えるなどの回り道もしない。
 - 報告は手順 6 と同じ順で書く。
 
-hook（`hooks/merge-gate.mjs`）がサブエージェントのうち通すのは、`agent_type` が `work-finishers` のものだけ。main の checkout・main ブランチ・決まった形・進行中の回・一覧・check の条件は、ほかと同じに当てる。
+hook（`hooks/merge-gate.mjs`）がサブエージェントのうち通すのは、`agent_type` が `work-finishers` で、承認の印が 6 時間以内に書かれたものだけ。main の checkout・main ブランチ・決まった形・進行中の回・一覧・check の条件は、ほかと同じに当てる。
 
 ## 止める・戻す
 
