@@ -49,6 +49,34 @@ function checkboxRule(): string {
   );
 }
 
+/**
+ * A selector's specificity as [ids, classes + attributes + pseudo-classes,
+ * types]. Enough for the plain compound selectors this sheet uses for the task
+ * list; it does not try to weigh `:is()` / `:not()` arguments.
+ */
+function specificity(selector: string): [number, number, number] {
+  const rest = selector.replace(/\[[^\]]*\]/g, " [] ");
+  const attributes = (rest.match(/\[\]/g) ?? []).length;
+  const ids = (rest.match(/#[\w-]+/g) ?? []).length;
+  const classes = (rest.match(/\.[\w-]+/g) ?? []).length;
+  const pseudoClasses = (rest.match(/(^|[^:]):[\w-]+/g) ?? []).length;
+  const pseudoElements = (rest.match(/::[\w-]+/g) ?? []).length;
+  const types = (
+    rest.replace(/[#.:]+[\w-]+/g, " ").match(/(^|[\s>+~])[a-zA-Z][\w-]*/g) ?? []
+  ).length;
+  return [ids, classes + attributes + pseudoClasses, types + pseudoElements];
+}
+
+function compareSpecificity(
+  a: [number, number, number],
+  b: [number, number, number],
+): number {
+  for (let i = 0; i < 3; i += 1) {
+    if (a[i] !== b[i]) return a[i] - b[i];
+  }
+  return 0;
+}
+
 /** The box's drawn size in px, from `--todo-checkbox-size`. */
 function declaredSize(): number {
   const declared = Number(
@@ -159,6 +187,25 @@ describe("the Materials task-list checkbox is thumb-sized on narrow (#1523)", ()
     '  .note-editor .ProseMirror ul[data-type="taskList"] li > label::before {';
 
   /**
+   * The narrow-width rule that carries `margin-left` (#2671), as its selector
+   * (whitespace collapsed — the formatter wraps long selectors over lines) and
+   * its declarations.
+   */
+  function marginRule(): { selector: string; body: string } {
+    const media = narrow();
+    const at = media.indexOf("margin-left:");
+    expect(at, "no margin-left in the narrow-width rules").toBeGreaterThan(-1);
+    const open = media.lastIndexOf("{", at);
+    const previousClose = media.lastIndexOf("}", open);
+    const previousComment = media.lastIndexOf("*/", open);
+    const selectorStart = Math.max(previousClose, previousComment + 1) + 1;
+    return {
+      selector: media.slice(selectorStart, open).replace(/\s+/g, " ").trim(),
+      body: media.slice(open + 1, media.indexOf("}", at)),
+    };
+  }
+
+  /**
    * The narrow-width block the touch rules live in — found FROM those rules
    * rather than from the first `@media (max-width: 767px)` in the file, which
    * is the mobile font floor and has nothing to do with this.
@@ -210,12 +257,30 @@ describe("the Materials task-list checkbox is thumb-sized on narrow (#1523)", ()
     // The label centres the box in its 44px column, so a box grown by d moves
     // its left edge d/2 to the left. A left margin of d moves it back: the
     // centred content is then d wider, and its left edge is the old one.
-    const rule = block(
-      '  .note-editor .ProseMirror ul[data-type="taskList"] li > label > input {',
-      "\n  }",
-    );
-    const margin = Number(/margin-left:\s*(\d+(?:\.\d+)?)px/.exec(rule)?.[1]);
+    const { body } = marginRule();
+    const margin = Number(/margin-left:\s*(\d+(?:\.\d+)?)px/.exec(body)?.[1]);
     expect(margin).toBe(declaredSize() - TODO_CHECKBOX_ICON_PX);
+  });
+
+  it("outranks the sizing rule's `margin: 0`, so the margin applies (#2694)", () => {
+    // Both rules match the same input, and the sizing rule resets `margin: 0`.
+    // An @media block adds no weight, so whichever selector is more specific
+    // wins — and #2671's `li > label > input` (0,3,4) lost to the sizing rule's
+    // `input[type="checkbox"]` (0,4,2), which left the edge 1px left at 390px.
+    // Ties would fall to source order, which this rule does win, but a later
+    // move of either block would flip it silently — so require strictly more.
+    expect(
+      checkboxRule(),
+      "the sizing rule no longer resets the margin",
+    ).toMatch(/margin:\s*0;/);
+    const sizing = specificity(
+      '.note-editor .ProseMirror ul[data-type="taskList"] input[type="checkbox"]',
+    );
+    const { selector } = marginRule();
+    expect(
+      compareSpecificity(specificity(selector), sizing),
+      `\`${selector}\` does not outrank the sizing rule's margin reset`,
+    ).toBeGreaterThan(0);
   });
 
   it("leaves the drawn box the size the shared control draws", () => {
