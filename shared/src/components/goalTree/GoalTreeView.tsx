@@ -3,6 +3,7 @@ import {
   ChevronDown,
   ChevronRight,
   GripVertical,
+  MoreHorizontal,
   Pencil,
   Plus,
   Target,
@@ -10,6 +11,8 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "../cn";
+import { WIDE_QUERY } from "../../constants/breakpoints";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { Button } from "../Button";
 import { EmptyState } from "../EmptyState";
 import { Input } from "../Input";
@@ -75,6 +78,12 @@ import { canDropOn, type GoalTreeDragSource } from "./goalTreeDrag";
  * rest; the bin deletes, after the host's confirm. The row stops dragging
  * while its field is open. A goal drawn twice — under its parent and as
  * unconnected — opens a field only on the row whose icon was pressed.
+ *
+ * On a phone (#2611) neither row carries its icons: a goal row and a todo
+ * row end in one 44px "…", and pressing it opens a line of chips under the
+ * row — "Add below", "Rename" and a red "Delete" on a goal, "Edit" and
+ * "Delete" on a todo. One row's chips are open at a time. A goal's title
+ * wraps to two lines there. Desktop keeps its hover icons as they were.
  *
  * A goal row says "This month" as a badge only while that is true of the goal
  * (#2410, showsPeriodBadge); otherwise it keeps the plain "Month".
@@ -169,8 +178,19 @@ export interface GoalTreeLabels {
   addUnderTooltip: string;
   /** "Delete goal: Run 3 times" — the bin on a goal row. */
   formatDelete: (title: string) => string;
-  /** "Delete" — the bin's tooltip (#2607). */
+  /** "Delete" — the bin's tooltip (#2607), and the delete chip on a phone. */
   deleteTooltip: string;
+  /**
+   * "More actions: Run 3 times" — the "…" a phone's goal and todo rows end in
+   * (#2611). Optional so that a host without the copy keeps building: the
+   * "…" is then named after the actions it opens.
+   */
+  formatMoreActions?: (title: string) => string;
+  /**
+   * "Edit" — a todo's chip on a phone that opens the editor (#2611). Absent,
+   * the chip says `formatOpenTodo` with the todo's name.
+   */
+  editTodoChip?: string;
   /**
    * "This month's goal" — a "+" choice and the add field's badge. Given the
    * period's name (`periods`), since the goal lands in the current period.
@@ -447,6 +467,8 @@ function liftDragImage(e: DragEvent): void {
 function TodoRow({
   todo,
   fromGoalId,
+  menuKey,
+  menu,
   drag,
   editing,
   onSetTodoStatus,
@@ -457,6 +479,12 @@ function TodoRow({
   todo: GoalTreeTodo;
   /** The goal row this todo hangs under; null in the loose group. */
   fromGoalId: string | null;
+  /**
+   * This row's key in `menu`. A todo is drawn once per goal it hangs under,
+   * and again where that goal is drawn twice, so the key names the place.
+   */
+  menuKey: string;
+  menu: RowMenu;
   drag: DragState | null;
   editing: boolean;
   onSetTodoStatus: (todoId: string, status: TodoStatus) => void;
@@ -464,16 +492,21 @@ function TodoRow({
   onDeleteTodo?: (todoId: string) => void;
   labels: GoalTreeLabels;
 }): React.JSX.Element {
+  const chipsId = useId();
   const done = todo.status === "DONE";
   const dragged =
     drag?.source?.kind === "todo" &&
     drag.source.todoId === todo.id &&
     drag.source.fromGoalId === fromGoalId;
+  const menuOpen = menu.narrow && menu.openKey === menuKey;
+  const editChip = labels.editTodoChip ?? labels.formatOpenTodo(todo.title);
   return (
     <li
       data-goal-tree-row=""
       className={cn(
         "group/todo flex items-center gap-1 rounded-lumen-sm transition-colors hover:bg-lumen-hover",
+        // The chips take the line under the name.
+        menu.narrow && "flex-wrap",
         editing && "bg-lumen-accent-subtle",
         dragged && DRAG_HOLE,
       )}
@@ -523,28 +556,162 @@ function TodoRow({
           {todo.title}
         </span>
       </button>
-      <button
-        type="button"
-        onClick={() => onOpenTodo(todo.id)}
-        aria-label={labels.formatOpenTodo(todo.title)}
-        title={labels.formatOpenTodo(todo.title)}
-        aria-current={editing ? "true" : undefined}
-        className={TODO_ROW_ICON}
-      >
-        <Pencil size={14} aria-hidden />
-      </button>
-      {onDeleteTodo && (
-        <button
-          type="button"
-          onClick={() => onDeleteTodo(todo.id)}
-          aria-label={labels.formatDeleteTodo(todo.title)}
-          title={labels.formatDeleteTodo(todo.title)}
-          className={TODO_ROW_ICON}
+      {menu.narrow ? (
+        <RowMoreButton
+          open={menuOpen}
+          controls={chipsId}
+          label={
+            labels.formatMoreActions?.(todo.title) ??
+            [
+              labels.formatOpenTodo(todo.title),
+              onDeleteTodo && labels.formatDeleteTodo(todo.title),
+            ]
+              .filter(Boolean)
+              .join(" / ")
+          }
+          onToggle={() => menu.onOpen(menuOpen ? null : menuKey)}
+        />
+      ) : (
+        <>
+          <button
+            type="button"
+            onClick={() => onOpenTodo(todo.id)}
+            aria-label={labels.formatOpenTodo(todo.title)}
+            title={labels.formatOpenTodo(todo.title)}
+            aria-current={editing ? "true" : undefined}
+            className={TODO_ROW_ICON}
+          >
+            <Pencil size={14} aria-hidden />
+          </button>
+          {onDeleteTodo && (
+            <button
+              type="button"
+              onClick={() => onDeleteTodo(todo.id)}
+              aria-label={labels.formatDeleteTodo(todo.title)}
+              title={labels.formatDeleteTodo(todo.title)}
+              className={TODO_ROW_ICON}
+            >
+              <Trash2 size={14} aria-hidden />
+            </button>
+          )}
+        </>
+      )}
+      {menuOpen && (
+        <RowChips
+          id={chipsId}
+          label={todo.title}
+          onClose={() => menu.onOpen(null)}
         >
-          <Trash2 size={14} aria-hidden />
-        </button>
+          <button
+            type="button"
+            onClick={() => {
+              menu.onOpen(null);
+              onOpenTodo(todo.id);
+            }}
+            aria-current={editing ? "true" : undefined}
+            className={cn(ROW_CHIP, "text-lumen-text")}
+          >
+            {editChip}
+          </button>
+          {onDeleteTodo && (
+            <button
+              type="button"
+              onClick={() => {
+                menu.onOpen(null);
+                onDeleteTodo(todo.id);
+              }}
+              className={cn(ROW_CHIP, "text-lumen-danger")}
+            >
+              {labels.deleteTooltip}
+            </button>
+          )}
+        </RowChips>
       )}
     </li>
+  );
+}
+
+/**
+ * Which row's "…" is open on a phone (#2611); one at a time across the tree,
+ * so opening another row's closes the last. `narrow` is the phone layout,
+ * where rows carry the "…" in place of their icons.
+ */
+interface RowMenu {
+  narrow: boolean;
+  openKey: string | null;
+  onOpen: (key: string | null) => void;
+}
+
+/*
+ * The "…" at a phone row's right end (#2611). Always shown and 44px square:
+ * #2488's icons were hidden until a hover a phone never sends, and #2487's
+ * three took the title's room. One target leaves the title its line.
+ */
+const MORE_BUTTON = cn(
+  "grid size-11 shrink-0 place-items-center rounded-lumen-sm text-lumen-text-tertiary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+  "aria-expanded:bg-lumen-hover aria-expanded:text-lumen-text",
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+);
+
+/** A chip under a phone row: 44px tall, its label on one line. */
+const ROW_CHIP = cn(
+  KEEP_LABEL,
+  "inline-flex min-h-11 items-center rounded-full border border-lumen-border bg-lumen-bg-secondary px-3 text-xs transition-colors hover:bg-lumen-hover",
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+);
+
+function RowMoreButton({
+  open,
+  controls,
+  label,
+  onToggle,
+}: {
+  open: boolean;
+  controls: string;
+  label: string;
+  onToggle: () => void;
+}): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      data-goal-row-more=""
+      onClick={onToggle}
+      aria-expanded={open}
+      aria-controls={open ? controls : undefined}
+      aria-label={label}
+      title={label}
+      className={MORE_BUTTON}
+    >
+      <MoreHorizontal size={16} aria-hidden />
+    </button>
+  );
+}
+
+/** The chip line a "…" opens, named after its row; Esc closes it. */
+function RowChips({
+  id,
+  label,
+  onClose,
+  children,
+}: {
+  id: string;
+  label: string;
+  onClose: () => void;
+  children: ReactNode;
+}): React.JSX.Element {
+  return (
+    <div
+      id={id}
+      role="group"
+      aria-label={label}
+      data-goal-row-chips=""
+      onKeyDown={(e) => {
+        if (e.key === "Escape") onClose();
+      }}
+      className="flex basis-full flex-wrap items-center gap-2 py-1 pl-(--goal-tree-toggle)"
+    >
+      {children}
+    </div>
   );
 }
 
@@ -560,6 +727,7 @@ interface BranchState {
   onAddUnder: (row: AddingUnder | null) => void;
   /** Open a goal something was just added under, if it was closed. */
   onExpand: (goalId: string) => void;
+  menu: RowMenu;
 }
 
 interface AddingUnder extends EditingRow {
@@ -571,8 +739,9 @@ interface AddingUnder extends EditingRow {
 }
 
 /**
- * The icons at a goal row's right end: on hover, on focus, or selected on
- * desktop, and always on a phone.
+ * The icons at a goal row's right end on desktop: on hover, on focus, or
+ * selected. A phone draws the "…" instead (#2611); the 44px floor stays for
+ * the add field's ×, which a phone does show.
  */
 const ROW_ICON = cn(
   "ml-0.5 grid shrink-0 place-items-center rounded-lumen-sm text-lumen-text-tertiary transition-[color,background-color,opacity] hover:bg-lumen-hover hover:text-lumen-text",
@@ -580,22 +749,19 @@ const ROW_ICON = cn(
   "max-md:min-h-11 max-md:min-w-11",
 );
 
-/*
- * Below 768px a goal row's three icons take a line of their own (#2487). On
- * one line at 390px they held 150px and the badge and the count took the
- * rest, so the title's span was 0px wide. Desktop keeps its one line: there
- * the box is display: contents, and the icons sit in the row as before.
- */
-const GOAL_ROW_ICONS =
-  "md:contents max-md:flex max-md:basis-full max-md:justify-end";
+/** Desktop only: the box is not drawn, and the icons sit in the row's line. */
+const GOAL_ROW_ICONS = "contents";
 
-/** Below 768px the title keeps room for a few characters before it ellipses. */
+/**
+ * Below 768px the title keeps room for a few characters (#2487), and wraps
+ * to a second line before it ellipses (#2611).
+ */
 const GOAL_TITLE_FLOOR = "max-md:min-w-20";
 
-/** A todo row's icons: on hover or focus on desktop, always on a phone. */
+/** A todo row's icons on desktop: on hover or focus. */
 const TODO_ROW_ICON = cn(
   ROW_ICON,
-  "opacity-0 group-hover/todo:opacity-100 group-focus-within/todo:opacity-100 max-md:opacity-100",
+  "opacity-0 group-hover/todo:opacity-100 group-focus-within/todo:opacity-100",
 );
 
 /**
@@ -789,6 +955,7 @@ function GoalBranch({
   const { labels } = props;
   const { drag } = branch;
   const { goal } = node;
+  const chipsId = useId();
   const selected = goal.id === props.selectedGoalId;
   const hasBelow = node.todos.length > 0 || node.children.length > 0;
   const open = hasBelow && !branch.collapsed.has(goal.id);
@@ -802,11 +969,24 @@ function GoalBranch({
     branch.addingUnder?.goalId === goal.id && branch.addingUnder.place === place
       ? branch.addingUnder
       : null;
-  // A phone has no hover, so the icons stay shown there, as on a todo row.
   const iconClass = cn(
     ROW_ICON,
-    !selected && "opacity-0 group-hover/row:opacity-100 max-md:opacity-100",
+    !selected && "opacity-0 group-hover/row:opacity-100",
   );
+  const { menu } = branch;
+  const menuKey = `goal:${place}:${goal.id}`;
+  const menuOpen = menu.narrow && menu.openKey === menuKey;
+  const openAdd = (): void =>
+    branch.onAddUnder({
+      goalId: goal.id,
+      place,
+      step: goalChildKinds(goal.periodKind).length > 0 ? "choose" : "todo",
+    });
+  const openRename = (): void => {
+    branch.onAddUnder(null);
+    branch.onEdit({ goalId: goal.id, place });
+    props.onEditGoal?.(goal.id);
+  };
   // A year goal is the top: there is no parent to drag it under. A row whose
   // name is being typed holds still, so a press in the field stays in it.
   const draggable = drag !== null && goal.periodKind !== "year" && !editing;
@@ -829,7 +1009,7 @@ function GoalBranch({
       <div
         data-goal-tree-row=""
         className={cn(
-          "group/row flex items-center rounded-lumen-sm transition-colors max-md:flex-wrap",
+          "group/row flex items-center rounded-lumen-sm transition-colors",
           dragged && DRAG_HOLE,
           // Info, not accent: accent already marks the selected row, and a
           // place to drop is a different thing to say (#2607).
@@ -934,7 +1114,8 @@ function GoalBranch({
             <span
               data-goal-title
               className={cn(
-                "min-w-0 flex-1 truncate text-sm font-semibold text-lumen-text",
+                "min-w-0 flex-1 text-sm font-semibold text-lumen-text",
+                menu.narrow ? "line-clamp-2 break-words" : "truncate",
                 GOAL_TITLE_FLOOR,
               )}
             >
@@ -951,26 +1132,32 @@ function GoalBranch({
             <GoalStatus node={node} labels={labels} bar={false} />
           </button>
         )}
+        {menu.narrow && (rowActions || onRenameGoal) && !editing && (
+          <RowMoreButton
+            open={menuOpen}
+            controls={chipsId}
+            label={
+              labels.formatMoreActions?.(goal.title) ??
+              `${[
+                rowActions && labels.addUnderTooltip,
+                onRenameGoal && labels.editTooltip,
+                rowActions && labels.deleteTooltip,
+              ]
+                .filter(Boolean)
+                .join(" / ")}: ${goal.title}`
+            }
+            onToggle={() => menu.onOpen(menuOpen ? null : menuKey)}
+          />
+        )}
         {/* On the hovered or the selected row; a keyboard reaches them while
             hidden, and each shows once focused. */}
-        {(rowActions || onRenameGoal) && !editing && (
+        {!menu.narrow && (rowActions || onRenameGoal) && !editing && (
           <div data-goal-row-icons="" className={GOAL_ROW_ICONS}>
             {rowActions && (
               <button
                 type="button"
                 onClick={() =>
-                  branch.onAddUnder(
-                    addingHere
-                      ? null
-                      : {
-                          goalId: goal.id,
-                          place,
-                          step:
-                            goalChildKinds(goal.periodKind).length > 0
-                              ? "choose"
-                              : "todo",
-                        },
-                  )
+                  addingHere ? branch.onAddUnder(null) : openAdd()
                 }
                 aria-expanded={addingHere !== null}
                 aria-label={labels.formatAddUnder(goal.title)}
@@ -983,11 +1170,7 @@ function GoalBranch({
             {onRenameGoal && (
               <button
                 type="button"
-                onClick={() => {
-                  branch.onAddUnder(null);
-                  branch.onEdit({ goalId: goal.id, place });
-                  props.onEditGoal?.(goal.id);
-                }}
+                onClick={openRename}
                 aria-label={labels.formatEdit(goal.title)}
                 title={labels.editTooltip}
                 className={iconClass}
@@ -1021,6 +1204,50 @@ function GoalBranch({
           </span>
         )}
       </div>
+      {menuOpen && !editing && (
+        <RowChips
+          id={chipsId}
+          label={goal.title}
+          onClose={() => menu.onOpen(null)}
+        >
+          {rowActions && (
+            <button
+              type="button"
+              onClick={() => {
+                menu.onOpen(null);
+                openAdd();
+              }}
+              className={cn(ROW_CHIP, "text-lumen-text")}
+            >
+              {labels.addUnderTooltip}
+            </button>
+          )}
+          {onRenameGoal && (
+            <button
+              type="button"
+              onClick={() => {
+                menu.onOpen(null);
+                openRename();
+              }}
+              className={cn(ROW_CHIP, "text-lumen-text")}
+            >
+              {labels.editTooltip}
+            </button>
+          )}
+          {rowActions && (
+            <button
+              type="button"
+              onClick={() => {
+                menu.onOpen(null);
+                rowActions.onDelete(goal);
+              }}
+              className={cn(ROW_CHIP, "text-lumen-danger")}
+            >
+              {labels.deleteTooltip}
+            </button>
+          )}
+        </RowChips>
+      )}
       {addingHere && rowActions && (
         <AddUnderGoal
           goal={goal}
@@ -1041,6 +1268,8 @@ function GoalBranch({
                   key={todo.id}
                   todo={todo}
                   fromGoalId={goal.id}
+                  menuKey={`todo:${place}:${goal.id}:${todo.id}`}
+                  menu={menu}
                   drag={drag}
                   editing={todo.id === props.editingTodoId}
                   onSetTodoStatus={props.onSetTodoStatus}
@@ -1152,6 +1381,10 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
   const [overGoalId, setOverGoalId] = useState<string | null>(null);
   const [editing, setEditing] = useState<EditingRow | null>(null);
   const [addingUnder, setAddingUnder] = useState<AddingUnder | null>(null);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  // Wide when matchMedia is missing (jsdom), so the hover icons are the default.
+  const narrow = !useMediaQuery(WIDE_QUERY, true);
+  const menu: RowMenu = { narrow, openKey: openMenu, onOpen: setOpenMenu };
 
   if (isLoading) {
     return (
@@ -1287,6 +1520,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
     onEdit: setEditing,
     addingUnder,
     onAddUnder: setAddingUnder,
+    menu,
     onExpand: (goalId) =>
       setCollapsed((prev) => {
         if (!prev.has(goalId)) return prev;
@@ -1544,6 +1778,8 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
                 key={todo.id}
                 todo={todo}
                 fromGoalId={null}
+                menuKey={`todo:loose::${todo.id}`}
+                menu={menu}
                 drag={drag}
                 editing={todo.id === props.editingTodoId}
                 onSetTodoStatus={props.onSetTodoStatus}
@@ -1578,6 +1814,8 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
                   key={`${fromGoalId ?? ""}:${todo.id}`}
                   todo={todo}
                   fromGoalId={fromGoalId}
+                  menuKey={`todo:completed:${fromGoalId ?? ""}:${todo.id}`}
+                  menu={menu}
                   drag={drag}
                   editing={todo.id === props.editingTodoId}
                   onSetTodoStatus={props.onSetTodoStatus}

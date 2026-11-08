@@ -2356,7 +2356,16 @@ describe("Deleting a goal and choosing what goes with it (#2405)", () => {
   it("uses the full width on a phone", async () => {
     setNarrow();
     await renderTab();
-    openDelete("Win an autumn project");
+    // A phone row keeps its delete behind the "…" chip line (#2611).
+    const title = "Win an autumn project";
+    fireEvent.click(
+      screen.getByRole("button", { name: new RegExp(`Delete: ${title}$`) }),
+    );
+    fireEvent.click(
+      within(screen.getByRole("group", { name: title })).getByRole("button", {
+        name: "Delete",
+      }),
+    );
     expect(screen.getByRole("dialog").className).toContain("max-w-none");
   });
 });

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import {
   GoalTreeView,
@@ -114,11 +114,34 @@ const LABELS: GoalTreeLabels = {
   formatAddUnder: (title) => `Add under: ${title}`,
   formatDelete: (title) => `Delete goal: ${title}`,
   formatChildGoal: (kind) => `${kind} goal`,
+  formatMoreActions: (title) => `More actions: ${title}`,
+  editTodoChip: "Edit",
   renameField: "Goal title",
   loading: "Loading",
   loadFailed: "Could not load",
   retry: "Retry",
 };
+
+/** A phone: the tree reads its layout from matchMedia (#2611). */
+function setNarrow(): void {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    configurable: true,
+    value: (query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      dispatchEvent: () => false,
+    }),
+  });
+}
+
+afterEach(() => {
+  Reflect.deleteProperty(window, "matchMedia");
+});
 
 function renderTree(
   over: {
@@ -133,6 +156,7 @@ function renderTree(
     onSetTodoStatus?: (todoId: string, status: TodoStatus) => void;
     onOpenTodo?: (todoId: string) => void;
     onDeleteTodo?: (todoId: string) => void;
+    labels?: GoalTreeLabels;
   } = {},
 ): ReturnType<typeof render> {
   return render(
@@ -156,7 +180,7 @@ function renderTree(
       onEditGoal={over.onEditGoal}
       rowActions={over.rowActions}
       drag={over.drag}
-      labels={LABELS}
+      labels={over.labels ?? LABELS}
     />,
   );
 }
@@ -455,7 +479,7 @@ describe("GoalTreeView — +, edit and delete on a goal row (#2367)", () => {
     );
   });
 
-  it("always shows the three icons of an unselected row on a phone (#2488)", () => {
+  it("hides the three icons of an unselected row until hover or focus on desktop", () => {
     renderTree({
       onRenameGoal: vi.fn(),
       rowActions: actions(),
@@ -466,15 +490,75 @@ describe("GoalTreeView — +, edit and delete on a goal row (#2367)", () => {
       const { className } = within(row).getByRole("button", {
         name: `${verb}: Run 3 times`,
       });
-      // Desktop: hidden until hover, focus or selection.
       expect(className).toContain("opacity-0");
       expect(className).toContain("group-hover/row:opacity-100");
       expect(className).toContain("focus-visible:opacity-100");
-      // A phone has no hover: shown, with a 44px target.
-      expect(className).toContain("max-md:opacity-100");
-      expect(className).toContain("max-md:min-h-11");
-      expect(className).toContain("max-md:min-w-11");
     }
+    expect(row.querySelector("[data-goal-row-more]")).toBeNull();
+  });
+
+  it("ends an unselected row in one always-shown 44px … on a phone (#2488 / #2611)", () => {
+    setNarrow();
+    renderTree({
+      onRenameGoal: vi.fn(),
+      rowActions: actions(),
+      selectedGoalId: "m1",
+    });
+    const row = rowOf("Run 3 times");
+    // A phone has no hover: the icons are not drawn, so none can hide.
+    expect(row.querySelector("[data-goal-row-icons]")).toBeNull();
+    expect(
+      screen.queryByRole("button", {
+        name: /^(Add under|Edit goal|Delete goal): /,
+      }),
+    ).toBeNull();
+    const more = within(row).getByRole("button", {
+      name: "More actions: Run 3 times",
+    });
+    expect(more.className).not.toContain("opacity-0");
+    expect(more.className.split(/\s+/)).toContain("size-11");
+    expect(more.getAttribute("aria-expanded")).toBe("false");
+    expect(more.querySelector("svg")?.getAttribute("class")).toContain(
+      "lucide-ellipsis",
+    );
+  });
+
+  it("adds, renames and deletes from a phone row's chips, closing them (#2611)", () => {
+    setNarrow();
+    const rowActions = actions();
+    renderTree({ onRenameGoal: vi.fn(), rowActions });
+    const open = (title: string): HTMLElement => {
+      fireEvent.click(
+        screen.getByRole("button", { name: `More actions: ${title}` }),
+      );
+      return screen.getByRole("group", { name: title });
+    };
+    const chips = (title: string) => within(open(title));
+
+    // A week has no shorter goal, so "Add below" goes straight to the field.
+    fireEvent.click(
+      chips("Run 3 times").getByRole("button", { name: "Add below" }),
+    );
+    expect(screen.queryByRole("group", { name: "Run 3 times" })).toBeNull();
+    screen.getByRole("textbox", { name: "Add under: Run 3 times — Todo" });
+
+    fireEvent.click(
+      chips("Run weekly").getByRole("button", { name: "Rename" }),
+    );
+    expect(screen.queryByRole("group", { name: "Run weekly" })).toBeNull();
+    // The rename closes the other row's add field, as the desktop pencil does.
+    expect(screen.queryByRole("textbox", { name: /^Add under/ })).toBeNull();
+    const field = screen.getByRole("textbox", { name: "Goal title" });
+    expect((field as HTMLInputElement).value).toBe("Run weekly");
+    fireEvent.keyDown(field, { key: "Escape" });
+
+    fireEvent.click(
+      chips("Stretch daily").getByRole("button", { name: "Delete" }),
+    );
+    expect(rowActions.onDelete).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "m2" }),
+    );
+    expect(screen.queryByRole("group", { name: "Stretch daily" })).toBeNull();
   });
 
   /** The choices a goal's + opens, in order, without the way out. */
@@ -812,17 +896,72 @@ describe("GoalTreeView — a todo row's name, pencil and bin (#2388)", () => {
     for (const stop of stops) expect(stop.tabIndex).toBe(0);
   });
 
-  it("shows the icons on hover or focus on desktop, and always on a phone", () => {
+  it("shows the icons on hover or focus on desktop", () => {
     renderTree({ onDeleteTodo: vi.fn() });
     for (const name of ["Open 5 km jog", "Delete todo: 5 km jog"]) {
       const { className } = screen.getByRole("button", { name });
       expect(className).toContain("opacity-0");
       expect(className).toContain("group-hover/todo:opacity-100");
       expect(className).toContain("group-focus-within/todo:opacity-100");
-      expect(className).toContain("max-md:opacity-100");
-      expect(className).toContain("max-md:min-h-11");
-      expect(className).toContain("max-md:min-w-11");
     }
+  });
+
+  it("puts the pencil and the bin behind one … on a phone (#2611)", () => {
+    setNarrow();
+    const onOpenTodo = vi.fn();
+    const onDeleteTodo = vi.fn();
+    renderTree({ onOpenTodo, onDeleteTodo });
+    expect(screen.queryByRole("button", { name: "Open 5 km jog" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Delete todo: 5 km jog" }),
+    ).toBeNull();
+    const more = screen.getByRole("button", { name: "More actions: 5 km jog" });
+    expect(more.className.split(/\s+/)).toContain("size-11");
+
+    fireEvent.click(more);
+    expect(more.getAttribute("aria-expanded")).toBe("true");
+    const chips = within(screen.getByRole("group", { name: "5 km jog" }));
+    fireEvent.click(chips.getByRole("button", { name: "Edit" }));
+    expect(onOpenTodo).toHaveBeenCalledWith("t3");
+    expect(screen.queryByRole("group", { name: "5 km jog" })).toBeNull();
+
+    fireEvent.click(more);
+    fireEvent.click(
+      within(screen.getByRole("group", { name: "5 km jog" })).getByRole(
+        "button",
+        { name: "Delete" },
+      ),
+    );
+    expect(onDeleteTodo).toHaveBeenCalledWith("t3");
+  });
+
+  it("names the … after its actions for a host without the new copy (#2611)", () => {
+    setNarrow();
+    const labels: GoalTreeLabels = { ...LABELS };
+    delete labels.formatMoreActions;
+    delete labels.editTodoChip;
+    renderTree({
+      labels,
+      onDeleteTodo: vi.fn(),
+      onRenameGoal: vi.fn(),
+      rowActions: {
+        onAddTodo: vi.fn().mockResolvedValue(true),
+        onAddChildGoal: vi.fn().mockResolvedValue(true),
+        onDelete: vi.fn(),
+      },
+    });
+    screen.getByRole("button", {
+      name: "Add below / Rename / Delete: Run 3 times",
+    });
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Open 5 km jog / Delete todo: 5 km jog",
+      }),
+    );
+    within(screen.getByRole("group", { name: "5 km jog" })).getByRole(
+      "button",
+      { name: "Open 5 km jog" },
+    );
   });
 
   it("paints the hover on the row, with the colour of a goal's title", () => {
@@ -1038,12 +1177,21 @@ describe("GoalTreeView — a goal's title keeps its room on a phone (#2487)", ()
     expect(classesOf(button)).not.toContain("flex-wrap");
   });
 
-  it("puts the three icons on a line of their own below 768px only", () => {
+  it("wraps the title to two lines on a phone, keeping its floor (#2611)", () => {
+    setNarrow();
+    renderTree({ onRenameGoal: vi.fn(), rowActions: actions() });
+    const title = titleOf("Run 3 times").querySelector(
+      "[data-goal-title]",
+    ) as HTMLElement;
+    expect(classesOf(title)).toContain("line-clamp-2");
+    expect(classesOf(title)).not.toContain("truncate");
+    expect(classesOf(title)).toContain("max-md:min-w-20");
+  });
+
+  it("keeps the desktop icons in the row's one line", () => {
     renderTree({ onRenameGoal: vi.fn(), rowActions: actions() });
     const row = rowOf("Run 3 times");
-    expect(classesOf(row)).toContain("max-md:flex-wrap");
     expect(classesOf(row)).not.toContain("flex-wrap");
-
     const icons = row.querySelector("[data-goal-row-icons]") as HTMLElement;
     expect(
       within(icons)
@@ -1054,17 +1202,29 @@ describe("GoalTreeView — a goal's title keeps its room on a phone (#2487)", ()
       "Edit goal: Run 3 times",
       "Delete goal: Run 3 times",
     ]);
-    // Desktop: the box is not drawn, so the icons stay in the row's line.
-    expect(classesOf(icons)).toContain("md:contents");
-    expect(classesOf(icons)).toContain("max-md:basis-full");
-    expect(classesOf(icons)).not.toContain("basis-full");
-    // The title is not on the icons' line.
+    // The box is not drawn, so the icons sit in the row beside the title.
+    expect(classesOf(icons)).toContain("contents");
     expect(icons.contains(titleOf("Run 3 times"))).toBe(false);
-    // The tap floor stays 44px.
-    for (const icon of within(icons).getAllByRole("button")) {
-      expect(classesOf(icon)).toContain("max-md:min-h-11");
-      expect(classesOf(icon)).toContain("max-md:min-w-11");
-    }
+  });
+
+  it("puts a phone's … beside the title, with the chips on the line below", () => {
+    setNarrow();
+    renderTree({ onRenameGoal: vi.fn(), rowActions: actions() });
+    const row = rowOf("Run 3 times");
+    // One 44px target leaves the title its room, so the row need not wrap.
+    expect(classesOf(row)).not.toContain("max-md:flex-wrap");
+    const more = within(row).getByRole("button", {
+      name: "More actions: Run 3 times",
+    });
+    fireEvent.click(more);
+    const chips = screen.getByRole("group", { name: "Run 3 times" });
+    expect(row.contains(chips)).toBe(false);
+    expect(more.getAttribute("aria-controls")).toBe(chips.id);
+    expect(
+      within(chips)
+        .getAllByRole("button")
+        .map((b) => b.textContent),
+    ).toEqual(["Add below", "Rename", "Delete"]);
   });
 
   it("draws no icon line on a row whose name is being typed", () => {
@@ -1075,5 +1235,22 @@ describe("GoalTreeView — a goal's title keeps its room on a phone (#2487)", ()
     const field = screen.getByRole("textbox", { name: "Goal title" });
     const row = field.parentElement as HTMLElement;
     expect(row.querySelector("[data-goal-row-icons]")).toBeNull();
+  });
+
+  it("draws no … on a phone row whose name is being typed", () => {
+    setNarrow();
+    renderTree({ onRenameGoal: vi.fn(), rowActions: actions() });
+    fireEvent.click(
+      screen.getByRole("button", { name: "More actions: Run weekly" }),
+    );
+    fireEvent.click(
+      within(screen.getByRole("group", { name: "Run weekly" })).getByRole(
+        "button",
+        { name: "Rename" },
+      ),
+    );
+    const field = screen.getByRole("textbox", { name: "Goal title" });
+    const row = field.parentElement as HTMLElement;
+    expect(row.querySelector("[data-goal-row-more]")).toBeNull();
   });
 });
