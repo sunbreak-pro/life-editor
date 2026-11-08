@@ -111,7 +111,7 @@ export const SlashMenu = forwardRef<SlashMenuHandle, SlashMenuProps>(
 
     if (items.length === 0) {
       return (
-        <div className="w-[16rem] rounded-lumen-md border border-lumen-border bg-lumen-bg px-3 py-2 text-sm text-lumen-text-tertiary shadow-lumen-md">
+        <div className="w-[16rem] max-md:w-max max-md:max-w-[calc(100vw-2rem)] rounded-lumen-md border border-lumen-border bg-lumen-bg px-3 py-2 text-sm text-lumen-text-tertiary shadow-lumen-md">
           {emptyLabel}
         </div>
       );
@@ -124,7 +124,15 @@ export const SlashMenu = forwardRef<SlashMenuHandle, SlashMenuProps>(
         // Inline cap beats the class when the placer supplies one (see
         // ItemLinkMenu — the two pickers stay one system).
         style={{ maxHeight }}
-        className="max-h-72 w-[16rem] overflow-y-auto rounded-lumen-md border border-lumen-border bg-lumen-bg p-1 shadow-lumen-md"
+        className={[
+          "max-h-72 w-[16rem] overflow-y-auto rounded-lumen-md border border-lumen-border bg-lumen-bg p-1 shadow-lumen-md",
+          // #2669: on a phone the fixed 16rem (#2586) took three quarters of a
+          // 390px screen for labels a third of that long. Below 768px the
+          // panel is as wide as its longest label, and the rows below keep
+          // each label on one line. The cap keeps a long translation inside
+          // the screen. Desktop keeps the 16rem of #2586.
+          "max-md:w-max max-md:max-w-[calc(100vw-2rem)]",
+        ].join(" ")}
       >
         {items.map((item, index) => {
           const isActive = index === selected;
@@ -143,7 +151,7 @@ export const SlashMenu = forwardRef<SlashMenuHandle, SlashMenuProps>(
                 command(item);
               }}
               className={[
-                "flex w-full items-center gap-2.5 rounded-lumen-sm px-2.5 py-1.5 text-left text-sm",
+                "flex w-full items-center gap-2.5 whitespace-nowrap rounded-lumen-sm px-2.5 py-1.5 text-left text-sm",
                 // Touch sizing below 768px — same 44px floor as ItemLinkMenu.
                 "max-md:min-h-11 max-md:px-3 max-md:text-sm",
                 // #2586: the highlight is the hover fill. The pointer moves the
