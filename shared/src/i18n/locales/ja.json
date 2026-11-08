@@ -527,6 +527,12 @@
       "deleteConfirmBody": "「{{name}}」を削除しますか？ ゴミ箱に入るので、あとから元に戻せます。",
       "deleteConfirmAction": "削除する",
       "bodyPlaceholder": "ノートを書く…",
+      "bodyHint": {
+        "slash": " でブロックを挿入",
+        "link": " でリンク",
+        "format": "文字を選ぶと書式",
+        "separator": "、"
+      },
       "untitled": "(無題)",
       "lockedHint": "このノートはロックされています",
       "offlineLocked": "オフラインのあいだは、ノートの題の変更・ピン留め・削除はできません。",
