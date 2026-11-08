@@ -107,7 +107,9 @@ const LABELS: GoalTreeLabels = {
   addTodoLabel: "Add a todo",
   addTodoPlaceholder: "Todo",
   dragToMove: "Drag to move",
-  dropHere: "Move here",
+  addUnderTooltip: "Add below",
+  editTooltip: "Rename",
+  deleteTooltip: "Delete",
   formatEdit: (title) => `Edit goal: ${title}`,
   formatAddUnder: (title) => `Add under: ${title}`,
   formatDelete: (title) => `Delete goal: ${title}`,
@@ -434,6 +436,23 @@ describe("GoalTreeView — +, edit and delete on a goal row (#2367)", () => {
       expect(icon.className).toContain("opacity-0");
       expect(icon.className).toContain("focus-visible:opacity-100");
     }
+  });
+
+  it("titles the icons with the action alone, keeping the title in the spoken name (#2607)", () => {
+    renderTree({ onRenameGoal: vi.fn(), rowActions: actions() });
+    const row = rowOf("Run 3 times");
+    const tooltip = (name: string): string | null =>
+      within(row).getByRole("button", { name }).getAttribute("title");
+    expect(tooltip("Add under: Run 3 times")).toBe("Add below");
+    expect(tooltip("Edit goal: Run 3 times")).toBe("Rename");
+    expect(tooltip("Delete goal: Run 3 times")).toBe("Delete");
+    // The edit icon is the pencil the todo rows already use.
+    const edit = within(row).getByRole("button", {
+      name: "Edit goal: Run 3 times",
+    });
+    expect(edit.querySelector("svg")?.getAttribute("class")).toContain(
+      "lucide-pencil",
+    );
   });
 
   it("always shows the three icons of an unselected row on a phone (#2488)", () => {
@@ -917,9 +936,9 @@ describe("GoalTreeView — the add-goal form on a phone (#2490)", () => {
     expect(classesOf(title.parentElement as HTMLElement)).toContain(
       "max-md:flex-wrap",
     );
-    expect(
-      classesOf(title.parentElement as HTMLElement),
-    ).not.toContain("flex-wrap");
+    expect(classesOf(title.parentElement as HTMLElement)).not.toContain(
+      "flex-wrap",
+    );
     for (const name of ["From", "To"]) {
       const field = screen.getByLabelText(name);
       expect(classesOf(field)).toContain("max-md:min-h-11");
@@ -936,7 +955,8 @@ describe("GoalTreeView — the drag reads as carrying the row (#2365)", () => {
   /*
    * jsdom draws nothing, so these pin what the browser is handed and what
    * the rows say: a lifted copy of the whole row as the drag image, a dashed
-   * hole where the row was, and a "Move here" pill on the target underneath.
+   * hole where the row was, and an info-coloured outline on each place to
+   * drop that turns solid under the pointer (#2607).
    */
   const carrying = () => ({ ...transfer(), setDragImage: vi.fn() });
 
@@ -967,21 +987,28 @@ describe("GoalTreeView — the drag reads as carrying the row (#2365)", () => {
     expect(ghost.textContent).toContain("5 km jog");
   });
 
-  it("leaves a dashed hole and names the target under the pointer", async () => {
+  it("leaves a dashed hole and outlines the places to drop in info", async () => {
     renderTree({ drag: dragHandlers() });
     fireEvent.dragStart(titleOf("Run 3 times"), { dataTransfer: carrying() });
     await vi.waitFor(() =>
       expect(rowOf("Run 3 times").className).toContain("outline-dashed"),
     );
     const target = rowOf("Stretch daily");
-    expect(target.textContent).not.toContain("Move here");
+    expect(target.className).toContain("outline-dashed");
+    expect(target.className).toContain("outline-lumen-info");
+    expect(target.className).not.toContain("outline-lumen-accent");
+    const box = target.querySelector("[data-drop-target]") as HTMLElement;
+    expect(box.className).toContain("border-lumen-info");
+    expect(box.className).toContain("border-dashed");
     fireEvent.dragOver(target, { dataTransfer: transfer() });
-    await vi.waitFor(() =>
-      expect(target.querySelector("[data-drop-target]")?.textContent).toContain(
-        "Move here",
-      ),
-    );
+    await vi.waitFor(() => expect(target.className).toContain("outline-solid"));
     expect(target.className).toContain("outline-2");
+    expect(target.className).toContain("bg-lumen-info-subtle");
+    expect(target.className).not.toContain("outline-dashed");
+    // The square alone marks the spot: no "Move here" words (#2607).
+    const over = target.querySelector("[data-drop-target]") as HTMLElement;
+    expect(over.textContent).toBe("");
+    expect(over.className).not.toContain("border-dashed");
   });
 });
 

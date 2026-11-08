@@ -1,12 +1,10 @@
 import { useId, useRef, useState, type DragEvent, type ReactNode } from "react";
 import {
-  CheckCircle2,
   ChevronDown,
   ChevronRight,
   GripVertical,
   Pencil,
   Plus,
-  SquarePen,
   Target,
   Trash2,
   X,
@@ -66,7 +64,8 @@ import { canDropOn, type GoalTreeDragSource } from "./goalTreeDrag";
  *
  * The drag reads as carrying the row (#2365): the image under the pointer is
  * a lifted copy of it (liftDragImage), the row it left stays as a dashed
- * hole, and the goal under the pointer fills in with a "Move here" pill.
+ * hole, and the goal under the pointer turns from a dashed info outline to a
+ * solid one (#2607: the "+" square says where, so no words are added).
  *
  * A goal row carries up to three icons on hover or while selected (#2367):
  * "+" adds a todo linked to the goal, or a goal of any shorter period (#2399:
@@ -154,16 +153,24 @@ export interface GoalTreeLabels {
   addTodoPlaceholder: string;
   /** The grip's tooltip. */
   dragToMove: string;
-  /** "Move here" — on the drop target under the pointer. */
-  dropHere: string;
-  /** "Edit goal: Run 3 times" — the edit icon's spoken name and tooltip. */
+  /** "Edit goal: Run 3 times" — the edit icon's spoken name. */
   formatEdit: (title: string) => string;
+  /**
+   * "Rename" — the edit icon's tooltip. The tooltip sits on the row it names,
+   * so it carries the action alone, as the prototype does (#2607); the spoken
+   * name keeps the title, since a screen reader hears the button out of row.
+   */
+  editTooltip: string;
   /** The name field the edit icon opens. */
   renameField: string;
   /** "Add under: Run 3 times" — the "+" on a goal row (#2367). */
   formatAddUnder: (title: string) => string;
+  /** "Add below" — the "+"'s tooltip (#2607). */
+  addUnderTooltip: string;
   /** "Delete goal: Run 3 times" — the bin on a goal row. */
   formatDelete: (title: string) => string;
+  /** "Delete" — the bin's tooltip (#2607). */
+  deleteTooltip: string;
   /**
    * "This month's goal" — a "+" choice and the add field's badge. Given the
    * period's name (`periods`), since the goal lands in the current period.
@@ -336,8 +343,10 @@ export function GoalStatus({
   const { achievement } = node;
   if (achievement.achieved) {
     return (
-      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-lumen-chip-mint-bg px-2 py-0.5 text-xs font-medium text-lumen-chip-mint-fg">
-        <CheckCircle2 size={12} aria-hidden />
+      <span
+        data-goal-achieved
+        className="inline-flex shrink-0 items-center rounded-full bg-lumen-success-subtle px-2 py-0.5 text-xs font-medium text-lumen-success"
+      >
         {labels.achieved}
       </span>
     );
@@ -822,11 +831,13 @@ function GoalBranch({
         className={cn(
           "group/row flex items-center rounded-lumen-sm transition-colors max-md:flex-wrap",
           dragged && DRAG_HOLE,
+          // Info, not accent: accent already marks the selected row, and a
+          // place to drop is a different thing to say (#2607).
           placeable &&
             !isOver &&
-            "outline-1 -outline-offset-1 outline-dashed outline-lumen-accent",
+            "outline-[1.5px] -outline-offset-1 outline-dashed outline-lumen-info",
           isOver &&
-            "bg-lumen-accent-subtle outline-2 -outline-offset-2 outline-lumen-accent",
+            "bg-lumen-info-subtle outline-2 -outline-offset-2 outline-solid outline-lumen-info",
         )}
         onDragOver={drag ? (e) => drag.over(e, goal) : undefined}
         onDragLeave={drag ? (e) => drag.leave(e, goal.id) : undefined}
@@ -911,7 +922,7 @@ function GoalBranch({
             {showsPeriodBadge(goal, props.model.periodKeys) ? (
               <span
                 data-goal-period-badge
-                className="shrink-0 whitespace-nowrap rounded-full border border-lumen-border px-2 py-0.5 text-xs text-lumen-briefing-kohaku"
+                className="shrink-0 whitespace-nowrap rounded-lumen-sm bg-lumen-bg-secondary px-1.5 py-0.5 text-xs text-lumen-text-secondary"
               >
                 {labels.periods[goal.periodKind]}
               </span>
@@ -923,7 +934,7 @@ function GoalBranch({
             <span
               data-goal-title
               className={cn(
-                "min-w-0 flex-1 truncate text-sm font-medium text-lumen-text",
+                "min-w-0 flex-1 truncate text-sm font-semibold text-lumen-text",
                 GOAL_TITLE_FLOOR,
               )}
             >
@@ -963,7 +974,7 @@ function GoalBranch({
                 }
                 aria-expanded={addingHere !== null}
                 aria-label={labels.formatAddUnder(goal.title)}
-                title={labels.formatAddUnder(goal.title)}
+                title={labels.addUnderTooltip}
                 className={iconClass}
               >
                 <Plus size={14} aria-hidden />
@@ -978,10 +989,10 @@ function GoalBranch({
                   props.onEditGoal?.(goal.id);
                 }}
                 aria-label={labels.formatEdit(goal.title)}
-                title={labels.formatEdit(goal.title)}
+                title={labels.editTooltip}
                 className={iconClass}
               >
-                <SquarePen size={14} aria-hidden />
+                <Pencil size={14} aria-hidden />
               </button>
             )}
             {rowActions && (
@@ -989,7 +1000,7 @@ function GoalBranch({
                 type="button"
                 onClick={() => rowActions.onDelete(goal)}
                 aria-label={labels.formatDelete(goal.title)}
-                title={labels.formatDelete(goal.title)}
+                title={labels.deleteTooltip}
                 className={iconClass}
               >
                 <Trash2 size={14} aria-hidden />
@@ -1002,14 +1013,11 @@ function GoalBranch({
             aria-hidden
             data-drop-target={goal.id}
             className={cn(
-              "mx-1 inline-flex h-5 min-w-5 shrink-0 items-center justify-center gap-1 rounded-lumen-sm border border-lumen-accent transition-colors",
-              isOver
-                ? "bg-lumen-accent px-1.5 text-xs whitespace-nowrap text-lumen-on-accent"
-                : "border-dashed text-lumen-accent",
+              "mx-1 inline-flex size-5 shrink-0 items-center justify-center rounded-[3px] border border-lumen-info text-lumen-info transition-colors",
+              isOver ? "bg-lumen-info-subtle" : "border-dashed",
             )}
           >
-            <Plus size={12} />
-            {isOver && labels.dropHere}
+            <Plus size={12} strokeWidth={3} />
           </span>
         )}
       </div>
