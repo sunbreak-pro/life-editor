@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import type { KeyboardEvent } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 import { cn } from "./cn";
 import { stepSegmentFocus } from "./segmentedKeyNav";
 import { TAP_TARGET_TALL } from "./styleTokens";
@@ -9,6 +9,12 @@ export interface SegmentedOption {
   id: string;
   /** Already-translated segment label (§6.4). */
   label: string;
+  /**
+   * Glyph drawn before the label (#2631), the narrow echo of HeaderTab's and
+   * the same kind of node: sized to 14px and coloured by its aria-hidden
+   * wrapper here. Omit it and the segment is drawn as before.
+   */
+  icon?: ReactNode;
   /**
    * `data-tour-id` for the tutorial tour (#1124). Per-segment rather than
    * derived from `id` for the same reason HeaderTabs takes one: the ids here
@@ -270,6 +276,7 @@ export function SegmentedControl({
               // unaffected: the height is still content + padding, and the
               // text was already in the middle of it.
               "flex flex-1 items-center justify-center rounded-lumen-sm text-center",
+              option.icon != null && "gap-1",
               singleLineLabels && !truncateLabels && "whitespace-nowrap",
               // min-w-0: a flex item will not shrink below its content
               // without it, and the label's ellipsis never gets a chance.
@@ -286,6 +293,17 @@ export function SegmentedControl({
                 : "text-lumen-text-secondary",
             )}
           >
+            {option.icon != null && (
+              <span
+                aria-hidden
+                className={cn(
+                  "inline-flex shrink-0 [&>svg]:size-3.5",
+                  active ? "text-lumen-accent" : "text-lumen-text-tertiary",
+                )}
+              >
+                {option.icon}
+              </span>
+            )}
             {truncateLabels ? (
               <span className="min-w-0 truncate">{option.label}</span>
             ) : (

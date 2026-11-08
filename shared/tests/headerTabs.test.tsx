@@ -1,5 +1,6 @@
 import { afterEach, describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { Sunrise, Sunset } from "lucide-react";
 import { HeaderTabs, type HeaderTab } from "../src/components";
 
 /*
@@ -273,5 +274,43 @@ describe("HeaderTabs", () => {
     const trailing = screen.getByRole("button", { name: "panel" });
     expect(trailing).toBeInTheDocument();
     expect(trailing).not.toHaveAttribute("role", "tab");
+  });
+});
+
+describe("HeaderTabs — the glyph before the label (#2631)", () => {
+  const WITH_ICONS: HeaderTab[] = [
+    { id: "morning", label: "Morning", icon: <Sunrise /> },
+    { id: "evening", label: "Evening", icon: <Sunset /> },
+    { id: "plain", label: "Plain" },
+  ];
+
+  it("draws an aria-hidden glyph only on tabs that pass one, outside the name", () => {
+    render(
+      <HeaderTabs tabs={WITH_ICONS} activeTab="morning" onSelect={vi.fn()} />,
+    );
+    const morning = screen.getByRole("tab", { name: "Morning" });
+    const evening = screen.getByRole("tab", { name: "Evening" });
+    const plain = screen.getByRole("tab", { name: "Plain" });
+
+    const glyph = morning.querySelector("svg");
+    expect(glyph).not.toBeNull();
+    expect(glyph?.parentElement?.getAttribute("aria-hidden")).toBe("true");
+    expect(evening.querySelector("svg")).not.toBeNull();
+    expect(plain.querySelector("svg")).toBeNull();
+  });
+
+  it("tints the selected tab's glyph with the accent and the rest tertiary", () => {
+    render(
+      <HeaderTabs tabs={WITH_ICONS} activeTab="morning" onSelect={vi.fn()} />,
+    );
+    const on = screen
+      .getByRole("tab", { name: "Morning" })
+      .querySelector("svg");
+    const off = screen
+      .getByRole("tab", { name: "Evening" })
+      .querySelector("svg");
+    // lucide draws in currentColor, so the tint sits on the wrapper.
+    expect(on?.parentElement?.className).toContain("text-lumen-accent");
+    expect(off?.parentElement?.className).toContain("text-lumen-text-tertiary");
   });
 });

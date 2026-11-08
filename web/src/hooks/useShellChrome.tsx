@@ -1,5 +1,11 @@
 import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
+import type { ReactElement } from "react";
 import { CalendarDays, FileText, type LucideIcon } from "lucide-react";
+import {
+  ANALYTICS_TAB_ICON,
+  BRIEFING_TAB_ICON,
+  CONNECT_TAB_ICON,
+} from "./shellTabIcons";
 import {
   getOutboxCounts,
   subscribeOutbox,
@@ -37,6 +43,11 @@ const MATERIALS_ICON: Record<MaterialsTab, LucideIcon> = {
   notes: FileText,
   daily: CalendarDays,
 };
+
+/** A tab's glyph as the element HeaderTabs / SegmentedControl size and tint (#2631). */
+function tabGlyph(Icon: LucideIcon): ReactElement {
+  return <Icon />;
+}
 
 /*
  * In-Schedule tabs (#411). Todos left Materials so that "the place you build
@@ -143,6 +154,7 @@ export function useShellChrome({
         return {
           id,
           label: t(`section.${id}`, { defaultValue: id }),
+          icon: tabGlyph(MATERIALS_ICON[id]),
           badge: count > 0 ? count : undefined,
         };
       }),
@@ -158,6 +170,7 @@ export function useShellChrome({
       ANALYTICS_TAB_ORDER.map((id) => ({
         id,
         label: t(`analytics.tabs.${id}`, { defaultValue: id }),
+        icon: tabGlyph(ANALYTICS_TAB_ICON[id]),
       })),
     [t],
   );
@@ -170,6 +183,7 @@ export function useShellChrome({
       {
         id: "morning",
         label: t("briefing.tabs.morning"),
+        icon: tabGlyph(BRIEFING_TAB_ICON.morning),
         // The tour's Briefing step anchors here (#1201). On the tab and not
         // inside the page because the band is drawn from the descriptor: it
         // survives the loading skeleton and the 17:00 default to 夕刊, both of
@@ -178,7 +192,11 @@ export function useShellChrome({
         // carrier at either width.
         tourId: TOUR_ANCHORS.briefingMorningTab,
       },
-      { id: "evening", label: t("briefing.tabs.evening") },
+      {
+        id: "evening",
+        label: t("briefing.tabs.evening"),
+        icon: tabGlyph(BRIEFING_TAB_ICON.evening),
+      },
     ],
     [t],
   );
@@ -187,8 +205,16 @@ export function useShellChrome({
   // for-both-controls shape as Briefing's.
   const connectTabDefs = useMemo(
     () => [
-      { id: "tags", label: t("connect.tabs.tags") },
-      { id: "goals", label: t("connect.tabs.goals") },
+      {
+        id: "tags",
+        label: t("connect.tabs.tags"),
+        icon: tabGlyph(CONNECT_TAB_ICON.tags),
+      },
+      {
+        id: "goals",
+        label: t("connect.tabs.goals"),
+        icon: tabGlyph(CONNECT_TAB_ICON.goals),
+      },
     ],
     [t],
   );

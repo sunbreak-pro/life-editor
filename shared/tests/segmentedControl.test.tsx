@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { cleanup, render, screen, fireEvent } from "@testing-library/react";
+import { Tag, Target } from "lucide-react";
 import { SegmentedControl, type SegmentedOption } from "../src/components";
 
 /*
@@ -252,5 +253,39 @@ describe("SegmentedControl", () => {
       key: "ArrowDown",
     });
     expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+describe("SegmentedControl — the glyph before the label (#2631)", () => {
+  const WITH_ICONS: SegmentedOption[] = [
+    { id: "tags", label: "Tags", icon: <Tag /> },
+    { id: "goals", label: "Goals", icon: <Target /> },
+    { id: "plain", label: "Plain" },
+  ];
+
+  it("draws an aria-hidden glyph only on segments that pass one", () => {
+    render(
+      <SegmentedControl
+        options={WITH_ICONS}
+        value="tags"
+        onChange={vi.fn()}
+        size="sm"
+        singleLineLabels
+      />,
+    );
+    const tags = screen.getByRole("tab", { name: "Tags" });
+    const plain = screen.getByRole("tab", { name: "Plain" });
+
+    const glyph = tags.querySelector("svg");
+    expect(glyph?.parentElement?.getAttribute("aria-hidden")).toBe("true");
+    expect(glyph?.parentElement?.className).toContain("text-lumen-accent");
+    expect(
+      screen
+        .getByRole("tab", { name: "Goals" })
+        .querySelector("svg")?.parentElement?.className,
+    ).toContain("text-lumen-text-tertiary");
+    expect(tags.className).toContain("gap-1");
+    expect(plain.querySelector("svg")).toBeNull();
+    expect(plain.className).not.toContain("gap-1");
   });
 });

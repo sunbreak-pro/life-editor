@@ -11,6 +11,7 @@ import { connectTabBand } from "../src/connect/connectTabBand";
 import { ConnectScreen } from "../src/connect/ConnectScreen";
 import { GoalsTodosScreen } from "../src/connect/GoalsTodosScreen";
 import { NarrowTabBand, TabBandHeader } from "../src/MainScreen";
+import { CONNECT_TAB_ICON } from "../src/hooks/shellTabIcons";
 import { useShellNavigation } from "../src/hooks/useShellNavigation";
 import { SECTION_DESCRIPTORS } from "../src/sectionDescriptors";
 import { stubDataService } from "./helpers";
@@ -31,6 +32,29 @@ beforeEach(() => {
 });
 
 describe("Connect tabs (#2108)", () => {
+  it("leads both tabs with their glyph at both widths (#2631)", () => {
+    const band = connectTabBand({
+      defs: [
+        { id: "tags", label: "タグ", icon: <CONNECT_TAB_ICON.tags /> },
+        { id: "goals", label: "目標と Todo", icon: <CONNECT_TAB_ICON.goals /> },
+      ],
+      active: "tags",
+      onSelect: vi.fn(),
+      label: "Connect views",
+    });
+    for (const view of [
+      render(<TabBandHeader band={band} controls={null} />),
+      render(<NarrowTabBand band={band} />),
+    ]) {
+      const tabs = Array.from(view.container.querySelectorAll('[role="tab"]'));
+      expect(tabs).toHaveLength(2);
+      for (const tab of tabs) {
+        expect(tab.querySelector('[aria-hidden="true"] > svg')).not.toBeNull();
+      }
+      view.unmount();
+    }
+  });
+
   it("gives Connect a header tab band at both widths", () => {
     const connect = SECTION_DESCRIPTORS.connect;
     expect(connect.tabBand).toBe("connect");

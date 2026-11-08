@@ -14,6 +14,17 @@ export interface HeaderTab {
    */
   badge?: number | string;
   /**
+   * Glyph drawn before the label (#2631): a lucide element the host builds,
+   * left unsized and uncoloured. The tab sizes it (16px) and colours it —
+   * accent when selected, tertiary otherwise — through its wrapper, which is
+   * aria-hidden because the label already names the tab. A node rather than
+   * a component type, as the other shared parts take icons: shared and web
+   * resolve their own copies of lucide-react's types, so a component type
+   * built in web does not type-check against shared's. Omit it and the tab
+   * is drawn as before.
+   */
+  icon?: ReactNode;
+  /**
    * `data-tour-id` for the tutorial tour (#1124). Per-tab rather than derived
    * from `id`: the ids here are section-local ("todo" exists under Schedule
    * and used to under Materials), and `resolveTourAnchor` takes the FIRST
@@ -159,6 +170,20 @@ export function HeaderTabs({
                   : "rounded-t-[6px] border-b-2 border-transparent text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
               )}
             >
+              {tab.icon != null && (
+                <span
+                  aria-hidden
+                  // The prototype's colours: accent on the selected tab,
+                  // tertiary on the rest, which hover leaves alone so the
+                  // label is what lifts. lucide draws in currentColor.
+                  className={cn(
+                    "inline-flex shrink-0 [&>svg]:size-4",
+                    active ? "text-lumen-accent" : "text-lumen-text-tertiary",
+                  )}
+                >
+                  {tab.icon}
+                </span>
+              )}
               <span>{tab.label}</span>
               {tab.badge != null && (
                 <span className="inline-flex h-[18px] items-center rounded-lumen-sm bg-lumen-accent-subtle px-1.5 text-xs font-medium tabular-nums text-lumen-accent">
