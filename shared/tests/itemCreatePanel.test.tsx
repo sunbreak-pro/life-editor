@@ -256,7 +256,7 @@ function pickerOption(title: string): HTMLElement {
 describe("ItemCreatePanel — event tab (inherited #299 / #353 / #354)", () => {
   it("opens on the event tab and submits the trimmed title with the default window", () => {
     const { onSubmitEvent } = renderPanel();
-    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+    fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "  Dentist  " },
     });
     fireEvent.click(screen.getByText("Add"));
@@ -278,7 +278,7 @@ describe("ItemCreatePanel — event tab (inherited #299 / #353 / #354)", () => {
     expect((screen.getByLabelText("End") as HTMLInputElement).value).toBe(
       "15:30",
     );
-    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+    fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Meeting" },
     });
     fireEvent.click(screen.getByText("Add"));
@@ -294,7 +294,7 @@ describe("ItemCreatePanel — event tab (inherited #299 / #353 / #354)", () => {
       initialStart: "14:00",
       initialEnd: "15:00",
     });
-    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+    fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "  Review  " },
     });
     fireEvent.click(screen.getByText("Add and edit"));
@@ -308,7 +308,7 @@ describe("ItemCreatePanel — event tab (inherited #299 / #353 / #354)", () => {
 
   it("keeps Enter on the plain create, so the fast path stays fast (#354)", () => {
     const { onSubmitEvent, onSubmitEventAndOpen } = renderPanel();
-    const input = screen.getByPlaceholderText("Event title");
+    const input = screen.getByLabelText("Title");
     fireEvent.change(input, { target: { value: "Standup" } });
     fireEvent.keyDown(input, { key: "Enter" });
     expect(onSubmitEvent).toHaveBeenCalledTimes(1);
@@ -325,7 +325,7 @@ describe("ItemCreatePanel — event tab (inherited #299 / #353 / #354)", () => {
 
   it("submits on Enter but ignores Enter during IME composition", () => {
     const { onSubmitEvent } = renderPanel();
-    const input = screen.getByPlaceholderText("Event title");
+    const input = screen.getByLabelText("Title");
     fireEvent.change(input, { target: { value: "Standup" } });
     fireEvent.keyDown(input, { key: "Enter", isComposing: true });
     expect(onSubmitEvent).not.toHaveBeenCalled();
@@ -358,7 +358,7 @@ describe("ItemCreatePanel — date and all-day (#940)", () => {
   const setDate = (value: string) =>
     fireEvent.change(screen.getByLabelText("Date"), { target: { value } });
   const addEvent = (title: string) => {
-    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+    fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: title },
     });
     fireEvent.click(screen.getByText("Add"));
@@ -379,7 +379,7 @@ describe("ItemCreatePanel — date and all-day (#940)", () => {
     const { onCreateTodo, onPlaceTodo } = renderPanel();
     setDate("2026-09-02");
     openTodoTab();
-    fireEvent.change(screen.getByPlaceholderText("Todo title"), {
+    fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Write the report" },
     });
     fireEvent.click(screen.getByText("Add todo"));
@@ -457,7 +457,7 @@ describe("ItemCreatePanel — date and all-day (#940)", () => {
     expect(toggle.getAttribute("aria-checked")).toBe("true");
     expect(screen.queryByLabelText("Start")).toBeNull();
 
-    fireEvent.change(screen.getByPlaceholderText("Todo title"), {
+    fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Write the report" },
     });
     fireEvent.click(screen.getByText("Add todo"));
@@ -515,7 +515,7 @@ describe("ItemCreatePanel — date and all-day (#940)", () => {
     expect((screen.getByLabelText("Date") as HTMLInputElement).value).toBe(
       "2026-09-03",
     );
-    fireEvent.change(screen.getByPlaceholderText("Todo title"), {
+    fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Ship it" },
     });
     fireEvent.click(screen.getByText("Add todo"));
@@ -534,7 +534,7 @@ describe("ItemCreatePanel — todo tab (#376)", () => {
       initialEnd: "11:45",
     });
     openTodoTab();
-    fireEvent.change(screen.getByPlaceholderText("Todo title"), {
+    fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "  Write the report  " },
     });
     fireEvent.click(screen.getByText("Add todo"));
@@ -549,7 +549,7 @@ describe("ItemCreatePanel — todo tab (#376)", () => {
   it("Enter on the todo tab routes to the todo create, not the event create", () => {
     const { onCreateTodo, onSubmitEvent } = renderPanel();
     openTodoTab();
-    const input = screen.getByPlaceholderText("Todo title");
+    const input = screen.getByLabelText("Title");
     fireEvent.change(input, { target: { value: "Groceries" } });
     fireEvent.keyDown(input, { key: "Enter" });
     expect(onCreateTodo).toHaveBeenCalledWith(
@@ -633,7 +633,7 @@ describe("ItemCreatePanel — todo tab (#376)", () => {
       initialEnd: "11:45",
     });
     openTodoTab();
-    fireEvent.change(screen.getByPlaceholderText("Todo title"), {
+    fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "  Write the report  " },
     });
     fireEvent.click(screen.getByText("Add todo and edit"));
@@ -658,7 +658,7 @@ describe("ItemCreatePanel — todo tab (#376)", () => {
   it("keeps Enter on the plain todo create, as on the event tab", () => {
     const { onCreateTodo, onCreateTodoAndOpen } = renderPanel();
     openTodoTab();
-    const input = screen.getByPlaceholderText("Todo title");
+    const input = screen.getByLabelText("Title");
     fireEvent.change(input, { target: { value: "Groceries" } });
     fireEvent.keyDown(input, { key: "Enter" });
     expect(onCreateTodo).toHaveBeenCalledTimes(1);
@@ -899,7 +899,7 @@ describe("ItemCreatePanel — the footer says when it cannot act (#376)", () => 
     renderPanel();
     expect(screen.getByText("Add")).toBeDisabled();
     expect(screen.getByText("Add and edit")).toBeDisabled();
-    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+    fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Kickoff" },
     });
     expect(screen.getByText("Add")).toBeEnabled();
@@ -949,7 +949,7 @@ describe("ItemCreatePanel — the footer says when it cannot act (#376)", () => 
 
   it("cancels without writing anything, whatever was typed (#2406)", () => {
     const h = renderPanel();
-    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+    fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Kickoff" },
     });
     fireEvent.click(screen.getByText("Cancel"));
@@ -1024,7 +1024,7 @@ describe("ItemCreatePanel — the note attachment (#1370 / #2396)", () => {
   it("stages a new note and hands it to the event create", () => {
     const { onSubmitEvent } = renderPanel();
     stageNewNote("Minutes");
-    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+    fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Kickoff" },
     });
     fireEvent.click(screen.getByText("Add"));
@@ -1060,7 +1060,7 @@ describe("ItemCreatePanel — the note attachment (#1370 / #2396)", () => {
       fireEvent.change(field, { target: { value: title } });
       fireEvent.click(screen.getByText("Stage note"));
     }
-    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+    fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Kickoff" },
     });
     fireEvent.click(screen.getByText("Add"));
@@ -1086,7 +1086,7 @@ describe("ItemCreatePanel — the note attachment (#1370 / #2396)", () => {
     fireEvent.click(screen.getByText("Done"));
     expect(screen.queryByRole("listbox", { name: "Choose notes" })).toBeNull();
 
-    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+    fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Kickoff" },
     });
     fireEvent.click(screen.getByText("Add"));
@@ -1122,7 +1122,7 @@ describe("ItemCreatePanel — the note attachment (#1370 / #2396)", () => {
     );
     fireEvent.click(locked);
     fireEvent.click(screen.getByText("Done"));
-    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+    fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "1on1" },
     });
     fireEvent.click(screen.getByText("Add"));
@@ -1169,7 +1169,7 @@ describe("ItemCreatePanel — the note attachment (#1370 / #2396)", () => {
     fireEvent.click(pickerOption("Standup minutes"));
     fireEvent.click(screen.getByLabelText("Close the picker"));
 
-    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+    fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Kickoff" },
     });
     fireEvent.click(screen.getByText("Add"));
@@ -1202,7 +1202,7 @@ describe("ItemCreatePanel — the note attachment (#1370 / #2396)", () => {
 
     fireEvent.click(screen.getByLabelText("Remove Minutes"));
     expect(screen.queryByText("Minutes")).toBeNull();
-    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+    fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Kickoff" },
     });
     fireEvent.click(screen.getByText("Add"));
@@ -1215,7 +1215,7 @@ describe("ItemCreatePanel — the note attachment (#1370 / #2396)", () => {
     const { onCreateTodo } = renderPanel();
     openTodoTab();
     stageNewNote("Prep");
-    fireEvent.change(screen.getByPlaceholderText("Todo title"), {
+    fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Write the deck" },
     });
     fireEvent.click(screen.getByText("Add todo"));
@@ -1240,14 +1240,14 @@ describe("ItemCreatePanel — the note attachment (#1370 / #2396)", () => {
   it("leaves the footer and the title field alone while the note row is open", () => {
     const { onCreateTodo } = renderPanel();
     openTodoTab();
-    fireEvent.change(screen.getByPlaceholderText("Todo title"), {
+    fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Write the deck" },
     });
     fireEvent.click(screen.getByText("Attach a note"));
     // Unlike the old note TAB, the section is additive: the field the submit
     // depends on is still on screen.
     expect(
-      (screen.getByPlaceholderText("Todo title") as HTMLInputElement).value,
+      (screen.getByLabelText("Title") as HTMLInputElement).value,
     ).toBe("Write the deck");
     expect(footerButtons()).toEqual([
       "Cancel",
@@ -1263,7 +1263,7 @@ describe("ItemCreatePanel — the note attachment (#1370 / #2396)", () => {
     fireEvent.click(screen.getByText("Attach a note"));
     fireEvent.click(screen.getByText("New note"));
     // Opening the field and leaving it blank must not create an "Untitled".
-    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+    fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Kickoff" },
     });
     fireEvent.click(screen.getByText("Add"));
@@ -1301,7 +1301,7 @@ describe("ItemCreatePanel — the note attachment (#1370 / #2396)", () => {
     });
     fireEvent.click(screen.getByText("Never mind"));
     expect(screen.queryByRole("group", { name: "Note to link" })).toBeNull();
-    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+    fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Kickoff" },
     });
     fireEvent.click(screen.getByText("Add"));
@@ -1326,7 +1326,7 @@ describe("ItemCreatePanel — the note attachment (#1370 / #2396)", () => {
     fireEvent.click(screen.getByText("Choose existing"));
     expect(screen.getByText("0 selected")).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Close the picker"));
-    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+    fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Kickoff" },
     });
     fireEvent.click(screen.getByText("Add"));
@@ -1446,9 +1446,10 @@ describe("ItemCreatePanel — where the note picker opens (#2396)", () => {
     const picker = screen.getByRole("region", { name: "Choose notes" });
     expect(picker.getAttribute("data-note-picker")).toBe("side");
     expect(picker.className).toContain("w-80");
-    // A sibling of the form column, not inside it.
-    const form = screen.getByPlaceholderText("Event title").closest(
-      ".flex-col",
+    // A sibling of the form column, not inside it. `.flex-1` since #2566:
+    // the title's own <label> is a flex column too, and sits inside the form.
+    const form = screen.getByLabelText("Title").closest(
+      ".flex-1.flex-col",
     ) as HTMLElement;
     expect(form.contains(picker)).toBe(false);
     expect(picker.parentElement).toBe(form.parentElement);
@@ -1503,7 +1504,7 @@ describe("ItemCreatePanel — the repeat (#2406)", () => {
   const repeatTabs = () =>
     within(screen.getByRole("tablist", { name: "Repeat" }));
   const addEvent = (title: string) => {
-    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+    fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: title },
     });
     fireEvent.click(screen.getByText("Add"));
@@ -1544,7 +1545,7 @@ describe("ItemCreatePanel — the repeat (#2406)", () => {
     // 2026-08-20 is a Thursday (4). A bare "weekdays" would fire never.
     const { onSubmitEventAndOpen } = renderPanel({ withRepeat: true });
     fireEvent.click(repeatTabs().getByRole("tab", { name: "Weekdays" }));
-    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+    fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Gym" },
     });
     fireEvent.click(screen.getByText("Add and edit"));
@@ -1567,7 +1568,7 @@ describe("ItemCreatePanel — the repeat (#2406)", () => {
     fireEvent.click(repeatTabs().getByRole("tab", { name: "Daily" }));
     openTodoTab();
     expect(screen.queryByRole("tablist", { name: "Repeat" })).toBeNull();
-    fireEvent.change(screen.getByPlaceholderText("Todo title"), {
+    fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Write the report" },
     });
     fireEvent.click(screen.getByText("Add todo"));
@@ -1623,7 +1624,7 @@ describe("ItemCreatePanel — the repeat follows the date (#2426)", () => {
   const startField = () => screen.getByLabelText("Starts") as HTMLInputElement;
   /** What the "Add" press hands the host. */
   const addedRepeat = (onSubmitEvent: ReturnType<typeof vi.fn>) => {
-    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+    fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Gym" },
     });
     fireEvent.click(screen.getByText("Add"));
@@ -1758,7 +1759,7 @@ describe("ItemCreatePanel — shared draft across the type tabs (#376)", () => {
     // Realising halfway through that this is a todo, not an event, must not
     // cost the typing — that is why the drafts live on the panel.
     const { onCreateTodo } = renderPanel();
-    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+    fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Dentist" },
     });
     // #553: the TimeRangeField commits on blur/Enter, not per keystroke.
@@ -1770,7 +1771,7 @@ describe("ItemCreatePanel — shared draft across the type tabs (#376)", () => {
     fireEvent.blur(end);
     openTodoTab();
     expect(
-      (screen.getByPlaceholderText("Todo title") as HTMLInputElement).value,
+      (screen.getByLabelText("Title") as HTMLInputElement).value,
     ).toBe("Dentist");
     fireEvent.click(screen.getByText("Add todo"));
     expect(onCreateTodo).toHaveBeenCalledWith(
@@ -1778,5 +1779,106 @@ describe("ItemCreatePanel — shared draft across the type tabs (#376)", () => {
       slot({ start: "13:00", end: "13:30" }),
       [],
     );
+  });
+});
+
+/*
+ * #2566 — the add dialog's top, in the prototype's form: each switch under
+ * its own heading and the two side by side, the title named above its input
+ * with no placeholder, and the tag list opening upward with each tag's icon.
+ */
+describe("ItemCreatePanel — headed switches, the title heading, the tag list (#2566)", () => {
+  const TAG_POOL = {
+    tags: [
+      { id: "tag-work", name: "Work", color: "#1e3a8a", icon: "Briefcase" },
+      { id: "tag-home", name: "Home" },
+    ],
+    tagsOf: () => [],
+    onStagedChange: vi.fn(),
+    labels: {
+      field: "Tags",
+      add: "Add a tag",
+      remove: (name: string) => `Remove ${name}`,
+      empty: "No tags",
+    },
+  };
+
+  function renderWithTags() {
+    render(
+      <ItemCreatePanel
+        initial={{ date: DATE }}
+        pools={{ todos: TODOS, notes: NOTES, tags: TAG_POOL }}
+        handlers={{
+          onSubmitEvent: vi.fn(),
+          onSubmitEventAndOpen: vi.fn(),
+          onCreateTodo: vi.fn(),
+          onPlaceTodo: vi.fn(),
+        }}
+        labels={LABELS}
+      />,
+    );
+  }
+
+  it("heads the type switch and the source switch, side by side", () => {
+    renderPanel();
+    openTodoTab();
+    const typeHeading = screen.getByText("Item type");
+    const sourceHeading = screen.getByText("How to add");
+    // Each heading sits over its own switch…
+    expect(
+      within(typeHeading.parentElement!).getByRole("tablist", {
+        name: "Item type",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(sourceHeading.parentElement!).getByRole("radiogroup", {
+        name: "How to add",
+      }),
+    ).toBeInTheDocument();
+    // …and the two groups share one row (two columns from `sm` up).
+    const row = typeHeading.parentElement!.parentElement!;
+    expect(row).toBe(sourceHeading.parentElement!.parentElement);
+    expect(row.className.split(" ")).toEqual(
+      expect.arrayContaining(["grid", "sm:grid-cols-2"]),
+    );
+    // The heading is not read twice: the switch carries the same name.
+    expect(typeHeading.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("draws the type switch alone where there is no source to choose", () => {
+    renderPanel();
+    screen.getByText("Item type");
+    expect(screen.queryByText("How to add")).toBeNull();
+  });
+
+  it("names the title above its input and draws no placeholder", () => {
+    renderPanel();
+    const input = screen.getByLabelText("Title");
+    expect(input.tagName).toBe("INPUT");
+    expect(input.getAttribute("placeholder")).toBeNull();
+    expect(screen.queryByPlaceholderText("Event title")).toBeNull();
+    openTodoTab();
+    expect(screen.getByLabelText("Title").getAttribute("placeholder")).toBeNull();
+    expect(screen.queryByPlaceholderText("Todo title")).toBeNull();
+  });
+
+  it("opens the tag list above its button, each row led by the tag's icon", () => {
+    renderWithTags();
+    fireEvent.click(screen.getByRole("button", { name: "Add a tag" }));
+    const list = screen.getByRole("listbox", { name: "Add a tag" });
+    const popup = list.parentElement!;
+    expect(popup.className.split(" ")).toEqual(
+      expect.arrayContaining(["bottom-full", "mb-1", "w-52"]),
+    );
+    expect(popup.className.split(" ")).not.toContain("top-full");
+    const work = within(list).getByRole("option", { name: /Work/ });
+    const icon = work.querySelector("svg");
+    expect(icon).not.toBeNull();
+    // Tinted with the tag's colour, and no colour dot beside it.
+    expect(icon!.getAttribute("style")).toContain("color");
+    expect(work.querySelector("span.rounded-full")).toBeNull();
+    // A tag with no icon or colour still gets the generic glyph.
+    const home = within(list).getByRole("option", { name: /Home/ });
+    expect(home.querySelector("svg")).not.toBeNull();
   });
 });

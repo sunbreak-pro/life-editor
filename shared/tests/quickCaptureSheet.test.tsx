@@ -126,7 +126,7 @@ describe("QuickCaptureSheet", () => {
 
   it("forwards the submit handlers to the panel", () => {
     const { onSubmitEvent } = renderSheet();
-    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+    fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Dentist" },
     });
     fireEvent.click(screen.getByText("Add"));
@@ -142,7 +142,7 @@ describe("QuickCaptureSheet", () => {
       initialStart: "19:00",
       initialEnd: "20:30",
     });
-    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+    fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "  Gym  " },
     });
     fireEvent.click(screen.getByText("Add"));
@@ -156,7 +156,7 @@ describe("QuickCaptureSheet", () => {
   it("reaches the todo tab too — Mobile gets the same panel as Desktop (#376)", () => {
     const { onCreateTodo } = renderSheet();
     fireEvent.click(screen.getByText("Todo"));
-    fireEvent.change(screen.getByPlaceholderText("Todo title"), {
+    fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Groceries" },
     });
     fireEvent.click(screen.getByText("Add todo"));
@@ -169,7 +169,7 @@ describe("QuickCaptureSheet", () => {
 
   it("leaves closing to the host, so the sheet never double-closes (#376)", () => {
     const { onClose } = renderSheet();
-    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+    fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Standup" },
     });
     fireEvent.click(screen.getByText("Add"));
