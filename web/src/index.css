@@ -823,8 +823,16 @@ body {
   }
   /* #2671: the box is centred in its 44px column, so growing it 2px would move
      its left edge 1px left. A left margin of the whole growth puts the edge
-     back where the 20px box had it; the extra width goes to the right. */
-  .note-editor .ProseMirror ul[data-type="taskList"] li > label > input {
+     back where the 20px box had it; the extra width goes to the right.
+     #2694: the selector names `[type="checkbox"]` so it outranks the
+     `margin: 0` of the sizing rule above (0,4,4 against 0,4,2). Without it
+     that reset won, and the edge stayed 1px left at narrow widths. */
+  .note-editor
+    .ProseMirror
+    ul[data-type="taskList"]
+    li
+    > label
+    > input[type="checkbox"] {
     margin-left: 2px;
   }
   .note-editor .ProseMirror ul[data-type="taskList"] li > label::before {
