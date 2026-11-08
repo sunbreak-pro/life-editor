@@ -24,7 +24,15 @@ fi
 printf '%s' "$COMMAND" | grep -qE '(^|;|&&|\|\|)[[:space:]]*git[[:space:]]+commit([[:space:]]|$)' || exit 0
 printf '%s' "$COMMAND" | grep -q '\[tracker-ok\]' && exit 0
 
-REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+HOOK_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+# Subagents commit after `cd <worktree> && git commit` while this hook still runs from the main
+# checkout, so HOOK_ROOT's index is the wrong one (issue-workflow trial, 2026-11-08). Read the
+# repo the command really commits in; fall back to HOOK_ROOT when the cd target holds a variable.
+REPO_ROOT="$HOOK_ROOT"
+if command -v node >/dev/null 2>&1; then
+  IFS=$'\x1f' read -r _AGENT KNOWN _DIR TOP _LINKED _NAME < <(printf '%s' "$INPUT" | node "$(dirname "$0")/lib/hook-context.mjs" commit "$HOOK_ROOT" 2>/dev/null || true)
+  [ "${KNOWN:-0}" = "1" ] && [ -n "${TOP:-}" ] && REPO_ROOT="$TOP"
+fi
 STAGED="$(git -C "$REPO_ROOT" diff --cached --name-status 2>/dev/null || true)"
 [ -n "$STAGED" ] || exit 0
 
