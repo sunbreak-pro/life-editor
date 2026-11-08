@@ -110,7 +110,26 @@ export interface ModalProps {
    * to tap is too thin to find and there is no Esc key.
    */
   closeLabel?: string;
+  /**
+   * The panel's fill (#2660). "base" (default) is `bg-lumen-bg`, the colour of
+   * every confirm, help and settings dialog. "secondary" is
+   * `bg-lumen-bg-secondary`, for a panel whose body used to draw its own
+   * lighter card inside the darker panel — the item editors — so the panel
+   * itself becomes that card and only one outline is left.
+   *
+   * A prop rather than a `className` override: `cn` is a plain join, not
+   * tailwind-merge, so a second `bg-*` class would race `bg-lumen-bg` in
+   * stylesheet order instead of replacing it (see MODAL_MAX_WIDTH).
+   */
+  surface?: ModalSurface;
 }
+
+export type ModalSurface = "base" | "secondary";
+
+const MODAL_SURFACE: Record<ModalSurface, string> = {
+  base: "bg-lumen-bg",
+  secondary: "bg-lumen-bg-secondary",
+};
 
 /*
  * Centered modal dialog rendered through a portal to <body>.
@@ -140,6 +159,7 @@ export function Modal({
   closeOnBackdrop = true,
   fitViewport = false,
   closeLabel,
+  surface = "base",
 }: ModalProps) {
   const panelRef = useDialogA11y<HTMLDivElement>({
     open,
@@ -164,7 +184,8 @@ export function Modal({
         className={cn(
           "w-full rounded-lg border border-lumen-border",
           MODAL_MAX_WIDTH[size],
-          "bg-lumen-bg shadow-lumen-lg",
+          MODAL_SURFACE[surface],
+          "shadow-lumen-lg",
           padded ? "p-5" : null,
           // `2rem` is exactly the backdrop's own `p-4` on both edges, so the
           // ceiling is "the gutter the frame already draws" rather than a

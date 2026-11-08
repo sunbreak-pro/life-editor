@@ -22,6 +22,7 @@ import { timedSpanForAllDayOff } from "../utils/scheduleAllDay";
 import type { TodoScheduleSlot } from "../utils/todoCalendarChips";
 import type { EventWorkAnchor } from "../utils/timerSessions";
 import { cn } from "./cn";
+import { useDetailFrameBody } from "./ResponsiveDetailFrame";
 import {
   DISABLED_FILLED_BTN,
   FIELD,
@@ -366,7 +367,11 @@ function TodoDetailFields({
   twoColumn = false,
   workTime,
   actions,
-}: Omit<TodoDetailPanelProps, "className">) {
+  framed,
+}: Omit<TodoDetailPanelProps, "className"> & {
+  /** The frame is the card (#2660); see TodoDetailPanel. */
+  framed: boolean;
+}) {
   // `undefined` = untouched, so the field keeps following the live todo and a
   // rename made elsewhere still lands in front of the user instead of being
   // quietly pushed back by a stale draft (EventEditorEdits, same reasoning).
@@ -704,8 +709,10 @@ function TodoDetailFields({
           // `-mb-3 pb-3` is height-neutral — the negative margin gives back
           // exactly what the padding adds. It exists so the pinned row keeps
           // the card's own breathing room instead of sitting flush on the
-          // scroll edge.
-          stickyFooter && "sticky bottom-0 -mb-3 bg-lumen-bg-secondary pb-3",
+          // scroll edge. Framed (#2660) the panel has no padding to borrow
+          // from; the frame's own padding sits below the scroller instead.
+          stickyFooter && "sticky bottom-0 bg-lumen-bg-secondary",
+          stickyFooter && !framed && "-mb-3 pb-3",
         )}
       >
         {/* min-h-lumen-tap-min is the project's hit-area floor (tokens.css) —
@@ -744,17 +751,24 @@ function TodoDetailFields({
 }
 
 export function TodoDetailPanel({ className, ...rest }: TodoDetailPanelProps) {
+  // #2660: inside a ResponsiveDetailFrame, with a Cancel to stand in for the
+  // frame's ×, the frame becomes this card — drawing it here too was the
+  // second outline. The Cancel is drawn only when both halves are passed.
+  const framed = useDetailFrameBody(Boolean(rest.onCancel && rest.cancelLabel));
   return (
     <div
       className={cn(
-        "space-y-3 rounded-md border border-lumen-border bg-lumen-bg-secondary p-3",
+        "space-y-3",
+        framed
+          ? null
+          : "rounded-md border border-lumen-border bg-lumen-bg-secondary p-3",
         className,
       )}
     >
       {/* Keyed on the id: pending edits belong to the todo they were typed
           against, so switching todos drops them via a remount. The fragment
           adds no element, so the container's space-y still spaces the fields. */}
-      <TodoDetailFields key={rest.todoId} {...rest} />
+      <TodoDetailFields key={rest.todoId} {...rest} framed={framed} />
     </div>
   );
 }
