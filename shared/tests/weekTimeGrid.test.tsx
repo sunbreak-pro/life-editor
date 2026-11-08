@@ -816,3 +816,73 @@ describe("WeekTimeGrid — the axis's top and the opening scroll (#2563)", () =>
     expect(box.scrollTop).toBe(528 - 72);
   });
 });
+
+/*
+ * #2695 — the all-day chips land a render after the opening scroll and grow
+ * the sticky band. Browser scroll anchoring added that growth to scrollTop, so
+ * the now-line opened ~0.93 hours below the band instead of 1.5. jsdom has no
+ * layout and no anchoring, so the opt-out is pinned as the class that carries
+ * it, and the late rows are checked not to re-run (or undo) the opening scroll.
+ */
+describe("WeekTimeGrid — the opening scroll survives late all-day chips (#2695)", () => {
+  const scrollBox = (container: HTMLElement): HTMLElement =>
+    container.querySelector<HTMLElement>('[data-week-grid="scroll"]')!;
+
+  const allDayChips: WeekTimeGridItem[] = [
+    {
+      id: "late-1",
+      date: "2026-06-14",
+      startTime: "",
+      endTime: "",
+      isAllDay: true,
+      title: "Late 1",
+      variant: "task",
+    },
+    {
+      id: "late-2",
+      date: "2026-06-14",
+      startTime: "",
+      endTime: "",
+      isAllDay: true,
+      title: "Late 2",
+      variant: "task",
+    },
+  ];
+
+  function renderWith(rows: WeekTimeGridItem[], signal = 0) {
+    return (
+      <WeekTimeGrid
+        data={{
+          weekStart: "2026-06-14",
+          items: rows,
+          todayKey: "2026-06-14",
+          nowMinutes: 719, // 11:59
+        }}
+        labels={{ weekdays: WEEKDAYS, allDay: "All-day" }}
+        display={{ scrollToNowSignal: signal }}
+      />
+    );
+  }
+
+  it("turns scroll anchoring off on the one scroll box", () => {
+    const { container } = render(renderWith([]));
+    expect(scrollBox(container).className.split(" ")).toContain(
+      "[overflow-anchor:none]",
+    );
+  });
+
+  it.each([
+    ["no all-day chips", [] as WeekTimeGridItem[]],
+    ["two all-day chips", allDayChips],
+  ])("keeps the 1.5-hour lead when %s land after mount", (_, late) => {
+    const { container, rerender } = render(renderWith([]));
+    const box = scrollBox(container);
+    const opening = 719 * (48 / 60) - 72;
+    expect(box.scrollTop).toBeCloseTo(opening);
+    rerender(renderWith(late));
+    expect(box.scrollTop).toBeCloseTo(opening);
+    // 「今日」lands on the same place it always did.
+    rerender(renderWith(late, 1));
+    expect(box.scrollTop).toBeCloseTo(opening);
+  });
+});
