@@ -625,7 +625,9 @@ export function NotesView({
     sort: t("materials.sidebar.sort"),
     toggleDirection: t("materials.sidebar.toggleDirection"),
     tagFilter: t("materials.notes.tagFilterLabel"),
-    empty: t(offline ? "materials.notes.offlineEmpty" : "materials.notes.empty"),
+    empty: t(
+      offline ? "materials.notes.offlineEmpty" : "materials.notes.empty",
+    ),
     searchEmpty: t("materials.notes.searchEmpty"),
     bodySearchFailed: t("materials.notes.bodySearchFailed"),
     addCta: t("materials.notes.addCta"),
@@ -760,6 +762,16 @@ export function NotesView({
             onToggle={templateLibrary.toggleList}
             onEdit={templateLibrary.beginEdit}
             onDelete={handleDeleteTemplate}
+            // #2625: a row press applies it to the open note — the same
+            // dialog, and the same gate, as the kebab's "apply a template".
+            onApply={templateApply.beginWith}
+            applyDisabledReason={
+              !selected
+                ? t("materials.templates.applyNoNote")
+                : bodyGated
+                  ? t("materials.templates.applyLocked")
+                  : undefined
+            }
             labels={{
               heading: t("materials.templates.sidebarHeading"),
               empty: t("materials.templates.empty"),
@@ -767,6 +779,7 @@ export function NotesView({
               edit: t("materials.templates.edit"),
               delete: t("materials.templates.delete"),
               loading: t("common.loading"),
+              apply: t("materials.templates.applyRow"),
             }}
           />
         ) : undefined
@@ -831,7 +844,8 @@ export function NotesView({
           onTogglePin={notes.togglePin}
           onDelete={handleDeleteNote}
           offlineReason={
-            offlineReason ?? (selected.createdOffline ? unsentReason : undefined)
+            offlineReason ??
+            (selected.createdOffline ? unsentReason : undefined)
           }
           // #1179: the kebab entry, wired only when there is a DataService to
           // write templates through — the same condition the "[[" pool has.

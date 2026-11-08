@@ -345,3 +345,51 @@ describe("isBlankNoteBody", () => {
     ).toBe(false);
   });
 });
+
+/*
+ * #2625 — the sidebar's template rows open the same dialog with that template
+ * already picked, so the first thing on screen is its confirm.
+ */
+describe("apply from the sidebar's template row (#2625)", () => {
+  async function openTemplateList(): Promise<void> {
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /^materials\.templates\.sidebarHeading/,
+      }),
+    );
+    await screen.findByRole("button", {
+      name: "materials.templates.applyRow: Weekly review",
+    });
+  }
+
+  it("opens the confirm for that template, and applies it to the open note", async () => {
+    render(<NotesView dataService={makeDS()} />);
+    await openTemplateList();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "materials.templates.applyRow: Weekly review",
+      }),
+    );
+    await screen.findByText(
+      "materials.templates.applyConfirmBody|Weekly review",
+    );
+    fireEvent.click(screen.getByText("materials.templates.applyConfirm"));
+    await waitFor(() =>
+      expect(state.replaceNoteBody).toHaveBeenCalledExactlyOnceWith(
+        "note-a",
+        "<p>from the template</p>",
+      ),
+    );
+  });
+
+  it("turns the rows off with a reason while no note is open", async () => {
+    state.selectedId = null;
+    render(<NotesView dataService={makeDS()} />);
+    await openTemplateList();
+    const row = screen.getByRole("button", {
+      name: "materials.templates.applyRow: Weekly review",
+    }) as HTMLButtonElement;
+    expect(row.disabled).toBe(true);
+    expect(screen.getByText("materials.templates.applyNoNote")).toBeTruthy();
+  });
+});
