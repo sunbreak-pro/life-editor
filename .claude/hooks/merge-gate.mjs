@@ -2,6 +2,9 @@
 // merge-gate — `gh pr merge` を chat-main の merge-round の中だけで確認なしに通す（POLICY P-001、2026-11-02 改定）。
 //
 // settings.json には gh pr merge の allow も ask も置かない。確認を消すのはこの hook の allow だけにする:
+//   - サブエージェントが打った → deny。ただし agent_type が work-finishers のものだけはこの deny を外し、
+//     下の条件をすべて同じように当てる（issue-workflow の実行で、こうだいさんが確認の場で merge-round を選んだ回だけ
+//     work-finishers が merge-round を回すため。P-001 の例外）
 //   - 作業レーン（git worktree）から打った → deny（レーンは merge しない）
 //   - chat-main だが main にいない / 形が決まりと違う / 回が始まっていない / 一覧に無い / check 前 → ask
 //   - chat-main・main・決まった形・進行中の回の一覧にあり check を通った PR → allow
@@ -36,7 +39,8 @@ try {
   // input.cwd is the main checkout for chat-main's subagents too, so the worktree check below misses
   // them; agent_id and the `cd` in front of the command catch them (issue-workflow trial, 2026-11-08).
   const ctx = hookContext(input, "pr-merge", process.cwd());
-  if (ctx.agent) decide("deny", "サブエージェントは merge しません（POLICY P-001）。merge は chat-main の merge-round スキルが行います。");
+  if (ctx.agent && input.agent_type !== "work-finishers")
+    decide("deny", "サブエージェントは merge しません（POLICY P-001）。merge は chat-main の merge-round スキルが行います。");
   if (ctx.known && ctx.linked && ctx.sessionName !== "main")
     decide("deny", "作業レーン（worktree）の中からは merge しません（POLICY P-001）。merge は chat-main の merge-round スキルが行います。");
 

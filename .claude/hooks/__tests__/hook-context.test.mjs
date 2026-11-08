@@ -107,3 +107,47 @@ test("merge-gate denies a subagent and a merge from inside a lane worktree", () 
   assert.equal(runHook("merge-gate.mjs", { cwd: main, tool_input: { command: `cd ${wt} && ${cmd}` } }).decision, "deny");
   assert.equal(runHook("merge-gate.mjs", { cwd: main, tool_input: { command: cmd } }).decision, "ask");
 });
+
+// work-finishers runs merge-round for a run whose merge こうだいさん chose in issue-workflow's confirmation.
+test("merge-gate lets only work-finishers past the subagent deny", () => {
+  const cmd = "gh pr merge 1 -R sunbreak-pro/life-editor --squash";
+  const wf = { cwd: main, agent_id: "a1", agent_type: "work-finishers", tool_input: { command: cmd } };
+  assert.equal(runHook("merge-gate.mjs", wf).decision, "ask", "no round is active, so it still asks");
+  const other = { ...wf, agent_type: "general-purpose" };
+  assert.equal(runHook("merge-gate.mjs", other).decision, "deny");
+  const noType = { cwd: main, agent_id: "a1", tool_input: { command: cmd } };
+  assert.equal(runHook("merge-gate.mjs", noType).decision, "deny");
+});
+
+test("merge-gate applies every later check to work-finishers", () => {
+  const cmd = "gh pr merge 1 -R sunbreak-pro/life-editor --squash";
+  const as = (command, extra = {}) =>
+    runHook("merge-gate.mjs", { cwd: main, agent_id: "a1", agent_type: "work-finishers", tool_input: { command }, ...extra }).decision;
+  const dir = join(main, ".git", "merge-round");
+  mkdirSync(dir, { recursive: true });
+  const writeRound = (round) =>
+    writeFileSync(
+      join(dir, "active.json"),
+      JSON.stringify({ id: "r1", startedAt: new Date().toISOString(), verifiedTree: "t", prs: [1], heads: { 1: "h1" }, checked: { 1: "h1" }, ...round }),
+    );
+  try {
+    writeRound({});
+    assert.equal(as(cmd), "allow", "a checked PR of the active round");
+    assert.equal(as(`cd ${wt} && ${cmd}`), "deny", "from inside a lane worktree");
+    assert.equal(as(`${cmd} --admin`), "ask", "a different command shape");
+    assert.equal(as("gh pr merge 2 -R sunbreak-pro/life-editor --squash"), "ask", "not in the round's list");
+    writeRound({ checked: {} });
+    assert.equal(as(cmd), "ask", "check has not passed");
+    writeRound({ startedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString() });
+    assert.equal(as(cmd), "ask", "the round is older than 2 hours");
+    writeRound({});
+    git(main, "checkout", "-q", "-b", "not-main");
+    try {
+      assert.equal(as(cmd), "ask", "the main checkout is not on main");
+    } finally {
+      git(main, "checkout", "-q", "main");
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

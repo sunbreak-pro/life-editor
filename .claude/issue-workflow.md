@@ -1,6 +1,6 @@
 # issue-workflow のプロジェクト設定
 
-このファイルは、グローバルの `issue-workflow` スキルが life-editor で読むプロジェクト設定です。スキルは見出しごとに中身を読み、`## 実装役への指示`・`## 全体確認`・`## PR の決まり` の本文は `{{n}}` などを置き換えてから、各エージェントへの指示にそのまま入れます。
+このファイルは、グローバルの `issue-workflow` スキルが life-editor で読むプロジェクト設定です。スキルは見出しごとに中身を読み、`## 実装役への指示`・`## 全体確認`・`## PR の決まり`・`## 動作確認`・`## 仕上げ` の本文は `{{n}}` などを置き換えてから、各エージェントへの指示にそのまま入れます。
 
 ## 設定値
 
@@ -14,7 +14,7 @@
   "maxImplementers": 3,
   "maxIssuesPerRun": 8,
   "minFreeGb": 6,
-  "mergePolicy": "P-001: merge はこうだいさんが打つか、こうだいさんが chat-main で merge-round を起動したときだけ行う"
+  "mergePolicy": "P-001: merge はこうだいさんが打つか、こうだいさんが chat-main で merge-round を起動したときだけ行う。例外として、起動前の確認でこうだいさんが merge-round まで回すと選んだ実行では、work-finishers がその実行の PR に限って merge-round を回す"
 }
 ```
 
@@ -77,7 +77,7 @@
 
 1. `gh issue view {{n}} -R {{repo}}` で Issue を読みます。「作るもの」「範囲の外」「Scope」「完了条件」が仕様です（古い Issue では「DoD」「Definition of Done」が完了条件です）。Scope の外のファイルは変えません。Scope の外の変更が要ると分かったら、実装せずに notes へ書きます（POLICY P-008）。自分で Issue を起票しません。起票は chat-main が `issue-dispatch` で行います。
 2. 作業を始める前に `{{main}}/.claude/skills/worktree-policy/SKILL.md` を読みます。`{{worktree}}/.claude/comm/.session-branch` に `{{branch}}` を、`{{worktree}}/.claude/comm/.session-name` に `wf-{{n}}` を書きます。あとでこの worktree を Claude で開いたときに、セッション開始の hook が読むためです。作業は `{{worktree}}` の中だけで行い、`{{main}}` ではブランチを切り替えません。
-3. 実ブラウザ（playwright MCP・Chrome・Claude Design）と dev server（`npm run dev`）は使いません（CLAUDE.md §7.4）。worktree で localhost を重ねて起動すると、どの画面がどの変更かの確認が壊れるためです。Issue が実ブラウザでの調査を求めていても、コードを読んで調べ、実ブラウザでの確認は notes に「chat-main に残す」と書きます。
+3. 実ブラウザ（playwright MCP・Chrome・Claude Design）と dev server（`npm run dev`）は使いません（CLAUDE.md §7.4）。worktree で localhost を重ねて起動すると、どの画面がどの変更かの確認が壊れるためです。Issue が実ブラウザでの調査を求めていても、コードを読んで調べ、実ブラウザでの確認は notes に「chat-main に残す」と書きます。画面での確認は、全体確認の後に別の役（work-finishers の動作確認）が受け持ちます。
 4. 変える前に既存のコードを読みます。テストは Issue の完了条件に沿って足すか直します（shared と web の書き方は `{{worktree}}/.claude/skills/test-writing/SKILL.md`）。振る舞いを変えるときは、古い振る舞いを固定しているテストを grep で探して直します。`web/tests/` の jsdom にはレイアウトがなく座標がすべて 0 なので、画面座標に頼る入力経路はテストできません。
 5. テストは触ったパッケージだけで回します。全体の確認（`scripts/local-ci.mjs`）は後の段がするので、ここでは打ちません。Bash で終了コードを `cmd | tail` から取りません。出力を変数かファイルに取り、先に `$?` を見ます。
    - **shared**: `cd {{worktree}}/shared && npm ci`、続けて `npm run lint`、`npm run build`、`npm run typecheck:tests`、`npx vitest run --maxWorkers=4`。shared の lint は `shared/` でしか出ません。
@@ -109,7 +109,7 @@ notes は日本語（です・ます）で書きます。
 
 ## PR の決まり
 
-全体確認が合格したときだけ PR を作ります。失敗したときは push も PR もしません。
+全体確認が合格したあとに、work-finishers がこの決まりで push して PR を作ります。全体確認の役は push しません。全体確認が失敗したときは、push も PR もしません。
 
 1. push は `git -c credential.helper= -c "credential.helper=!gh auth git-credential" push -u origin {{branch}}` で打ちます。既定の資格情報マネージャーはここで止まったまま戻らないためです。`-u origin {{branch}}` は省きません。ブランチは `--no-track` で切っているので upstream がなく、引数なしの `git push` は通らないためです。
 2. PR は `gh pr create -R {{repo}} --base main --head {{branch}} --title "<commit の題>" --body-file <file>` で作ります。題は英語で、commit の題と同じにします。
@@ -117,16 +117,40 @@ notes は日本語（です・ます）で書きます。
    - 何を変えたかの短い要約
    - 全体確認のステップと終了コードの表、scope-overlap の `結論:` の行
    - `Refs #{{n}}` の行。`Closes`・`Fixes`・`Resolves` は使いません。merge で Issue が勝手に close されると、実ブラウザでの確認や db push が残っていても終わったように見えるためです
-   - 実ブラウザでの確認は chat-main に残している、という一文（db push が要るならそれも）
-4. merge はしません（P-001）。merge を止める hook（`merge-gate.mjs`）はセッションの作業場所で判定します。この役は main の checkout のセッションの中で動くので、hook はこの役の `gh pr merge` を止めません。この決まりは自分で守ります。
+   - 実ブラウザでの確認の扱いの一文。`runtime: true` の Issue なら「動作確認の結果をこの PR のコメントに付ける」、対象でなければ「実ブラウザでの確認は chat-main に残している」と書きます（db push が要るならそれも）
+4. ここでは merge しません（P-001）。merge するのは、work-finishers の仕上げ（`## 仕上げ`）が merge-round の中で打つときだけです。
+
+## 動作確認
+
+work-finishers が、main のセッションが `runtime: true` の印を付けた Issue の PR #{{pr}}（ブランチ `{{branch}}`、worktree `{{worktree}}`）で行います。dev server と実ブラウザを worktree で使うのは、この役だけの例外です（CLAUDE.md §7.4）。ここには life-editor だけの手順を書きます。
+
+1. **ポートは 5199 に固定します。** chat-main がふだん使う 5173 と、先客がいるときに vite がずらす 5174 から離すためです。始める前に `C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -NoProfile -Command 'Get-NetTCPConnection -LocalPort 5199 -State Listen -ErrorAction SilentlyContinue'` を打ちます。何か出たら、自分が立てたものではないので止めません。動作確認は「ポート 5199 が使われていた」で見送り、PR のコメントにそう書いて chat-main に残します。
+2. **env のファイルを写します。** `{{worktree}}/web/.env.local` がなければ、`cp {{main}}/web/.env.local {{worktree}}/web/.env.local` を打ちます。`{{main}}` にもなければ、動作確認を見送って chat-main に残します。worktree には env のファイルがなく、ないと Supabase の初期化で画面が落ちるためです。中身は表示せず、commit しません（`web/.gitignore` の `*.local` で外れています）。
+3. **dev server を立てます。** `cd {{worktree}}/web && node node_modules/vite/bin/vite.js --port 5199 --strictPort` を、Bash の `run_in_background: true` で打ちます。npm を挟まないのは、止めるときにポートを持つプロセスが 1 つで済むためです。shared の build は要りません。web の vite は shared をソースから読むためです。`node_modules` は全体確認の `npm ci` で入っています。なければ `{{worktree}}/shared` と `{{worktree}}/web` で `npm ci` を打ちます。
+4. **答えるまで待ちます。** `curl -s -o /dev/null -w "%{http_code}" --retry 30 --retry-delay 2 --retry-connrefused http://localhost:5199/` が `200` を返せば準備ができています。`200` でなければ、起動ログの末尾を PR のコメントに書き、手順 9 で止めます。
+5. **サインインの資格情報は入力しません。** `http://localhost:5199/` を開いてサインインの画面が出たら、サインインせずに見える画面だけを確かめます。サインインの要る画面は「chat-main に残す」とコメントに書きます。ブラウザにこのポートのサインイン済みのセッションが残っていれば、そのまま使ってかまいません。
+6. **本番のデータを壊しません。** サインイン済みのときは、本番の Supabase にあるこうだいさんのデータを見ています。書き込む操作は、この確認で作った項目（題を `[wf-check #{{n}}]` で始めます）にだけ行い、終わったら消します。既存の項目の編集と削除、設定の変更、サインアウト、アカウントの操作はしません。
+7. **BLOCKING に数えるのは次のときです。** Issue の完了条件のうち画面で確かめられるものが満たされないとき、白い画面かエラーの画面になるとき、変更した画面で console に新しい error が出るとき、変更した操作の主な流れが通らないときです。文言や余白の小さなずれは BLOCKING にせず、コメントに書くだけにします。
+8. **次は chat-main に残します。** マイグレーションを含む PR は確かめません。db push の前は本番のテーブルと合わず、db push はこうだいさんの作業だからです。サインインの要る画面（セッションがないとき）、mobile（Capacitor）と desktop（Electron）のアプリでの確認、IME の入力も残します。narrow の画面は、ブラウザの幅を 390px に狭めて確かめてかまいません。
+9. **結果がどうでも、最後に必ず止めます。** `C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -NoProfile -Command 'Get-NetTCPConnection -LocalPort 5199 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force }'` を打ち、ブラウザを閉じます（`browser_close`）。手順 1 の確認のコマンドをもう一度打ち、何も出ないことを確かめます。何か残っていたら、PR のコメントと報告にそう書きます。
+
+## 仕上げ
+
+work-finishers が、実行のすべてのブランチが終わったあとに 1 度だけ行います。こうだいさんが起動前の確認で「merge-round まで回す」を選んだ実行だけです。手順は `{{main}}/.claude/skills/merge-round/SKILL.md` の「work-finishers が回すとき」に従い、対象はこの実行の PR（{{prs}}）だけにします。ここには life-editor だけの決まりを書きます。
+
+1. 作業場所は main の checkout（`{{main}}`、ブランチは `main`）です。最初に `git -C {{main}} pull --ff-only` を打ちます。
+2. `cd {{main}} && node .claude/scripts/merge-round.mjs plan --only {{prs}}` から始めます。merge-round.mjs は、ほかのサブコマンドも `cd {{main}} &&` を付けて打ってかまいません。
+3. merge は、`check <n>` が 0 を返した直後に、`gh pr merge <n> -R {{repo}} --squash` を単独で打ちます。前に `cd` を付けない、`&&` でつながない、`--admin` と `--delete-branch` を付けない、の 3 つを守ります。どれかが外れると hook が確認を出します。hook は Bash の作業場所（main の checkout）で判定するので、`cd` なしで通ります。hook が ask か deny を返したら、その PR は飛ばして報告に書きます。
+4. `fixes` の前に、この実行の PR のうち open のものの `wf-*` の worktree を、`git -C {{main}} worktree remove C:/Users/user/orca/workspaces/life-editor/wf-<番号>` で外します（理由は「実行のあと」の 2 つめの項目）。全体確認で落ちて PR のない `wf-*` は外しません。
+5. `supabase db push` は打ちません。Issue も close しません。どちらもこうだいさんか chat-main の作業です。
 
 ## 実行のあと
 
 chat-main（リポジトリ直下の main の checkout）が、実行の報告を受けて次を行います。
 
-- **merge はこうだいさんが決めます。** こうだいさんが打つか、chat-main で `merge-round` スキルを起動したときだけ merge します（P-001）。
+- **merge はこうだいさんが決めます。** 起動前の確認でこうだいさんが「merge-round まで回す」を選んだ実行では、work-finishers が仕上げとして merge-round を回します（`## 仕上げ`）。選ばなかった実行では、こうだいさんが打つか、chat-main で `merge-round` スキルを起動したときだけ merge します（P-001）。
 - **PR が open の `wf-*` の worktree は、merge-round の「衝突と CI の赤を振り分ける」（`fixes`）より前に外します。** 外すコマンドは `git -C C:/Users/user/orca/life-editor worktree remove C:/Users/user/orca/workspaces/life-editor/wf-<番号>` です。ブランチは origin に残るので、PR はそのまま動きます。`merge-round.mjs` は、`autofix-*` と `merge-verify` 以外の worktree をすべてレーンに数えるためです。残しておくと、誰もいない worktree 宛てに `/goal` の指示文が出ます。chat-main が衝突を直す autofix も、「レーンがブランチを開いている」と判定されて止まります。PR のない `wf-*`（全体確認で落ちたもの）は外さずに残します。
-- **実ブラウザでの確認は chat-main がします。** 画面に関わる PR は、merge の後に chat-main が playwright MCP と dev server で確かめます。db push が要る PR は、こうだいさんの作業として伝えます。
+- **実ブラウザでの確認は、印の付いた PR を work-finishers が、残りを chat-main がします。** `runtime: true` の印を付けた Issue の PR は、work-finishers の動作確認（`## 動作確認`）が確かめて PR にコメントします。印のない画面に関わる PR と、動作確認が chat-main に残した分は、merge の後に chat-main が playwright MCP と dev server で確かめます。db push が要る PR は、こうだいさんの作業として伝えます。
 - **Issue の close は workflow がしません。** 実ブラウザでの確認と db push が済んだあとに、こうだいさんか chat-main が手で閉じます（CLAUDE.md §7.2）。
 - **全体確認で落ちた Issue** はブランチが `wf-<番号>` の worktree に残るので、次の回では共通の除外で外れます。その worktree で直して PR まで進めるか、ブランチと worktree を消して次の回に回すかを、chat-main がこうだいさんに聞きます。
 - **notes に出た Scope の外の気づき**は、chat-main が `issue-dispatch` で起票します。

@@ -159,6 +159,18 @@ main の CI は、支払いのロックなら「手元の CI で代えた」と�
 
 レーンが直し終えたら、こうだいさんがもう一度このスキルを起動する。2 回目以降も手順は同じです。
 
+## work-finishers が回すとき
+
+グローバルの `issue-workflow` スキルの実行では、サブエージェント `work-finishers` がこのスキルを回すことがある。手順は上と同じで、違うのは次の点だけ。
+
+- 承認は、その実行の起動前の確認（chat-main の AskUserQuestion）で、こうだいさんが「merge-round まで回す」を選んだこと。これを P-001 の人の起動に数える。選ばなかった実行では回さない。
+- 回の対象は、その実行が開いた PR だけにする。`plan --only <その実行の PR 番号をカンマで>` で始める。
+- 4a の衝突は、`autofix-start` の出力を Agent に渡さず、autofix の一時 worktree の中で自分で解く。サブエージェントはサブエージェントを起動できないため。解き方と確かめ方は出力の指示のとおりにし、終わったら `autofix-push` を打つ。
+- `gh pr merge` に hook が ask か deny を返したら、その PR は飛ばして報告に書く。打ち直さず、形を変えるなどの回り道もしない。
+- 報告は手順 6 と同じ順で書く。
+
+hook（`hooks/merge-gate.mjs`）がサブエージェントのうち通すのは、`agent_type` が `work-finishers` のものだけ。main の checkout・main ブランチ・決まった形・進行中の回・一覧・check の条件は、ほかと同じに当てる。
+
 ## 止める・戻す
 
 ### merge の前に止める
@@ -200,7 +212,7 @@ main を書き換えない（`reset --hard` と force push は deny 済み）。
 ## 安全則
 
 - 作業レーンでは使わない。レーンからの `gh pr merge` は hook が deny する。
-- 人の起動なしに回を始めない（定時実行・無人ループに載せない。POLICY P-001）。
+- 人の起動なしに回を始めない（定時実行・無人ループに載せない。POLICY P-001）。始めるのは、こうだいさんがこのスキルを起動したときと、issue-workflow の起動前の確認でこうだいさんが「merge-round まで回す」を選んだ実行（上の「work-finishers が回すとき」）だけ。
 - `supabase db push` と Issue の close はこのスキルで行わない。
 - 回の一覧にない PR を merge したくなったら、plan からやり直して一覧に入れる。hook の確認ダイアログで押し通さない。
 - chat-main がレーンの PR のブランチへ push するのは `autofix-push` だけにする。fast-forward だけで、force push はしない。レーンが開いているブランチには push しない。
