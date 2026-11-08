@@ -22,6 +22,13 @@
 
 共通の除外（open PR・既存のブランチ・origin/main に着地した PR・未着地の依存・本文が着地済みと書いている Issue）は、グローバルのスキルが持ちます。ここには life-editor だけの決まりを書きます。
 
+**revert された PR は着地に数えません。** この判定は、グローバルのスキルの着地の判定より先に、main のセッションが行います。merge-round で戻した作業は、この workflow で実装し直す決まりだからです（`merge-round` スキルの「merge した後に戻す」）。戻した PR の `mergeCommit` も origin/main の祖先のままなので、この判定がないと、戻した Issue が着地済みに見えて二度と選ばれません。merged の PR #p（merge commit が `<oid>`）は、次のどちらかに当たれば着地に数えません。
+
+1. origin/main に着地した merged の PR が、#p を戻している。題が `Revert "<#p の題>"` か `revert: <#p の題> (#p)`（merge-round の書式）で、題か本文に `#p` を含むものが当たりです。
+2. `git log origin/main --grep "This reverts commit <oid>"` が 1 件以上出る。
+
+戻した PR 自身も着地に数えません。merge-round の書式では、戻した PR の本文にも `Refs #<Issue>` が入るためです。戻した PR がさらに戻されていれば、元の PR は着地に戻ります。
+
 **記録用のブランチの PR は数えません。** `chore/tracker-*`・`chore/outbox-*`・`chore/routine-*` の PR は、open でも merged でも着手の判定に使いません。tracker の PR は本文に「その日に触った Issue」を並べるので、実装の PR と同じに扱うと未着手の Issue まで外れるためです（2026-08-17 の初回実行で #889 ほかが外れかけました）。routine-report の PR も日次の記録で、実装を含みません。worktree が `chore/tracker-*` ブランチにいるのは正常で、着手中のしるしには使いません。
 
 **`status:frozen` の Issue は選びません。** 着手するかどうかを、こうだいさんがまだ決めていないためです。報告の「選ばなかった Issue」に理由つきで載せます。
@@ -35,7 +42,7 @@
 - 依存は本文の `依存する作業: #a, #b` から読みます。Issue フォームから起票した本文では、`### 依存する作業` の見出しの次の行に同じ値が入ります。
 - `なし` は依存なしです。旧い書式の `依存: #n` と `Parent: #n` も同じ意味で読みます。
 - `依存: なし（#n は close 済み）` のように先頭が `なし` の行は依存なしとし、括弧の中の番号は拾いません。
-- 依存先が満たされたかは、close ではなく PR が origin/main に入ったかで決めます（手順はグローバルのスキル）。P-001 で close はこうだいさんの手番なので遅れるうえ、PR の merge 前に手で close されることもあるためです。
+- 依存先が満たされたかは、close ではなく PR が origin/main に入ったかで決めます（手順はグローバルのスキル）。P-001 で close はこうだいさんの作業なので遅れるうえ、PR の merge 前に手で close されることもあるためです。
 
 依存はラベルでは代わりになりません。ツアーの 4 本（#1122〜#1125）はラベル上 3 つのレーン宛でしたが、3 本が基盤の完了を前提にしていました。依存を無視して並べると、存在しない `TourProvider` に 3 本が同時に着手し、全員が `shared/src/i18n/resources.ts` を触るところでした（2026-08-27）。
 
@@ -49,19 +56,27 @@
 
 集めた glob で `{"#<n>": [glob, ...]}` の JSON をスクラッチに作り、main の checkout で `node .claude/scripts/scope-overlap.mjs --issues <file>` を打ちます。これが worktree-policy の「着手前の重なりの確認」を兼ねます。結果は次のように読みます。
 
-- **候補の 2 本が BLOCK で交わるとき**は、番号の小さいほう（または依存先）を選びます。もう一方は「Scope が他の Issue と重なる」で外し、先に選んだ Issue の番号を添えます。
+- **候補の 2 本が BLOCK で交わるとき**は、下の「選ぶ順番」で先に来るほうを選びます。もう一方は「Scope が他の Issue と重なる」で外し、先に選んだ Issue の番号を添えます。
 - **2 本が WARN だけで交わるとき**は、両方を選んでかまいません。WARN は、i18n の en / ja や barrel の index.ts のような追記型の共有ファイルだけが重なる組です。追記の位置しだいで衝突するので、全体確認でブランチごとに scope-overlap を打ち直します。ただし en / ja の既存のキーを書き換える Issue は、1 回に 1 本だけにします。
 - **Scope が open PR か他の worktree の未コミットの変更と BLOCK で交わるとき**は、「Scope が open PR と重なる」で外し、その PR 番号を添えます。
 - **終了コードが 3（未確認）のとき**は、重なりなしとは読みません。gh の認証かネットワークを直して打ち直し、それでも 3 なら回を始めません。
 
 どのファイルが追記型や生成物に入るかと、どのレーンがどのパスを持つかは、担当表 [`lane-ownership.json`](./scripts/lane-ownership.json) が唯一の元になる文書です。`wf-*` の worktree はどのレーンにも当たらないので、scope-overlap のレーン外の報告は出ません。同じファイルの検査だけが頼りになります。
 
+### 選ぶ順番
+
+除外を通った候補は、次の順に並べて上から選びます。1 回に選ぶ数は `maxIssuesPerRun` までで、BLOCK で交わる 2 本のどちらを選ぶかもこの順で決めます。
+
+1. ほかの open Issue が依存先に挙げている Issue を先にします。後ろの Issue が次の回で選べるようになるためです。
+2. 次に `sev:blocking`、`sev:important`、`sev:minor`、`sev:` のラベルなしの順にします。
+3. 同じ段では、番号の小さいほうを先にします。
+
 ## 実装役への指示
 
 あなたは life-editor（`{{repo}}`）の Issue #{{n}} を、worktree `{{worktree}}` のブランチ `{{branch}}` で実装します。main の checkout は `{{main}}` です。
 
 1. `gh issue view {{n}} -R {{repo}}` で Issue を読みます。「作るもの」「範囲の外」「Scope」「完了条件」が仕様です（古い Issue では「DoD」「Definition of Done」が完了条件です）。Scope の外のファイルは変えません。Scope の外の変更が要ると分かったら、実装せずに notes へ書きます（POLICY P-008）。自分で Issue を起票しません。起票は chat-main が `issue-dispatch` で行います。
-2. 作業を始める前に `{{main}}/.claude/skills/worktree-policy/SKILL.md` を読みます。`{{worktree}}/.claude/comm/.session-branch` に `{{branch}}` を、`{{worktree}}/.claude/comm/.session-name` に `wf-{{n}}` を書きます。抜けると hook が何も言わずに止まるためです。作業は `{{worktree}}` の中だけで行い、`{{main}}` ではブランチを切り替えません。
+2. 作業を始める前に `{{main}}/.claude/skills/worktree-policy/SKILL.md` を読みます。`{{worktree}}/.claude/comm/.session-branch` に `{{branch}}` を、`{{worktree}}/.claude/comm/.session-name` に `wf-{{n}}` を書きます。あとでこの worktree を Claude で開いたときに、セッション開始の hook が読むためです。作業は `{{worktree}}` の中だけで行い、`{{main}}` ではブランチを切り替えません。
 3. 実ブラウザ（playwright MCP・Chrome・Claude Design）と dev server（`npm run dev`）は使いません（CLAUDE.md §7.4）。worktree で localhost を重ねて起動すると、どの画面がどの変更かの確認が壊れるためです。Issue が実ブラウザでの調査を求めていても、コードを読んで調べ、実ブラウザでの確認は notes に「chat-main に残す」と書きます。
 4. 変える前に既存のコードを読みます。テストは Issue の完了条件に沿って足すか直します（shared と web の書き方は `{{worktree}}/.claude/skills/test-writing/SKILL.md`）。振る舞いを変えるときは、古い振る舞いを固定しているテストを grep で探して直します。`web/tests/` の jsdom にはレイアウトがなく座標がすべて 0 なので、画面座標に頼る入力経路はテストできません。
 5. テストは触ったパッケージだけで回します。全体の確認（`scripts/local-ci.mjs`）は後の段がするので、ここでは打ちません。Bash で終了コードを `cmd | tail` から取りません。出力を変数かファイルに取り、先に `$?` を見ます。
@@ -74,7 +89,7 @@
    - **mobile**: CI に入っていないので、触ったら notes にそう書きます。
    - 自分が起こした失敗は直します。触っていない場所の失敗は直さず notes に書きます。
 6. `{{branch}}` に commit します。題は英語で `<type>(<area>): <subject> (refs #{{n}})` の形にし、`git commit --cleanup=verbatim -F <file>` で書きます。本文の行を `#` で始めません（git が黙って捨てるためです。known-issues 032）。
-7. `.claude/memory/`・`.claude/history/`・`.claude/comm/outbox/` は触りません。tracker と outbox は実装の PR に載せない決まりで、hook が commit を止めるためです（D-20260801-main-1）。
+7. `.claude/memory/`・`.claude/history/`・`.claude/comm/outbox/` は触りません。tracker と outbox は実装の PR に載せない決まりです（D-20260801-main-1）。並行するブランチが同じ記録のファイルに追記すると、必ず衝突するためです。commit を止める hook（`pre-commit-tracker-guard.sh`）は main の checkout の index を見るので、この worktree の commit は止めません。この決まりは自分で守ります。
 
 notes は日本語（です・ます）で書き、置いた仮定、Scope の外で気づいたこと、chat-main に残す作業（実ブラウザでの確認・db push など）を並べます。
 
@@ -96,14 +111,14 @@ notes は日本語（です・ます）で書きます。
 
 全体確認が合格したときだけ PR を作ります。失敗したときは push も PR もしません。
 
-1. push は `git -c credential.helper= -c "credential.helper=!gh auth git-credential" push -u origin {{branch}}` で打ちます。既定の資格情報マネージャーはここで止まったまま戻らないためです。`-u origin {{branch}}` は省きません。origin/main から切ったブランチは upstream が origin/main のまま残るためです。
+1. push は `git -c credential.helper= -c "credential.helper=!gh auth git-credential" push -u origin {{branch}}` で打ちます。既定の資格情報マネージャーはここで止まったまま戻らないためです。`-u origin {{branch}}` は省きません。ブランチは `--no-track` で切っているので upstream がなく、引数なしの `git push` は通らないためです。
 2. PR は `gh pr create -R {{repo}} --base main --head {{branch}} --title "<commit の題>" --body-file <file>` で作ります。題は英語で、commit の題と同じにします。
 3. 本文には次を入れます。
    - 何を変えたかの短い要約
    - 全体確認のステップと終了コードの表、scope-overlap の `結論:` の行
    - `Refs #{{n}}` の行。`Closes`・`Fixes`・`Resolves` は使いません。merge で Issue が勝手に close されると、実ブラウザでの確認や db push が残っていても終わったように見えるためです
    - 実ブラウザでの確認は chat-main に残している、という一文（db push が要るならそれも）
-4. merge はしません（P-001）。レーンからの `gh pr merge` は hook が止めます。
+4. merge はしません（P-001）。merge を止める hook（`merge-gate.mjs`）はセッションの作業場所で判定します。この役は main の checkout のセッションの中で動くので、hook はこの役の `gh pr merge` を止めません。この決まりは自分で守ります。
 
 ## 実行のあと
 
