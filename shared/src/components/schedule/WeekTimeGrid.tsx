@@ -702,12 +702,20 @@ export function WeekTimeGrid({
        * columns drifted a fraction of it further left on every column.
        * The header/all-day band keeps its old "always visible" behaviour via
        * `sticky top-0` (z above the blocks and the now-line, opaque face — §5).
+       *
+       * #2695: scroll anchoring is off. The all-day chips usually land a render
+       * after the opening scroll, and the lane grows by their rows. The browser
+       * skips the sticky band when it picks an anchor, takes one in the time
+       * body, and adds the growth to scrollTop, so the now-line opened 0.93
+       * hours below the band instead of 1.5 (「今日」, run after the growth,
+       * was right). Because the band is sticky, the body under it already stays
+       * put when the lane grows; anchoring only pulled it up.
        */}
       <div
         ref={scrollBodyRef}
         data-week-grid="scroll"
         className={cn(
-          "overflow-y-auto",
+          "overflow-y-auto [overflow-anchor:none]",
           fillHeight ? "min-h-0 flex-1" : "max-h-[60vh]",
         )}
       >
