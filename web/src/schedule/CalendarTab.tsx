@@ -1126,6 +1126,9 @@ export function CalendarTab({
         findTodoChip,
         onClose: closePopover,
         onOpenDetail: handleItemOpenDetail,
+        // #2565: written here because this is the pref's one owner;
+        // useLocalStorage does not sync a second instance in the overlay.
+        onHideHolidays: () => setHolidaysHidden(true),
         itemActions: {
           // #1664 / #2222: the bubble's in-place edit goes through the same
           // handler the detail panel's save uses — scope dialog on a repeat,

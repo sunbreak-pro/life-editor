@@ -472,12 +472,13 @@ describe("ScheduleOverlays — the single-click bubble", () => {
     expect(screen.getByLabelText("scheduleScreen.date")).toBeTruthy();
   });
 
+  // #2565: the holiday bubble reads its name off the id, so the id has to be
+  // a real holiday (8/11 山の日) for there to be a bubble to double-click.
   it("opens no fields on a holiday", () => {
-    const HOLIDAY = { ...ITEM, id: "holiday-2026-08-16", title: "山の日" };
     renderOverlays({
-      popover: { state: { ...POPOVER, id: HOLIDAY.id }, selected: HOLIDAY },
+      popover: { state: { ...POPOVER, id: "holiday-2026-08-11" } },
     });
-    fireEvent.doubleClick(screen.getByText(HOLIDAY.title));
+    fireEvent.doubleClick(screen.getByText("山の日"));
     expect(screen.queryByLabelText("scheduleScreen.title")).toBeNull();
     expect(document.querySelector("[data-item-quick-edit-target]")).toBeNull();
   });
@@ -819,6 +820,107 @@ describe("ScheduleOverlays — the bubble's frame (#2564)", () => {
     expect(button.closest("[data-item-panel-column]")).toBeNull();
     expect(button.closest("[data-item-panel-edit-detail]")).not.toBeNull();
     expect(button.className).not.toContain("bg-lumen-accent");
+  });
+});
+
+/*
+ * #2565 — a holiday chip opens a read-only bubble: the holiday badge, the
+ * name, the day with 終日, and one action that hides holidays. A holiday has
+ * no row, so the bubble is built from the id alone (`selected` and `todoChip`
+ * stay null), and it offers nothing that edits.
+ */
+describe("ScheduleOverlays — the holiday bubble (#2565)", () => {
+  // 2026-11-03 文化の日, a Tuesday.
+  const POPOVER = { id: "holiday-2026-11-03", x: 10, y: 20 };
+
+  const holidayPanel = () =>
+    screen.getByRole("dialog", { name: "scheduleScreen.holidayActionsLabel" });
+
+  it("shows the holiday badge, the name and the day as all-day", () => {
+    renderOverlays({
+      popover: { state: POPOVER, onHideHolidays: vi.fn() },
+    });
+    const panel = holidayPanel();
+    const kind = panel.querySelector('[data-bubble-kind="holiday"]');
+    expect(kind?.textContent).toBe("scheduleScreen.typeHoliday");
+    expect(within(panel).getByText("文化の日")).toBeTruthy();
+    const line = within(panel).getByText(/^scheduleScreen\.bubbleWhen /);
+    expect(
+      JSON.parse(
+        (line.textContent ?? "").slice("scheduleScreen.bubbleWhen ".length),
+      ),
+    ).toEqual({
+      month: "11",
+      day: "3",
+      monthName: "11月",
+      weekday: "火",
+      time: "scheduleScreen.allDay",
+    });
+  });
+
+  it("offers only 祝日を隠す — no edit, duplicate or delete", () => {
+    renderOverlays({
+      popover: { state: POPOVER, onHideHolidays: vi.fn() },
+    });
+    const panel = holidayPanel();
+    const rows = within(panel).getAllByRole("menuitem");
+    expect(rows.map((row) => row.textContent)).toEqual([
+      "scheduleScreen.holidayFilterHide",
+    ]);
+    expect(rows[0].querySelector("svg")).not.toBeNull();
+    expect(within(panel).queryByText("scheduleScreen.editDetail")).toBeNull();
+    expect(within(panel).queryByText("scheduleScreen.duplicate")).toBeNull();
+    expect(within(panel).queryByText("scheduleScreen.delete")).toBeNull();
+    expect(panel.querySelector("[data-item-quick-edit-target]")).toBeNull();
+  });
+
+  it("hides holidays once and closes when the action is picked", () => {
+    const onHideHolidays = vi.fn();
+    const { props } = renderOverlays({
+      popover: { state: POPOVER, onHideHolidays },
+    });
+    fireEvent.click(
+      within(holidayPanel()).getByRole("menuitem", {
+        name: "scheduleScreen.holidayFilterHide",
+      }),
+    );
+    expect(onHideHolidays).toHaveBeenCalledTimes(1);
+    expect(props.popover.onClose).toHaveBeenCalled();
+  });
+
+  it("draws no action when the host gives no way to hide holidays", () => {
+    renderOverlays({ popover: { state: POPOVER } });
+    const panel = holidayPanel();
+    expect(within(panel).queryAllByRole("menuitem")).toHaveLength(0);
+    expect(within(panel).getByText("文化の日")).toBeTruthy();
+  });
+
+  it("opens nothing for an id whose day is not a holiday", () => {
+    renderOverlays({
+      popover: {
+        state: { ...POPOVER, id: "holiday-2026-08-16" },
+        onHideHolidays: vi.fn(),
+      },
+    });
+    expect(
+      screen.queryByRole("dialog", {
+        name: "scheduleScreen.holidayActionsLabel",
+      }),
+    ).toBeNull();
+    expect(screen.queryByText("scheduleScreen.holidayFilterHide")).toBeNull();
+  });
+
+  it("is Desktop-only, like the other bubbles", () => {
+    renderOverlays({
+      isWide: false,
+      popover: { state: POPOVER, onHideHolidays: vi.fn() },
+    });
+    expect(screen.queryByText("文化の日")).toBeNull();
+    expect(
+      screen.queryByRole("dialog", {
+        name: "scheduleScreen.holidayActionsLabel",
+      }),
+    ).toBeNull();
   });
 });
 
