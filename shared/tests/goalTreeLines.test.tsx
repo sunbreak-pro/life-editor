@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import {
   GoalTreeView,
@@ -370,5 +370,129 @@ describe("GoalTreeView progress (#2606)", () => {
     expect(within(tree).queryByRole("heading")).toBeNull();
     expect(screen.queryByText(/This year 2026/)).toBeNull();
     expect(screen.queryByText(/9\/27 – 10\/3/)).toBeNull();
+  });
+});
+
+describe("GoalTreeView — a phone row's … opens its chips (#2611)", () => {
+  /*
+   * jsdom has no layout, so the 44px is pinned as the class that sets it:
+   * size-11 on the "…" and min-h-11 on every chip, at Tailwind's 4px step.
+   */
+  afterEach(() => {
+    Reflect.deleteProperty(window, "matchMedia");
+  });
+
+  function setNarrow(): void {
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      configurable: true,
+      value: (query: string) => ({
+        matches: false,
+        media: query,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => false,
+      }),
+    });
+  }
+
+  const PHONE_LABELS: GoalTreeLabels = {
+    ...LABELS,
+    formatMoreActions: (title) => `More actions: ${title}`,
+    editTodoChip: "Edit",
+  };
+
+  function renderWithActions(): void {
+    render(
+      <GoalTreeView
+        model={model()}
+        isLoading={false}
+        selectedGoalId={null}
+        onSelectGoal={vi.fn()}
+        onCreateGoal={vi.fn().mockResolvedValue(true)}
+        onCreateLooseTodo={vi.fn().mockResolvedValue(true)}
+        onSetTodoStatus={vi.fn()}
+        onOpenTodo={vi.fn()}
+        onDeleteTodo={vi.fn()}
+        onRenameGoal={vi.fn()}
+        rowActions={{
+          onAddTodo: vi.fn().mockResolvedValue(true),
+          onAddChildGoal: vi.fn().mockResolvedValue(true),
+          onDelete: vi.fn(),
+        }}
+        labels={PHONE_LABELS}
+      />,
+    );
+  }
+
+  const classesOf = (el: Element): string[] => el.className.split(/\s+/);
+
+  it("opens a goal's chips under its row at a tappable 44px, the delete in red", () => {
+    setNarrow();
+    renderWithActions();
+    const more = screen.getByRole("button", {
+      name: "More actions: Run 3 times",
+    });
+    expect(classesOf(more)).toContain("size-11");
+    expect(screen.queryByRole("group", { name: "Run 3 times" })).toBeNull();
+
+    fireEvent.click(more);
+    const chips = within(
+      screen.getByRole("group", { name: "Run 3 times" }),
+    ).getAllByRole("button");
+    expect(chips.map((c) => c.textContent)).toEqual([
+      "Add below",
+      "Rename",
+      "Delete",
+    ]);
+    for (const chip of chips) expect(classesOf(chip)).toContain("min-h-11");
+    expect(classesOf(chips[2] as HTMLElement)).toContain("text-lumen-danger");
+    expect(classesOf(chips[0] as HTMLElement)).not.toContain(
+      "text-lumen-danger",
+    );
+
+    // A second press closes them.
+    fireEvent.click(more);
+    expect(screen.queryByRole("group", { name: "Run 3 times" })).toBeNull();
+  });
+
+  it("opens a todo's Edit and Delete, closing any other row's chips", () => {
+    setNarrow();
+    renderWithActions();
+    fireEvent.click(
+      screen.getByRole("button", { name: "More actions: Run weekly" }),
+    );
+    const more = screen.getByRole("button", { name: "More actions: 5 km jog" });
+    expect(classesOf(more)).toContain("size-11");
+    fireEvent.click(more);
+    expect(screen.queryByRole("group", { name: "Run weekly" })).toBeNull();
+    const chips = within(
+      screen.getByRole("group", { name: "5 km jog" }),
+    ).getAllByRole("button");
+    expect(chips.map((c) => c.textContent)).toEqual(["Edit", "Delete"]);
+    for (const chip of chips) expect(classesOf(chip)).toContain("min-h-11");
+    expect(classesOf(chips[1] as HTMLElement)).toContain("text-lumen-danger");
+  });
+
+  it("closes the chips on Esc", () => {
+    setNarrow();
+    renderWithActions();
+    fireEvent.click(
+      screen.getByRole("button", { name: "More actions: Run 3 times" }),
+    );
+    const group = screen.getByRole("group", { name: "Run 3 times" });
+    fireEvent.keyDown(within(group).getByRole("button", { name: "Rename" }), {
+      key: "Escape",
+    });
+    expect(screen.queryByRole("group", { name: "Run 3 times" })).toBeNull();
+  });
+
+  it("draws no … on desktop, where the rows keep their hover icons", () => {
+    renderWithActions();
+    expect(document.querySelector("[data-goal-row-more]")).toBeNull();
+    screen.getByRole("button", { name: "Add under: Run 3 times" });
+    screen.getByRole("button", { name: "Open 5 km jog" });
   });
 });
