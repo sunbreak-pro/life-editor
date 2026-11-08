@@ -183,7 +183,7 @@ main を書き換えない（`reset --hard` と force push は deny 済み）。
 
 3. chat-main に戻り、revert の PR を手元の検査にかけてから `plan --only <revert PR>` → `start` → `check` → `gh pr merge` → `finish` で merge する。
 4. 回ごと戻したときは、`git fetch origin` のあと `git diff <戻る地点> origin/main --stat` を打ち、差分が空か、戻した回より後に merge した PR の分だけになっているかを確かめる。
-5. 元の Issue は `Refs` なので open のまま残る。戻した理由を Issue にコメントし、直した PR を出し直すレーンへ `issue-prompter` で配り直す。
+5. 元の Issue は `Refs` なので open のまま残る。戻した理由を Issue にコメントし、直した PR はグローバルの `issue-workflow` スキルで実装し直す（life-editor の設定は `.claude/issue-workflow.md`）。
 
 マイグレーションを含む PR は revert しない。反映済みのマイグレーションは中身を変えず、次の番号で戻すマイグレーションを足す（CLAUDE.md §7.3）。db push はこうだいさんの作業のままです。
 

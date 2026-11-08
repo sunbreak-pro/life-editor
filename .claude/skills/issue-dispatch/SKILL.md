@@ -70,7 +70,7 @@ gh issue create -R sunbreak-pro/life-editor \
 body 必須要素:
 
 - **現象 / 動機**（1〜3 行・再現手順があれば併記）
-- **Scope**（触ってよいパス）: glob を 1 行 1 本で書き、``` で囲みます。例は `web/src/wikitag/TagPicker.tsx` です。i18n の en / ja と barrel の index.ts は書かなくてよいです。issue-prompter は、この欄で配る前の重なりを調べます。同じファイルを 2 本の変更に触らせない（one writer per artifact）ためです。担当表 = [`lane-ownership.json`](../../scripts/lane-ownership.json)
+- **Scope**（触ってよいパス）: glob を 1 行 1 本で書き、``` で囲みます。例は `web/src/wikitag/TagPicker.tsx` です。i18n の en / ja と barrel の index.ts は書かなくてよいです。グローバルの `issue-workflow` スキルは、この欄で Issue を選ぶ前の重なりを調べます（選び方の決まりは [`issue-workflow.md`](../../issue-workflow.md)）。同じファイルを 2 本の変更に触らせない（one writer per artifact）ためです。担当表 = [`lane-ownership.json`](../../scripts/lane-ownership.json)
 - **起票前の重なりの確認**: `node .claude/scripts/scope-overlap.mjs --paths "<glob>,..."` を打ち、動いている PR・worktree と交わらないかを確かめます。BLOCK が出たら、先行する作業を「依存する作業」に書きます。
 - **依存する作業**: 同じ計画書から分けた Issue は、Scope が交わるなら前の Issue を入れて直列にします。互いに独立に見えても同じ土台のファイルを書き換える Issue を並列に配らないためです。オフラインキャッシュの計画から分けた #2336 と #2337 は、同じ 11 ファイルで衝突しました。
 - **DoD**（機械検証可能: `cd shared && npm run build` exit 0 / vitest 緑 / 実測値 等）
