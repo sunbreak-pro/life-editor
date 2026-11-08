@@ -1,4 +1,11 @@
-import { useId, useRef, useState, type DragEvent, type ReactNode } from "react";
+import {
+  useId,
+  useRef,
+  useState,
+  type DragEvent,
+  type ReactNode,
+  type Ref,
+} from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -493,6 +500,7 @@ function TodoRow({
   labels: GoalTreeLabels;
 }): React.JSX.Element {
   const chipsId = useId();
+  const moreRef = useRef<HTMLButtonElement>(null);
   const done = todo.status === "DONE";
   const dragged =
     drag?.source?.kind === "todo" &&
@@ -500,6 +508,10 @@ function TodoRow({
     drag.source.fromGoalId === fromGoalId;
   const menuOpen = menu.narrow && menu.openKey === menuKey;
   const editChip = labels.editTodoChip ?? labels.formatOpenTodo(todo.title);
+  const closeChips = (): void => {
+    menu.onOpen(null);
+    moreRef.current?.focus();
+  };
   return (
     <li
       data-goal-tree-row=""
@@ -558,8 +570,10 @@ function TodoRow({
       </button>
       {menu.narrow ? (
         <RowMoreButton
+          buttonRef={moreRef}
           open={menuOpen}
           controls={chipsId}
+          onEscape={closeChips}
           label={
             labels.formatMoreActions?.(todo.title) ??
             [
@@ -597,11 +611,7 @@ function TodoRow({
         </>
       )}
       {menuOpen && (
-        <RowChips
-          id={chipsId}
-          label={todo.title}
-          onClose={() => menu.onOpen(null)}
-        >
+        <RowChips id={chipsId} label={todo.title} onClose={closeChips}>
           <button
             type="button"
             onClick={() => {
@@ -661,21 +671,30 @@ const ROW_CHIP = cn(
 );
 
 function RowMoreButton({
+  buttonRef,
   open,
   controls,
   label,
   onToggle,
+  onEscape,
 }: {
+  buttonRef: Ref<HTMLButtonElement>;
   open: boolean;
   controls: string;
   label: string;
   onToggle: () => void;
+  /** Esc while the chips are open; the "…" holds focus right after a press. */
+  onEscape: () => void;
 }): React.JSX.Element {
   return (
     <button
+      ref={buttonRef}
       type="button"
       data-goal-row-more=""
       onClick={onToggle}
+      onKeyDown={(e) => {
+        if (open && e.key === "Escape") onEscape();
+      }}
       aria-expanded={open}
       aria-controls={open ? controls : undefined}
       aria-label={label}
@@ -687,7 +706,11 @@ function RowMoreButton({
   );
 }
 
-/** The chip line a "…" opens, named after its row; Esc closes it. */
+/**
+ * The chip line a "…" opens, named after its row. Esc closes it from here;
+ * from the "…" itself the button does (it keeps focus after a press), and
+ * `onClose` puts focus back on the "…" so the chips' unmount drops none.
+ */
 function RowChips({
   id,
   label,
@@ -956,6 +979,7 @@ function GoalBranch({
   const { drag } = branch;
   const { goal } = node;
   const chipsId = useId();
+  const moreRef = useRef<HTMLButtonElement>(null);
   const selected = goal.id === props.selectedGoalId;
   const hasBelow = node.todos.length > 0 || node.children.length > 0;
   const open = hasBelow && !branch.collapsed.has(goal.id);
@@ -976,6 +1000,10 @@ function GoalBranch({
   const { menu } = branch;
   const menuKey = `goal:${place}:${goal.id}`;
   const menuOpen = menu.narrow && menu.openKey === menuKey;
+  const closeChips = (): void => {
+    menu.onOpen(null);
+    moreRef.current?.focus();
+  };
   const openAdd = (): void =>
     branch.onAddUnder({
       goalId: goal.id,
@@ -1134,8 +1162,10 @@ function GoalBranch({
         )}
         {menu.narrow && (rowActions || onRenameGoal) && !editing && (
           <RowMoreButton
+            buttonRef={moreRef}
             open={menuOpen}
             controls={chipsId}
+            onEscape={closeChips}
             label={
               labels.formatMoreActions?.(goal.title) ??
               `${[
@@ -1205,11 +1235,7 @@ function GoalBranch({
         )}
       </div>
       {menuOpen && !editing && (
-        <RowChips
-          id={chipsId}
-          label={goal.title}
-          onClose={() => menu.onOpen(null)}
-        >
+        <RowChips id={chipsId} label={goal.title} onClose={closeChips}>
           {rowActions && (
             <button
               type="button"
