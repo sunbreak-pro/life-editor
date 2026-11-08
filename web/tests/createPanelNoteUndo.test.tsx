@@ -7,11 +7,16 @@ import {
   WikiTagsUnifiedProvider,
   useUndoRedoContext,
   type DataService,
+  type NoteNode,
   type UndoCommand,
 } from "@life-editor/shared";
 import { createBumpableSync, stubDataService } from "./helpers";
 import { useCreatePanelNotes } from "../src/schedule/useCreatePanelNotes";
 import { useCreatePanelMemoNote } from "../src/schedule/useCreatePanelMemoNote";
+import {
+  formatInstantShortDate,
+  useScheduleCopy,
+} from "../src/schedule/scheduleCopy";
 
 /*
  * #1638 (A-08 / B-04) — the note the creation panel attaches is on the history
@@ -30,13 +35,13 @@ import { useCreatePanelMemoNote } from "../src/schedule/useCreatePanelMemoNote";
 
 const NOTE_ID_PREFIX = "note-";
 
-function setup() {
+function setup(notes: NoteNode[] = []) {
   const pushed: Array<{ domain: string; command: UndoCommand }> = [];
   const push = vi.fn((domain: string, command: UndoCommand) => {
     pushed.push({ domain, command });
   });
   const ds = stubDataService({
-    listNotesUnified: vi.fn(async () => []),
+    listNotesUnified: vi.fn(async () => notes),
     createNoteUnified: vi.fn(async () => {}),
     softDeleteNoteUnified: vi.fn(async () => {}),
     restoreNoteUnified: vi.fn(async () => {}),
@@ -768,6 +773,96 @@ describe("the memo note (#2402)", () => {
     });
     expect(api().untitled("event")).toBe("Untitled event");
     expect(api().untitled("task")).toBe("Untitled todo");
+    await act(async () => {
+      await i18n.changeLanguage(language);
+    });
+  });
+});
+
+/*
+ * #2573 — the picker draws each note's updated date (「10/10 更新」), so the
+ * options now carry `updatedAt`. Widening the option must leave the attach
+ * as it was: a picked option is still linked by its id alone.
+ */
+function noteRow(over: Partial<NoteNode> & { id: string }): NoteNode {
+  return {
+    type: "note",
+    title: over.id,
+    content: "",
+    parentId: null,
+    order: 0,
+    isPinned: false,
+    isDeleted: false,
+    createdAt: "2026-10-01T00:00:00.000Z",
+    updatedAt: "2026-10-01T00:00:00.000Z",
+    ...over,
+  };
+}
+
+describe("the picker's options carry the updated date (#2573)", () => {
+  it("hands each live note its updatedAt, newest first", async () => {
+    const h = setup([
+      noteRow({ id: "note-old", title: "Old", updatedAt: "2026-10-08T03:00:00.000Z" }),
+      noteRow({
+        id: "note-new",
+        title: "New",
+        updatedAt: "2026-10-10T03:00:00.000Z",
+        hasPassword: true,
+      }),
+      noteRow({ id: "note-gone", isDeleted: true }),
+    ]);
+    await waitFor(() => expect(h.hook.result.current.notes).toHaveLength(2));
+    expect(h.hook.result.current.notes).toEqual([
+      {
+        id: "note-new",
+        title: "New",
+        isLocked: true,
+        updatedAt: "2026-10-10T03:00:00.000Z",
+      },
+      { id: "note-old", title: "Old", updatedAt: "2026-10-08T03:00:00.000Z" },
+    ]);
+  });
+
+  it("still links a picked option by its id", async () => {
+    const h = setup([
+      noteRow({ id: "note-1", updatedAt: "2026-10-10T03:00:00.000Z" }),
+    ]);
+    await waitFor(() => expect(h.hook.result.current.notes).toHaveLength(1));
+    const [picked] = h.hook.result.current.notes;
+    await act(async () => {
+      h.hook.result.current.attachNote("s-1", [
+        { kind: "existing", id: picked.id },
+      ]);
+    });
+    await waitFor(() => expect(h.pushed).toHaveLength(1));
+    expect(h.ds.createItemLink).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(h.ds.createItemLink).mock.calls[0]).toContain("note-1");
+    // An existing note is linked, never written.
+    expect(h.ds.createNoteUnified).not.toHaveBeenCalled();
+  });
+
+  it("words the row's date, the empty foot and the question in both languages", async () => {
+    const language = i18n.language;
+    // Local noon, so the calendar day is the same in every time zone.
+    const noon = new Date(2026, 9, 10, 12).toISOString();
+    const copy = renderHook(() =>
+      useScheduleCopy({ isWide: true, notesError: false, selectedTagCount: 0 }),
+    );
+    const labels = () => copy.result.current.createPanelLabels;
+    await act(async () => {
+      await i18n.changeLanguage("ja");
+    });
+    expect(labels().noteUpdated?.(noon)).toBe("10/10 更新");
+    expect(labels().notePickerNone).toBe("選ぶと、この予定に添付されます");
+    expect(labels().noteRowPrompt).toBe("ノートをどうしますか");
+    expect(labels().notePickerCount(2)).toBe("2 件を選択中");
+    await act(async () => {
+      await i18n.changeLanguage("en");
+    });
+    expect(labels().noteUpdated?.(noon)).toBe("Updated 10/10");
+    // A value that does not parse draws no line rather than "Invalid Date".
+    expect(labels().noteUpdated?.("not a date")).toBe("");
+    expect(formatInstantShortDate("en", "not a date")).toBe("");
     await act(async () => {
       await i18n.changeLanguage(language);
     });

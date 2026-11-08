@@ -67,6 +67,7 @@ const LABELS: ItemCreatePanelLabels = {
   noteSourceNew: "New note",
   noteSourceExisting: "Choose existing",
   noteDismiss: "Never mind",
+  noteRowPrompt: "What about a note?",
   noteTitleLabel: "Note title",
   notePlaceholder: "Note title placeholder",
   noteNewConfirm: "Stage note",
@@ -76,6 +77,10 @@ const LABELS: ItemCreatePanelLabels = {
   notePickerTitle: "Choose notes",
   notePickerClose: "Close the picker",
   notePickerCount: (n: number) => `${n} selected`,
+  // #2573: the empty foot, worded apart from the count so a getByText here
+  // proves which of the two the foot drew.
+  notePickerNone: "Pick notes to attach them",
+  noteUpdated: (updatedAt: string) => `Updated ${updatedAt.slice(0, 10)}`,
   notePickerDone: "Done",
   noteLocked: "Locked",
   noteLinkHint: "Linked to the item you add below.",
@@ -94,9 +99,18 @@ const TODOS: ItemCreateOption[] = [
 ];
 
 const NOTES: ItemCreateOption[] = [
-  { id: "note-1", title: "Standup minutes" },
-  { id: "note-2", title: "Weekly review" },
+  {
+    id: "note-1",
+    title: "Standup minutes",
+    updatedAt: "2026-10-10T09:00:00.000Z",
+  },
+  {
+    id: "note-2",
+    title: "Weekly review",
+    updatedAt: "2026-10-08T09:00:00.000Z",
+  },
   // #2396: a password-protected note — drawn with a lock, still attachable.
+  // #2573: no `updatedAt`, so its row draws no "updated" line.
   { id: "note-3", title: "Salary talk", isLocked: true },
 ];
 
@@ -148,6 +162,8 @@ function renderPanel(props?: {
   onNotePickerOpenChange?: (open: boolean) => void;
   /** #2402: the handler that makes 新規作成 act at once. */
   onCreateMemoNote?: ItemCreatePanelHandlers["onCreateMemoNote"];
+  /** #2573: labels other than the fixture's. */
+  labels?: ItemCreatePanelLabels;
 }) {
   const onSubmitEvent = vi.fn();
   const onSubmitEventAndOpen = vi.fn();
@@ -176,7 +192,7 @@ function renderPanel(props?: {
         ...(props?.bare ? {} : { onCreateTodoAndOpen, onPlaceTodoAndOpen }),
         onCreateMemoNote: props?.onCreateMemoNote,
       }}
-      labels={LABELS}
+      labels={props?.labels ?? LABELS}
       onCancel={props?.bare ? undefined : onCancel}
       repeat={
         props?.withRepeat
@@ -1097,9 +1113,10 @@ describe("ItemCreatePanel — the note attachment (#1370 / #2396)", () => {
   });
 
   it("counts the picks as 'n selected' and lets a second press take one back", () => {
+    // Before any pick the foot says what picking does (#2573), not "0".
     renderPanel();
     openNotePicker();
-    expect(screen.getByText("0 selected")).toBeInTheDocument();
+    expect(screen.getByText("Pick notes to attach them")).toBeInTheDocument();
     fireEvent.click(pickerOption("Weekly review"));
     fireEvent.click(pickerOption("Salary talk"));
     expect(screen.getByText("2 selected")).toBeInTheDocument();
@@ -1324,7 +1341,7 @@ describe("ItemCreatePanel — the note attachment (#1370 / #2396)", () => {
     expect(screen.queryByText("Attached notes")).toBeNull();
     fireEvent.click(screen.getByText("Attach a note"));
     fireEvent.click(screen.getByText("Choose existing"));
-    expect(screen.getByText("0 selected")).toBeInTheDocument();
+    expect(screen.getByText("Pick notes to attach them")).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Close the picker"));
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Kickoff" },
@@ -1422,7 +1439,8 @@ describe("ItemCreatePanel — 新規作成 with the host's handler (#2402)", () 
       screen.getByRole("button", { name: LABELS.noteSourceExisting }),
     );
     const [note] = NOTES;
-    fireEvent.click(screen.getByRole("option", { name: note.title }));
+    // By title: since #2573 the row's name also carries its updated date.
+    fireEvent.click(pickerOption(note.title));
     fireEvent.click(screen.getByRole("button", { name: LABELS.notePickerDone }));
     fireEvent.click(newButton());
     expect(onCreateMemoNote.mock.calls[0][1]).toEqual([
@@ -1479,7 +1497,7 @@ describe("ItemCreatePanel — where the note picker opens (#2396)", () => {
     const sheet = screen.getByRole("dialog", { name: "Choose notes" });
     expect(sheet.getAttribute("aria-modal")).toBe("true");
     within(sheet).getByRole("listbox", { name: "Choose notes" });
-    within(sheet).getByText("0 selected");
+    within(sheet).getByText("Pick notes to attach them");
     // The sheet's own close is its ×.
     fireEvent.click(within(sheet).getByLabelText("Close the picker"));
     expect(screen.queryByRole("dialog", { name: "Choose notes" })).toBeNull();
@@ -1500,6 +1518,92 @@ describe("ItemCreatePanel — where the note picker opens (#2396)", () => {
  * (neither the type nor the table carries one), so the todo tab has no field
  * and never sends one.
  */
+describe("ItemCreatePanel — the note row and picker, as the prototype draws them (#2573)", () => {
+  it("leads the trigger with a clip, and the row with its question", () => {
+    renderPanel();
+    const trigger = screen.getByRole("button", { name: "Attach a note" });
+    expect(trigger.querySelector("svg.lucide-paperclip")).not.toBeNull();
+    expect(trigger.querySelector("svg.lucide-chevron-right")).toBeNull();
+    // A small outlined button, not a bare text row.
+    expect(trigger.className).toContain("border");
+
+    fireEvent.click(trigger);
+    // Open shows on the trigger itself: the clip does not turn.
+    expect(trigger.querySelector("svg.lucide-chevron-down")).toBeNull();
+    expect(trigger.className).toContain("border-lumen-accent");
+    const row = screen.getByRole("group", { name: "Note to link" });
+    expect(row.firstElementChild?.textContent).toBe("What about a note?");
+    expect(row.className).toContain("bg-lumen-surface-sunken");
+    // The question is text, not a fourth button.
+    expect(
+      within(row)
+        .getAllByRole("button")
+        .map((b) => b.textContent),
+    ).toEqual(["New note", "Choose existing", "Never mind"]);
+  });
+
+  it("draws each note's updated date under its title", () => {
+    renderPanel();
+    openNotePicker();
+    expect(
+      within(pickerOption("Standup minutes")).getByText("Updated 2026-10-10"),
+    ).toBeInTheDocument();
+    expect(
+      within(pickerOption("Weekly review")).getByText("Updated 2026-10-08"),
+    ).toBeInTheDocument();
+    // A note without the field draws no line at all.
+    expect(pickerOption("Salary talk").textContent).not.toContain("Updated");
+  });
+
+  it("draws no line when the host's formatter has nothing to say", () => {
+    renderPanel({ labels: { ...LABELS, noteUpdated: () => "" } });
+    openNotePicker();
+    expect(pickerOption("Standup minutes").textContent).toBe("Standup minutes");
+  });
+
+  it("says what picking does until a note is picked, then counts", () => {
+    renderPanel();
+    openNotePicker();
+    expect(screen.getByText("Pick notes to attach them")).toBeInTheDocument();
+    expect(screen.queryByText("0 selected")).toBeNull();
+    fireEvent.click(pickerOption("Weekly review"));
+    expect(screen.getByText("1 selected")).toBeInTheDocument();
+    expect(screen.queryByText("Pick notes to attach them")).toBeNull();
+    fireEvent.click(pickerOption("Weekly review"));
+    expect(screen.getByText("Pick notes to attach them")).toBeInTheDocument();
+  });
+
+  it("still attaches the picked notes, dates or not", () => {
+    const { onSubmitEvent } = renderPanel();
+    openNotePicker();
+    fireEvent.click(pickerOption("Standup minutes"));
+    fireEvent.click(pickerOption("Salary talk"));
+    fireEvent.click(screen.getByText("Done"));
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Kickoff" },
+    });
+    fireEvent.click(screen.getByText("Add"));
+    expect(onSubmitEvent).toHaveBeenCalledWith("Kickoff", slot(), [
+      { kind: "existing", id: "note-1" },
+      { kind: "existing", id: "note-3" },
+    ]);
+  });
+
+  it("keeps the old row and count for a host without the new labels", () => {
+    const older: ItemCreatePanelLabels = { ...LABELS };
+    delete older.noteRowPrompt;
+    delete older.notePickerNone;
+    delete older.noteUpdated;
+    renderPanel({ labels: older });
+    fireEvent.click(screen.getByRole("button", { name: "Attach a note" }));
+    const row = screen.getByRole("group", { name: "Note to link" });
+    expect(row.firstElementChild?.textContent).toBe("New note");
+    fireEvent.click(screen.getByText("Choose existing"));
+    expect(screen.getByText("0 selected")).toBeInTheDocument();
+    expect(pickerOption("Standup minutes").textContent).toBe("Standup minutes");
+  });
+});
+
 describe("ItemCreatePanel — the repeat (#2406)", () => {
   const repeatTabs = () =>
     within(screen.getByRole("tablist", { name: "Repeat" }));

@@ -6,6 +6,7 @@ import {
   FilePlus,
   FileSearch,
   Lock,
+  Paperclip,
   Plus,
   X,
 } from "lucide-react";
@@ -131,6 +132,11 @@ export interface ItemCreateOption {
    * still be attached: the attachment is a link, and reads no body.
    */
   isLocked?: boolean;
+  /**
+   * #2573: when the note was last touched (`NoteNode.updatedAt`, ISO). The
+   * note picker draws it under the title through `labels.noteUpdated`.
+   */
+  updatedAt?: string;
 }
 
 /**
@@ -218,6 +224,11 @@ export interface ItemCreatePanelLabels {
   noteSourceNew: string;
   noteSourceExisting: string;
   noteDismiss: string;
+  /**
+   * #2573: the question that opens that row, 「ノートをどうしますか」.
+   * Optional: a host without it draws the row as before.
+   */
+  noteRowPrompt?: string;
   noteTitleLabel: string;
   notePlaceholder: string;
   /** The button beside the new-note title that stages it as a chip. */
@@ -230,6 +241,18 @@ export interface ItemCreatePanelLabels {
   notePickerClose: string;
   /** "n 件を選択中" — the picker's running count. */
   notePickerCount: (count: number) => string;
+  /**
+   * #2573: the foot while nothing is picked, 「選ぶと、この予定に添付されます」
+   * — "0 selected" says nothing about what picking does. Optional, falling
+   * back to `notePickerCount(0)`.
+   */
+  notePickerNone?: string;
+  /**
+   * #2573: a picker row's "updated" line, 「10/10 更新」, from the option's
+   * ISO `updatedAt`. The host formats the date (§6.4: the shared parts never
+   * build copy); an empty string draws no line.
+   */
+  noteUpdated?: (updatedAt: string) => string;
   notePickerDone: string;
   /** Spoken for the lock on a password-protected note. */
   noteLocked: string;
@@ -677,6 +700,8 @@ function PickerList({
     focusSearch?: boolean;
     /** The list's height cap, which differs by where the picker sits. */
     listClassName?: string;
+    /** #2573: a row's "updated" line, from its `updatedAt`. */
+    formatUpdated?: (updatedAt: string) => string;
   };
 }) {
   const matches = useMemo(() => {
@@ -716,6 +741,10 @@ function PickerList({
         >
           {matches.map((option) => {
             const picked = isPicked(option.id);
+            const updated =
+              multi?.formatUpdated && option.updatedAt
+                ? multi.formatUpdated(option.updatedAt)
+                : "";
             return (
               // `presentation` on the <li> so the button is the listbox's
               // effective child: options of one list, not a row of toggles.
@@ -752,9 +781,18 @@ function PickerList({
                       {picked && <Check className="size-3" />}
                     </span>
                   )}
-                  <span className="min-w-0 flex-1 truncate">
-                    {option.title}
-                  </span>
+                  {updated ? (
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate">{option.title}</span>
+                      <span className="truncate text-xs tabular-nums text-lumen-text-secondary">
+                        {updated}
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="min-w-0 flex-1 truncate">
+                      {option.title}
+                    </span>
+                  )}
                   {multi && option.isLocked && (
                     <>
                       <Lock
@@ -826,6 +864,7 @@ function NotePicker({
           // The sheet focuses its first control itself (useDialogA11y).
           focusSearch: placement !== "sheet",
           listClassName: placement === "inline" ? "max-h-44" : "max-h-72",
+          formatUpdated: labels.noteUpdated,
         }}
       />
       <div className="flex items-center justify-between gap-2 border-t border-lumen-border pt-2">
@@ -833,7 +872,9 @@ function NotePicker({
           aria-live="polite"
           className="text-xs tabular-nums text-lumen-text-secondary"
         >
-          {labels.notePickerCount(draft.length)}
+          {draft.length === 0 && labels.notePickerNone
+            ? labels.notePickerNone
+            : labels.notePickerCount(draft.length)}
         </span>
         <button
           type="button"
@@ -1660,18 +1701,21 @@ export function ItemCreatePanel({
               aria-expanded={noteOpen}
               aria-controls={noteSectionId}
               className={cn(
-                "flex items-center gap-1.5 rounded-lumen-md px-1 py-1 text-left text-xs text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text max-md:min-h-11",
+                // #2573: a small outlined button led by a clip, as the
+                // prototype draws it. Open shows as the accent outline the
+                // row's own buttons use, since a clip does not turn the way
+                // the old chevron did.
+                "inline-flex min-w-0 items-center gap-1.5 rounded-lumen-md border px-2.5 py-1 text-left text-xs transition-colors hover:bg-lumen-hover max-md:min-h-11",
+                noteOpen
+                  ? "border-lumen-accent text-lumen-accent"
+                  : "border-lumen-border text-lumen-text-secondary hover:text-lumen-text",
                 // Alone on its line it spans it, as before; beside the tags it
                 // keeps to its own width at the right end.
                 tagPool ? "ml-auto shrink-0" : "w-full",
                 FOCUS_RING_TIGHT,
               )}
             >
-              {noteOpen ? (
-                <ChevronDown aria-hidden className="size-3.5 shrink-0" />
-              ) : (
-                <ChevronRight aria-hidden className="size-3.5 shrink-0" />
-              )}
+              <Paperclip aria-hidden className="size-3.5 shrink-0" />
               <span className="truncate">{labels.attachNote}</span>
             </button>
           </div>
@@ -1679,11 +1723,18 @@ export function ItemCreatePanel({
               trigger above opens and folds it. */}
           {noteOpen && (
             <div id={noteSectionId} className="flex flex-col gap-2">
+              {/* #2573: one recessed line, opened by its question, as the
+                  prototype draws it. */}
               <div
                 role="group"
                 aria-label={labels.noteSourceLabel}
-                className="flex flex-wrap items-center gap-2"
+                className="flex flex-wrap items-center gap-2 rounded-lumen-md bg-lumen-surface-sunken px-2.5 py-1.5"
               >
+                {labels.noteRowPrompt && (
+                  <span className="text-xs text-lumen-text-secondary">
+                    {labels.noteRowPrompt}
+                  </span>
+                )}
                 <button
                   type="button"
                   onClick={

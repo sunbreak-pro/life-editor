@@ -96,7 +96,8 @@ export interface UseCreatePanelNotesOptions {
  * Notes offered by the picker: live notes, newest-touched first. #2396: a
  * password-protected one carries `isLocked`, the same `hasPassword` the note
  * list draws its lock from (NoteListRows), so the two agree on which notes
- * are locked.
+ * are locked. #2573: each carries `updatedAt`, which the picker draws as
+ * 「10/10 更新」 — the same field the order comes from.
  */
 function toOptions(notes: NoteNode[]): ItemCreateOption[] {
   return notes
@@ -104,8 +105,8 @@ function toOptions(notes: NoteNode[]): ItemCreateOption[] {
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .map((n) =>
       n.hasPassword
-        ? { id: n.id, title: n.title, isLocked: true }
-        : { id: n.id, title: n.title },
+        ? { id: n.id, title: n.title, isLocked: true, updatedAt: n.updatedAt }
+        : { id: n.id, title: n.title, updatedAt: n.updatedAt },
     );
 }
 
