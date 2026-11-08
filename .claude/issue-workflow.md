@@ -84,7 +84,7 @@
    - **web**: 先に shared で `npm ci` と `npm run build` を打ちます（web の build と typecheck:tests は `../shared` を見るためです）。そのあと `cd {{worktree}}/web && npm ci`、`npm run lint`、`npm run build`、`npm run typecheck:tests`、`npx vitest run --maxWorkers=4`。
    - **desktop**: 先に shared で `npm ci` と `npm run build`、web で `npm ci` を打ちます（renderer の root が `../web` のためです）。そのあと `cd {{worktree}}/desktop && npm ci`、`npm run typecheck`、`npx vitest run --maxWorkers=4`、`npm run build`。
    - **mcp-server**: 先に shared で `npm ci` を打ちます（テストが `../../shared/src` を直に import するためです）。そのあと `cd {{worktree}}/mcp-server && npm ci`、`npm run build`、`npm run typecheck:tests`、`npx vitest run --maxWorkers=4`。ツールを足すか名前を変えたら `npm run catalog`、拡張アプリの窓口のツールを触ったら `npm run gateway-spec` を打ち、作り直したファイルも commit に入れます。
-   - **tooling**（`.claude/scripts/`・`scripts/`・`.claude/` の文書・`.github/`）: 触ったスクリプトにテストがあれば `node --test .claude/scripts/<name>.test.mjs` を打ちます。`.claude/` の文書かスクリプトを触ったら、repo の根で `LC_ALL=C bash scripts/docs-lint.sh` を打ちます（`LC_ALL=C` がないと Git Bash の grep が日本語の行で誤検知します）。
+   - **tooling**（`.claude/scripts/`・`scripts/`・`.claude/` の文書・`.github/`）: 触ったスクリプトにテストがあれば `node --test .claude/scripts/<name>.test.mjs` を打ちます。`.claude/hooks/` を触ったら `node --test ".claude/hooks/__tests__/*.test.mjs"` を打ちます。`.claude/` の文書かスクリプトを触ったら、repo の根で `LC_ALL=C bash scripts/docs-lint.sh` を打ちます（`LC_ALL=C` がないと Git Bash の grep が日本語の行で誤検知します）。
    - **supabase/migrations**: `supabase db push` と MCP の `apply_migration` は使いません。db push はこうだいさんの作業です。反映済みのマイグレーションは中身を変えず、次の番号で新しいファイルを足します（CLAUDE.md §7.3）。notes に db push が要ることを書きます。
    - **mobile**: CI に入っていないので、触ったら notes にそう書きます。
    - 自分が起こした失敗は直します。触っていない場所の失敗は直さず notes に書きます。
