@@ -795,30 +795,52 @@ export function WeekTimeGrid({
                   {shown.map((it) => {
                     const selected = it.id === selectedId;
                     /*
-                     * #1626: a holiday is drawn, not operated. It has no row
-                     * behind it — its name and its date come from the law
-                     * (japaneseHolidays) — so there is nothing for a click,
-                     * a double-click or a long press to open. A control that
-                     * answers no gesture reads as broken, so it is a span,
-                     * wearing the one colour Settings chose for all of them.
+                     * #2565: a holiday opens a read-only bubble (its name, its
+                     * date and "hide holidays"). It still has no row behind
+                     * it — its name and its date come from the law
+                     * (japaneseHolidays) — so there is nothing to edit, drag
+                     * or resize: no double-click, no beginDrag, no placeable.
+                     * Right-click goes the same way as an event chip's so the
+                     * host decides what (if anything) to offer.
                      */
                     if (it.variant === "holiday") {
                       // #2623: the Settings colour as a light face and a
                       // line, the same form as the month's holiday chip.
                       const face = holidayFace(it.tagColor);
                       return (
-                        <span
+                        <button
                           key={it.id}
+                          type="button"
                           title={it.title}
                           data-holiday-chip={it.date}
+                          // Not activateItem: its onSelectItem fallback would
+                          // make a holiday a selection, which it never is.
+                          onClick={(e) =>
+                            onItemActivate?.(it.id, {
+                              x: e.clientX,
+                              y: e.clientY,
+                            })
+                          }
+                          onContextMenu={
+                            onItemContextMenu
+                              ? (e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  onItemContextMenu(it.id, {
+                                    x: e.clientX,
+                                    y: e.clientY,
+                                  });
+                                }
+                              : undefined
+                          }
                           style={face.style}
                           className={cn(
-                            "block h-5 w-full truncate rounded px-1 py-0.5 text-left text-xs font-medium",
+                            "block h-5 w-full cursor-pointer truncate rounded px-1 py-0.5 text-left text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
                             face.className,
                           )}
                         >
                           {it.title}
-                        </span>
+                        </button>
                       );
                     }
                     // A-3 (#298): an all-day todo chip can be dragged down into

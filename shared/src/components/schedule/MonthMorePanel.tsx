@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
 } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
@@ -151,10 +152,10 @@ export function MonthMorePanel({
     if (height != null && height !== measuredHeight) setMeasuredHeight(height);
   }, [measuredHeight, items]);
 
-  // Focus moves in with the panel: the first item, or the close button when
-  // every hidden row is a holiday (which has nothing to press). Once, on
-  // open — a re-render while the user is arrowing through must not pull focus
-  // back to the top.
+  // Focus moves in with the panel: the first item (a holiday row counts — it
+  // opens its read-only bubble since #2565), or the close button when the list
+  // is empty. Once, on open — a re-render while the user is arrowing through
+  // must not pull focus back to the top.
   useLayoutEffect(() => {
     const panel = panelRef.current;
     if (!panel) return;
@@ -195,7 +196,8 @@ export function MonthMorePanel({
   }, [anchor, onClose]);
 
   // Up / Down walk the list, Home / End jump to its ends. Tab still works;
-  // this only saves a screen of Tab presses on a busy day.
+  // this only saves a screen of Tab presses on a busy day. Holiday rows carry
+  // `data-month-more-item` too (#2565), so the walk stops on them.
   const handleListKey = (e: KeyboardEvent<HTMLUListElement>) => {
     if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) return;
     const buttons = Array.from(
@@ -214,6 +216,21 @@ export function MonthMorePanel({
             : Math.max(at - 1, 0);
     buttons[next]?.focus();
   };
+
+  const activateRow =
+    (id: string) =>
+    (e: ReactMouseEvent<HTMLButtonElement>): void => {
+      // A keyboard press arrives as a click with no pointer (detail 0,
+      // coordinates 0/0), so the bubble is placed from the row instead of from
+      // the window's corner.
+      const keyboard = e.detail === 0;
+      const r = e.currentTarget.getBoundingClientRect();
+      const pos = keyboard
+        ? { x: r.left, y: r.bottom }
+        : { x: e.clientX, y: e.clientY };
+      onClose();
+      onItemActivate(id, pos, { focus: keyboard });
+    };
 
   return createPortal(
     <div
@@ -255,34 +272,29 @@ export function MonthMorePanel({
           return (
             <li key={it.id} className="flex">
               {it.variant === "holiday" ? (
-                // #1626: drawn, not operated — the same span the cell uses.
-                <span
+                // #2565: opens the holiday's read-only bubble, the same press
+                // the cell's holiday chip makes. No kind mark: a holiday has
+                // no kind.
+                <button
+                  type="button"
+                  data-month-more-item={it.id}
                   title={it.title}
+                  onClick={activateRow(it.id)}
                   style={face.style}
                   className={cn(
-                    "block w-full truncate rounded px-1.5 py-1 text-xs font-medium",
+                    "block w-full cursor-pointer truncate rounded px-1.5 py-1 text-left text-xs font-medium",
+                    CELL_FOCUS,
                     face.className,
                   )}
                 >
                   {it.title}
-                </span>
+                </button>
               ) : (
                 <button
                   type="button"
                   data-month-more-item={it.id}
                   title={it.title}
-                  onClick={(e) => {
-                    // A keyboard press arrives as a click with no pointer
-                    // (detail 0, coordinates 0/0), so the bubble is placed from
-                    // the row instead of from the window's corner.
-                    const keyboard = e.detail === 0;
-                    const r = e.currentTarget.getBoundingClientRect();
-                    const pos = keyboard
-                      ? { x: r.left, y: r.bottom }
-                      : { x: e.clientX, y: e.clientY };
-                    onClose();
-                    onItemActivate(it.id, pos, { focus: keyboard });
-                  }}
+                  onClick={activateRow(it.id)}
                   style={face.style}
                   className={cn(
                     "flex w-full min-w-0 cursor-pointer items-center gap-1 rounded px-1.5 py-1 text-left text-xs font-medium",

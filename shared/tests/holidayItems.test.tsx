@@ -12,11 +12,12 @@ import {
  * #1626 — how a holiday is DRAWN, on the three surfaces that show one.
  *
  * The rule the grids have to keep is the same on both: a holiday looks like
- * the items beside it and answers no gesture. It has no row behind it — the
- * name and the date come from the law (japaneseHolidays) — so a click has
- * nothing to open, and a <button> that opens nothing reads as broken. Each
- * grid draws its own markup, which is exactly how one of them ends up fixed
- * and the other not.
+ * the items beside it. It has no row behind it — the name and the date come
+ * from the law (japaneseHolidays) — so there is nothing to edit; since #2565
+ * a press opens a read-only bubble (its name, date and "hide holidays"), so
+ * the chip is a <button> that hands back its own holiday-YYYY-MM-DD id and
+ * is never a selection. Each grid draws its own markup, which is exactly how
+ * one of them ends up fixed and the other not.
  */
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -74,20 +75,22 @@ describe("MonthGrid — holidays (#1626)", () => {
     return { onSelectItem, onItemActivate };
   }
 
-  it("draws the holiday in the shared colour, as text rather than a control", () => {
+  it("draws the holiday in the shared colour, as a control", () => {
     renderMonth();
     const chip = screen.getByText("敬老の日");
-    expect(chip.tagName).toBe("SPAN");
+    expect(chip.tagName).toBe("BUTTON");
     expect(chip).toHaveAttribute("data-holiday-chip", "2026-09-21");
     expect(chip.style.backgroundColor).toBe("rgb(224, 62, 62)");
-    // The event beside it is still a control — only the holiday is not.
     expect(screen.getByRole("button", { name: "Gym" })).toBeInTheDocument();
   });
 
-  it("answers no click", () => {
+  it("opens its bubble on a click, without selecting it (#2565)", () => {
     const { onSelectItem, onItemActivate } = renderMonth();
     fireEvent.click(screen.getByText("敬老の日"));
-    expect(onItemActivate).not.toHaveBeenCalled();
+    expect(onItemActivate).toHaveBeenCalledWith(
+      "holiday-2026-09-21",
+      expect.any(Object),
+    );
     expect(onSelectItem).not.toHaveBeenCalled();
   });
 });
@@ -112,17 +115,20 @@ describe("WeekTimeGrid — holidays (#1626)", () => {
   it("puts the holiday in the all-day lane, in the shared colour", () => {
     renderWeek();
     const chip = screen.getByText("敬老の日");
-    expect(chip.tagName).toBe("SPAN");
+    expect(chip.tagName).toBe("BUTTON");
     expect(chip).toHaveAttribute("data-holiday-chip", "2026-09-21");
     expect(chip.style.backgroundColor).toBe("rgb(224, 62, 62)");
     // The lane, not the time body — that is what `isAllDay` buys.
     expect(chip.closest("[data-week-grid-allday]")).not.toBeNull();
   });
 
-  it("answers no click", () => {
+  it("opens its bubble on a click (#2565)", () => {
     const { onItemActivate } = renderWeek();
     fireEvent.click(screen.getByText("敬老の日"));
-    expect(onItemActivate).not.toHaveBeenCalled();
+    expect(onItemActivate).toHaveBeenCalledWith(
+      "holiday-2026-09-21",
+      expect.any(Object),
+    );
   });
 });
 

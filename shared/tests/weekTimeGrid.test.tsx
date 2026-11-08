@@ -532,6 +532,79 @@ describe("WeekTimeGrid — interactions", () => {
     expect(onItemActivate).not.toHaveBeenCalled();
   });
 
+  /*
+   * #2565 — a holiday chip opens its read-only bubble through the same
+   * activation callback, but has no row behind it: it must not drag, and a
+   * double-click has nothing to open.
+   */
+  const holidayChip: WeekTimeGridItem = {
+    id: "holiday-2026-07-20",
+    date: "2026-06-15",
+    title: "Marine Day",
+    startTime: "00:00",
+    endTime: "23:59",
+    isAllDay: true,
+    variant: "holiday",
+  };
+
+  function renderHolidayLane() {
+    const handlers = {
+      onItemActivate: vi.fn(),
+      onItemContextMenu: vi.fn(),
+      onItemDoubleClick: vi.fn(),
+      onMoveItem: vi.fn(),
+    };
+    render(
+      <WeekTimeGrid
+        data={{ weekStart: "2026-06-14", items: [holidayChip] }}
+        labels={{ weekdays: WEEKDAYS, allDay: "All-day" }}
+        handlers={handlers}
+        display={{ todoInteractive: true }}
+      />,
+    );
+    return handlers;
+  }
+
+  it("activates a holiday chip on a plain click (#2565)", () => {
+    const { onItemActivate } = renderHolidayLane();
+    const chip = screen.getByRole("button", { name: "Marine Day" });
+    expect(chip.getAttribute("data-holiday-chip")).toBe("2026-06-15");
+    expect(chip.className).toContain("cursor-pointer");
+    expect(chip.className).toContain("focus-visible:ring-2");
+    fireEvent.click(chip, { clientX: 7, clientY: 9 });
+    expect(onItemActivate).toHaveBeenCalledWith("holiday-2026-07-20", {
+      x: 7,
+      y: 9,
+    });
+  });
+
+  it("reports a right-click on a holiday chip (#2565)", () => {
+    const { onItemContextMenu } = renderHolidayLane();
+    fireEvent.contextMenu(screen.getByRole("button", { name: "Marine Day" }), {
+      clientX: 1,
+      clientY: 2,
+    });
+    expect(onItemContextMenu).toHaveBeenCalledWith("holiday-2026-07-20", {
+      x: 1,
+      y: 2,
+    });
+  });
+
+  it("never drags or double-clicks a holiday chip (#2565)", () => {
+    const { onMoveItem, onItemDoubleClick } = renderHolidayLane();
+    const chip = screen.getByRole("button", { name: "Marine Day" });
+    firePointerDown(chip, 10, 10);
+    act(() => {
+      window.dispatchEvent(
+        new MouseEvent("pointermove", { clientX: 10, clientY: 100 }),
+      );
+      window.dispatchEvent(new MouseEvent("pointerup", {}));
+    });
+    fireEvent.doubleClick(chip);
+    expect(onMoveItem).not.toHaveBeenCalled();
+    expect(onItemDoubleClick).not.toHaveBeenCalled();
+  });
+
   it("treats the all-day lane's own bottom edge as the drop-to-all-day boundary", () => {
     const onMoveItem = vi.fn();
     const onDropAllDay = vi.fn();

@@ -4,12 +4,15 @@ import {
   CalendarSearch,
   Copy,
   CopyMinus,
+  Flag,
   SquareCheck,
   Trash2,
 } from "lucide-react";
 import {
   BubbleKindBadge,
   ConfirmDialog,
+  HOLIDAY_ITEM_PREFIX,
+  holidaysInRange,
   ItemActionPopover,
   ItemCreatePanel,
   ItemDetailOverlay,
@@ -227,6 +230,12 @@ export interface ScheduleOverlaysProps {
     onOpenDetail: (id: string) => void;
     itemActions: ScheduleItemPopoverActions;
     todoActions: ScheduleTodoPopoverActions;
+    /**
+     * #2565: the holiday bubble's one action. Optional because only the host
+     * that owns the holiday-visibility pref can write it; left out, the
+     * holiday bubble opens with no action.
+     */
+    onHideHolidays?: () => void;
   };
   /** #1678: the repeat tab's row panel. */
   repeatPanel: ScheduleRepeatPanel;
@@ -341,8 +350,64 @@ export function ScheduleOverlays({
     ? eventQuickEditValue(popover.selected)
     : null;
 
+  /*
+   * #2565: a holiday has no row (#1626), so `selected` and `todoChip` are both
+   * null for it and the bubble reads the day straight off the id. Checked
+   * first: no quick edit and no "edit detail", because the holiday is the
+   * law's, not the user's. An id whose day is not a holiday opens nothing.
+   */
+  const popoverId = popover.state?.id ?? "";
+  const holidayDate = popoverId.startsWith(HOLIDAY_ITEM_PREFIX)
+    ? popoverId.slice(HOLIDAY_ITEM_PREFIX.length)
+    : null;
+  const holidayName = holidayDate
+    ? holidaysInRange(holidayDate, holidayDate)[0]?.name
+    : undefined;
+
   const bubble =
-    !isWide || !popover.state ? null : todoChipPanel ? (
+    !isWide || !popover.state ? null : holidayDate ? (
+      holidayName ? (
+        <ItemActionPopover
+          key={popover.state.id}
+          position={{ x: popover.state.x, y: popover.state.y }}
+          autoFocus={popover.state.focus}
+          summary={
+            <div className="flex flex-col gap-0.5">
+              <BubbleKindBadge
+                kind="holiday"
+                label={t("scheduleScreen.typeHoliday")}
+                className="mb-0.5 self-start"
+              />
+              <p className="line-clamp-2 break-words font-semibold text-lumen-text">
+                {holidayName}
+              </p>
+              <p className="text-lumen-text-secondary">
+                {t("scheduleScreen.bubbleWhen", {
+                  ...formatDayParts(i18n.language, holidayDate),
+                  time: t("scheduleScreen.allDay"),
+                })}
+              </p>
+            </div>
+          }
+          actions={
+            popover.onHideHolidays
+              ? [
+                  {
+                    id: "hideHolidays",
+                    label: t("scheduleScreen.holidayFilterHide"),
+                    icon: <Flag aria-hidden />,
+                    onSelect: () => popover.onHideHolidays?.(),
+                  },
+                ]
+              : []
+          }
+          label={t("scheduleScreen.holidayActionsLabel")}
+          onClose={popover.onClose}
+          width={SCHEDULE_ITEM_PANEL_WIDTH}
+          layout="columns"
+        />
+      ) : null
+    ) : todoChipPanel ? (
       <ItemActionPopover
         key={popover.state.id}
         position={{ x: popover.state.x, y: popover.state.y }}
