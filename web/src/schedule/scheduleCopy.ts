@@ -41,6 +41,20 @@ export function formatShortDate(language: string, dateKey: string): string {
 }
 
 /**
+ * #2573: the numeric month/day of an ISO instant ("10/10"), on the user's
+ * local calendar — the note picker's 「10/10 更新」. Empty for a value that
+ * does not parse, so the row draws no line rather than "Invalid Date".
+ */
+export function formatInstantShortDate(language: string, iso: string): string {
+  const instant = new Date(iso);
+  if (Number.isNaN(instant.getTime())) return "";
+  return new Intl.DateTimeFormat(language, {
+    month: "numeric",
+    day: "numeric",
+  }).format(instant);
+}
+
+/**
  * Numeric month/day and the short weekday, as two strings — the Todo tab's
  * heading for a day that is not today (#2281). Split rather than formatted in
  * one go because the catalog owns the punctuation around them: ja wants
@@ -240,7 +254,7 @@ export function useScheduleCopy({
   notesError,
   selectedTagCount,
 }: ScheduleCopyOptions): ScheduleCopy {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const weekdayLabels = useMemo(() => buildWeekdayLabels(t), [t]);
   const freqCopy = useMemo<FrequencyLabelCopy>(
@@ -363,6 +377,7 @@ export function useScheduleCopy({
       noteSourceNew: t("scheduleScreen.noteCreateNew"),
       noteSourceExisting: t("scheduleScreen.notePickExisting"),
       noteDismiss: t("scheduleScreen.noteDismiss"),
+      noteRowPrompt: t("scheduleScreen.noteRowPrompt"),
       noteTitleLabel: t("scheduleScreen.noteTitleLabel"),
       notePlaceholder: t("scheduleScreen.notePlaceholder"),
       noteNewConfirm: t("scheduleScreen.noteNewConfirm"),
@@ -371,6 +386,15 @@ export function useScheduleCopy({
       notePickerClose: t("common.close"),
       notePickerCount: (n: number) =>
         t("scheduleScreen.notePickerCount", { n }),
+      // #2573: "0 selected" until something is picked says nothing about
+      // what picking does, so the empty foot says that instead.
+      notePickerNone: t("scheduleScreen.notePickerNone"),
+      noteUpdated: (updatedAt: string) => {
+        // Read at call time: only an open picker with a dated row asks, and
+        // some test hosts stub useTranslation without an i18n instance.
+        const date = formatInstantShortDate(i18n.language, updatedAt);
+        return date ? t("scheduleScreen.notePickerUpdated", { date }) : "";
+      },
       notePickerDone: t("scheduleScreen.notePickerDone"),
       noteLocked: t("scheduleScreen.noteLocked"),
       // "No notes yet" is a claim about the user's data, so it must not stand
@@ -384,7 +408,7 @@ export function useScheduleCopy({
       removeNote: (title: string) =>
         t("scheduleScreen.removeNote", { title }),
     }),
-    [t, notesError],
+    [t, notesError, i18n],
   );
 
   const createRepeatField = useMemo<ItemCreateRepeatField>(
