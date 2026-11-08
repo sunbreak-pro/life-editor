@@ -87,6 +87,8 @@ gh pr merge <n> -R sunbreak-pro/life-editor --squash
 
 ### 4. 衝突と CI の赤を振り分ける
 
+`fixes` の前に、issue-workflow が作った `wf-*` の worktree のうち PR が open のものを `git -C C:/Users/user/orca/life-editor worktree remove C:/Users/user/orca/workspaces/life-editor/wf-<番号>` で外す。ブランチは origin に残る。`merge-round.mjs` は `autofix-*` と `merge-verify` 以外の worktree をすべてレーンに数えるので、残すと誰もいない worktree 宛てに `/goal` が出て、4a の autofix も「レーンが開いている」で止まるからです（`.claude/issue-workflow.md` の「実行のあと」）。
+
 ```bash
 node .claude/scripts/merge-round.mjs fixes
 ```
@@ -183,7 +185,7 @@ main を書き換えない（`reset --hard` と force push は deny 済み）。
 
 3. chat-main に戻り、revert の PR を手元の検査にかけてから `plan --only <revert PR>` → `start` → `check` → `gh pr merge` → `finish` で merge する。
 4. 回ごと戻したときは、`git fetch origin` のあと `git diff <戻る地点> origin/main --stat` を打ち、差分が空か、戻した回より後に merge した PR の分だけになっているかを確かめる。
-5. 元の Issue は `Refs` なので open のまま残る。戻した理由を Issue にコメントし、直した PR を出し直すレーンへ `issue-prompter` で配り直す。
+5. 元の Issue は `Refs` なので open のまま残る。戻した理由を Issue にコメントし、直した PR はグローバルの `issue-workflow` スキルで実装し直す（life-editor の設定は `.claude/issue-workflow.md`）。
 
 マイグレーションを含む PR は revert しない。反映済みのマイグレーションは中身を変えず、次の番号で戻すマイグレーションを足す（CLAUDE.md §7.3）。db push はこうだいさんの作業のままです。
 

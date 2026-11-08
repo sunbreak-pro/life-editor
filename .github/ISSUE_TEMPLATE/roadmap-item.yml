@@ -13,13 +13,13 @@ body:
     id: depends_on
     attributes:
       label: 依存する作業
-      description: 先に origin/main へ入っている必要がある Issue を "#a, #b" の形で書く。無ければ "なし"。本文に直接書くときは 1 行で "依存する作業: #a, #b" と書く。close ではなく PR の着地で判定される（issue-prompter）
+      description: 先に origin/main へ入っている必要がある Issue を "#a, #b" の形で書く。無ければ "なし"。本文に直接書くときは 1 行で "依存する作業: #a, #b" と書く。close ではなく PR の着地で判定される（issue-workflow。設定は .claude/issue-workflow.md）
     validations: { required: true }
   - type: textarea
     id: scope
     attributes:
       label: Scope（触るファイル）
-      description: 触ってよいパスを glob で 1 行 1 本書く（例 web/src/wikitag/TagPicker.tsx）。i18n の en / ja と barrel の index.ts は書かなくてよい。issue-prompter がこの欄で、ほかの Issue・open PR と同じファイルを触らないかを配る前に調べ、欄が空の Issue は配らない（担当表 = .claude/scripts/lane-ownership.json）
+      description: 触ってよいパスを glob で 1 行 1 本書く（例 web/src/wikitag/TagPicker.tsx）。i18n の en / ja と barrel の index.ts は書かなくてよい。issue-workflow がこの欄で、ほかの Issue・open PR と同じファイルを触らないかを選ぶ前に調べ、欄が空の Issue は選ばない（担当表 = .claude/scripts/lane-ownership.json）
       render: text
     validations: { required: true }
   - type: textarea
