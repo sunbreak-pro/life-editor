@@ -6,7 +6,7 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
-import { Link2, Network, Plus, Trash2, X } from "lucide-react";
+import { Link2, Network, Plus, Trash2 } from "lucide-react";
 import {
   balanceByRole,
   buildItemRelations,
@@ -88,7 +88,9 @@ import { useLinkChipPopover } from "./useLinkChipPopover";
  *   - The chip's X had no room left, so REMOVING moved into the "+" popover,
  *     under the candidates. One place that works for a mouse, a thumb, a
  *     keyboard and a screen reader, and for a dead link that has no button.
- *     #2392's panel adds a second way out from the chip itself.
+ *     #2392's panel adds a second way out from the chip itself, and #2630 made
+ *     it the only one: the prototype's "+" popover only adds, so the "linked"
+ *     list under the candidates went away.
  *   - The row reaches Mobile. Below the breakpoint the chips are 2.25rem with a
  *     44px hit area (the `::after` in LINK_CHIP_BOX), and they scroll sideways
  *     so the row stays one line, as the tag chips do. The popover hangs from the
@@ -463,7 +465,7 @@ export function LinkPanel({
     }
   };
 
-  /** Both ways out (the chip's panel, the "+" popover) end up here. */
+  /** The chip's panel is the one way out (#2630). */
   const removeLink = async (linkIds: string[], title: string) => {
     setError(null);
     try {
@@ -472,13 +474,6 @@ export function LinkPanel({
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
-  };
-
-  const handleDelete = async (linkIds: string[], title: string) => {
-    await removeLink(linkIds, title);
-    // The row that held the focus is gone. Without this it falls to <body>,
-    // where Escape no longer closes the popover.
-    pickerInputRef.current?.focus();
   };
 
   /** The name a kind goes by; a target the pool cannot place is "other". */
@@ -648,37 +643,6 @@ export function LinkPanel({
     );
   };
 
-  /** One existing link in the "+" popover: where a link is removed from. */
-  const renderLinkedRow = (entry: { targetId: string; linkIds: string[] }) => {
-    const { targetId, linkIds } = entry;
-    const row = resolveRow(targetId);
-    const title = rowLabel(row);
-    return (
-      <li
-        key={targetId}
-        className="flex items-center gap-2 px-1.5 py-1 text-xs font-normal text-lumen-text-secondary"
-      >
-        {renderRowTile(targetsById.get(targetId)?.role, row.deleted)}
-        <span
-          title={row.named ? title : targetId}
-          className={`min-w-0 flex-1 truncate${row.deleted ? " line-through" : ""}`}
-        >
-          {title}
-        </span>
-        <button
-          type="button"
-          // Keep the focus in the search field: this row unmounts on removal.
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => void handleDelete(linkIds, title)}
-          aria-label={t("materials.links.remove", { title })}
-          className={`shrink-0 rounded-lumen-sm text-lumen-text-secondary hover:text-lumen-danger max-md:min-h-11 max-md:min-w-11 ${FOCUS_RING}`}
-        >
-          <X size={12} aria-hidden />
-        </button>
-      </li>
-    );
-  };
-
   /** One related row: icon + title, opening the item if it can be opened. */
   const renderRelatedRow = (id: string) => {
     const row = resolveRow(id);
@@ -797,7 +761,6 @@ export function LinkPanel({
             role="dialog"
             aria-label={t("materials.links.pickerDialog")}
             onKeyDown={(e) => {
-              // Reaches here from the input and from a linked row's X alike.
               if (e.key !== "Escape" || isImeComposing(e)) return;
               closePicker();
               pickerTriggerRef.current?.focus();
@@ -870,16 +833,6 @@ export function LinkPanel({
                     </button>
                   );
                 })}
-              </div>
-            )}
-            {linked.length > 0 && (
-              <div className="mt-2 border-t border-lumen-border pt-1">
-                <p className="px-1.5 pt-1 text-[0.6875rem] uppercase tracking-wide text-lumen-text-tertiary">
-                  {t("materials.links.linkedHeading")}
-                </p>
-                <ul className="max-h-40 overflow-y-auto">
-                  {linked.map(renderLinkedRow)}
-                </ul>
               </div>
             )}
           </div>
