@@ -58,6 +58,8 @@ export interface ItemDetailOverlayProps {
    */
   closeLabel?: string;
   labelledBy?: string;
+  /** #2660: the panel's fill, forwarded to <Modal>. Default "base". */
+  surface?: ModalProps["surface"];
 }
 
 export function ItemDetailOverlay({
@@ -72,6 +74,7 @@ export function ItemDetailOverlay({
   fitViewport,
   closeLabel,
   labelledBy,
+  surface,
 }: ItemDetailOverlayProps) {
   return (
     <Modal
@@ -84,6 +87,7 @@ export function ItemDetailOverlay({
       fitViewport={fitViewport}
       closeLabel={closeLabel}
       labelledBy={labelledBy}
+      surface={surface}
     >
       <div className="flex min-h-0 flex-col gap-4">
         <div className="min-h-0">{children}</div>

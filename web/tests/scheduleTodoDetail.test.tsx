@@ -225,25 +225,26 @@ describe("ScheduleTodoDetail — the narrow frame (#1000)", () => {
    * hardcoded `wide` would keep every existing case green while leaving narrow
    * with a dialog it cannot close by touch.
    *
-   * #2219 gave the Desktop overlay a corner close too, so both frames now
-   * carry one — what is left to pin is that each width HAS its exit.
+   * #2660 took the corner close (×) off both frames: the panel's footer
+   * Cancel is the visible exit now, and on a phone it is the ONLY one (no
+   * Escape, no backdrop under a full-height sheet) — so what is pinned is that
+   * each width shows that Cancel and no ×.
    */
-  it("puts narrow in the sheet, which carries its own exit", () => {
-    renderDetail({ isWide: false });
-    screen.getByRole("button", { name: "common.close" });
+  it.each([
+    ["Mobile", false],
+    ["Desktop", true],
+  ])("shows the footer Cancel and no corner close on %s", (_name, isWide) => {
+    renderDetail({ isWide });
+    screen.getByRole("button", { name: "common.cancel" });
+    expect(screen.queryByRole("button", { name: "common.close" })).toBeNull();
   });
 
-  it("gives Desktop the corner close too (#2219)", () => {
-    renderDetail({ isWide: true });
-    screen.getByRole("button", { name: "common.close" });
-  });
-
-  it("routes the sheet's own exit through the unsaved guard too", async () => {
+  it("routes the sheet's Cancel through the unsaved guard too", async () => {
     // The existing guard case exercises Escape, which is frame-agnostic. The
-    // sheet's button is the exit only narrow has.
+    // Cancel is the exit a phone has.
     const { askConfirm, onClose } = renderDetail({ isWide: false });
     makeDirty();
-    fireEvent.click(screen.getByRole("button", { name: "common.close" }));
+    fireEvent.click(screen.getByRole("button", { name: "common.cancel" }));
     await waitFor(() => expect(askConfirm).toHaveBeenCalledTimes(1));
     expect(onClose).toHaveBeenCalled();
   });

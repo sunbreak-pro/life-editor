@@ -21,7 +21,8 @@ export interface BottomSheetProps {
    * Already-translated name for the close button (§6.4). Required, not
    * optional: the button itself is unconditional (#525), so an optional label
    * would leave "a sheet whose only exit no screen reader can announce" as the
-   * one broken sheet the types still allow.
+   * one broken sheet the types still allow. The one exception is `hideClose`
+   * below, for a body that draws its own exit.
    */
   closeLabel: string;
   children: ReactNode;
@@ -59,6 +60,23 @@ export interface BottomSheetProps {
    * what kind of panel this is. The detail editors are the one user.
    */
   hideTitle?: boolean;
+  /**
+   * #2660: draw no close button. ONLY for a body that carries its own visible
+   * exit — the item editors' footer 「キャンセル」. #525's rule still stands
+   * for every other sheet: on a phone there is no Escape, and a full-height
+   * sheet leaves no backdrop to tap, so the body's button is the only way out.
+   * With `hideTitle` too the header row goes away, and the body's first row
+   * starts at the top of the panel.
+   */
+  hideClose?: boolean;
+  /**
+   * #2660: the panel's fill. "base" (default) is `bg-lumen-bg`; "secondary"
+   * is `bg-lumen-bg-secondary`, the colour the item editors drew their own
+   * card in, so the sheet becomes that card. A prop for the reason Modal's is
+   * one: `cn` is not tailwind-merge, so a `bg-*` in `className` would race the
+   * default rather than replace it.
+   */
+  surface?: "base" | "secondary";
 }
 
 /*
@@ -111,6 +129,8 @@ export function BottomSheet({
   closeOnBackdrop = true,
   fullScreen = false,
   hideTitle = false,
+  hideClose = false,
+  surface = "base",
 }: BottomSheetProps) {
   const panelRef = useDialogA11y<HTMLDivElement>({ open, onClose });
   // #2219: a hidden title keeps the dismiss shape (× on the right) at full
@@ -118,10 +138,12 @@ export function BottomSheet({
   // back from.
   const backArrow = fullScreen && !hideTitle;
   const swipe = useSwipeToDismiss({ direction: "down", onDismiss: onClose });
+  // Nothing left to put in the header row: no heading, no button.
+  const headerRow = !(hideTitle && hideClose);
 
   if (!open || typeof document === "undefined") return null;
 
-  const exitButton = (
+  const exitButton = hideClose ? null : (
     <button
       type="button"
       onClick={onClose}
@@ -228,7 +250,8 @@ export function BottomSheet({
            * needs its own padding on top of the indicator rather than the
            * larger of the two.
            */
-          "bg-lumen-bg px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3 shadow-xl",
+          surface === "secondary" ? "bg-lumen-bg-secondary" : "bg-lumen-bg",
+          "px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3 shadow-xl",
           "transition-transform duration-200 ease-out",
           className,
         )}
@@ -238,52 +261,58 @@ export function BottomSheet({
          * scrolls. `touch-none` is what makes the browser deliver the moves
          * rather than treating the gesture as a scroll.
          */}
-        <div
-          {...(fullScreen ? {} : swipe.handlers)}
-          // `shrink-0` because this strip carries the only exit: in a column
-          // that runs out of room, the header is the last thing that may give.
-          className={fullScreen ? "shrink-0" : "shrink-0 touch-none"}
-        >
-          {/* A handle advertises a drag. At full height there is nowhere to
+        {(!fullScreen || headerRow) && (
+          <div
+            {...(fullScreen ? {} : swipe.handlers)}
+            // `shrink-0` because this strip carries the only exit: in a column
+            // that runs out of room, the header is the last thing that may give.
+            className={fullScreen ? "shrink-0" : "shrink-0 touch-none"}
+          >
+            {/* A handle advertises a drag. At full height there is nowhere to
               drag TO, so showing one would promise a gesture that does nothing. */}
-          {!fullScreen && (
-            <div
-              aria-hidden="true"
-              className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-lumen-border"
-            />
-          )}
-          {/*
-           * Header row: title (when given) and the always-present close button.
-           * The row renders even without a title so no sheet can exist without a
-           * visible exit — the whole point of #525.
-           *
-           * The button carries a 44px touch target (mobile-scope floor) but
-           * pulls it back into the panel's own padding with negative margins, so
-           * the row keeps the ~24px height every sheet had before and no header
-           * shifts. `truncate` on the heading is what keeps a long title from
-           * running under the button. A tap on it still reaches onClick: a press
-           * that never travels 8px never becomes a swipe.
-           */}
-          {/*
-           * Full height puts the exit FIRST, where a screen's back control
-           * lives, and turns it into a back arrow; a sheet keeps the × on the
-           * right, where a dismiss lives. Same button, same `closeLabel`, same
-           * callback — only its seat at the row and its glyph move, so nothing
-           * that queries it by name has to know which shape it got.
-           */}
-          <div className="mb-3 flex min-h-6 items-center justify-between gap-2">
-            {backArrow && exitButton}
-            {!hideTitle && titleIcon}
-            {title && !hideTitle ? (
-              <h2 className="min-w-0 flex-1 truncate text-base font-semibold text-lumen-text">
-                {title}
-              </h2>
-            ) : (
-              <span className="flex-1" />
+            {!fullScreen && (
+              <div
+                aria-hidden="true"
+                className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-lumen-border"
+              />
             )}
-            {!backArrow && exitButton}
+            {/*
+             * Header row: title (when given) and the always-present close button.
+             * The row renders even without a title so no sheet can exist without a
+             * visible exit — the whole point of #525. Only `hideClose` (a body
+             * with its own Cancel, #2660) removes the button, and with
+             * `hideTitle` the row.
+             *
+             * The button carries a 44px touch target (mobile-scope floor) but
+             * pulls it back into the panel's own padding with negative margins, so
+             * the row keeps the ~24px height every sheet had before and no header
+             * shifts. `truncate` on the heading is what keeps a long title from
+             * running under the button. A tap on it still reaches onClick: a press
+             * that never travels 8px never becomes a swipe.
+             */}
+            {/*
+             * Full height puts the exit FIRST, where a screen's back control
+             * lives, and turns it into a back arrow; a sheet keeps the × on the
+             * right, where a dismiss lives. Same button, same `closeLabel`, same
+             * callback — only its seat at the row and its glyph move, so nothing
+             * that queries it by name has to know which shape it got.
+             */}
+            {headerRow && (
+              <div className="mb-3 flex min-h-6 items-center justify-between gap-2">
+                {backArrow && exitButton}
+                {!hideTitle && titleIcon}
+                {title && !hideTitle ? (
+                  <h2 className="min-w-0 flex-1 truncate text-base font-semibold text-lumen-text">
+                    {title}
+                  </h2>
+                ) : (
+                  <span className="flex-1" />
+                )}
+                {!backArrow && exitButton}
+              </div>
+            )}
           </div>
-        </div>
+        )}
         {/*
          * At full height the panel is the viewport, so the scroll has to happen
          * INSIDE it or the header scrolls away with the content and the only

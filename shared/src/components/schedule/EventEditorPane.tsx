@@ -7,6 +7,7 @@ import {
 } from "react";
 import { Repeat, Trash2 } from "lucide-react";
 import { cn } from "../cn";
+import { useDetailFrameBody } from "../ResponsiveDetailFrame";
 import { TimeRangeField } from "../TimeRangeField";
 import { AllDaySwitch } from "./AllDaySwitch";
 import {
@@ -559,7 +560,11 @@ function EventEditorFields({
   tagSlot,
   tagDraft,
   stickyFooter,
-}: Omit<EventEditorPaneProps, "className">) {
+  framed,
+}: Omit<EventEditorPaneProps, "className"> & {
+  /** The frame is the card (#2660); see EventEditorPane. */
+  framed: boolean;
+}) {
   // Unpacked back into the flat names the body has always used, so the #893
   // bundles stay a wire-format change and nothing below has to know about them.
   const { onSave, onDirtyChange, onDismiss, onDelete } = handlers;
@@ -1049,8 +1054,10 @@ function EventEditorFields({
           // `-mb-4 pb-4` is height-neutral — the negative margin gives back
           // exactly what the padding adds. It exists so the pinned row keeps
           // the card's own breathing room instead of sitting flush on the
-          // scroll edge.
-          stickyFooter && "sticky bottom-0 -mb-4 bg-lumen-bg-secondary pb-4",
+          // scroll edge. Framed (#2660) the pane has no padding to borrow
+          // from; the frame's own padding sits below the scroller instead.
+          stickyFooter && "sticky bottom-0 bg-lumen-bg-secondary",
+          stickyFooter && !framed && "-mb-4 pb-4",
         )}
       >
         {/* Manual: plain single-item delete. Routine (#279): the host opens
@@ -1092,10 +1099,16 @@ function EventEditorFields({
 }
 
 export function EventEditorPane({ className, ...rest }: EventEditorPaneProps) {
+  // #2660: inside a ResponsiveDetailFrame, with a Cancel to stand in for the
+  // frame's ×, the frame becomes this card — drawing it here too was the
+  // second outline. Anywhere else the pane keeps its own card.
+  const framed = useDetailFrameBody(rest.cancel !== undefined);
   return (
     <div
       className={cn(
-        "rounded-md border border-lumen-border bg-lumen-bg-secondary p-4",
+        framed
+          ? null
+          : "rounded-md border border-lumen-border bg-lumen-bg-secondary p-4",
         className,
       )}
     >
@@ -1103,7 +1116,7 @@ export function EventEditorPane({ className, ...rest }: EventEditorPaneProps) {
           against, so switching rows has to drop them via a remount. (#628
           dropped isAllDay from the key — the flip is a draft field now, and
           remounting on it would discard whatever else was pending.) */}
-      <EventEditorFields key={rest.item.id} {...rest} />
+      <EventEditorFields key={rest.item.id} {...rest} framed={framed} />
     </div>
   );
 }
