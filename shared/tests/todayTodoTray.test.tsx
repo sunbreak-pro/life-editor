@@ -911,3 +911,69 @@ describe("TodayTodoTray — one line when every list is empty (#2571)", () => {
     screen.getByText("empty addable");
   });
 });
+
+/*
+ * #2670: a clamped title must not carry vertical padding — `overflow: hidden`
+ * clips at the padding edge, so the padding paints the top of line three.
+ * jsdom has no layout, so this pins the classes, not the pixels.
+ */
+describe("TodayTodoTray — the two-line title stops at two lines (#2670)", () => {
+  const clamped = (el: HTMLElement): string[] => el.className.split(" ");
+  const hasNoVerticalPadding = (cls: string[]): boolean =>
+    !cls.some((c) => /^(max-md:)?(py|pt|pb)-/.test(c));
+
+  it("caps every clamped title at two text-sm lines, padding-free", () => {
+    render(
+      <TodayTodoTray
+        {...rows}
+        onToggleComplete={noop}
+        onOpenTodo={noop}
+        onAddCandidate={noop}
+        labels={labels}
+      />,
+    );
+    for (const text of ["Placed", "Unplaced", "Addable"]) {
+      const cls = clamped(screen.getByText(text));
+      expect(cls).toEqual(
+        expect.arrayContaining(["max-md:line-clamp-2", "max-md:max-h-10"]),
+      );
+      expect(hasNoVerticalPadding(cls)).toBe(true);
+    }
+  });
+
+  it("keeps the plain 'other' title's spacing on the margin (Briefing)", () => {
+    render(
+      <TodayTodoTray
+        placed={[]}
+        unplaced={[]}
+        addable={rows.addable}
+        onToggleComplete={noop}
+        onOpenTodo={noop}
+        onAddCandidate={noop}
+        singleList
+        labels={labels}
+      />,
+    );
+    const cls = clamped(screen.getByText("Addable"));
+    expect(cls).toContain("my-1.5");
+    expect(cls).toContain("truncate");
+  });
+
+  it("keeps the opened 'other' title clamped inside its padded button", () => {
+    render(
+      <TodayTodoTray
+        placed={[]}
+        unplaced={[]}
+        addable={rows.addable}
+        onToggleComplete={noop}
+        onOpenTodo={noop}
+        onAddCandidate={noop}
+        onOpenAddable={noop}
+        labels={{ ...labels, openAddable: "open" }}
+      />,
+    );
+    const cls = clamped(screen.getByText("Addable"));
+    expect(cls).toContain("max-md:max-h-10");
+    expect(hasNoVerticalPadding(cls)).toBe(true);
+  });
+});

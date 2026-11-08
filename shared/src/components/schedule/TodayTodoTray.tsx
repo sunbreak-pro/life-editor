@@ -310,9 +310,17 @@ const NARROW_TAP_FLOOR = "max-md:min-h-11 max-md:min-w-11";
  * same reason as NARROW_TAP_FLOOR above). `whitespace-normal` undoes the
  * `truncate` beside it, and `break-words` lets a long Latin word wrap rather
  * than push past the box.
+ *
+ * #2670: the clamp only stops the box at two lines; the third is still laid
+ * out and hidden by `overflow: hidden`, which clips at the PADDING edge. A
+ * clamped span with vertical padding therefore paints the top of line three
+ * into its own bottom padding — Briefing's "other" rows, which carried
+ * `py-1.5`, showed exactly that. So no clamped span takes vertical padding
+ * (spacing goes on the margin), and `max-h-10` (two `text-sm` lines) is the
+ * cap for an engine whose clamp leaves the box taller than two lines.
  */
 const NARROW_TITLE_WRAP =
-  "max-md:line-clamp-2 max-md:whitespace-normal max-md:break-words";
+  "max-md:line-clamp-2 max-md:max-h-10 max-md:whitespace-normal max-md:break-words";
 
 /*
  * The pill on the `metaLine` (#2568). One shape for a clock, for 終日 and for
@@ -873,7 +881,7 @@ export function TodayTodoTray({
                     ) : (
                       <span
                         className={cn(
-                          "min-w-0 flex-1 truncate py-1.5 text-sm text-lumen-text",
+                          "my-1.5 min-w-0 flex-1 truncate text-sm text-lumen-text",
                           NARROW_TITLE_WRAP,
                         )}
                       >
