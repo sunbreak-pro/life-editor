@@ -20,7 +20,8 @@ import { TAG_HUB_LABELS } from "./tagHubLabels";
  * jsdom has no layout (CLAUDE.md §7.1), so the widths are checked in a real
  * browser. What is pinned here is the structure that decides them:
  *   1. the panel stops where <main> would drop under its floor,
- *   2. the editor measures itself and stacks its labels when narrow,
+ *   2. the editor is one column, labels above fields (#2603 made it so at
+ *      every width),
  *   3. nothing in the editor's buttons or footer breaks a line,
  *   4. a cramped Desktop row moves its day under the title — and a phone's
  *      row is left exactly as it was.
@@ -72,6 +73,7 @@ describe("tag editor — folds into one column instead of squeezing (#2496)", ()
         onEdit={vi.fn()}
         onDropEdit={vi.fn()}
         onSave={vi.fn()}
+        onCancel={vi.fn()}
         onDelete={vi.fn()}
         labels={TAG_HUB_LABELS.edit}
       />,
@@ -81,20 +83,16 @@ describe("tag editor — folds into one column instead of squeezing (#2496)", ()
     return block;
   }
 
-  it("measures its own width, not the window's", () => {
-    expect(classesOf(renderBlock())).toContain("@container");
-  });
-
-  it("keeps two columns from 16rem up and stacks the labels below it", () => {
+  // #2603 then made one column the only layout: a label above its field
+  // needs no container query to decide when to stack.
+  it("is one column at every width, with no container query left", () => {
     const block = renderBlock();
-    const fields = screen.getByLabelText(TAG_HUB_LABELS.edit.nameLabel)
-      .parentElement as HTMLElement;
-    expect(fields.parentElement).toBe(block);
-    const classes = classesOf(fields);
-    expect(classes).toContain("grid-cols-1");
-    expect(classes).toContain("@min-[16rem]:grid-cols-[auto_1fr]");
-    // The fixed two-column track is gone from the base classes.
-    expect(classes).not.toContain("grid-cols-[auto_1fr]");
+    expect(classesOf(block)).not.toContain("@container");
+    const fields = block.querySelector("[data-taghub-edit-fields]");
+    expect(fields?.parentElement).toBe(block);
+    const classes = classesOf(fields as Element);
+    expect(classes).toContain("flex-col");
+    expect(classes.some((c) => c.includes("grid-cols"))).toBe(false);
   });
 
   it("never breaks a button label, and wraps the footer row instead", () => {
@@ -108,7 +106,7 @@ describe("tag editor — folds into one column instead of squeezing (#2496)", ()
     noWrap(screen.getByLabelText(L.colorCustom).closest("label"));
     noWrap(screen.getByRole("button", { name: L.deleteTag }));
     noWrap(screen.getByRole("button", { name: L.save }));
-    noWrap(screen.getByText(L.unsaved));
+    noWrap(screen.getByRole("button", { name: L.cancel }));
 
     const footer = document.querySelector("[data-taghub-edit-footer]");
     expect(classesOf(footer as Element)).toContain("flex-wrap");

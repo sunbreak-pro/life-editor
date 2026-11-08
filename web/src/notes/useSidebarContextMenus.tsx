@@ -235,8 +235,7 @@ export function useSidebarContextMenus({
       colorDefault: t("connect.edit.colorDefault"),
       colorCustom: t("connect.edit.colorCustom"),
       deleteTag: t("connect.deleteTag"),
-      saved: t("connect.edit.saved"),
-      unsaved: t("connect.edit.unsaved"),
+      cancel: t("common.cancel"),
       save: t("connect.edit.save"),
       duplicateName: t("connect.edit.duplicateName"),
       saveFailed: t("connect.edit.saveFailed"),
@@ -270,6 +269,11 @@ export function useSidebarContextMenus({
         void drafts.save(editTag.id).then((ok) => {
           if (ok) setEditTagId(null);
         });
+      }}
+      onCancel={() => {
+        // Cancel drops the draft, as Connect's block does (#2603).
+        drafts.discard(editTag.id);
+        setEditTagId(null);
       }}
       error={
         drafts.errorFor(editTag.id) === "duplicate"

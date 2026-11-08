@@ -462,8 +462,7 @@ export function ConnectScreen({
         colorDefault: t("connect.edit.colorDefault"),
         colorCustom: t("connect.edit.colorCustom"),
         deleteTag: t("connect.deleteTag"),
-        saved: t("connect.edit.saved"),
-        unsaved: t("connect.edit.unsaved"),
+        cancel: t("common.cancel"),
         save: t("connect.edit.save"),
         duplicateName: t("connect.edit.duplicateName"),
         saveFailed: t("connect.edit.saveFailed"),
@@ -1139,6 +1138,13 @@ export function ConnectScreen({
         onEditChange={editSelected}
         onEditDrop={dropEdit}
         onEditSave={() => void saveSelected()}
+        onEditCancel={() => {
+          // Cancel means the same as answering "discard" (#740): the draft
+          // must not be waiting when the block is opened again.
+          if (selectedTagId) drafts.discard(selectedTagId);
+          setEditOpen(false);
+          setEditFocusName(false);
+        }}
         editError={editErrorFor(selectedTagId)}
         onDeleteTag={requestDelete}
         onCreateTag={createTag}
@@ -1270,6 +1276,10 @@ export function ConnectScreen({
               void saveSelected().then((ok) => {
                 if (ok) setSheetOpen(false);
               });
+            }}
+            onCancel={() => {
+              drafts.discard(selectedTag.id);
+              setSheetOpen(false);
             }}
             error={editErrorFor(selectedTag.id)}
             onDelete={() => requestDelete(selectedTag.id)}

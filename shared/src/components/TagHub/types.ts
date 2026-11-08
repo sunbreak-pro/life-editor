@@ -254,10 +254,9 @@ export interface TagHubEditLabels {
   /** The two buttons beside the swatch grid. */
   colorDefault: string;
   colorCustom: string;
-  /** Footer: the destructive link at the left, then the save pair. */
+  /** Footer: the destructive link at the left, then Cancel and Save (#2603). */
   deleteTag: string;
-  saved: string;
-  unsaved: string;
+  cancel: string;
   save: string;
   /** #1847 — why a save did not land: the name is taken, or a write failed. */
   duplicateName: string;
