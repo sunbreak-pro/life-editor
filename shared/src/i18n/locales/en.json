@@ -1635,7 +1635,7 @@
       "deleteDialog": {
         "message": "Delete the goal \"{{title}}\"? It goes to the trash.",
         "chooseHint": "The goals and todos ticked below are deleted with it. Untick anything you want to keep.",
-        "keepNote": "Anything you keep is disconnected from the goals being deleted. Restoring a goal from the trash does not connect it again.",
+        "keepNote": "Restoring a goal from the trash does not connect it again.",
         "listLabel": "Items to delete with it",
         "alwaysDeleted": "Always deleted",
         "alsoLinked": "Also linked to another goal",
@@ -1643,6 +1643,13 @@
         "nestedTodos_other": "{{count}} todos under this one are deleted with it",
         "goalRow": "{{kind}}: {{title}}",
         "todoRow": "Todo: {{title}}",
+        "todoKind": "Todo",
+        "kept": "Keep",
+        "untickAll": "Untick all",
+        "tickAll": "Tick all",
+        "summary": "Goals to delete: {{goals}} · Todos to delete: {{todos}}. A goal you keep loses the goal above it, and a todo you keep only loses its link to the goals being deleted.",
+        "confirmCount_one": "Delete ({{count}} item)",
+        "confirmCount_other": "Delete ({{count}} items)",
         "deleting": "Deleting",
         "failed": "The delete stopped partway. Check your connection, look at what is left, and try again.",
         "failedNothingDeleted": "Nothing was deleted. Check your connection and try again."

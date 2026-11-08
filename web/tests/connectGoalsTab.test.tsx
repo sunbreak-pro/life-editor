@@ -690,7 +690,7 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     fireEvent.click(panel().getByRole("button", { name: "Delete goal" }));
     const dialog = within(screen.getByRole("dialog"));
     expect(dialog.getAllByRole("checkbox")).toHaveLength(4);
-    fireEvent.click(dialog.getByRole("button", { name: "Delete goal" }));
+    fireEvent.click(dialog.getByRole("button", { name: /^Delete \(\d+ items?\)$/ }));
     await waitFor(() => expect(ds.softDeleteGoal).toHaveBeenCalledWith("w1"));
     // Its todos went with it (#2405), and the panel shut with the goal.
     expect(vi.mocked(ds.softDeleteTodo).mock.calls.map(([id]) => id)).toEqual([
@@ -1052,7 +1052,7 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     );
     const dialog = within(screen.getByRole("dialog"));
     expect(dialog.getAllByRole("checkbox")).toHaveLength(4);
-    fireEvent.click(dialog.getByRole("button", { name: "Delete goal" }));
+    fireEvent.click(dialog.getByRole("button", { name: /^Delete \(\d+ items?\)$/ }));
     await waitFor(() => expect(ds.softDeleteGoal).toHaveBeenCalledWith("w1"));
     expect(ds.softDeleteTodo).toHaveBeenCalledTimes(4);
   });
@@ -1986,7 +1986,7 @@ describe("Deleting a goal and choosing what goes with it (#2405)", () => {
     return within(screen.getByRole("dialog"));
   };
   const confirm = (dialog: ReturnType<typeof within>) =>
-    fireEvent.click(dialog.getByRole("button", { name: "Delete goal" }));
+    fireEvent.click(dialog.getByRole("button", { name: /^Delete \(\d+ items?\)$/ }));
   /** The order the service heard about them in. */
   const order = (fn: unknown, call = 0): number =>
     vi.mocked(fn as () => unknown).mock.invocationCallOrder[call] ?? Infinity;
@@ -2199,9 +2199,10 @@ describe("Deleting a goal and choosing what goes with it (#2405)", () => {
     await renderTab(ds);
     const dialog = openDelete("Finish one book");
     expect(dialog.queryAllByRole("checkbox")).toHaveLength(0);
-    screen.getByRole("dialog", {
-      name: 'Delete the goal "Finish one book"? It goes to the trash.',
-    });
+    // Named by its heading since #2612; the question is the text under it.
+    screen.getByRole("dialog", { name: "Delete goal" });
+    dialog.getByText('Delete the goal "Finish one book"? It goes to the trash.');
+    dialog.getByRole("button", { name: "Delete (1 item)" });
     confirm(dialog);
     await waitFor(() => expect(ds.softDeleteGoal).toHaveBeenCalledWith("w3"));
     expect(ds.softDeleteGoal).toHaveBeenCalledTimes(1);

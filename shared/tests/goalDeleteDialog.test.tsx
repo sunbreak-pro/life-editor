@@ -64,6 +64,8 @@ const TREE = buildGoalDeleteTree({
 
 const LABELS: GoalDeleteDialogLabels = {
   kinds: { year: "Year", month: "Month", week: "Week" },
+  title: "Delete goal",
+  close: "Close",
   formatMessage: (title) => `Delete ${title}?`,
   chooseHint: "Ticked items go with it.",
   keepNote: "Kept items are disconnected.",
@@ -73,9 +75,15 @@ const LABELS: GoalDeleteDialogLabels = {
   formatNestedTodos: (count) => `${count} under it`,
   formatGoalRow: (kind, title) => `${kind}: ${title}`,
   formatTodoRow: (title) => `Todo: ${title}`,
+  formatGoalKind: (kind) => `${kind} goal`,
+  todoKind: "Todo",
+  kept: "Keep",
+  untickAll: "Untick all",
+  tickAll: "Tick all",
+  formatSummary: (goals, todos) => `Deletes ${goals} goals, ${todos} todos.`,
+  formatConfirm: (count) => `Delete (${count})`,
   formatPeriod: (kind, key) => `${kind} · ${key}`,
   formatDateRange: (start, end) => `${start} – ${end}`,
-  confirm: "Delete goal",
   deleting: "Deleting",
   cancel: "Cancel",
 };
@@ -120,9 +128,11 @@ afterEach(() => {
 });
 
 describe("GoalDeleteDialog (#2405)", () => {
-  it("is named by its question and starts with every box ticked", () => {
+  it("is named by its heading, asks under it, and starts with every box ticked", () => {
     const { dialog } = renderDialog();
-    screen.getByRole("dialog", { name: "Delete Run 10 km?" });
+    screen.getByRole("dialog", { name: "Delete goal" });
+    dialog.getByRole("heading", { name: "Delete goal" });
+    dialog.getByText("Delete Run 10 km?");
     const boxes = dialog.getAllByRole("checkbox");
     expect(boxes).toHaveLength(3);
     for (const item of boxes) {
@@ -133,7 +143,7 @@ describe("GoalDeleteDialog (#2405)", () => {
   it("gives the goal asked about no box, and says it always goes", () => {
     const { dialog } = renderDialog();
     expect(dialog.queryByRole("checkbox", { name: /Run 10 km/ })).toBeNull();
-    dialog.getByText("Year · 2026 · Always deleted");
+    dialog.getByText("Year goal · 2026 · Always deleted");
   });
 
   it("names each row, with the goal's kind and the todo's notes", () => {
@@ -145,7 +155,7 @@ describe("GoalDeleteDialog (#2405)", () => {
     dialog.getByText("1 under it");
     // Done todos read as done, and the goal says which period it is from.
     expect(dialog.getByText("Buy shoes").className).toContain("line-through");
-    dialog.getByText("Week · 2026-09-27");
+    dialog.getByText("Week goal · 2026-09-27");
   });
 
   it("toggles one row at a time, and answers with what was unticked", () => {
@@ -154,20 +164,20 @@ describe("GoalDeleteDialog (#2405)", () => {
     fireEvent.click(week);
     expect(week.getAttribute("aria-checked")).toBe("false");
     // Unticking a goal leaves what is under it ticked.
-    expect(
-      box(dialog, /Todo: Long run/).getAttribute("aria-checked"),
-    ).toBe("true");
+    expect(box(dialog, /Todo: Long run/).getAttribute("aria-checked")).toBe(
+      "true",
+    );
 
     fireEvent.click(box(dialog, "Todo: Buy shoes"));
     fireEvent.click(box(dialog, "Todo: Buy shoes"));
-    fireEvent.click(dialog.getByRole("button", { name: "Delete goal" }));
+    fireEvent.click(dialog.getByRole("button", { name: "Delete (3)" }));
     expect(onConfirm).toHaveBeenCalledTimes(1);
     expect([...(onConfirm.mock.calls[0]?.[0] as Set<string>)]).toEqual(["w"]);
   });
 
   it("answers with nothing unticked when confirmed as it opened", () => {
     const { dialog, onConfirm } = renderDialog();
-    fireEvent.click(dialog.getByRole("button", { name: "Delete goal" }));
+    fireEvent.click(dialog.getByRole("button", { name: "Delete (4)" }));
     expect((onConfirm.mock.calls[0]?.[0] as Set<string>).size).toBe(0);
   });
 
@@ -177,16 +187,19 @@ describe("GoalDeleteDialog (#2405)", () => {
     // Native <button>s take Tab, Space and Enter without any handler here.
     const order = [...panel.querySelectorAll("button")];
     expect(order.every((b) => b.getAttribute("type") !== "submit")).toBe(true);
-    expect(order.map((b) => b.getAttribute("aria-label") ?? b.textContent)).toEqual(
-      [
-        "Todo: Buy shoes",
-        "Week: Run 3 times",
-        "Todo: Long run — Also linked — 1 under it",
-        "Cancel",
-        "Delete goal",
-      ],
-    );
-    // The first thing focused is a box, never the destructive answer.
+    expect(
+      order.map((b) => b.getAttribute("aria-label") ?? b.textContent),
+    ).toEqual([
+      "Close",
+      "Untick all",
+      "Todo: Buy shoes",
+      "Week: Run 3 times",
+      "Todo: Long run — Also linked — 1 under it",
+      "Cancel",
+      "Delete (4)",
+    ]);
+    // The first thing focused is a box: not the × or the switch above the
+    // list, and never the destructive answer.
     await waitFor(() =>
       expect(document.activeElement).toBe(box(dialog, "Todo: Buy shoes")),
     );
@@ -204,13 +217,15 @@ describe("GoalDeleteDialog (#2405)", () => {
     expect(dialog.queryAllByRole("checkbox")).toHaveLength(0);
     expect(dialog.queryByText(LABELS.chooseHint)).toBeNull();
     expect(dialog.queryByText(LABELS.keepNote)).toBeNull();
+    expect(dialog.queryByRole("button", { name: "Untick all" })).toBeNull();
+    expect(dialog.queryByText(/^Deletes /)).toBeNull();
     // With no list, the safe answer takes the first focus.
     await waitFor(() =>
       expect(document.activeElement).toBe(
         dialog.getByRole("button", { name: "Cancel" }),
       ),
     );
-    fireEvent.click(dialog.getByRole("button", { name: "Delete goal" }));
+    fireEvent.click(dialog.getByRole("button", { name: "Delete (1)" }));
     expect(onConfirm).toHaveBeenCalledTimes(1);
   });
 
@@ -232,10 +247,11 @@ describe("GoalDeleteDialog (#2405)", () => {
       name: "Deleting",
     }) as HTMLButtonElement;
     expect(confirm.disabled).toBe(true);
-    expect(
-      (dialog.getByRole("button", { name: "Cancel" }) as HTMLButtonElement)
-        .disabled,
-    ).toBe(true);
+    for (const name of ["Cancel", "Close", "Untick all"]) {
+      expect(
+        (dialog.getByRole("button", { name }) as HTMLButtonElement).disabled,
+      ).toBe(true);
+    }
     fireEvent.click(confirm);
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     expect(onCancel).not.toHaveBeenCalled();
@@ -264,14 +280,98 @@ describe("GoalDeleteDialog (#2405)", () => {
       box(dialog, "Week: Run 3 times"),
       box(dialog, "Todo: Buy shoes"),
       dialog.getByRole("button", { name: "Cancel" }),
-      dialog.getByRole("button", { name: "Delete goal" }),
+      dialog.getByRole("button", { name: "Delete (4)" }),
+      dialog.getByRole("button", { name: "Untick all" }),
     ]) {
       expect(target.className).toContain("max-md:min-h-11");
     }
+    expect(dialog.getByRole("button", { name: "Close" }).className).toContain(
+      "max-md:size-11",
+    );
   });
 
   it("keeps a dialog's width on Desktop", () => {
     renderDialog();
     expect(screen.getByRole("dialog").className).toContain("max-w-lg");
+  });
+});
+
+describe("GoalDeleteDialog — the prototype's frame (#2612)", () => {
+  it("closes from the corner × without deleting", () => {
+    const { dialog, onCancel, onConfirm } = renderDialog();
+    fireEvent.click(dialog.getByRole("button", { name: "Close" }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
+  it("marks every row with its kind's icon and name", () => {
+    const { dialog } = renderDialog();
+    const kindOf = (name: string | RegExp): string | null | undefined =>
+      box(dialog, name)
+        .querySelector("[data-goal-delete-kind]")
+        ?.getAttribute("data-goal-delete-kind");
+    expect(kindOf("Week: Run 3 times")).toBe("goal");
+    expect(kindOf("Todo: Buy shoes")).toBe("todo");
+    expect(kindOf(/Todo: Long run/)).toBe("todo");
+    expect(
+      box(dialog, "Todo: Buy shoes").querySelector(".lucide-square-check"),
+    ).not.toBeNull();
+    expect(
+      box(dialog, "Week: Run 3 times").querySelector(".lucide-target"),
+    ).not.toBeNull();
+    // The goal asked about carries the goal icon too, outside any box.
+    const list = screen.getByRole("group", { name: "Items" });
+    expect(
+      list.firstElementChild?.querySelector(".lucide-target"),
+    ).not.toBeNull();
+    expect(
+      within(box(dialog, "Todo: Buy shoes")).getByText("Todo"),
+    ).toBeTruthy();
+  });
+
+  it("notes 'keep' on an unticked row only", () => {
+    const { dialog } = renderDialog();
+    expect(dialog.queryByText(/Keep/)).toBeNull();
+    fireEvent.click(box(dialog, "Week: Run 3 times"));
+    const week = box(dialog, "Week: Run 3 times");
+    expect(week.querySelector("[data-goal-delete-kept]")?.textContent).toBe(
+      "· Keep",
+    );
+    expect(
+      box(dialog, "Todo: Buy shoes").querySelector("[data-goal-delete-kept]"),
+    ).toBeNull();
+  });
+
+  it("unticks every row at once, then ticks them all back", () => {
+    const { dialog, onConfirm } = renderDialog();
+    fireEvent.click(dialog.getByRole("button", { name: "Untick all" }));
+    for (const item of dialog.getAllByRole("checkbox")) {
+      expect(item.getAttribute("aria-checked")).toBe("false");
+    }
+    // Only the goal asked about is left to go.
+    dialog.getByText("Deletes 1 goals, 0 todos.");
+    fireEvent.click(dialog.getByRole("button", { name: "Tick all" }));
+    for (const item of dialog.getAllByRole("checkbox")) {
+      expect(item.getAttribute("aria-checked")).toBe("true");
+    }
+    fireEvent.click(dialog.getByRole("button", { name: "Untick all" }));
+    fireEvent.click(dialog.getByRole("button", { name: "Delete (1)" }));
+    expect([...(onConfirm.mock.calls[0]?.[0] as Set<string>)].sort()).toEqual([
+      "t1",
+      "t2",
+      "w",
+    ]);
+  });
+
+  it("counts the ticked rows, the goal asked about included, in the summary and on the answer", () => {
+    const { dialog } = renderDialog();
+    dialog.getByText("Deletes 2 goals, 2 todos.");
+    dialog.getByRole("button", { name: "Delete (4)" });
+    fireEvent.click(box(dialog, "Todo: Buy shoes"));
+    dialog.getByText("Deletes 2 goals, 1 todos.");
+    dialog.getByRole("button", { name: "Delete (3)" });
+    fireEvent.click(box(dialog, "Week: Run 3 times"));
+    dialog.getByText("Deletes 1 goals, 1 todos.");
+    dialog.getByRole("button", { name: "Delete (2)" });
   });
 });

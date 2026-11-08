@@ -263,8 +263,7 @@ export function GoalsTodosScreen({
       run: () => Promise<unknown>,
       // A function when the copy depends on how far `run` got.
       failedKey:
-        | TranslationKey
-        | (() => TranslationKey) = "connect.goals.writeFailed",
+        TranslationKey | (() => TranslationKey) = "connect.goals.writeFailed",
     ): Promise<boolean> => {
       try {
         await run();
@@ -563,6 +562,8 @@ export function GoalsTodosScreen({
   const deleteLabels = useMemo<GoalDeleteDialogLabels>(
     () => ({
       kinds: treeLabels.kinds,
+      title: t("connect.goals.deleteGoal"),
+      close: t("common.close"),
       formatMessage: (title) =>
         t("connect.goals.deleteDialog.message", { title }),
       chooseHint: t("connect.goals.deleteDialog.chooseHint"),
@@ -576,9 +577,18 @@ export function GoalsTodosScreen({
         t("connect.goals.deleteDialog.goalRow", { kind, title }),
       formatTodoRow: (title) =>
         t("connect.goals.deleteDialog.todoRow", { title }),
+      // "Week goal": the add menu's own phrasing for a goal of a period.
+      formatGoalKind: treeLabels.formatChildGoal,
+      todoKind: t("connect.goals.deleteDialog.todoKind"),
+      kept: t("connect.goals.deleteDialog.kept"),
+      untickAll: t("connect.goals.deleteDialog.untickAll"),
+      tickAll: t("connect.goals.deleteDialog.tickAll"),
+      formatSummary: (goals, todos) =>
+        t("connect.goals.deleteDialog.summary", { goals, todos }),
+      formatConfirm: (count) =>
+        t("connect.goals.deleteDialog.confirmCount", { count }),
       formatPeriod: detailLabels.formatPeriod,
       formatDateRange: treeLabels.formatDateRange,
-      confirm: t("connect.goals.deleteGoal"),
       deleting: t("connect.goals.deleteDialog.deleting"),
       cancel: t("common.cancel"),
     }),
