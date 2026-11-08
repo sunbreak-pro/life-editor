@@ -636,7 +636,7 @@ describe("NotesView — what goes in the right sidebar (#2390)", () => {
     expect(
       panel
         .getAllByRole("listitem")
-        .map((li) => li.querySelector("button")?.textContent),
+        .map((li) => li.querySelector("button > span")?.textContent),
     ).toEqual(["Beta", "Alpha"]);
 
     const templates = await panel.findByRole("button", {
@@ -1096,7 +1096,7 @@ describe("NotesView — the default list (#2061)", () => {
   function listedTitles(root: HTMLElement = document.body): string[] {
     return within(root)
       .queryAllByRole("listitem")
-      .map((li) => li.querySelector("button")?.textContent ?? "")
+      .map((li) => li.querySelector("button > span")?.textContent ?? "")
       .filter((t) => t !== "");
   }
 

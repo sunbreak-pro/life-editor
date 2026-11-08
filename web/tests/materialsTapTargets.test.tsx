@@ -81,9 +81,10 @@ describe("#1560 — the note row meets the 44px touch floor", () => {
     expect(title.classList.contains("max-md:self-stretch")).toBe(true);
   });
 
-  it("leaves the DESKTOP row at its 36px size", () => {
+  it("leaves the DESKTOP row at its 36px floor", () => {
     const { row, title } = renderRow();
-    expect(row.classList.contains("h-[36px]")).toBe(true);
+    // #2576: the row is three lines tall now, so 36px is a floor, not a height.
+    expect(row.classList.contains("min-h-[36px]")).toBe(true);
     // Unprefixed floors would grow the Desktop side list, which is the same
     // component. `min-h-*` rather than a second `h-*` so the two never race
     // through `cn`'s plain string join (#830).

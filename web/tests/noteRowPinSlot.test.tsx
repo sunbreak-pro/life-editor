@@ -1,9 +1,14 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { DndContext } from "@dnd-kit/core";
 import type { NoteNode } from "@life-editor/shared";
 import { DesktopNoteRow } from "../src/notes/NoteListRows";
+import {
+  NotesSidebarList,
+  type NotesSidebarListLabels,
+} from "../src/notes/NotesSidebarList";
+import type { NoteTagDnd } from "../src/notes/useNoteTagDnd";
 
 /*
  * #1287 — the note row's LEADING glyph slot.
@@ -56,7 +61,9 @@ function rowProps() {
 
 function renderRow(over: Partial<NoteNode>): HTMLElement {
   render(
-    inDnd(<DesktopNoteRow node={note({ id: "note-a", ...over })} {...rowProps()} />),
+    inDnd(
+      <DesktopNoteRow node={note({ id: "note-a", ...over })} {...rowProps()} />,
+    ),
   );
   return screen.getByRole("listitem");
 }
@@ -79,7 +86,11 @@ describe("DesktopNoteRow — pin in the leading slot (#1287)", () => {
       inDnd(
         <>
           <DesktopNoteRow
-            node={note({ id: "note-pinned", title: "Pinned one", isPinned: true })}
+            node={note({
+              id: "note-pinned",
+              title: "Pinned one",
+              isPinned: true,
+            })}
             {...rowProps()}
           />
           <DesktopNoteRow
@@ -98,5 +109,120 @@ describe("DesktopNoteRow — pin in the leading slot (#1287)", () => {
     // The pinned row carries the pin and the bin; the plain one only the bin.
     expect(pinnedRow.querySelectorAll("svg")).toHaveLength(2);
     expect(plainRow.querySelectorAll("svg")).toHaveLength(1);
+  });
+});
+
+/*
+ * #2576 — the default list's two groups. A pinned note is drawn under
+ * "Pinned" only, and the leading pin slot of #1287 stays on its row.
+ */
+const LIST_LABELS: NotesSidebarListLabels = {
+  searchPlaceholder: "Search",
+  sort: "Sort",
+  toggleDirection: "Toggle",
+  tagFilter: "Filter",
+  empty: "No notes",
+  searchEmpty: "No match",
+  bodySearchFailed: "Body search failed",
+  addCta: "Add",
+  collapseGroup: "Collapse",
+  expandGroup: "Expand",
+  deleteNote: "Delete",
+  rowActions: "Actions",
+  assignTagHint: "Drag onto a tag heading",
+  clearTagFilter: "Clear",
+  tagFilterSelected: (n) => `Filter ${n}`,
+  tagFilterPanel: "Tags",
+  otherItems: (n) => `Other items (${n})`,
+  closeOtherItems: "Close",
+  backToList: "Back",
+  createdOffline: "Offline",
+  unsentLocked: "Unsent",
+  pinnedHeading: "Pinned",
+  allHeading: "All",
+  updatedToday: (time) => `Updated today ${time}`,
+  updatedOn: (date) => `Updated ${date}`,
+};
+
+function renderList(defaultNotes: NoteNode[], otherNotes: NoteNode[] = []) {
+  render(
+    <NotesSidebarList
+      labels={LIST_LABELS}
+      searchQuery=""
+      onSearchChange={vi.fn()}
+      sortModes={[]}
+      sortMode="updatedAt"
+      onSortModeChange={vi.fn()}
+      sortDirection="desc"
+      onToggleDirection={vi.fn()}
+      directionLabel="Newest"
+      showTagFilter={false}
+      tagFilterOptions={[]}
+      tagFilters={[]}
+      onToggleTagFilter={vi.fn()}
+      onClearTagFilters={vi.fn()}
+      listMode="flat"
+      defaultNotes={defaultNotes}
+      otherNotes={otherNotes}
+      othersPresentation="flyout"
+      error={null}
+      hasNotes
+      searchEmpty={false}
+      visibleGroups={[]}
+      collapsedGroups={new Set()}
+      onToggleGroup={vi.fn()}
+      selectedNoteId={null}
+      onSelectNote={vi.fn()}
+      onDeleteNote={vi.fn()}
+      onCreateNote={vi.fn()}
+      dnd={{} as NoteTagDnd}
+    />,
+  );
+}
+
+describe("NotesSidebarList — Pinned and All groups (#2576)", () => {
+  it("draws a pinned note under Pinned only, with its leading pin", () => {
+    renderList(
+      [
+        note({ id: "note-p", title: "Pinned one", isPinned: true }),
+        note({ id: "note-x", title: "Plain one" }),
+      ],
+      [note({ id: "note-y", title: "Past the cap" })],
+    );
+    const pinned = screen.getByRole("region", { name: "Pinned" });
+    const all = screen.getByRole("region", { name: "All" });
+    expect(within(pinned).getByText("Pinned one")).toBeTruthy();
+    expect(within(all).queryByText("Pinned one")).toBeNull();
+    expect(within(all).getByText("Plain one")).toBeTruthy();
+    // The pin slot of #1287 is still the row's first child.
+    const row = within(pinned).getByRole("listitem");
+    expect(
+      row.firstElementChild?.contains(within(row).getByLabelText("Pinned")),
+    ).toBe(true);
+    // Counts take in the rows past the 15th as well.
+    expect(within(pinned).getByRole("heading").textContent).toBe("Pinned1");
+    expect(within(all).getByRole("heading").textContent).toBe("All2");
+  });
+
+  it("draws only All when nothing is pinned", () => {
+    renderList([note({ id: "note-x", title: "Plain one" })]);
+    expect(screen.queryByRole("region", { name: "Pinned" })).toBeNull();
+    expect(screen.getByRole("region", { name: "All" })).toBeTruthy();
+  });
+
+  it("writes the updated date as today HH:MM or M/D", () => {
+    const now = new Date();
+    const earlier = new Date(now.getFullYear(), 0, 2, 8, 0).toISOString();
+    renderList([
+      note({ id: "note-t", title: "Today", updatedAt: now.toISOString() }),
+      note({ id: "note-e", title: "Earlier", updatedAt: earlier }),
+    ]);
+    const hh = String(now.getHours()).padStart(2, "0");
+    const mm = String(now.getMinutes()).padStart(2, "0");
+    expect(screen.getByText(`Updated today ${hh}:${mm}`)).toBeTruthy();
+    // Jan 2 is "today" only on Jan 2 itself; the case is then the other line.
+    if (!(now.getMonth() === 0 && now.getDate() === 2)) {
+      expect(screen.getByText("Updated 1/2")).toBeTruthy();
+    }
   });
 });

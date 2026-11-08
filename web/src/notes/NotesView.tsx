@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Editor } from "@tiptap/core";
 import { FileText } from "lucide-react";
 import {
@@ -18,6 +18,7 @@ import {
   ConfirmDialog,
   useConfirmDialog,
   cn,
+  type NoteNode,
   type NoteSortMode,
   type DataService,
   WIDE_QUERY,
@@ -35,11 +36,12 @@ import { AttachmentUploadStatus } from "./AttachmentUploadStatus";
 import { NoteBodyEditor } from "./NoteBodyEditor";
 import { NotePasswordDialog } from "./NotePasswordDialog";
 import { LinkPanel } from "../wikitag";
-import { NotesSidebarList } from "./NotesSidebarList";
+import { NotesSidebarList, type NoteRowDetails } from "./NotesSidebarList";
 import { NoteDetailSurface } from "./NoteDetailSurface";
 import { useNoteListState } from "./hooks/useNoteListState";
 import { useNoteLinking } from "./hooks/useNoteLinking";
 import { useNoteTableItems } from "./hooks/useNoteTableItems";
+import { useNoteExcerpts } from "./hooks/useNoteExcerpts";
 import { useNotePassword } from "./hooks/useNotePassword";
 import { useNoteTemplateRegister } from "./hooks/useNoteTemplateRegister";
 import { useNoteTemplateLibrary } from "./hooks/useNoteTemplateLibrary";
@@ -135,7 +137,7 @@ export function NotesView({
   // #409 moved tag MUTATION (create / rename / delete / color / icon) out of
   // this view and into the shell-level tag editor, so only the read side and
   // the per-note assign/link calls are needed here now.
-  const { getTagsForItem, assignTagToItem, unassignTagFromItem } =
+  const { allTags, getTagsForItem, assignTagToItem, unassignTagFromItem } =
     useWikiTagsUnifiedContext();
   const { t } = useTranslation();
   const isWide = useMediaQuery(WIDE_QUERY, true);
@@ -227,6 +229,32 @@ export function NotesView({
   });
   // #2094: tags on the body's tables, and the items' post-save sync.
   const tableItems = useNoteTableItems(dataService);
+
+  // #2576: a list row's excerpt and tags. Tags in the order they were put on,
+  // so the chip shows the note's first tag and "+n" the rest.
+  const excerpts = useNoteExcerpts(dataService, listNotes);
+  const tagById = useMemo(
+    () =>
+      new Map(
+        allTags.filter((tag) => !tag.isDeleted).map((tag) => [tag.id, tag]),
+      ),
+    [allTags],
+  );
+  const rowDetails = useCallback(
+    (node: NoteNode): NoteRowDetails => ({
+      excerpt: excerpts.get(node.id),
+      tags: getTagsForItem(node.id)
+        .filter((a) => !a.isDeleted)
+        .sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""))
+        .flatMap((a) => {
+          const tag = tagById.get(a.tagId);
+          return tag
+            ? [{ name: tag.name, color: tag.color, icon: tag.icon }]
+            : [];
+        }),
+    }),
+    [excerpts, getTagsForItem, tagById],
+  );
 
   // #1687 folded the old `handleAssignTag` into the move below: the drop is no
   // longer "add this tag", so the de-dupe it did now lives in `planTagMove`
@@ -739,6 +767,10 @@ export function NotesView({
         backToList: t("materials.notes.backToList"),
         createdOffline: t("materials.notes.createdOffline"),
         unsentLocked: unsentReason,
+        pinnedHeading: t("materials.notes.pinnedHeading"),
+        allHeading: t("materials.notes.allHeading"),
+        updatedToday: (time) => t("materials.notes.updatedToday", { time }),
+        updatedOn: (date) => t("materials.notes.updatedOn", { date }),
       }}
       error={notes.error}
       selectedNoteId={selected?.id ?? null}
@@ -749,6 +781,7 @@ export function NotesView({
       onTagLongPress={sidebarMenus.onTagLongPress}
       onEditNote={sidebarMenus.onNoteEdit}
       offlineReason={offlineReason}
+      rowDetails={rowDetails}
       onCreateNote={handleAddNote}
       dnd={dnd}
       // #1180 — only with a DataService, which is what templates are read and
