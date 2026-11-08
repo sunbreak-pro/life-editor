@@ -29,6 +29,7 @@ import { useWeekTimeGridDrag } from "./useWeekTimeGridDrag";
 import { MonthMorePanel } from "./MonthMorePanel";
 import {
   SCHEDULE_SELECTED_RING,
+  chipFace,
   holidayFace,
   scheduleLine,
 } from "./MonthGridParts";
@@ -233,6 +234,13 @@ export interface WeekTimeGridDisplay {
    * alone — the default view is ~2 band-heights shorter than it used to be.
    */
   fillHeight?: boolean;
+  /**
+   * #2563: bump to scroll the now-line back to its opening position — the
+   * host's「今日」button. The opening scroll runs once, at mount; without this
+   * a press that lands on the week already mounted moves nothing. Any change
+   * of value re-runs it, so a counter is enough.
+   */
+  scrollToNowSignal?: number;
 }
 
 /**
@@ -295,6 +303,12 @@ function defaultFormatHour(hour: number): string {
   return `${String(hour).padStart(2, "0")}:00`;
 }
 
+/**
+ * The opening scroll leaves this much above the now-line (#2563, the
+ * prototype's 1.5 hours; it was one hour).
+ */
+export const NOW_SCROLL_LEAD_HOURS = 1.5;
+
 function defaultFormatDayDate(dateKey: string): string {
   const { m, d } = parseDateKey(dateKey);
   return `${m}/${d}`;
@@ -356,6 +370,7 @@ export function WeekTimeGrid({
     hourRange = [0, 24],
     hourHeight = 48,
     fillHeight = false,
+    scrollToNowSignal = 0,
   } = display ?? {};
   const {
     weekdays: weekdayLabels,
@@ -390,9 +405,14 @@ export function WeekTimeGrid({
     ? minutesToPx(nowMinutes as number, hourHeight, hourRange)
     : 0;
 
-  // Mount auto-scroll: bring the now-line (or 08:00 when absent) into view.
+  // Opening auto-scroll: bring the now-line (or 08:00 when absent) into view.
   // scrollIntoView would also nudge horizontal scroll, so we set scrollTop
-  // directly on the body ref (once, on mount).
+  // directly on the body ref.
+  //
+  // It runs at mount and again on every `scrollToNowSignal` (#2563,「今日」),
+  // reading the clock of the render that changed the signal. Later
+  // `nowMinutes` ticks must not re-run it: they would yank the scroll from
+  // wherever the user has since taken it.
   const scrollBodyRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const el = scrollBodyRef.current;
@@ -403,15 +423,14 @@ export function WeekTimeGrid({
       endHour * 60,
     );
     const px = minutesToPx(clampedTarget, hourHeight, hourRange);
-    // Center-ish: pull the target up by one hour so context above stays visible.
-    // The sticky header/all-day band sits at the top of the same scroll content
-    // (#563), and its height cancels out here: the target lands exactly one
-    // hour below the band, which is where it landed when the band was a sibling
-    // outside the scroll box.
-    el.scrollTop = Math.max(0, px - hourHeight);
-    // Mount-only (initial focus); later nowMinutes ticks must not yank scroll.
+    // Pull the target down the box by NOW_SCROLL_LEAD_HOURS so the context
+    // above it stays visible. The sticky header/all-day band sits at the top
+    // of the same scroll content (#563), and its height cancels out here: the
+    // target lands exactly that far below the band, which is where it landed
+    // when the band was a sibling outside the scroll box.
+    el.scrollTop = Math.max(0, px - hourHeight * NOW_SCROLL_LEAD_HOURS);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [scrollToNowSignal]);
 
   /*
    * #1830 — a block that BECOMES the selection is brought into view.
@@ -786,7 +805,7 @@ export function WeekTimeGrid({
                           data-holiday-chip={it.date}
                           style={face.style}
                           className={cn(
-                            "block w-full truncate rounded px-1 py-0.5 text-left text-xs font-medium",
+                            "block h-5 w-full truncate rounded px-1 py-0.5 text-left text-xs font-medium",
                             face.className,
                           )}
                         >
@@ -800,6 +819,10 @@ export function WeekTimeGrid({
                     // Events/routines in the lane have no drag at all.
                     const placeable =
                       it.variant === "task" && todoInteractive && !!onMoveItem;
+                    // #2563: the month chip's colouring (#2623) — the kind's
+                    // light face and ink, the 3px left line in the tag's
+                    // colour when one speaks for the item.
+                    const face = chipFace(it.variant ?? "event", it.tagColor);
                     return (
                       <button
                         key={it.id}
@@ -837,33 +860,36 @@ export function WeekTimeGrid({
                         }
                         title={it.title}
                         className={cn(
-                          "w-full rounded border-l-2 border-lumen-accent bg-lumen-bg-secondary px-1 py-0.5 text-left text-xs text-lumen-text hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
-                          // #593: the todo mark rides the lane chip too, so an
-                          // all-day todo keeps its cue outside the time body.
-                          it.variant === "task"
-                            ? "flex items-center gap-1"
-                            : "block truncate",
-                          selected && "ring-2 ring-lumen-accent",
+                          // h-5 = the month chip's 1.25rem (#2563).
+                          "flex h-5 w-full items-center gap-1 rounded px-1 text-left text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+                          face.className,
+                          selected && SCHEDULE_SELECTED_RING,
                           it.id === markedId && "le-focus-mark",
                           placeable && "cursor-grab",
+                          // Gated on the variant (#1373), and the month
+                          // chip's form of it.
                           it.variant === "task" &&
                             it.completed &&
-                            "text-lumen-text-secondary line-through",
+                            "line-through opacity-55",
                         )}
-                        style={placeable ? { touchAction: "none" } : undefined}
+                        style={
+                          placeable
+                            ? { ...face.style, touchAction: "none" }
+                            : face.style
+                        }
                       >
-                        {it.variant === "task" ? (
-                          <>
-                            <CheckSquare
-                              aria-hidden
-                              className="size-3 shrink-0"
-                              strokeWidth={2.5}
-                            />
-                            <span className="truncate">{it.title || " "}</span>
-                          </>
-                        ) : (
-                          it.title || " "
+                        {/* #593: the todo mark rides the lane chip too, so an
+                            all-day todo keeps its cue outside the time body.
+                            The other kinds stay title-only, as the
+                            prototype's lane draws them (#2563). */}
+                        {it.variant === "task" && (
+                          <CheckSquare
+                            aria-hidden
+                            className="size-3 shrink-0"
+                            strokeWidth={2.5}
+                          />
                         )}
+                        <span className="truncate">{it.title || " "}</span>
                       </button>
                     );
                   })}
@@ -919,7 +945,9 @@ export function WeekTimeGrid({
             {hours.map((h) => (
               <div key={h} style={{ height: hourHeight }} className="relative">
                 <span className="absolute -top-1.5 right-1 text-xs tabular-nums text-lumen-text-secondary">
-                  {formatHour(h)}
+                  {/* #2563: no label at 0 時 — it sits on the grid's top edge,
+                      where the prototype leaves the axis blank. */}
+                  {h === 0 ? null : formatHour(h)}
                 </span>
               </div>
             ))}
