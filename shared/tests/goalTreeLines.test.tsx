@@ -489,6 +489,56 @@ describe("GoalTreeView — a phone row's … opens its chips (#2611)", () => {
     expect(screen.queryByRole("group", { name: "Run 3 times" })).toBeNull();
   });
 
+  // #2703: a press leaves focus on the "…", and a chip's Esc unmounts the chip.
+  it("closes a goal's chips on Esc while the … holds focus, and keeps focus there", () => {
+    setNarrow();
+    renderWithActions();
+    const more = screen.getByRole("button", {
+      name: "More actions: Run 3 times",
+    });
+    fireEvent.click(more);
+    more.focus();
+    fireEvent.keyDown(more, { key: "Escape" });
+    expect(screen.queryByRole("group", { name: "Run 3 times" })).toBeNull();
+    expect(document.activeElement).toBe(more);
+  });
+
+  it("closes a todo's chips on Esc from the … and from a chip, focus back on the …", () => {
+    setNarrow();
+    renderWithActions();
+    const more = screen.getByRole("button", { name: "More actions: 5 km jog" });
+    fireEvent.click(more);
+    more.focus();
+    fireEvent.keyDown(more, { key: "Escape" });
+    expect(screen.queryByRole("group", { name: "5 km jog" })).toBeNull();
+    expect(document.activeElement).toBe(more);
+
+    fireEvent.click(more);
+    const edit = within(
+      screen.getByRole("group", { name: "5 km jog" }),
+    ).getByRole("button", { name: "Edit" });
+    edit.focus();
+    fireEvent.keyDown(edit, { key: "Escape" });
+    expect(screen.queryByRole("group", { name: "5 km jog" })).toBeNull();
+    expect(document.activeElement).toBe(more);
+  });
+
+  it("returns focus to a goal's … after Esc on one of its chips", () => {
+    setNarrow();
+    renderWithActions();
+    const more = screen.getByRole("button", {
+      name: "More actions: Run 3 times",
+    });
+    fireEvent.click(more);
+    const rename = within(
+      screen.getByRole("group", { name: "Run 3 times" }),
+    ).getByRole("button", { name: "Rename" });
+    rename.focus();
+    fireEvent.keyDown(rename, { key: "Escape" });
+    expect(screen.queryByRole("group", { name: "Run 3 times" })).toBeNull();
+    expect(document.activeElement).toBe(more);
+  });
+
   it("draws no … on desktop, where the rows keep their hover icons", () => {
     renderWithActions();
     expect(document.querySelector("[data-goal-row-more]")).toBeNull();
