@@ -98,12 +98,12 @@
 | --- | ---: | ---: | --- |
 | project `.claude/CLAUDE.md` | 9,648 | 33,202 | 2026-08-06 は 5,357 tok、2026-09-02 は 24,843 B（[`plans/2026-09-02-fable-51-harness-retune.md`](../vision/plans/2026-09-02-fable-51-harness-retune.md) §実測） |
 | project `rules/design-first-planning.md` | 1,441 | 4,883 | 2026-10-28 新設 |
-| project `rules/human-in-the-loop.md` | 826 | 2,788 | 今回新設 |
+| project `rules/human-in-the-loop.md` | 840 | 2,838 | 今回新設（回答後の文言差し替え後の値） |
 | project `rules/decision-queue.md` | 370 | 1,256 | |
 | global `CLAUDE.md` | 1,236 | 4,198 | 2026-08-06 は 1,991 tok |
 | global `rules/japanese.md` | 1,831 | 6,153 | 2026-08-06 は rules 8 本で 4,317 tok |
 | global output style `tone-persona` | 476 | 1,595 | 2026-08-06 は 1,338 tok |
-| **always 合計** | **15,828** | **54,075** | 2026-08-06 は 13,223 tok |
+| **always 合計** | **15,842** | **54,125** | 2026-08-06 は 13,223 tok |
 | listing（skills の description） | 6,116 | 21,066 | project 19 本 2,866 / global 17 本 2,211 ほか |
 
 読み方: グローバル側は 2026-09-02 の Fable 5.1 向け改訂で痩せ、プロジェクト側の CLAUDE.md が 2 か月で 8.4 KB 増えて、支配項が入れ替わった。今回の rule は always の約 5% で、`design-first-planning.md` の 6 割の重さである。これ以上 rules を常駐で足すときは、`paths:` で条件付きにできないかを先に考える（`loop-prune` の「環境の事実」）。
@@ -127,7 +127,7 @@
 
 ### 4.1 入れたもの（この PR）
 
-- [`rules/human-in-the-loop.md`](../../rules/human-in-the-loop.md)（常駐・826 tok）: 4 原則の置き場と対象ティア。
+- [`rules/human-in-the-loop.md`](../../rules/human-in-the-loop.md)（常駐・840 tok）: 4 原則の置き場と対象ティア。
 - [`.github/pull_request_template.md`](../../../.github/pull_request_template.md): 概要 / Refs / 仮説と実際 / 確かめたこと・確かめていないこと / 読む順 / 確認の問い / 残っている手作業。`gh pr create --body-file` で本文を渡す issue-workflow の PR には効かない（GitHub のテンプレートは本文を渡さないときだけ使われる）。
 - [`decisions/D-20261109-harness-1.md`](../../decisions/D-20261109-harness-1.md) / [`D-20261109-harness-2.md`](../../decisions/D-20261109-harness-2.md): 判断 2 件（§5）。同日に回答が付いたので、キュー `comm/decisions/chat-harness.md` は昇格の注記だけを残して空にした。
 - 本報告。
