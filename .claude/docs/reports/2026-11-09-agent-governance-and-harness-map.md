@@ -10,7 +10,7 @@
 
 1. ハーネスは 2 層（グローバル = claude-dotfiles が `~/.claude/` に配る分、プロジェクト = `.claude/`）で、すでに「ユーザーは見ていない」前提（非同期）で組まれている。Gemini 案の 4 原則は同期の確認を増やす方向に読めるが、この前提と両立する形は「止まって待つ」ではなく「決まった場所に書いて残す」である。人が止まる場所は既存の 👀 / 🛑 Gate（計画書の UI 確認・DDL push・merge・不可逆操作）に限る。
 2. 4 原則のうち、1（仮説）と 2（検証の範囲）は半分ある。スコープ宣言と session-verifier の Verdict 表が「何を触るか」「どのゲートが通ったか」を書くが、「どういう仕組みで動く想定か」「何を確かめていないか」は書かない。3（読む順）は PR 本文の要約だけで、4（確認の問い）は無い。
-3. 今回足したのは常駐 rule 1 本と PR テンプレート 1 本で、どちらも宣言であり機械の実体は無い。実体の候補（PR 本文の見出し検査 hook）は §4.2 に置き、判断はキューに積んだ（§5）。
+3. 今回足したのは常駐 rule 1 本と PR テンプレート 1 本で、どちらも宣言であり機械の実体は無い。実体の候補（PR 本文の見出し検査 hook）は、同日の回答で次の PR に足すと決まった（§5・D-20261109-harness-2）。
 4. 人が握るものは 5 つ（目的と優先順位 / 不可逆操作 / A・B に割れる判断 / Scope・AC の変更 / 差分を説明できるかの最終判定）で、それ以外は任せる。見張るのは「自己免除」「緑 = 完了の報告」「捏造」「固定費の肥大」「ハーネス自体の腐り」の 5 つで、それぞれ既存の部品が受け持つ（§1）。
 5. 副産物として、常駐コストの支配項がプロジェクト側に移っていた。2026-08-06 の計測ではグローバル側が約 66% だったが、今日はプロジェクトの CLAUDE.md 1 本（33,202 B）だけで、グローバル側の常駐の合計を超えている（§2.3）。本報告はこれを直さない（`loop-prune` と移行後の Phase 3 の担当）が、見張る対象として記録した。
 
@@ -119,7 +119,7 @@
 | 3. 説明できないコードを作らない | PR 本文の要約（D-20260801-main-1 で PR 本文側に要約を書くと決めた）・`japanese.md` の「読み手が知らない呼び名を出さない」・コメントは why だけ | 差分をどの順で読めば仕組みが追えるかが無い。こうだいさんが説明できるかを誰も確かめない | rule 3: 3 ファイル超か一読で追えないときは「読む順」を書く | 宣言 |
 | 4. 理解のずれを問いで確かめる | 最後に AskUserQuestion でまとめて聞く（グローバル前提 1）・判断キューの A/B | 聞くのは「決めてほしいこと」だけで、「読み手が理解できたか」を確かめる問いは無い | rule 4: 重ティアと自明でない中ティアで、確認の問いを 1〜3 つ（答えは折りたたみ） | 宣言 |
 
-4 原則と 3 前提の折り合い: 原則 1 の「把握・検証できるようにしてから実装へ」を文字どおりに取ると、中ティアごとに止まることになり、前提 1 と衝突する。今回は「書いてから進む」を既定にし、止まるかどうかはキュー D-20261109-harness-1 でこうだいさんに聞く。重ティアはもともと計画書で止まる（design-first-planning と `_TEMPLATE.md` の 👀 Gate）ので、原則 1 をすでに満たしている。
+4 原則と 3 前提の折り合い: 原則 1 の「把握・検証できるようにしてから実装へ」を文字どおりに取ると、中ティアごとに止まることになり、前提 1 と衝突する。今回は「書いてから進む」を既定にし、止まるかどうかは D-20261109-harness-1 で聞いて A（書いて進む）と決まった。重ティアはもともと計画書で止まる（design-first-planning と `_TEMPLATE.md` の 👀 Gate）ので、原則 1 をすでに満たしている。
 
 ---
 
@@ -129,14 +129,14 @@
 
 - [`rules/human-in-the-loop.md`](../../rules/human-in-the-loop.md)（常駐・826 tok）: 4 原則の置き場と対象ティア。
 - [`.github/pull_request_template.md`](../../../.github/pull_request_template.md): 概要 / Refs / 仮説と実際 / 確かめたこと・確かめていないこと / 読む順 / 確認の問い / 残っている手作業。`gh pr create --body-file` で本文を渡す issue-workflow の PR には効かない（GitHub のテンプレートは本文を渡さないときだけ使われる）。
-- [`comm/decisions/chat-harness.md`](../../comm/decisions/chat-harness.md): 判断 2 件（§5）。
+- [`decisions/D-20261109-harness-1.md`](../../decisions/D-20261109-harness-1.md) / [`D-20261109-harness-2.md`](../../decisions/D-20261109-harness-2.md): 判断 2 件（§5）。同日に回答が付いたので、キュー `comm/decisions/chat-harness.md` は昇格の注記だけを残して空にした。
 - 本報告。
 
 ### 4.2 次の候補（判断待ち・別 PR）
 
 | 候補 | 何を機械にするか | 置き場 | 前提 |
 | --- | --- | --- | --- |
-| PR 本文の見出し検査 | `gh pr create` の本文に「確かめていないこと」「読む順」の見出しが無ければ止める（`hooks/pre-commit-tracker-guard.sh` と同じ PreToolUse(Bash) 型） | life-editor `.claude/hooks/` | D-20261109-harness-2。MCP 経由で PR を作るクラウドのセッションには効かない |
+| PR 本文の見出し検査 | `gh pr create` の本文に「確かめていないこと」「読む順」の見出しが無ければ止める（`hooks/pre-commit-tracker-guard.sh` と同じ PreToolUse(Bash) 型） | life-editor `.claude/hooks/` | D-20261109-harness-2 = A（次の PR で足す）。MCP 経由で PR を作るクラウドのセッションには効かない |
 | Verdict に「確かめていないこと」の行 | session-verifier の表に行を足し、role-engineer の引き継ぎにそのまま載せる | claude-dotfiles（別リポジトリ・別 PR） | こうだいさんが dotfiles 側で判断する |
 | issue-workflow の PR の決まり | `.claude/issue-workflow.md` §PR の決まりに同じ項目を足す | life-editor | rule が merge されたあと |
 | Issue フォームに「仕組みの仮説」欄 | `roadmap-item.yml` に欄を足す（Issue 本文が計画書の代役なので） | life-editor `.github/ISSUE_TEMPLATE/` | 起票は chat-main なので、chat-main の運用に乗るかを先に聞く |
@@ -145,7 +145,7 @@
 
 ## 5. 判断が要る点
 
-同じ内容を [`comm/decisions/chat-harness.md`](../../comm/decisions/chat-harness.md) に積んだ。回答は `ANSWERS.md` へ。
+2 件とも 2026-11-09 の本セッションの AskUserQuestion で A の回答が付き、[`decisions/D-20261109-harness-1.md`](../../decisions/D-20261109-harness-1.md) と [`D-20261109-harness-2.md`](../../decisions/D-20261109-harness-2.md) に昇格した（`ANSWERS.md` に転記済み）。
 
 | ID | 問い | A | B |
 | --- | --- | --- | --- |
