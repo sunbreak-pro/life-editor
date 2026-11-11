@@ -30,6 +30,10 @@ const MIGRATION = /^supabase\/migrations\//;
 const LOCKFILE = /(^|\/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|Cargo\.lock)$/;
 const LOCALE = /\/i18n\/locales\/[^/]+\.json$/;
 const TEST = /(^|\/)tests?\//;
+// 製品のコードに触らない場所（ハーネス・文書・CI の設定・開発用スクリプト）。
+// CLAUDE.md §9 の判定で、ここだけを直す変更には Issue を作らないので、Refs が無くても merge の対象にする
+const HARNESS_PATH = /^(?:\.claude|\.github|\.agents|\.codex|scripts)\/|^[^/]+\.md$/;
+export const harnessOnly = (files) => Array.isArray(files) && files.length > 0 && files.every((f) => HARNESS_PATH.test(f));
 const HOLD_LABEL = "merge:hold";
 const AUTOFIX_PREFIX = "autofix-";
 const PLAN_TTL_MS = 30 * 60 * 1000;
@@ -195,11 +199,14 @@ function conflictFiles(headOid) {
   return ["(merge-tree が失敗したので手で確かめる)"];
 }
 
-// gh の files は件数に上限があるので、マイグレーションの有無は git で決める
-function touchesMigration(headOid) {
+// gh の files は件数に上限があるので、変わったファイルは git で決める。取れなければ null
+function changedFiles(headOid) {
   const r = tryRun("git", ["diff", "--name-only", `origin/main...${headOid}`]);
-  if (r.code !== 0) return true;
-  return r.out.split(/\r?\n/).some((f) => MIGRATION.test(f));
+  return r.code === 0 ? r.out.split(/\r?\n/).filter(Boolean) : null;
+}
+function touchesMigration(headOid) {
+  const files = changedFiles(headOid);
+  return !files || files.some((f) => MIGRATION.test(f));
 }
 
 // merge の回は chat-main（リポジトリ直下の checkout・main ブランチ）だけで動かす
@@ -328,7 +335,14 @@ function plan(onlyArg) {
 
   const items = prs.map((pr) => {
     const labels = pr.labels.map((l) => l.name);
-    const kind = RECORD_BRANCH.test(pr.headRefName) ? "record" : REVERT_BRANCH.test(pr.headRefName) ? "revert" : "impl";
+    const changed = changedFiles(pr.headRefOid);
+    const kind = RECORD_BRANCH.test(pr.headRefName)
+      ? "record"
+      : REVERT_BRANCH.test(pr.headRefName)
+        ? "revert"
+        : harnessOnly(changed)
+          ? "harness"
+          : "impl";
     const refs = issueRefs(pr);
     const issues = refs.map(issue);
     const lane = laneFor(pr, lanes, issues);
@@ -347,8 +361,10 @@ function plan(onlyArg) {
     if (pr.baseRefName !== "main") return hold(`宛先が main でない（${pr.baseRefName}）`);
     if (pr.isDraft) return hold("下書きの PR");
     if (labels.includes(HOLD_LABEL)) return hold(`${HOLD_LABEL} ラベルで止めてある`);
-    if (touchesMigration(pr.headRefOid)) return hold("マイグレーションを含む。db push との順番をこうだいさんが決める");
+    if (!changed) return hold("変わったファイルを git で取れず、マイグレーションの有無を確かめられない");
+    if (changed.some((f) => MIGRATION.test(f))) return hold("マイグレーションを含む。db push との順番をこうだいさんが決める");
     if (kind === "impl" && refs.length === 0) return hold("Refs #番号 が無く、依頼した Issue を確かめられない");
+    if (kind === "harness" && refs.length === 0) item.reason = "事前確認を通った（製品のコードに触らないので Issue なし）";
     const unreadable = refs.filter((_, i) => !issues[i]);
     if (unreadable.length) return hold(`Issue ${unreadable.map((n) => `#${n}`).join(" ")} を読めず、依存と凍結を確かめられない`);
     const frozen = issues.find((i) => i?.labels?.some((l) => l.name === "status:frozen"));
@@ -358,9 +374,11 @@ function plan(onlyArg) {
       return hold(`レーン ${lane.slug} に未コミットの変更があり、作業中`);
     if (lane && lane.branch === pr.headRefName && lane.head !== pr.headRefOid)
       return hold(`レーン ${lane.slug} の手元と PR の先頭が違う（push 前の commit がある）`);
-    if (kind === "impl") {
+    if (kind === "impl" || kind === "harness") {
       for (const iss of issues) for (const d of dependsOn(iss?.body)) item.deps.push(d);
     }
+    // Issue を持たないハーネスの変更は、依存を PR 本文の「依存する作業」の行に書く
+    if (kind === "harness") for (const d of dependsOn(pr.body)) if (!item.deps.includes(d)) item.deps.push(d);
     return item;
   });
 
