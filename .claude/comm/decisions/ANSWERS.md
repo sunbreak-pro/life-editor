@@ -197,3 +197,5 @@
 - D-20261102-connect-5: **B**（右パネルの「つないだ Todo」の名前を押したときの動きを木にそろえるか → 右パネルも完了の切り替えにする。2026-11-02 チャットの AskUserQuestion で回答・connect-refine が転記 / 昇格）
 - D-20261102-connect-6: **A**（タグ画面の event の呼び名を「予定」と「イベント」のどちらにそろえるか → 今の PR のままにして、別 Issue で全画面の呼び名をそろえる。2026-11-02 チャットの AskUserQuestion で回答・connect-refine が転記 / 昇格）
 - D-20261102-connect-7: **A**（削除ダイアログの注記で、つながっているのが下の Todo だと書き分けるか → 同じ文のまま。2026-11-02 チャットの AskUserQuestion で回答・connect-refine が転記 / 昇格）
+- D-20261109-harness-1: **A**（中ティアでも仕組みの仮説は書いて進み、止まるのは既存の 👀 / 🛑 Gate だけにする。2026-11-09 チャットの AskUserQuestion で回答・harness が転記 / 昇格）
+- D-20261109-harness-2: **A**（PR 本文の「確かめたこと / 確かめていないこと」「読む順」の見出しを検査する hook を次の PR で足す。2026-11-09 チャットの AskUserQuestion で回答・harness が転記 / 昇格）
