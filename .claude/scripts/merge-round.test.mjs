@@ -1,4 +1,4 @@
-// merge-gate の判定と、merge-round.mjs の依存の着地判定（landedIn）をテストする。
+// merge-gate の判定と、merge-round.mjs の依存の着地判定（landedIn）と、Issue なしで通すハーネスの変更の判定（harnessOnly）をテストする。
 // 実行: node --test .claude/scripts/merge-round.test.mjs
 // merge-round.mjs の plan / fixes そのものは GitHub と全体の local-ci を使うので、ここでは回さない。
 import { test } from "node:test";
@@ -8,7 +8,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { landedIn } from "./merge-round.mjs";
+import { harnessOnly, landedIn } from "./merge-round.mjs";
 
 const GATE = resolve(dirname(fileURLToPath(import.meta.url)), "..", "hooks", "merge-gate.mjs");
 const MERGE = "gh pr merge 5 -R sunbreak-pro/life-editor --squash";
@@ -158,4 +158,20 @@ test("Issue 番号の依存は、それを Refs に書いた merge 済み PR で
   assert.equal(landedIn(merged, 2650, isAncestor), true);
   assert.equal(landedIn(merged, 2999, isAncestor), false);
   assert.equal(landedIn([{ ...merged[0], mergeCommit: { oid: "elsewhere" } }], 2400, isAncestor), false);
+});
+
+// ---------- Issue を持たないハーネスの変更 ----------
+test("ハーネス・文書・CI の設定・開発用スクリプトだけを変える PR は、Refs が無くても merge の対象にする", () => {
+  // #2711 と同じ形: CLAUDE.md・vision 文書・ci.yml のコメント・直下の md の削除
+  assert.equal(harnessOnly([".claude/CLAUDE.md", ".claude/docs/vision/claude-md-layering.md", ".github/workflows/ci.yml", "ai-context.md"]), true);
+  assert.equal(harnessOnly([".claude/scripts/merge-round.mjs", "scripts/local-ci.mjs", ".agents/x.md", ".codex/y.toml", "README.md"]), true);
+});
+
+test("製品のコードを 1 つでも含む PR、直下の md 以外のファイル、変わったファイルが取れない PR は対象にしない", () => {
+  assert.equal(harnessOnly([".claude/CLAUDE.md", "shared/src/sections.ts"]), false);
+  assert.equal(harnessOnly(["web/README.md"]), false);
+  assert.equal(harnessOnly(["package.json"]), false);
+  assert.equal(harnessOnly(["supabase/migrations/0050_x.sql"]), false);
+  assert.equal(harnessOnly([]), false);
+  assert.equal(harnessOnly(null), false);
 });
