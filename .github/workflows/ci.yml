@@ -9,7 +9,7 @@ name: CI — live stack (shared + web + desktop + mcp-server)
 # OS 別ランナーは CI 分数コストに見合わないため回さない）。
 #
 # 検証済みの手順をそのまま写したもの（2026-06-20 ローカル実測: shared 491 tests 緑 /
-# web vite build 緑）。手元で再現するには ai-context.md §6 のコマンドを参照。
+# web vite build 緑）。手元で再現するには `node scripts/local-ci.mjs` を使う（.claude/CLAUDE.md §7.1）。
 
 on:
   pull_request:
