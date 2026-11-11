@@ -1,5 +1,5 @@
 ---
-Status: Draft # Step 1（こうだいさんの判断）が済むまで Draft のままにする
+Status: IN PROGRESS # Step 1 は 2026-11-11 に回答済み（D-20261111-harness-1 = A）。Step 3 以降は PR #2711 の merge のあと
 Created: 2026-11-11
 Branch: claude/claude-md-slimming-plan
 Owner-chat: harness
@@ -39,8 +39,8 @@ Parent: .claude/docs/vision/plans/2026-08-04-context-cost-reduction-harness.md
 
 | 案 | 採否 | 却下理由 | 復活条件 |
 | --- | --- | --- | --- |
-| A: 経緯の記述だけを先に外し、大きさの上限を docs-lint で見る | 提案（Step 1 でこうだいさんが決める） | — | — |
-| B: 今のまま、移行の完了を待つ | ✗（提案としては採らない） | 3 か月で 1.84 倍になっていて、待つ間も増え続ける | Step 1 でこうだいさんが B を選んだら、この計画を DEFERRED にする |
+| A: 経緯の記述だけを先に外し、大きさの上限を docs-lint で見る | ✓（2026-11-11 こうだいさんの回答 = D-20261111-harness-1） | — | — |
+| B: 今のまま、移行の完了を待つ | ✗ | 3 か月で 1.84 倍になっていて、待つ間も増え続ける | — |
 | C: 関門を外して、親計画の Phase 3 を全部いま行う | ✗ | §2〜§5 の構造の移送先は、移行でまだ動く。関門の理由が残っている | 移行の Phase 5 が完了したら |
 | D: 行数の目標を厳しくする（たとえば 120 行） | ✗ | 増えたのは 1 行の長さで、行数では測れない | — |
 
@@ -115,4 +115,6 @@ Step 3〜5 は、どれも `.claude/CLAUDE.md` を触ります。同じファイ
 ---
 
 ## Worklog
+
+- 2026-11-11: Step 1 は、こうだいさんが A（経緯だけ先に移す）と回答した（D-20261111-harness-1）。Step 2 の再測定を `docs/reports/2026-08-06-context-fixed-cost-baseline.md` §10 に追記した。Step 3 以降は `.claude/CLAUDE.md` を触るので、同じファイルを触る PR #2711 の merge を待ってから、`origin/main` でブランチを切る。
 
