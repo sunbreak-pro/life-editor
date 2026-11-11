@@ -268,3 +268,24 @@ D-20260806-main-2 = A を受けて 2 ラウンド実施。**merge 前の数値**
 - Phase 2（枠づくり）= 親計画 Step 4。移送先を先に作る（→ 親計画の Worklog）
 - Phase 3（移送）= 移行（Electron + Supabase）完了後。**本書の再測定で固定費の減少を確認するのが完了条件**
 - §5-1 / §5-4 はユーザー判断待ち（`comm/decisions/chat-main.md`）
+
+## 10. 2026-11-11 の再測定（経緯の記述を移す前の起点）
+
+`node .claude/scripts/context-cost-measure.mjs` を `origin/main`（aa1f4885）で回した。固定費（always + listing）は **22,304 tok** で、うち always が 16,127 tok、listing が 6,177 tok。`.claude/CLAUDE.md` は **9,882 tok**（34,013 B）で、§3.1 の 5,357 tok の 1.84 倍である。
+
+| 節 | 2026-08-06 | 2026-11-11 | 差分 |
+| --- | ---: | ---: | ---: |
+| 冒頭 | 254 | 254 | 0 |
+| §0 Meta | 232 | 418 | +186 |
+| §1 Vision | 99 | 287 | +188 |
+| §2 Platform | 395 | 719 | +324 |
+| §3 Architecture | 402 | 464 | +62 |
+| §4 Data Model | 436 | 822 | +386 |
+| §5 AI Integration | 120 | 1,063 | +943 |
+| §6 Coding Standards | 328 | 334 | +6 |
+| §7 Development Workflows | 2,192 | 3,758 | +1,566 |
+| §8 Feature Tier Map | 347 | 1,076 | +729 |
+| §9 Document System | 548 | 687 | +139 |
+| 合計 | 5,353 | 9,882 | +4,529 |
+
+2026-11-11 の節ごとの値は、§1 と同じ係数（ASCII 3.6 字/tok、それ以外 0.9 tok/字）で `## ` の見出しごとに数えた計算である。次の再測定は、`docs/vision/plans/2026-11-11-claude-md-history-offload.md` の Step 3〜5 の各 PR の前後で行う（D-20261111-harness-1）。
