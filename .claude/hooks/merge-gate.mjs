@@ -2,6 +2,12 @@
 // merge-gate — `gh pr merge` を chat-main の merge-round の中だけで確認なしに通す（POLICY P-001、2026-11-02 改定）。
 //
 // settings.json には gh pr merge の allow も ask も置かない。確認を消すのはこの hook の allow だけにする:
+//   - サブエージェントが打った → deny。ただし agent_type が work-finishers のものだけはこの deny を外し、
+//     下の条件をすべて同じように当てる（issue-workflow の実行で、こうだいさんが確認の場で merge-round を選んだ回だけ
+//     work-finishers が merge-round を回すため。P-001 の例外）
+//   - work-finishers でも、承認の印（.git/merge-round/finisher-approved.json の approvedAt が 6 時間以内）が無ければ deny。
+//     印は chat-main が issue-workflow の確認でこうだいさんが「merge-round まで回す」を選んだときだけ書き、
+//     仕上げの finish の後に work-finishers が消す。P-001 の人の起動を hook から見えるようにするため
 //   - 作業レーン（git worktree）から打った → deny（レーンは merge しない）
 //   - chat-main だが main にいない / 形が決まりと違う / 回が始まっていない / 一覧に無い / check 前 → ask
 //   - chat-main・main・決まった形・進行中の回の一覧にあり check を通った PR → allow
@@ -15,6 +21,7 @@ import { hookContext } from "./lib/hook-context.mjs";
 
 const SHAPE = /^\s*gh\s+pr\s+merge\s+(\d+)\s+-R\s+sunbreak-pro\/life-editor\s+--squash\s*$/;
 const ROUND_TTL_MS = 2 * 60 * 60 * 1000;
+const FINISHER_TTL_MS = 6 * 60 * 60 * 1000;
 
 function decide(permissionDecision, permissionDecisionReason) {
   process.stdout.write(
@@ -36,7 +43,8 @@ try {
   // input.cwd is the main checkout for chat-main's subagents too, so the worktree check below misses
   // them; agent_id and the `cd` in front of the command catch them (issue-workflow trial, 2026-11-08).
   const ctx = hookContext(input, "pr-merge", process.cwd());
-  if (ctx.agent) decide("deny", "サブエージェントは merge しません（POLICY P-001）。merge は chat-main の merge-round スキルが行います。");
+  if (ctx.agent && input.agent_type !== "work-finishers")
+    decide("deny", "サブエージェントは merge しません（POLICY P-001）。merge は chat-main の merge-round スキルが行います。");
   if (ctx.known && ctx.linked && ctx.sessionName !== "main")
     decide("deny", "作業レーン（worktree）の中からは merge しません（POLICY P-001）。merge は chat-main の merge-round スキルが行います。");
 
@@ -50,6 +58,19 @@ try {
   if (gitDir !== common)
     decide("deny", "作業レーン（worktree）からは merge しません（POLICY P-001）。merge は chat-main の merge-round スキルが行います。");
 
+  const roundDir = join(git("rev-parse", "--path-format=absolute", "--git-common-dir"), "merge-round");
+  if (ctx.agent) {
+    const notChosen = "起動前の確認で merge-round まで回すが選ばれていない回なので、work-finishers は merge しません（POLICY P-001）。";
+    let approvedAt = NaN;
+    try {
+      approvedAt = Date.parse(JSON.parse(readFileSync(join(roundDir, "finisher-approved.json"), "utf8")).approvedAt);
+    } catch {
+      decide("deny", notChosen);
+    }
+    const age = Date.now() - approvedAt;
+    if (!(age >= 0 && age <= FINISHER_TTL_MS)) decide("deny", `${notChosen}承認の印が 6 時間より古いか読めません。`);
+  }
+
   const branch = git("branch", "--show-current");
   if (branch !== "main") decide("ask", `chat-main が main にいません（いま ${branch || "detached"}）。merge してよいか確認します。`);
 
@@ -57,7 +78,7 @@ try {
   if (!m)
     decide("ask", "merge-round の形（gh pr merge <番号> -R sunbreak-pro/life-editor --squash を単独で打つ）と違うので確認します。");
 
-  const marker = join(git("rev-parse", "--path-format=absolute", "--git-common-dir"), "merge-round", "active.json");
+  const marker = join(roundDir, "active.json");
   if (!existsSync(marker)) decide("ask", "merge-round の回が始まっていないので確認します（merge-round.mjs start の後なら通ります）。");
 
   const round = JSON.parse(readFileSync(marker, "utf8"));

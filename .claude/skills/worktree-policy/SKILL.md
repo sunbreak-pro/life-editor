@@ -97,6 +97,8 @@ Orca の GUI worktree 作成は `.session-branch` / `.session-name` を書かな
 
 （2026-07-11 ユーザー決定）playwright MCP（実ブラウザ検証）と進捗確認用 dev server は chat-main（メインリポジトリ）のみで起動する。複数 worktree で localhost を重複起動するとポートずれで「どの画面がどの変更か」の確認が壊れるため。各 worktree チャットは build / 型検証（+ vitest）まで — 実ブラウザでの表示確認は PR merge 後に chat-main 側で実測する。
 
+例外は chat-main のサブエージェント `work-finishers` の動作確認だけ。issue-workflow の実行で、全体確認を通った `wf-*` の worktree に 1 度に 1 本だけ固定のポートで dev server を立て、確認が済んだら必ず止める。ポートが固定で同時に 1 本なので、どの画面がどの変更かが混ざらない（手順 = `.claude/issue-workflow.md` の「動作確認」）。
+
 ## 課題分配（Issue 駆動）
 
 （2026-07-11 ユーザー決定 — 同日運用の orders .md 台帳 fan-out と worktree 自己起票を SUPERSEDE）chat-main が課題を worktree 関係なくラベル付きで Issue 起票し（手順 = `issue-dispatch` スキル）、各 worktree は自分宛 open Issue をタスクキューとして実行 → close まで担う（詳細 = `docs-workflow` スキル）。

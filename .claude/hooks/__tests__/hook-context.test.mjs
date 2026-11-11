@@ -107,3 +107,67 @@ test("merge-gate denies a subagent and a merge from inside a lane worktree", () 
   assert.equal(runHook("merge-gate.mjs", { cwd: main, tool_input: { command: `cd ${wt} && ${cmd}` } }).decision, "deny");
   assert.equal(runHook("merge-gate.mjs", { cwd: main, tool_input: { command: cmd } }).decision, "ask");
 });
+
+// work-finishers runs merge-round for a run whose merge こうだいさん chose in issue-workflow's confirmation;
+// chat-main records that choice in finisher-approved.json.
+const MERGE = "gh pr merge 1 -R sunbreak-pro/life-editor --squash";
+const roundDir = () => join(main, ".git", "merge-round");
+function approve(hoursAgo) {
+  mkdirSync(roundDir(), { recursive: true });
+  const approvedAt = new Date(Date.now() - hoursAgo * 60 * 60 * 1000).toISOString();
+  writeFileSync(join(roundDir(), "finisher-approved.json"), JSON.stringify({ approvedAt }));
+}
+const asFinisher = (command, agent_type = "work-finishers") =>
+  runHook("merge-gate.mjs", { cwd: main, agent_id: "a1", agent_type, tool_input: { command } }).decision;
+
+test("merge-gate lets only work-finishers past the subagent deny", () => {
+  try {
+    approve(0);
+    assert.equal(asFinisher(MERGE), "ask", "a fresh approval but no active round");
+    assert.equal(asFinisher(MERGE, "general-purpose"), "deny");
+    assert.equal(runHook("merge-gate.mjs", { cwd: main, agent_id: "a1", tool_input: { command: MERGE } }).decision, "deny");
+  } finally {
+    rmSync(roundDir(), { recursive: true, force: true });
+  }
+});
+
+test("merge-gate denies work-finishers without a fresh approval marker", () => {
+  try {
+    assert.equal(asFinisher(MERGE), "deny", "no marker");
+    approve(7);
+    assert.equal(asFinisher(MERGE), "deny", "a 7-hour-old marker");
+    writeFileSync(join(roundDir(), "finisher-approved.json"), "{");
+    assert.equal(asFinisher(MERGE), "deny", "an unreadable marker");
+  } finally {
+    rmSync(roundDir(), { recursive: true, force: true });
+  }
+});
+
+test("merge-gate applies every later check to work-finishers", () => {
+  const writeRound = (round) =>
+    writeFileSync(
+      join(roundDir(), "active.json"),
+      JSON.stringify({ id: "r1", startedAt: new Date().toISOString(), verifiedTree: "t", prs: [1], heads: { 1: "h1" }, checked: { 1: "h1" }, ...round }),
+    );
+  try {
+    approve(0);
+    writeRound({});
+    assert.equal(asFinisher(MERGE), "allow", "a checked PR of the active round");
+    assert.equal(asFinisher(`cd ${wt} && ${MERGE}`), "deny", "from inside a lane worktree");
+    assert.equal(asFinisher(`${MERGE} --admin`), "ask", "a different command shape");
+    assert.equal(asFinisher("gh pr merge 2 -R sunbreak-pro/life-editor --squash"), "ask", "not in the round's list");
+    writeRound({ checked: {} });
+    assert.equal(asFinisher(MERGE), "ask", "check has not passed");
+    writeRound({ startedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString() });
+    assert.equal(asFinisher(MERGE), "ask", "the round is older than 2 hours");
+    writeRound({});
+    git(main, "checkout", "-q", "-b", "not-main");
+    try {
+      assert.equal(asFinisher(MERGE), "ask", "the main checkout is not on main");
+    } finally {
+      git(main, "checkout", "-q", "main");
+    }
+  } finally {
+    rmSync(roundDir(), { recursive: true, force: true });
+  }
+});

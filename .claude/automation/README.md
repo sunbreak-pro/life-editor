@@ -62,7 +62,7 @@
 - **時間 / 反復上限は bash で明示計測**（cap 設定だけでは信用しない — 親計画 §3 の暴走実例）。超過は失敗ではなく「スキップして報告」
 - **ログ・長出力は会話に流さずファイルへ**（`.claude/automation/logs/` — git 非追跡）
 - **質問経路は decision キュー / digest の要判断欄のみ**（headless では AskUserQuestion 不可）
-- **merge と main への取り込みは常にこうだいさん**（POLICY P-001 — どの Phase でも解除しない）
+- **merge と main への取り込みは常にこうだいさん**（POLICY P-001 — どの Phase でも解除しない。唯一の例外は、issue-workflow の起動前の確認でこうだいさんが選んだ実行の work-finishers で、手順は `merge-round` スキルの「work-finishers が回すとき」。無人ループには当てない）
 - **`.mcp.json` の `${...}` 参照維持**は pre-commit hook が機械チェック
 
 ---

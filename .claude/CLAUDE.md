@@ -100,7 +100,7 @@
 
 - **本文の行頭 `#` は git に無警告で捨てられる**（`core.commentChar` 既定 = `#`）。Issue 番号で行を始めず、`git commit -F` には `--cleanup=verbatim` を付ける（[known-issues 032](./docs/known-issues/032-git-commit-message-hash-line-dropped.md)）
 
-- **`git-workflow` §0.1.1（PR の自動マージ）は life-editor では適用しない**（2026-08-06 ユーザー確定 D-20260806-main-1 = B）。本プロジェクトは POLICY **P-001** を優先する。2026-11-02 の改定（D-20261102-main-1）で、merge はこうだいさんが打つか、こうだいさんが chat-main で **`merge-round` スキル**を起動したときだけ行う。スキルは事前確認を通った PR だけを `gh pr merge <n> -R sunbreak-pro/life-editor --squash` で 1 本ずつ merge し、作業レーン（worktree）は merge しない。機械側の担保は `hooks/merge-gate.mjs`（レーンからは deny、回の外は確認）
+- **`git-workflow` §0.1.1（PR の自動マージ）は life-editor では適用しない**（2026-08-06 ユーザー確定 D-20260806-main-1 = B）。本プロジェクトは POLICY **P-001** を優先する。2026-11-02 の改定（D-20261102-main-1）で、merge はこうだいさんが打つか、こうだいさんが chat-main で **`merge-round` スキル**を起動したときだけ行う。スキルは事前確認を通った PR だけを `gh pr merge <n> -R sunbreak-pro/life-editor --squash` で 1 本ずつ merge し、作業レーン（worktree）は merge しない。`issue-workflow` の起動前の確認でこうだいさんが merge-round まで回すと選んだ実行だけは、サブエージェント `work-finishers` がその実行の PR で merge-round を回す（P-001 の例外）。機械側の担保は `hooks/merge-gate.mjs`（レーンからは deny、回の外は確認）
 
 - **PR 本文は `Refs #N`。`Closes` / `Fixes` / `Resolves` を使わない**（#2349）: merge で Issue が勝手に close されると、実ブラウザ確認や db push が残っていても完了に見える。close は確認が済んだあとにユーザーか chat-main が手で行う
 - **1 Issue = 1 ブランチ = 1 PR**（#2349）: 複数 Issue を 1 本にまとめず、1 本の PR に別 Issue の変更を混ぜない。ブランチ名に Issue 番号を入れる（`claude/<slug>-<issue>`）
@@ -112,7 +112,7 @@
 - **Scope 宣言**（触ってよいパス）・**Gate 列**（🤖 自律 / 👀 目視 / 🛑 人手 = DDL push・シークレット投入・PR merge・本番デプロイ）・**機械検証可能な Acceptance Criteria**
 - DDL は「ローカルファイル先行 → ユーザー `supabase db push`」（**`apply_migration` MCP 単独使用禁止**）。`Bash(supabase db push*)` は `permissions.ask` に入れて機械側でも担保済み（#2349）
 - **反映済み（db push 済み）のマイグレーションは中身も編集しない。直すときは次の番号で新しいファイルを足す**（#2349）: 反映済みの履歴を書き換えると、本番の実態とファイルが静かに食い違う。空白やコメントの整形も対象。反映済みかどうかは `supabase migration list` で見る。番号の衝突は PR 巡回で `origin/main` と突き合わせる
-- hooks 連動（検査内容の正本 = 各スクリプト。SessionStart / PreToolUse の登録は `.claude/settings.json` が正・全 hook `${CLAUDE_PROJECT_DIR}` 相対で worktree 側の実体が走る）: PreToolUse(Bash) = `hooks/pre-commit-mcp-check.sh`（トークン平文検知）+ `hooks/pre-commit-index-guard.sh`（derived INDEX の commit 混入を自動除外）+ `hooks/pre-commit-tracker-guard.sh`（tracker の更新を実装コミットに混ぜたらブロック = D-20260801-main-1・逃がし道は `[tracker-ok]`。index は、コマンドが `cd` か `git -C` で指した repo のものを見る）。`hooks/merge-gate.mjs` は、サブエージェント（hook の入力に `agent_id` がある）と、`cd` でレーンの worktree に入ってから打つ `gh pr merge` も deny する。Workflow のエージェントは main の checkout から Bash を始めて `cd` で worktree に移るためで（2026-11-08 の issue-workflow の試験）、読む部品は `hooks/lib/hook-context.mjs`、テストは `node --test ".claude/hooks/__tests__/*.test.mjs"`
+- hooks 連動（検査内容の正本 = 各スクリプト。SessionStart / PreToolUse の登録は `.claude/settings.json` が正・全 hook `${CLAUDE_PROJECT_DIR}` 相対で worktree 側の実体が走る）: PreToolUse(Bash) = `hooks/pre-commit-mcp-check.sh`（トークン平文検知）+ `hooks/pre-commit-index-guard.sh`（derived INDEX の commit 混入を自動除外）+ `hooks/pre-commit-tracker-guard.sh`（tracker の更新を実装コミットに混ぜたらブロック = D-20260801-main-1・逃がし道は `[tracker-ok]`。index は、コマンドが `cd` か `git -C` で指した repo のものを見る）。`hooks/merge-gate.mjs` は、サブエージェント（hook の入力に `agent_id` がある。`agent_type` が `work-finishers` で、承認の印 `.git/merge-round/finisher-approved.json` が 6 時間以内のものは除き、ほかの条件は同じに当てる）と、`cd` でレーンの worktree に入ってから打つ `gh pr merge` も deny する。Workflow のエージェントは main の checkout から Bash を始めて `cd` で worktree に移るためで（2026-11-08 の issue-workflow の試験）、読む部品は `hooks/lib/hook-context.mjs`、テストは `node --test ".claude/hooks/__tests__/*.test.mjs"`
 
 ### 7.4 Multi-chat Worktree Policy（要約 — 正本は `worktree-policy` スキル）
 
@@ -126,7 +126,7 @@
 - **`.claude/comm/.session-branch` はブランチを切り替えるたびに書き換える** — 抜けると hook が無音スキップし、監査が「宣言と実態の不一致」と誤判定する
 - **tracker（`memory/` + `history/`）の更新を実装ブランチに載せない**（2026-08-01 D-20260801-main-1）— 並行ブランチが必ず衝突する。PR 本文側に要約を書き、tracker は専用ブランチ `chore/tracker-<chat>-YYYYMMDD` に分ける。**実行は `session-verifier` が緑になった直後**で、実装 PR の merge を待たない（2026-08-10 D-20260810-main-1）。**`.claude/comm/outbox/` も同じ扱い**（実装 PR に載せず別枠 = 2026-08-12 D-20260802-sched-1）
 - **マージ済み判定は `gh pr list --json number,state,headRefName` の state**。`git diff` / `git log` / `git cherry` は squash merge を「未マージ」と誤判定する
-- **playwright MCP（実ブラウザ検証）と dev server は chat-main のみ**で起動する（ポート重複で確認が壊れるため）。worktree 側は build / 型検証まで
+- **playwright MCP（実ブラウザ検証）と dev server は chat-main のみ**で起動する（ポート重複で確認が壊れるため）。worktree 側は build / 型検証まで。例外は chat-main のサブエージェント `work-finishers` の動作確認で、1 度に 1 本、固定のポートで `wf-*` の worktree に dev server を立て、終わったら止める（手順 = `.claude/issue-workflow.md` の「動作確認」）
 
 ## 8. Feature Tier Map（詳細 → `docs/requirements/`）
 
