@@ -25,7 +25,7 @@ claude-dotfiles の `claude/CLAUDE.md`・`claude/rules/`・`claude/skills/` は 
 
 | 検査 | 件数 | 中身 |
 | --- | --- | --- |
-| 記号と番号の組 | エラー 98 件 | 決定の記録の番号（`D-` で始まる形）が 70 件、方針の番号（`P-001` など）が 19 件です。6 件は検査の誤りの疑いがあります（`TS2307`・`F5` など） |
+| 記号と番号の組 | エラー 98 件 | 決定の記録の番号（`D-` で始まる形）が 70 件、方針の番号（`P-001` など）が 19 件、作業の区切りの記号（`W0` など）が 3 件です。残りの 6 件は、検査の誤りの疑いがあります（`TS2307`・`F5` など） |
 | 内輪の語 | エラー 140 件 | 元になる文書を指す語が 68 件、担当の区分を指す語が 50 件、ほかの 4 語が 22 件です |
 | 共通の道具と同じ名前 | エラー 5 件 | スキル 3 本（`merge-round`・`worktree-policy`・`issue-dispatch`）と、スクリプト 2 本（`merge-round.mjs`・`scope-overlap.mjs`）です |
 | 置き場 | エラー 3 件 | 計画書が 2 か所、報告書が `.claude/docs/reports/`、判断待ちの置き場が `.claude/comm/decisions/` です |
@@ -38,14 +38,14 @@ claude-dotfiles の `claude/CLAUDE.md`・`claude/rules/`・`claude/skills/` は 
 
 - **入口の文書。** `.claude/CLAUDE.md` は 146 行・34,013 バイトで、`2026-` を含む行が 25 行あります。行数は少ないのに 1 行が長く、決定の日付と経緯が同じ行に入っています。経緯を外す計画書（`2026-11-11-claude-md-history-offload.md`）が進行中で、Step 3 以降は未着手です。
 - **番号を付ける決まり。** 「入口の文書に書く決定には、番号を必ず添える」と定めているのは `.claude/rules/records.md` の 24 行目です。番号の形は、`.claude/decisions/README.md`・`.claude/decisions/_TEMPLATE.md`・`.claude/comm/decisions/README.md` が定めています。
-- **番号を読む道具。** `.claude/scripts/records.mjs` が、決定の記録のファイル名・見出し・回答の一覧を、番号の形の正規表現で読みます。CI の文書の検査（`scripts/docs-lint.sh` の 123 行目）が、この道具を回します。番号の無い名前のファイルを足すと、検査が落ちます。この道具にテストはありません。
+- **番号を読む道具。** `.claude/scripts/records.mjs` が、決定の記録のファイル名・見出し・回答の一覧を、番号の形の正規表現で読みます。CI の文書の検査（`scripts/docs-lint.sh` の 124 行目）が、この道具を回します。この道具は、名前が `D-` で始まるファイルだけを拾います。そのため、番号の無い名前のファイルを足しても、エラーは出ず、検査と索引の対象から外れます。この道具にテストはありません。
 - **番号の量。** 決定の記録は 205 本あります。番号は、現行の決まりの文書に約 90 回、過去の記録に約 1,830 回、`.claude/` の外のコードのコメントに 266 回出てきます。
 - **hook（Claude Code 本体が決まった場面で自動で動かすスクリプト）。** `.claude/settings.json` に 7 本の登録があります。6 本は、claude-dotfiles の 2 本（`bash-guards.mjs` と `project-session-start.mjs`）に置き換わります。残る 1 本（`records.mjs index`）は、このリポジトリだけのものです。このリポジトリだけの判定を持つ hook は、ありません。
-- **設定。** `.claude/issue-workflow.md` の `## 設定値` には 10 項目があります。共通の道具が読む 7 項目（`mergeMethod` など）は、1 つもありません。`mainCheckout` と `worktreeRoot` は、個人の PC の絶対パスです。
+- **設定。** `.claude/issue-workflow.md` の `## 設定値` には 10 項目があります。共通の道具が読む 7 項目（`mergeMethod` など）は、1 つもありません。Step 3 では、この 7 項目に、このリポジトリのいまの手順が定数で持っている 3 項目を合わせた、10 項目を足します。`mainCheckout` と `worktreeRoot` は、個人の PC の絶対パスです。
 - **merge の決まり。** 方針の文書（`.claude/comm/decisions/POLICY.md` の `P-001`）が、「merge は、こうだいさんが行うか、こうだいさんが merge の手順を起動した回だけ行う」と定めています。現行の文書の 14 ファイルが、この方針を引いています。共通の決まりは、手順と検証の条件を満たした PR を、確認なしで merge してよいとしています。
 - **判断の聞き方。** `.claude/rules/decision-queue.md` は、判断を `.claude/comm/decisions/` のファイルに書いて次へ進む方式です。共通の決まりは、最後の報告のあとに AskUserQuestion（選択式の質問）でまとめて聞く方式です。
 - **Codex（別の AI コーディング道具）用の入口。** 8 ファイルあります（`AGENTS.md`、`.agents/skills/` の 4 本、`.codex/` の 3 本）。こうだいさんは 2026-11-14 に、すべて消すと決めました。`.codex/hooks.json` が呼ぶ hook の 4 本は、Claude Code も使っています。そのため、この 4 本は Codex の片付けでは消さず、共通の hook へ切り替える Step で消します。
-- **スキル。** `.claude/skills/` の 19 本のうち 12 本は、直近 30 日の起動が 0 回でした（会話の記録 625 本を数えた値です。スラッシュコマンドでの起動は、正確に数えられていません）。
+- **スキル。** `.claude/skills/` の 19 本のうち 12 本は、直近 30 日の会話の記録（625 本）に、起動が 1 回もありませんでした。ただし、この値は無人の実行（定時に動く作業）を数えていません。無人の実行の指示文（`.claude/automation/` の下）は、12 本のうち 3 本（`loop-implement`・`dev-digest`・`schedule-management`）を読みます。無人の実行の最後の報告は 2026-11-01 です。
 - **進捗の記録。** `.claude/memory/` の 34 本のうち 29 本、`.claude/history/` の直下の 59 本のうち 54 本は、30 日以上変わっていません。
 - **`.claude/` の直下の計画書。** `.claude/2026-05-04-cross-platform-migration.md`（移行の元になる文書、551 行、Status は ACTIVE）です。55 ファイルが指しています。
 - **開いている PR と worktree。** 開いている PR は 0 件です。worktree は 4 つで、どれにも未コミットの変更はありません。`harness-fixes` の worktree は、経緯を外す計画書のためのものです。
@@ -53,11 +53,11 @@ claude-dotfiles の `claude/CLAUDE.md`・`claude/rules/`・`claude/skills/` は 
 
 ### 制約
 
-- **待っている PR。** claude-dotfiles の PR #106「feat(harness): move merge-round, worktree policy, issue dispatch and the project hooks into the core」と、PR #107「feat(check-project): check projects against the core rules and add the entry template」です。2026-11-15 の時点で、どちらも承認待ちです。Step 8 だけが、#106 が main に入っていることを前提にします。
+- **待っている PR。** claude-dotfiles の PR #106「feat(harness): move merge-round, worktree policy, issue dispatch and the project hooks into the core」と、PR #107「feat(check-project): check projects against the core rules and add the entry template」です。2026-11-14 の時点で、どちらも承認待ちでした。Step 8 だけが、#106 が main に入っていることを前提にします。検査のスクリプト（`check-project.mjs`）は #107 にあります。main に入るまでは、claude-dotfiles の作業用の worktree にあるものを使います。
 - **#106 を入れる前に、Step 3 を入れます。** #106 が main に入ると、共通の側に、このリポジトリと同じ名前のスキルが 3 本できます。同じ名前のときにどちらが読まれるかは、確かめていません（未確認）。共通の側が読まれる場合、設定に `mergeMethod` が無いと、merge の手順が終了コード 12 で止まります。
 - **同じ日に行うもの。** claude-dotfiles の `claude/settings.json` に 2 本の hook を登録する作業と、この計画の Step 8 です。日がずれると、同じ判定が 2 回動きます。
 - **入口の文書を触る PR は、1 度に 1 本だけ動かします。** Step 7・8・9 は、どれも `.claude/CLAUDE.md` を触ります。前の PR が main に入ってから、次のブランチを切ります。
-- **方針の文書の変更は、こうだいさんの明示の承認が要ります。** `POLICY.md` の 3 行目が、そう定めています。
+- **方針の文書の変更は、こうだいさんの明示の承認が要ります。** `POLICY.md` の 3〜4 行目が、そう定めています。
 - **入口の文書の節の組み直しは、この計画では行いません。** 決定の記録（`.claude/decisions/D-20260806-main-3.md`）が、節の移し替えを、移行の完了（移行の元になる文書の最後の段階）のあとに行うと決めているためです。
 
 ### Non-goals
@@ -81,7 +81,7 @@ claude-dotfiles の `claude/CLAUDE.md`・`claude/rules/`・`claude/skills/` は 
 - **選ぶと何が起きるか。**
   - 共通の決まりに合わせると、仕上げ役が、条件を満たした PR を merge まで運びます。方針の文書を書き換え、新しい決定の記録を 1 本足します。
   - いまの方針のままにすると、共通の例外の一覧（claude-dotfiles の `claude/docs/exceptions.md`）に 1 行足します。共通の hook には「人が起動した回だけ通す」仕組みが無いので、その仕組みを claude-dotfiles に足す依頼が要ります。Step 8 は、その依頼が済むまで待ちます。
-- **推奨と根拠。** 共通の決まりに合わせる案を推奨します。こうだいさんが 2026-11-11 に全プロジェクトの決まりとして決め、original-card-battle でも 2026-11-14 に同じ案を選んだためです。共通の hook は、head の commit の固定、全体確認、別の役の確認の記録を機械で確かめます。
+- **推奨と根拠。** 共通の決まりに合わせる案を推奨します。こうだいさんが 2026-11-11 に全プロジェクトの決まりとして決め、original-card-battle でも 2026-11-14 に同じ案を選んだためです。共通の hook は、3 つを機械で確かめます。確かめたあとに PR へ commit が足されていないこと、全体確認が通っていること、別の役の確認の記録があることです。
 
 **2. 決定の記録の名前から、番号をやめるか。**
 
@@ -91,7 +91,8 @@ claude-dotfiles の `claude/CLAUDE.md`・`claude/rules/`・`claude/skills/` は 
   - 新しい記録から、名前を「日付 + 中身を表す英語の名前」にする案では、`records.mjs` を、新旧の両方の名前を読めるように直します。過去の 205 本は書き直しません。現行の文書は、決定を中身の名前で呼び、要る所にだけファイルのパスを添えます。
   - 番号を続けて、共通の例外の一覧に載せる案では、作業は例外の 1 行だけです。こうだいさんが読む文書に、番号が残ります。
   - 205 本をすべて名前に付け替える案では、約 1,830 回の言及と、コードのコメント 266 回が切れます。
-- **推奨と根拠。** 新しい記録から名前を変える案を推奨します。claude-dotfiles の決定の記録と同じ名前の付け方になり、過去の記録を壊さないためです。検査が、過去の記録のファイルのパスとして書いた番号まで数えるかは、確かめていません（未確認）。数える場合は、検査の側を直す依頼を claude-dotfiles に戻します。
+- **推奨と根拠。** 新しい記録から名前を変える案を推奨します。claude-dotfiles の決定の記録と同じ名前の付け方になり、過去の記録を壊さないためです。
+- **この案に残る点。** 検査は、ファイルのパスの中の番号も数えます（`rules/design-first-planning.md` の 3 行目などで、リンクの文字とパスの両方が指摘されています）。過去の記録をパスで指すたびに、エラーが 1 件出ます。そこで、検査が「実在するファイルのパス」を数えないようにする直しを、claude-dotfiles に頼みます。直るまでは、過去の記録を指すパスを、例外の一覧に載せます。
 
 **3. 判断の聞き方を、共通の決まりに合わせるか。**
 
@@ -117,24 +118,35 @@ claude-dotfiles の `claude/CLAUDE.md`・`claude/rules/`・`claude/skills/` は 
 - **何が起きているか。** 計画書 `2026-11-11-claude-md-history-offload.md` は、入口の文書の経緯を外し、「決定の番号だけを残す」と書いています。番号を残す点が、共通の決まりと逆です。この計画の Step 7〜9 と、同じファイルを触ります。
 - **なぜ決める必要があるか。** 決めないと、同じ行を 2 回直すことになります。1 回目は経緯を番号に置き換え、2 回目は番号を名前に置き換えます。
 - **選ぶと何が起きるか。**
-  - 取り込む案では、その計画書の Step 3〜6 を、この計画の Step 7 として行います。経緯を外すときに、番号ではなく中身の名前を残します。その計画書の Status は SUPERSEDED にします。
+  - 取り込む案では、その計画書の Step 3〜6 を、この計画の Step 7 として行います。経緯を外すときに、番号ではなく中身の名前を残します。その計画書は、Status を SUPERSEDED にして `.claude/archive/` へ移します。
   - 別々に進める案では、その計画書を先に終え、番号の直しは Step 9 で行います。入口の文書の同じ行を、2 回触ります。
 - **推奨と根拠。** 取り込む案を推奨します。1 回で済み、入口の文書を触る PR の数が減るためです。大きさの上限（7,600 tok）と検査を足す Step は、そのまま引き継ぎます。
 
-**6. 使われていないスキル 12 本を、どうするか。**
+**6. 会話で使われていないスキルのうち、ループの 4 本を消すか。**
 
-- **何が起きているか。** 直近 30 日に起動が 0 回だったスキルは、`add-component`・`add-feature`・`add-ipc-channel`・`design-critique`・`dev-digest`・`schedule-management`・`session-loader` と、ループの 5 本です。この 12 本に、語と番号のエラーが 40 件以上あります。
+- **何が起きているか。** 直近 30 日の会話の記録に起動が無かったスキルは 12 本です。製品のスキルが 4 本（`add-component`・`add-feature`・`add-ipc-channel`・`design-critique`）、無人の実行の指示文が読むものが 3 本（`loop-implement`・`dev-digest`・`schedule-management`）、セッションの最初に文脈を読むスキルが 1 本（`session-loader`）、どこからも読まれていないループが 4 本（`loop-triage`・`loop-prune`・`loop-verify`・`loop-postmortem`）です。この 12 本に、語と番号のエラーが 50 件あります。
 - **なぜ決める必要があるか。** 決めないと、Step 9 で、消すかもしれないスキルの語を直すことになります。
 - **選ぶと何が起きるか。**
-  - 製品のスキル 4 本（`add-*` と `design-critique`）を残し、ほかの 8 本を消す案では、Step 9 の量が減ります。必要になったら、git の履歴から戻せます。
+  - どこからも読まれていないループの 4 本だけを消す案では、Step 9 の量が少し減ります。必要になったら、git の履歴から戻せます。
   - 12 本とも残す案では、12 本の語を直します。
-- **推奨と根拠。** ループの 5 本と `dev-digest`・`schedule-management`・`session-loader` は、claude-dotfiles の側の仕分け（未決）の答えに従います。製品のスキル 4 本は、使う場面が来れば要るので、残す案を仮定に置きます。
+  - 無人の実行そのものをやめる案では、無人の実行の指示文と起動役（`.claude/automation/`）、それが読む 3 本も消せます。この計画の範囲を超えるので、別の計画書にします。
+- **推奨と根拠。** ループの 4 本だけを消す案を推奨します。どの文書からも、どの指示文からも読まれていないためです。無人の実行が読む 3 本と、`session-loader` と、製品のスキル 4 本は、残して語を直します。無人の実行がいまも動いているかは、確かめていません（未確認。最後の報告は 2026-11-01 です）。
+
+**7. `.claude/` の直下にある移行の文書を、動かすか。**
+
+- **何が起きているか。** 移行の元になる文書（`.claude/2026-05-04-cross-platform-migration.md`、Status は ACTIVE）は、計画書の置き場ではなく `.claude/` の直下にあります。検査は、計画書の置き場が 2 か所あると指摘しています。この文書は、55 ファイルから 121 回指されています。
+- **なぜ決める必要があるか。** 決めないと、Step 11 が、例外の行を書く作業なのか、ファイルを動かして 55 ファイルを直す作業なのかが決まりません。
+- **選ぶと何が起きるか。**
+  - 動かさずに例外の一覧に載せる案では、作業は例外の 1 行です。移行が完了したら、archive へ移します。
+  - 計画書の置き場へ動かす案では、55 ファイルの参照を直します。過去の記録（決定の記録 8 本以上）の中の参照も変わります。
+- **推奨と根拠。** 動かさない案を推奨します。移行の残りは、文書の書き換え 3 つと完了の判定だけで、完了すれば archive へ移るためです。
 
 ### 仮定として置いたもの
 
 - **CI が使う担当表の検査。** `scripts/docs-lint.sh` の検査が、消す予定の `scope-overlap.mjs` を回します。CI の環境には共通の道具がありません。「共通の版があるときだけ回し、無ければ警告して飛ばす」形に直します。手元で CI を流すコマンドが文書の検査を回すので、この PC では、いままでどおり確かめられます。
 - **積んだ PR。** このリポジトリの merge の方式は squash のままにします。共通の決まりは、積んだ PR を merge commit で入れます。このリポジトリは、前の PR が main に入ってから次のブランチを切る決まりなので、PR を積みません。
-- **報告書の置き場と、移行の元になる文書の置き場。** どちらも動かしません。動かすと、報告書は Artifact と Note からのリンクが切れ、移行の元になる文書は 55 ファイルからの参照が切れます。例外の一覧に載せる行の案を、claude-dotfiles へ渡します。
+- **報告書の置き場。** `.claude/docs/reports/` のまま動かしません。動かすと、Artifact と Note からのリンクが切れます。元になる計画も、例外にする案を推奨しています。例外の一覧に載せる行の案を、claude-dotfiles へ渡します。
+- **無人の実行の指示文と起動役。** `.claude/automation/` は、この計画では扱いません。merge の方針を引いている 2 行（Step 8）だけを直します。
 
 ---
 
@@ -184,6 +196,8 @@ claude-dotfiles の `claude/CLAUDE.md`・`claude/rules/`・`claude/skills/` は 
 .claude/docs/requirements/tier-*.md
 .claude/docs/reports/2026-08-06-context-fixed-cost-baseline.md
 scripts/docs-lint.sh
+.github/pull_request_template.md
+.gitignore
 AGENTS.md
 .agents/**
 .codex/**
@@ -202,8 +216,8 @@ AGENTS.md
 | 1 | 始める条件を確かめます | 人手 | 決めてもらう点の答えと、検査の基準の件数が、Worklog にある |
 | 2 | Codex 用の入口の 8 ファイルを消します | 自律 | `git ls-files AGENTS.md .agents .codex` が何も出さない |
 | 3 | 設定に、共通の道具が読む値を足します | 自律 | 共通の `profile.mjs` で読んで、`errors` と `warnings` が空である |
-| 4 | 共通の側に無い中身を、残る文書へ移します | 自律 | 移した 5 件が移し先にあることを、PR の本文に grep で示す |
-| 5 | 番号を付ける決まりと、番号を読む道具を直します | 人手 | `node .claude/scripts/records.mjs check` が、新旧の両方の名前で通る |
+| 4 | 共通の側に無い中身を、残る文書へ移します | 自律 | 移した 6 件が移し先にあることを、PR の本文に grep で示す |
+| 5 | 番号を付ける決まりと、番号を読む道具を直します | 人手 | `node .claude/scripts/records.mjs check` が、新旧の両方の名前のファイルを確かめる |
 | 6 | 判断の聞き方を合わせます | 人手 | `rules/decision-queue.md` が、対話のチャットの聞き方を AskUserQuestion と書いている |
 | 7 | 入口の文書から経緯を外します（節ごとに 1 本の PR） | 自律 | 入口の文書が 7,600 tok 以下で、消した記述が移し先にある |
 | 8 | 共通の道具へ切り替えます（claude-dotfiles が hook を登録する日） | 人手 | 止まるはずの `gh pr merge` と `gh issue create` を、共通の hook が止める |
@@ -256,7 +270,7 @@ AGENTS.md
 
 **Step 4。共通の側に無い中身を、残る文書へ移します。**
 
-- 移すのは 5 件です。整合の監査の 7 つの観点（`issue-dispatch` の 97〜104 行）、休んでいるチャットを起こす 1 行の指示文、Orca（worktree を並べて開く道具）のターミナルを閉じる手順、同じ区分の臨時の worktree を並べて立てない決まり、GitHub Actions が支払いのロックで止まっている事実です。
+- 移すのは 6 件です。整合の監査の 7 つの観点（`issue-dispatch` の 97〜104 行）、休んでいるチャットを起こす 1 行の指示文、Orca（worktree を並べて開く道具）のターミナルを閉じる手順、同じ区分の臨時の worktree を並べて立てない決まり、GitHub Actions が支払いのロックで止まっている事実、課題を配るときの決まり（`worktree-policy` の 102〜106 行。計画書は main のチャットが一時の worktree から push する、作業の一覧の文書を別に作らない）です。
 - 移し先は、`docs-workflow` スキルと、worktree の決まりの元になる計画書（`2026-05-24-multi-chat-worktree-policy.md`）です。入口の文書には足しません。
 - 元のスキル 3 本は、この Step では消しません。
 
@@ -266,7 +280,7 @@ AGENTS.md
 - `decisions/README.md` と `decisions/_TEMPLATE.md` の名前の形を、「日付 + 中身を表す英語の名前」に直します。claude-dotfiles の `claude/docs/decisions/README.md` に合わせます。
 - `comm/decisions/README.md` の見出しと回答の一覧の形を、番号の無い形に直します。
 - 計画書のひな形（`.claude/docs/vision/plans/_TEMPLATE.md`）の、方針の番号と決定の番号を、名前に直します。
-- `records.mjs` を、新旧の両方の名前を読めるように直します。テスト（`records.test.mjs`）を新しく書きます。テストは、過去の名前のファイル、新しい名前のファイル、両方が混ざった回答の一覧の 3 つを確かめます。
+- `records.mjs` を、新旧の両方の名前を読めるように直します。テスト（`records.test.mjs`）を新しく書きます。テストは、過去の名前のファイル、新しい名前のファイル、両方が混ざった回答の一覧の 3 つを確かめます。新しい名前のファイルに欠けた項目があるとき、`check` が指摘することも確かめます。いまの道具は、新しい名前のファイルを黙って読み飛ばすためです。
 - 方針（`P-001`〜`P-008`）は 8 本だけなので、番号は見出しに残し、現行の文書からは名前で呼びます（方針「merge はこうだいさんが決める」など）。
 
 **Step 6。判断の聞き方を合わせます（決めてもらう点 3 の答えに従います）。**
@@ -279,17 +293,27 @@ AGENTS.md
 - 進行中の計画書の Step 3〜6 を引き継ぎます。節ごとに 1 本の PR にします。順番は、機能の重さの表の節、AI 連携の節と動作環境の節、hook の説明、の順です。最後に、大きさの上限の検査を `scripts/docs-lint.sh` に足します。
 - 経緯を外すときに、決定を番号ではなく中身の名前で書きます。経緯が要る所にだけ、決定の記録のパスを添えます。
 - 消した記述が移し先にあることを、PR の本文に grep で示します。
+- 取り込んだ計画書は、最初の PR で Status を SUPERSEDED にし、`.claude/archive/` へ移します。文書の検査が、SUPERSEDED の計画書を計画書の置き場に残すことを許さないためです。その計画書を指すリンクも直します。
 - hook の説明の節（115 行のあたり）は、Step 8 が書き換えます。Step 8 が先に入った場合は、その節を飛ばします。
 
 **Step 8。共通の道具へ切り替えます（決めてもらう点 1 と 4 の答えに従います）。**
 
 claude-dotfiles の PR #106 が main に入り、claude-dotfiles が 2 本の hook を登録する日と、同じ日に入れます。
 
+- 先に済ませる Step は、2（Codex 用の入口）、3（設定の値）、4（中身を移す）、5（新しい名前の決定の記録を読めるようにする）です。決めてもらう点の 1 と 4 の答えも要ります。hook を登録する日は、これがそろった日に決めます。Step 5 より先に入れると、この Step で足す決定の記録が、検査を通らないまま入ります。
 - `.claude/settings.json` の hook の登録 6 本を消します。`records.mjs index` の 1 本は残します。
 - 消すファイルは 17 本です。スキル 3 本（`merge-round`・`worktree-policy`・`issue-dispatch`）、`.claude/scripts/merge-round.mjs` とそのテスト、`.claude/hooks/` の 8 本（`merge-gate.mjs`、`lib/hook-context.mjs` とそのテスト、`.sh` の 5 本）、`.claude/scripts/hooks-lib/` の 4 本です。
 - `.claude/scripts/scope-overlap.mjs` とそのテストの 2 本も消し、`scripts/docs-lint.sh` の担当表の検査を、「共通の版があるときだけ回す」形に直します。
-- `.claude/issue-workflow.md` を直します。`mainCheckout` と `worktreeRoot` を、相対パス（`.` と `../workspaces/life-editor`）に変えます。`mergePolicy` を書き換えます。「仕上げ」の節は、手順の参照先を共通の `merge-round` スキルに変え、merge のコマンドの形と、承認の印を消す項目を削ります。共通の `merge-round.mjs check` がコマンドを表示し、承認の印は共通の側に無いためです。
-- 方針の文書（`POLICY.md` の 6 行目）を書き換え、新しい決定の記録を足します。merge の方針を引いている現行の文書（`.claude/CLAUDE.md` の 103・115・119・124 行、`.claude/automation/README.md` の 65 行、`.claude/automation/run-routine.ps1` の 21 行のコメント、`add-feature` スキルの 76 行、`claude-md-layering.md` の 57 行と 70〜73 行）を合わせます。`run-routine.ps1` は、UTF-8 の BOM（ファイルの先頭の印）を保ちます。
+- 消すスクリプトを呼ぶ現行の文書を、共通のパスに直します。
+  - 拾い方は、`git grep -n "scope-overlap.mjs"` と `git grep -n "scripts/merge-round.mjs"` です。
+  - 分かっている場所は、`.claude/issue-workflow.md` の 57 行（Issue を選ぶときの重なりの確認）と 103〜106 行（全体確認の手順）、計画書のひな形（`_TEMPLATE.md`）の 68 行、`.claude/CLAUDE.md` の 124 行、`.github/pull_request_template.md` の 15 行です。
+  - 直さないと、全体確認が、毎回「スクリプトが無い」で失敗します。共通の版は、同じオプションを持っています。
+- 消すスキルと hook を名指しする現行の文書も直します。`.claude/CLAUDE.md` の 115・119・142・146 行、`rules/records.md` の 54 行、`docs-workflow` スキルの 12 行、`.gitignore` の 61 行、`scripts/docs-lint.sh` の 39 行です。
+- `.claude/issue-workflow.md` の設定を直します。`mainCheckout` と `worktreeRoot` を、相対パス（`.` と `../workspaces/life-editor`）に変えます。`mergePolicy` を書き換えます。
+- `.claude/issue-workflow.md` の「仕上げ」の節を直します。手順の参照先を、共通の `merge-round` スキルに変えます。merge のコマンドの形と、承認の印を消す項目は削ります。共通の `merge-round.mjs check` がコマンドを表示し、承認の印は共通の側に無いためです。
+- `.claude/issue-workflow.md` の、merge の方針を述べる 3 行（45 行・121 行・152 行）を、新しい方針に合わせます。
+- 方針の文書（`POLICY.md` の 6 行目）を書き換え、新しい決定の記録を足します。
+- merge の方針を引いているほかの現行の文書を合わせます。`.claude/CLAUDE.md` の 103 行、`.claude/automation/README.md` の 65 行、`.claude/automation/run-routine.ps1` の 21 行のコメント、`add-feature` スキルの 76 行、`claude-md-layering.md` の 57 行と 70〜73 行です。`run-routine.ps1` は、UTF-8 の BOM（ファイルの先頭の印）を保ちます。
 - 担当表（`.claude/scripts/lane-ownership.json` の 217 行目）の持ち主の名前を、`chat-main` から `main` に直します。共通の道具は、main の checkout を `main` と数えるためです。入れる前に、共通の `scope-overlap.mjs` で、main のチャットが持ち主に数えられることを確かめます。
 - 入れたあとに、main の checkout で次を確かめます。止まらなければ、この PR を revert します。
   - `node ~/.claude/skills/merge-round/scripts/merge-round.mjs status` が、設定の不足を表示せずに終わる。
@@ -306,20 +330,20 @@ claude-dotfiles の PR #106 が main に入り、claude-dotfiles が 2 本の ho
 
 **Step 10。共通の側から外す記述の受け皿を作ります。**
 
-- claude-dotfiles の `claude/CLAUDE.md` から外す予定の規約 3 行（TypeScript の strict と公開 API の戻り値の型、React の関数コンポーネント、named export）を、`rules/frontend.md` の命名の節に足します。strict は tsconfig が守っているので、文書に無いのは、戻り値の型の 1 つです。
+- claude-dotfiles の `claude/CLAUDE.md` から外す予定の規約は 3 行です（TypeScript の strict と公開 API の戻り値の型、React の関数コンポーネント、named export）。React の 1 行は、`rules/frontend.md` の命名の節に足します。TypeScript の 2 行は、`.claude/CLAUDE.md` の Coding Standards の節に 1 行で足します。`rules/frontend.md` が読まれるのは `shared/src/` と `web/src/` を扱うときだけで、TypeScript は `mcp-server/` と `desktop/` にもあるためです。strict は tsconfig が守っているので、文書に無いのは、戻り値の型の 1 つです。
 - claude-dotfiles の `claude/settings.json` にある、このリポジトリだけの説明 6 行（クラウドの事業者、秘密の値の置き場など）の移し先を決めます。自動で判断するモードが、どの設定ファイルを読むかは、確かめていません（未確認）。Claude Code の文書で確かめてから、移し先を決めます。
 - 受け皿ができたら、claude-dotfiles の側が 2 つを外します。
 
 **Step 11。置き場の例外と、古い進捗の記録を扱います。**
 
-- 報告書の置き場（`.claude/docs/reports/`）、移行の元になる文書の置き場（`.claude/` の直下）、判断待ちの置き場（`.claude/comm/decisions/`）を、例外の一覧に載せる行の案にして、claude-dotfiles へ渡します。
+- 報告書の置き場（`.claude/docs/reports/`）と、判断待ちの置き場（`.claude/comm/decisions/`）を、例外の一覧に載せる行の案にして、claude-dotfiles へ渡します。移行の元になる文書の置き場（`.claude/` の直下）は、決めてもらう点 7 の答えに従います。
 - 30 日以上変わっていない進捗の記録（memory 29 本、history 54 本）を、task-tracker の月ごとの退避の決まりで片付けられるかを調べ、結果を Worklog に書きます。片付ける場合は、別の PR にします。
 
 **Step 12。検査を取り直し、結果を報告します。**
 
 - `check-project.mjs` のエラーが、例外の一覧に載せたものを除いて 0 件であることを確かめます。
 - `node scripts/local-ci.mjs` が通ることを確かめます。
-- 検査が誤って指摘したものと、進め方で詰まった点を、claude-dotfiles の計画書の Worklog に書きます。
+- 検査が誤って指摘したものと、進め方で詰まった点を、claude-dotfiles の計画書の Worklog に書きます。引き渡しの一覧の `areaWorkspaces` の案は、順番が逆です（`shared-fix` を先に書くのが正しい形です）。この直しも、あわせて渡します。
 - この計画書を `.claude/archive/` へ移します。
 
 ---
@@ -335,7 +359,8 @@ claude-dotfiles の PR #106 が main に入り、claude-dotfiles が 2 本の ho
 - [ ] `node .claude/scripts/context-cost-measure.mjs` で、`.claude/CLAUDE.md` が 7,600 tok 以下
 - [ ] `LC_ALL=C bash scripts/docs-lint.sh` が OK
 - [ ] `node scripts/local-ci.mjs` の全部の手順が exit 0
-- [ ] 完了時に、この計画書と、取り込んだ計画書（`2026-11-11-claude-md-history-offload.md`）の Status を更新した
+- [ ] `git grep -n "\.claude/scripts/scope-overlap.mjs\|\.claude/scripts/merge-round.mjs" -- .claude/CLAUDE.md .claude/issue-workflow.md .claude/rules .claude/skills .claude/docs/vision/plans/_TEMPLATE.md .github` が何も出さない
+- [ ] 完了時に、この計画書と、取り込んだ計画書（`2026-11-11-claude-md-history-offload.md`）の Status を更新し、どちらも `.claude/archive/` へ移した
 
 ---
 
@@ -346,6 +371,7 @@ claude-dotfiles の PR #106 が main に入り、claude-dotfiles が 2 本の ho
 - **hook が 2 組動く時間があります。** Step 8 の当日、claude-dotfiles の登録から、このリポジトリの PR が main に入るまでの間です。同じ commit を 2 回確かめるだけで、止める判定が増える方向なので、壊れはしません。merge の形だけが食い違います（Step 8 の最後の項目）。
 - **秘密の値の検査が、共通の hook に移ります。** `.mcp.json` に平文の秘密の値を書く commit を止める hook です。Step 8 で、切り替えたあとに動くことを確かめます。
 - **経緯を消すと、理由を推測で埋めるおそれがあります。** 入口の文書には、決まりの理由を 1 文残します。経緯は、決定の記録のパスで指します。
+- **改行。** このリポジトリのファイルは、作業ツリーで CRLF です。スクリプトでまとめて書き換えるときは、前後で `git ls-files --eol` を見て、改行が混ざっていないことを確かめます。
 - **ほかの worktree。** 4 つの worktree と、別の clone（`C:/Users/user/dev/life-editor`）には、未コミットの変更がありません。Step 8 を取り込むと、古い hook のファイルが消えます。動いているセッションは、取り込んだあとで始め直します。
 
 ---
@@ -364,4 +390,4 @@ claude-dotfiles の PR #106 が main に入り、claude-dotfiles が 2 本の ho
 
 ## Worklog
 
-- 2026-11-15: 計画書を書きました。検査の基準は、main の `09d67344` で、エラー 247 件・警告 5 件です。調べたのは、番号を付ける決まりと文書の置き場、共通の道具と重なるスキル・hook・設定、Codex 用の入口の 3 つです。コードと設定は、何も変えていません。
+- 2026-11-15: 計画書を書きました。検査の基準は、main の `09d67344` で、エラー 247 件・警告 5 件です。調べたのは、番号を付ける決まりと文書の置き場、共通の道具と重なるスキル・hook・設定、Codex 用の入口の 3 つです。コードと設定は、何も変えていません。別の役の確認で、止める指摘が 2 件出ました（消すスクリプトを呼ぶ文書の抜け、会話で使われていないスキルの前提のずれ）。どちらも直してあります。
