@@ -41,7 +41,7 @@ claude-dotfiles の `claude/CLAUDE.md`・`claude/rules/`・`claude/skills/` は 
 - **番号を読む道具。** `.claude/scripts/records.mjs` が、決定の記録のファイル名・見出し・回答の一覧を、番号の形の正規表現で読みます。CI の文書の検査（`scripts/docs-lint.sh` の 124 行目）が、この道具を回します。この道具は、名前が `D-` で始まるファイルだけを拾います。そのため、番号の無い名前のファイルを足しても、エラーは出ず、検査と索引の対象から外れます。この道具にテストはありません。
 - **番号の量。** 決定の記録は 205 本あります。番号は、現行の決まりの文書に約 90 回、過去の記録に約 1,830 回、`.claude/` の外のコードのコメントに 266 回出てきます。
 - **hook（Claude Code 本体が決まった場面で自動で動かすスクリプト）。** `.claude/settings.json` に 7 本の登録があります。6 本は、claude-dotfiles の 2 本（`bash-guards.mjs` と `project-session-start.mjs`）に置き換わります。残る 1 本（`records.mjs index`）は、このリポジトリだけのものです。このリポジトリだけの判定を持つ hook は、ありません。
-- **設定。** `.claude/issue-workflow.md` の `## 設定値` には 10 項目があります。共通の道具が読む 7 項目（`mergeMethod` など）は、1 つもありません。Step 3 では、この 7 項目に、このリポジトリのいまの手順が定数で持っている 3 項目を合わせた、10 項目を足します。`mainCheckout` と `worktreeRoot` は、個人の PC の絶対パスです。
+- **設定。** `.claude/issue-workflow.md` の `## 設定値` には 9 項目があります。共通の道具が読む 7 項目（`mergeMethod` など）は、1 つもありません。Step 3 では、この 7 項目に、このリポジトリのいまの手順が定数で持っている 3 項目を合わせた、10 項目を足します。`mainCheckout` と `worktreeRoot` は、個人の PC の絶対パスです。
 - **merge の決まり。** 方針の文書（`.claude/comm/decisions/POLICY.md` の `P-001`）が、「merge は、こうだいさんが行うか、こうだいさんが merge の手順を起動した回だけ行う」と定めています。現行の文書の 14 ファイルが、この方針を引いています。共通の決まりは、手順と検証の条件を満たした PR を、確認なしで merge してよいとしています。
 - **判断の聞き方。** `.claude/rules/decision-queue.md` は、判断を `.claude/comm/decisions/` のファイルに書いて次へ進む方式です。共通の決まりは、最後の報告のあとに AskUserQuestion（選択式の質問）でまとめて聞く方式です。
 - **Codex（別の AI コーディング道具）用の入口。** 8 ファイルあります（`AGENTS.md`、`.agents/skills/` の 4 本、`.codex/` の 3 本）。こうだいさんは 2026-11-14 に、すべて消すと決めました。`.codex/hooks.json` が呼ぶ hook の 4 本は、Claude Code も使っています。そのため、この 4 本は Codex の片付けでは消さず、共通の hook へ切り替える Step で消します。
@@ -249,7 +249,7 @@ AGENTS.md
 
 **Step 3。設定に、共通の道具が読む値を足します。**
 
-- `.claude/issue-workflow.md` の `## 設定値` に、次の値を足します。いまの 10 項目は変えません。
+- `.claude/issue-workflow.md` の `## 設定値` に、次の値を足します。いまの 9 項目は変えません。
 
   ```json
   "mergeMethod": "squash",
@@ -266,6 +266,7 @@ AGENTS.md
 
 - 値の根拠は、いまの merge の手順のスクリプトが持つ定数です。`areaWorkspaces` は、`shared-fix` を先に書きます。いまの手順が、`shared-fix` の題の先頭の名前を先に当てているためです。`harnessOnlyPaths` は、Step 2 で消す `.agents` と `.codex` を除いた形です。
 - この Step では、値を足すだけにします。いまの台本は、名前を挙げた項目だけを設定から読むので、動きは変わりません。`mainCheckout` と `worktreeRoot` を相対パスに変える直しは、Step 8 で行います。相対パスを絶対パスに直す部品が、claude-dotfiles の PR #106 にあるためです。
+- 確かめ方は、`node <claude-dotfiles の PR #106 の worktree>/claude/skills/issue-workflow/scripts/profile.mjs <このリポジトリの場所>` です。引数は、設定のファイルではなく、リポジトリの場所です。
 - 2026-11-15 に、この値の写しを共通の `profile.mjs` に読ませて、`errors` と `warnings` が空になることを確かめました。共通の担当表の検査（`scope-overlap.mjs --check-map`）も通りました。
 
 **Step 4。共通の側に無い中身を、残る文書へ移します。**
