@@ -14,6 +14,16 @@
   "maxImplementers": 3,
   "maxIssuesPerRun": 8,
   "minFreeGb": 6,
+  "mergeMethod": "squash",
+  "ciCommand": "node scripts/local-ci.mjs",
+  "ciWorkflow": "ci.yml",
+  "recordBranchPattern": "^chore/(?:tracker|outbox|routine)-(?:(?<workspace>.+?)-\\d{8})?",
+  "harnessOnlyPaths": [".claude/**", ".github/**", "scripts/**", "*.md"],
+  "migrationPaths": ["supabase/migrations/**"],
+  "mechanicalFiles": ["**/*.md", "**/package-lock.json", "**/yarn.lock", "**/pnpm-lock.yaml", "**/Cargo.lock", "**/i18n/locales/*.json"],
+  "areaWorkspaces": { "shared-fix": "{{titleTag}}", "section:*": "*" },
+  "workspaceMapPath": ".claude/scripts/lane-ownership.json",
+  "issueCreation": "main-only",
   "mergePolicy": "P-001: merge はこうだいさんが打つか、こうだいさんが chat-main で merge-round を起動したときだけ行う。例外として、起動前の確認でこうだいさんが merge-round まで回すと選んだ実行では、work-finishers がその実行の PR に限って merge-round を回す"
 }
 ```
