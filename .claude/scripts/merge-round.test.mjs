@@ -164,7 +164,7 @@ test("Issue 番号の依存は、それを Refs に書いた merge 済み PR で
 test("ハーネス・文書・CI の設定・開発用スクリプトだけを変える PR は、Refs が無くても merge の対象にする", () => {
   // #2711 と同じ形: CLAUDE.md・vision 文書・ci.yml のコメント・直下の md の削除
   assert.equal(harnessOnly([".claude/CLAUDE.md", ".claude/docs/vision/claude-md-layering.md", ".github/workflows/ci.yml", "ai-context.md"]), true);
-  assert.equal(harnessOnly([".claude/scripts/merge-round.mjs", "scripts/local-ci.mjs", ".agents/x.md", ".codex/y.toml", "README.md"]), true);
+  assert.equal(harnessOnly([".claude/scripts/merge-round.mjs", "scripts/local-ci.mjs", ".claude/x.md", ".github/y.yml", "README.md"]), true);
 });
 
 test("製品のコードを 1 つでも含む PR、直下の md 以外のファイル、変わったファイルが取れない PR は対象にしない", () => {
