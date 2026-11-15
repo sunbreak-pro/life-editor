@@ -10,7 +10,7 @@
 //
 // 決定の名前は 2 つの形を読みます。2026-11-15 からの新しい記録は `YYYY-MM-DD-<英語の名前>` です。
 // それより前の 205 本は、`D-YYYYMMDD-<chat>-<n>` のまま書き直しません（計画書
-// docs/vision/plans/2026-11-15-align-with-shared-rules.md でこうだいさんが決めました）。
+// archive/2026-11-15-align-with-shared-rules.md でこうだいさんが決めました）。
 // キューの見出しと ANSWERS.md の行も、同じ 2 つの形で読みます。
 // リンク実在チェックは持たない — それは scripts/docs-lint.sh (a) の担当（検査の非複製）。
 //
