@@ -9,7 +9,7 @@ paths:
 > CLAUDE.md §6 の詳細。`shared/` / `web/` のファイルを扱う時のみ自動ロードされる。
 > 作成手順は `add-component` スキル、デザイン判断は `frontend-react-designer` スキル（rules = 不変式と表、skills = 手順）。
 
-## UI 2 層モデル（W0 2026-06-07 確定 = 案 A）
+## UI 2 層モデル（2026-06-07 に UI 集約方針として確定）
 
 - 新規 UI は `shared/src/components/`（部品層）に集約し、画面層は `web/src/`。Web / Electron / Capacitor の 3 配布形態が同一ソースを共用する（デザインシステム + `lumen-*` トークン + i18n en/ja catalog も `shared/` 側）。詳細 → `docs/vision/coding-principles.md §6`。旧 `frontend/`（Tauri 時代）は 2026-07-11 削除済み（#197・復元 = git tag `pre-tauri-removal`）
 
@@ -22,6 +22,7 @@ paths:
 ## 命名（プロジェクト固有のみ）
 
 - Context Value 型は PascalCase ファイル名: `AudioContextValue.ts`。他は一般的 TS/React 慣習（コンポーネント PascalCase / フック `use`+camelCase / 定数 SCREAMING_SNAKE_CASE）
+- コンポーネントは関数コンポーネントとフックで書き、クラスのコンポーネントを避ける
 
 ## Sync の再取得はドメイン単位（#499）
 
@@ -82,15 +83,15 @@ Realtime の変更通知は**ドメインごとのカウンタ**（一覧は `sh
 
 ## テスト環境の制約（座標に依存する入力経路を作らない）
 
-jsdom にレイアウトが無い（座標がすべて 0）という環境の事実の正本は **CLAUDE.md §7.1**。`shared/tests/` も同じで、`elementFromPoint` は null・画面座標を文書位置へ戻す経路（ProseMirror の `posAtCoords` と、その上に載る `handleClickOn` / `handleClick`）は検証できない。
+jsdom にレイアウトが無い（座標がすべて 0）という環境の事実の元になる文書は **CLAUDE.md §7.1**。`shared/tests/` も同じで、`elementFromPoint` は null・画面座標を文書位置へ戻す経路（ProseMirror の `posAtCoords` と、その上に載る `handleClickOn` / `handleClick`）は検証できない。
 
 - 規約: UI の入力経路は座標に依存しない形で組む — DOM イベント + `closest("[data-…]")` で対象を引く（実例 = `web/src/notes/itemLinkNode.ts` の `handleDOMEvents.click`）
-- **規約（ボタンの処理をどう固定するか。[`D-20260812-refactor-2`](../decisions/D-20260812-refactor-2.md) = A+B）: 既定は Testing Library で画面ごと render してハンドラを叩き、引数と呼び先を assert する**（実例 = `web/tests/trashScreenActions.test.tsx`）。**純関数を切り出して直接呼ぶ形は、その画面が jsdom に載らないときの逃げ道**（Provider 一式 + 実レイアウトが要る `CalendarTab` 等。実例 = `web/src/schedule/todoChipUndoWiring.ts`）— 載る画面で使うとテスト専用の間接層が 1 枚増えるだけになる
+- **規約（ボタンの処理をどう固定するか。[ボタンの処理を叩く経路の決定](../decisions/D-20260812-refactor-2.md)）: 既定は Testing Library で画面ごと render してハンドラを叩き、引数と呼び先を assert する**（実例 = `web/tests/trashScreenActions.test.tsx`）。**純関数を切り出して直接呼ぶ形は、その画面が jsdom に載らないときの逃げ道**（Provider 一式 + 実レイアウトが要る `CalendarTab` 等。実例 = `web/src/schedule/todoChipUndoWiring.ts`）— 載る画面で使うとテスト専用の間接層が 1 枚増えるだけになる
 
 ## Gotchas
 
 - **`cn` は tailwind-merge ではない**（`shared/src/components/cn.ts` = ただの文字列連結）。同じプロパティのクラスを 2 つ載せると**後から渡した方ではなく CSS の記述順が勝つ** — Tailwind v4 は接尾辞順に吐くので `.max-w-[860px]` は `.max-w-md` より上に来て負ける。**既定値を呼び出し側に上書きさせたい部品は `className` 任せにせず prop で出し分ける**（実例 = `Modal` の `size` / `padded`。860px を渡したタグ編集パネルが 448px で描かれていた = #830）
-- **狭幅の 44px タップ目標は呼び出し側で `max-md:min-h-11 max-md:min-w-11` を載せる**（#1512 = 共有部品 #1556 + 画面別 #1557〜#1562 / #1578 の 7 レーンで確立）。`--spacing-lumen-tap-min` は**名前に反して `1.75rem`**（既定 root 18px で 31.5px）で、`tokens.css` の `:has()` による icon-only ボタンのフロアも `TAP_TARGET` もこの値 — media gate が無く上げると Desktop の全アイコンボタンが太るので触らない。`Button` の size 表（`h-9` = 40.5px）も Desktop 十数箇所に効くので表は触らず、呼び出し側で足す（実例 = `ConfirmDialog.tsx`）。密な行（タブ帯）は箱を太らせず `TAP_TARGET_TALL`（透明な 44px の `::after`）で当たり判定だけ広げる — ただし `inset-x-0` なので**横には広がらず**、隣り合う 2 ボタン（Undo / Redo）には使えない。**監査は `getBoundingClientRect()` だけで判定しない**: `::after` が見えないので 44px を持つ control も 33 と出る。`document.elementFromPoint()` で外周を叩く（2026-09-09 の再計測手順・#1512 コメント）
+- **狭幅の 44px タップ目標は呼び出し側で `max-md:min-h-11 max-md:min-w-11` を載せる**（#1512 = 共有部品 #1556 + 画面別 #1557〜#1562 / #1578 の 7 つの担当で確立）。`--spacing-lumen-tap-min` は**名前に反して `1.75rem`**（既定 root 18px で 31.5px）で、`tokens.css` の `:has()` による icon-only ボタンのフロアも `TAP_TARGET` もこの値 — media gate が無く上げると Desktop の全アイコンボタンが太るので触らない。`Button` の size 表（`h-9` = 40.5px）も Desktop 十数箇所に効くので表は触らず、呼び出し側で足す（実例 = `ConfirmDialog.tsx`）。密な行（タブ帯）は箱を太らせず `TAP_TARGET_TALL`（透明な 44px の `::after`）で当たり判定だけ広げる — ただし `inset-x-0` なので**横には広がらず**、隣り合う 2 ボタン（Undo / Redo）には使えない。**監査は `getBoundingClientRect()` だけで判定しない**: `::after` が見えないので 44px を持つ control も 33 と出る。`document.elementFromPoint()` で外周を叩く（2026-09-09 の再計測手順・#1512 コメント）
 - **IME**: keydown 処理は **`isImeComposing(e)`（`shared/src/utils/imeGuard.ts`）必須**（日本語入力破壊防止）。`isComposing` を直に見ない — WebKit（macOS + iOS = 主ターゲット）は変換を**確定する** Enter を `isComposing: false` + `keyCode === 229` で飛ばすため、フラグ単独だと一番まずいキーだけ素通りする（#737。React 合成イベント・native イベントのどちらも同じヘルパで受ける）
 - **リッチテキスト**: TipTap
 - **DnD**: `@dnd-kit`。ツリーの入れ子は #418 で退役（2026-07-27 ユーザー判断、復活せず = 2026-08-27 確定）。**ツリー移動の API は Todos / Notes とも存在しない** — 旧 `moveNode` / `moveToRoot` は呼び出し元ゼロのまま残っていたため #1156 でフックごと削除した。並び替えは各リスト側の order 更新で行う

@@ -1,6 +1,6 @@
 # 画面が変わる計画は、デザインシステムと試作で UI / UX を確かめてから書く
 
-> 2026-10-28 こうだいさんの決定（[`D-20261028-main-1`](../decisions/D-20261028-main-1.md)・#2372）。計画書に書く欄は [`_TEMPLATE.md`](../docs/vision/plans/_TEMPLATE.md) の「UI / UX の確認」節。
+> 2026-10-28 こうだいさんの決定（[画面が変わる計画は先に UI / UX を確かめる決定](../decisions/D-20261028-main-1.md)・#2372）。計画書に書く欄は [`_TEMPLATE.md`](../docs/vision/plans/_TEMPLATE.md) の「UI / UX の確認」節。
 
 新しい機能と、見た目や操作の流れが変わる改修は、実装に入る前に画面の案を試作の中に作り、こうだいさんが確かめてから計画書を確定します。文字だけの計画書では、出来上がった画面が思っていたものと違うと実装のあとで分かり、作り直しになるためです。
 
@@ -11,7 +11,7 @@
 
 ## 使うもの
 
-- **デザインシステム**: Artifact の「Life Editor」（https://claude.ai/artifact/KPdEWuLhoeL9MdzRRa43Aa）。色・文字・余白・部品・文言の決まりはここに従います。値の正本はコードの `shared/src/styles/tokens.css` なので、食い違ったらコードを優先し、ずれを報告に書きます。
+- **デザインシステム**: Artifact の「Life Editor」（https://claude.ai/artifact/KPdEWuLhoeL9MdzRRa43Aa）。色・文字・余白・部品・文言の決まりはここに従います。値の元はコードの `shared/src/styles/tokens.css` なので、食い違ったらコードを優先し、ずれを報告に書きます。
 - **案を書き込む場所**: Claude Design の再現プロジェクト「Life Editor試作完成」の `Life Editor.dc.html`（https://claude.ai/design/p/90a82a78-0ef6-419a-80dd-0739acaa9df9?file=Life+Editor.dc.html&via=share）。今の画面の外枠と操作をほぼそのまま写した、動く試作です。新しい画布にゼロから描くより、今の画面と同じ外枠のまま見比べられるので、案はここに足します（2026-10-28 こうだいさんの指示）。単独の Claude Design は 2026-12-14 に Artifact へ移るので、移ったあとは移行先の Artifact に読み替えます。
 
 ## 手順
