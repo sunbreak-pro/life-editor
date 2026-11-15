@@ -74,7 +74,7 @@ gh issue list -R sunbreak-pro/life-editor --label section:<id> --state open と
 6. リンク切れ。
 7. 数値のずれ（magic number drift）。コードの定数と、文書に書かれた数値の差を探します。
 
-サブエージェントには、指摘ごとに重大度・証拠（file:line を全数）・誤検出の可能性を書かせます。人が抜き取りで確かめて通ったものだけを、Issue にします。
+サブエージェントには、指摘ごとに重大度・証拠（file:line を全数）・誤検出の可能性を書かせます。抜き取りで確かめて通ったものだけを、Issue にします。
 
 ## CI が止まっている間の確認
 
