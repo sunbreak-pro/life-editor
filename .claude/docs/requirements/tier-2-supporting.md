@@ -210,7 +210,7 @@ Notes / Dailies / Schedule Items など RichTextEditor を持つエンティテ�
 ## Feature: File Explorer
 
 **Tier**: 2
-**Status**: ✗RETIRED（移行 SSOT Phase 5-A 決定・機能ごと退役。以下の本文は履歴として保持 → CLAUDE.md §8）
+**Status**: ✗RETIRED（移行 SSOT Phase 5-A 決定・機能ごと退役。汎用 Database を凍結し File Explorer を退役する決定 = [`decisions/D-20260704-main-1.md`](../../decisions/D-20260704-main-1.md)。以下の本文は履歴として保持 → CLAUDE.md §8）
 **Owner Provider/Module**: `FileExplorerProvider` / `frontend/src/components/Materials/Files/` / `src-tauri/src/commands/{files,attachment}_commands.rs`
 **MCP Coverage**: —（旧 `list_files` / `read_file` / `write_file` / `create_directory` / `rename_file` / `delete_file` / `search_files` は 2026-07-26 #362 で退役。UI 退役後も残っていた分の後始末 → `tier-1-core.md` §MCP Server Boundary）
 **Platform**: Desktop only（Mobile では FileExplorerProvider 省略 — CLAUDE.md §2）
@@ -531,7 +531,7 @@ Life Editor の全 UI を en / ja で切替可能にする。Settings からい�
 ## Feature: Connect (Tag hub)
 
 **Tier**: 2
-**Status**: ◎稼働中（2026-08-29 新設 = #1171）
+**Status**: ◎稼働中（2026-08-29 新設 = #1171）。2026-10 に header タブを「タグ」と「目標と Todo」の 2 つにした（#2108。後者は目標の木の下に Todo がぶら下がる画面 = `web/src/connect/GoalsTodosScreen.tsx`）
 **Owner Provider/Module**: `shared/src/components/TagHub/` + `web/src/connect/ConnectScreen.tsx`
 **MCP Coverage**: —（データは WikiTags / リンクと共有。MCP 側の入口は `search_by_tag` / `search_all`）
 **Supports Value Prop**: 補助（タグ軸の閲覧導線 + タグマスタの編集所）
@@ -541,7 +541,7 @@ Life Editor の全 UI を en / ja で切替可能にする。Settings からい�
 
 タグを入口に Note / Todo / Event / Daily を種類別に読む「トピック軸の入口」。時間軸の入口 = Calendar との役割分担は #1153 の決定。旧 Connect の力学グラフは #1152 で退役済み（WikiTags 節「やらない」参照）で、本 Feature はその跡地に別物として再新設された。
 
-**2026-09-16（#1643）でタグマスタの編集所を兼ねる**（[`D-20260912-main-1`](../../decisions/D-20260912-main-1.md) Q1-A）。同じタグ一覧が本セクションのレールとタグ編集モーダルの 2 画面にあり、行の形まで揃えてあるのに編集できるのはモーダル側だけ、という二重保守を畳んだもの。モーダル（`shared/src/components/tagEdit/`）と、それを開いていた `web/src/tags/TagEditorHost.tsx` は削除済み。Mobile「その他」シートの「タグを編集」は本セクションへの遷移に差し替わった。wide 側のサイドバー行も同じ遷移にしたが、nav の「つながり」と行き先が同じで重複するため後に削除した。
+**2026-09-16（#1643）でタグマスタの編集所を兼ねる**（[`D-20260912-main-1`](../../decisions/D-20260912-main-1.md) Q1-A）。同じタグ一覧が本セクションのレールとタグ編集モーダルの 2 画面にあり、行の形まで揃えてあるのに編集できるのはモーダル側だけ、という二重保守を畳んだもの。モーダル（`shared/src/components/tagEdit/`）と、それを開いていた `web/src/tags/TagEditorHost.tsx` は削除済みで、レールの「…」と `TagHubEditBlock` が作成 / 改名 / アイコン / 色 / 削除を持つ。Mobile「その他」シートの「タグを編集」は本セクションへの遷移（`setSection("connect")`）に差し替わったが、その後 #1851（修正は #1968）で行ごと消した。同じシートに Connect がセクションとして並んでいて、2 行が同じ画面に着くためである（`web/src/MobileShellActions.tsx` の冒頭のコメント）。wide 側のサイドバー footer 行も同じ遷移にしたが、nav の「つながり」と行き先が同じで重複するため後に削除し、`SidebarNav` / `AppShell` から `onOpenTagEditor` ごと落ちている。
 
 ### Boundary
 

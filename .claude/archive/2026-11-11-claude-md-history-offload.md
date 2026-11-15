@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS # Step 1 は 2026-11-11 に回答済み（D-20261111-harness-1 = A）。Step 3 以降は PR #2711 の merge のあと
+Status: SUPERSEDED # 2026-11-15 に、Step 3〜6 を計画書 2026-11-15-align-with-shared-rules.md の Step 7 が取り込んだ
 Created: 2026-11-11
 Branch: claude/claude-md-slimming-plan
 Owner-chat: harness
@@ -117,4 +117,5 @@ Step 3〜5 は、どれも `.claude/CLAUDE.md` を触ります。同じファイ
 ## Worklog
 
 - 2026-11-11: Step 1 は、こうだいさんが A（経緯だけ先に移す）と回答した（D-20261111-harness-1）。Step 2 の再測定を `docs/reports/2026-08-06-context-fixed-cost-baseline.md` §10 に追記した。Step 3 以降は `.claude/CLAUDE.md` を触るので、同じファイルを触る PR #2711 の merge を待ってから、`origin/main` でブランチを切る。
+- 2026-11-15: こうだいさんは、この計画の Step 3〜6 を、計画書 `.claude/docs/vision/plans/2026-11-15-align-with-shared-rules.md` の Step 7 に取り込むと決めた。取り込んだ側は、経緯を外すときに決定の番号ではなく中身の名前を残す（共通の決まりに合わせるため）。大きさの上限（7,600 tok）と検査を足す段取りも、取り込んだ側が引き継ぐ。この計画書は SUPERSEDED にして `.claude/archive/` へ移した。Step 3（機能の重さの表の節の経緯を `docs/requirements/tier-*.md` へ移す）は、取り込んだ側の最初の PR で行った。
 
