@@ -12,7 +12,7 @@ paths:
 | 記録型            | 正本（SSOT）                                               | 書き手                    | 派生ビュー（手書き禁止）                       |
 | ----------------- | ---------------------------------------------------------- | ------------------------- | ---------------------------------------------- |
 | 判断（未決）      | `comm/decisions/chat-<n>.md`                               | 当該チャットのみ          | `decisions/INDEX.md` §Open（git 非追跡）       |
-| 判断（確定・Why） | `decisions/D-*.md`（1 決定 1 ファイル）                    | 起票チャット・昇格時 1 回 | `decisions/INDEX.md`（git 非追跡）             |
+| 判断（確定・Why） | `decisions/YYYY-MM-DD-<名前>.md`（1 決定 1 ファイル。過去は `D-*.md`） | 起票チャット・昇格時 1 回 | `decisions/INDEX.md`（git 非追跡）             |
 | 恒久裁定 1 行     | `comm/decisions/POLICY.md`                                 | ユーザー承認 PR のみ      | —                                              |
 | 進行中 / 履歴     | `memory/` + `history/` の `chat-<n>.md`                    | 当該チャットのみ          | 派生 INDEX（hook 生成・git 非追跡）            |
 | 計画              | `docs/vision/plans/*.md` → 完了で `archive/`               | Owner-chat                | `.claude/INDEX.md` §進行中の計画 / `archive/INDEX.md`（どちらも git 非追跡） |
@@ -21,15 +21,15 @@ paths:
 | 連絡              | `comm/outbox/chat-<n>.md`                                  | 当該チャットのみ          | digest                                         |
 
 - **派生ビューにしか存在しない情報を作らない**。索引・INDEX・digest への手書きは禁止（正本を書いて再生成する）
-- **同じ事実の 2 箇所目以降は本文転記でなく ID 参照**（`D-…` / `#NNN` / plan ファイル名 / `P-NNN`）にする — 数値の非複製原則（`docs-consistency.md` §1）の一般化。CLAUDE.md 等へ決定のインライン注記を新規に書くときも `D-…` の ID を必ず添える
+- **同じ事実の 2 か所目からは、本文を書き写さず、決定の中身の名前で呼ぶ**。要る所にだけ、決定の記録のパス（`decisions/YYYY-MM-DD-<名前>.md` の形）を添える。方針は番号でなく中身で呼ぶ（方針「merge はこうだいさんが決める」）。Issue は `#NNN`、計画書はファイル名で指す。数値の非複製原則（`docs-consistency.md` §1）を一般にしたものである。過去の記録（`D-…` の名前の 205 本）は書き直さず、新しく指すときも中身の名前で呼んでパスを添える
 
 ## 2. どこに書くか — 1 分判定
 
 ```
-不可逆操作の可否?              → 書かない。同期でユーザー確認（P-007）
+不可逆操作の可否?              → 書かない。同期でユーザー確認（方針「不可逆操作は同期で確認する」）
 恒久裁定にしたい?              → POLICY.md（ユーザー承認 PR のみ）
-A/B に割れるユーザー判断?      → comm/decisions/chat-<self>.md → 回答後 decisions/D-*.md へ昇格
-計画横断で効く設計判断（自裁）? → decisions/D-*.md（status: recorded。ただし UX が変わる分岐は P-005 = キュー必須）
+A/B に割れるユーザー判断?      → comm/decisions/chat-<self>.md → 回答後 decisions/<日付>-<名前>.md へ昇格
+計画横断で効く設計判断（自裁）? → decisions/<日付>-<名前>.md（status: recorded。ただし UX が変わる分岐は方針「体験が変わる分岐は実装で先行しない」= キュー必須）
 計画スコープ内の設計判断?      → その plan の決定録 / Worklog（横断化したら台帳へ昇格し ID 参照に置換）
 やったこと（事実）?            → history/chat-<self>.md（実装ブランチに載せない — D-20260801-main-1）
 今やってる / 次やること?       → memory/chat-<self>.md（3 件枠）
@@ -43,7 +43,7 @@ A/B に割れるユーザー判断?      → comm/decisions/chat-<self>.md → �
 
 ## 3. グラフ意味論（ノードとエッジ）
 
-- **ノード** = D ファイル / plan / known-issue / GitHub Issue（外部）/ POLICY 行
+- **ノード** = 決定の記録 / plan / known-issue / GitHub Issue（外部）/ POLICY 行
 - **エッジ型** = `supersedes` / `superseded-by`（裁定の置換 — 双方向。`records.mjs check` が欠落を検証）・`refs`（根拠・関連）・`implemented-by`（決定 → 実装）・`promoted-to`（決定 → POLICY）・`Parent` / `Previous`（plan 系譜 — 既存 frontmatter）・`topics`（逆引き）
 - **鮮度** = supersede 連鎖の末端 + `answered` 日付で判定する。**古くなった記録は書き換えず、後継ノードを追加して繋ぐ**（INDEX が Active だけを表に出す）
 - **無人セッションの読む順**（O(1) 状態把握・grep なし）: CLAUDE.md（自動）→ `.claude/INDEX.md` → `decisions/INDEX.md` §Open + `ANSWERS.md` → `memory/chat-<self>.md` → 自分宛 open Issue

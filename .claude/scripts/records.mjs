@@ -5,8 +5,13 @@
 //   node .claude/scripts/records.mjs index   # .claude/INDEX.md + decisions/INDEX.md + archive/INDEX.md を再生成
 //   node .claude/scripts/records.mjs check   # frontmatter スキーマ / supersede / ANSWERS 突合の検証（CI / docs-lint 用）
 //
-// 決定論の規約: 出力にタイムスタンプ・環境依存パスを含めない / ソートは ID のバイト順
+// 決定論の規約: 出力にタイムスタンプ・環境依存パスを含めない / ソートは日付 → ID のバイト順
 // （localeCompare 不使用）/ 改行 LF 固定 / 内容が同一なら書かない（無駄 diff ゼロ）。
+//
+// 決定の名前は 2 つの形を読む。2026-11-15 から新しい記録は `YYYY-MM-DD-<英語の名前>` で、
+// それより前の 205 本は `D-YYYYMMDD-<chat>-<n>` のまま書き直さない（計画書
+// docs/vision/plans/2026-11-15-align-with-shared-rules.md の Step 5）。キューの見出しと
+// ANSWERS.md の行も同じ 2 つの形で読む。
 // リンク実在チェックは持たない — それは scripts/docs-lint.sh (a) の担当（検査の非複製）。
 //
 // 出力 3 本（.claude/INDEX.md / decisions/INDEX.md / archive/INDEX.md）は git 非追跡の
@@ -26,6 +31,21 @@ const ARCHIVE_DIR = path.join(CLAUDE_DIR, 'archive');
 const STATUS_ENUM = ['answered', 'recorded', 'superseded', 'withdrawn'];
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const D_ID_RE = /^D-\d{8}-[a-z][a-z-]*-\d+$/;
+const NAMED_ID_RE = /^\d{4}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const isDecisionId = (s) => D_ID_RE.test(s) || NAMED_ID_RE.test(s);
+// ANSWERS.md とキューの見出しから ID を拾う形。過去の形は従来の読み取りより狭めない。
+const ID_IN_TEXT = String.raw`D-\d{8}-[a-z-]+-\d+|\d{4}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*`;
+const NOT_RECORDS = new Set(['README.md', '_TEMPLATE.md', 'INDEX.md']);
+
+/** 新旧どちらの ID からも YYYY-MM-DD を取り出す。並べる順を形によらず日付順にするため。 */
+const dateOf = (id) => (id.startsWith('D-') ? `${id.slice(2, 6)}-${id.slice(6, 8)}-${id.slice(8, 10)}` : id.slice(0, 10));
+// 過去の ID だけなら ID のバイト順と同じ並びになる（日付が ID の先頭に並ぶため）。
+const sortKey = (id) => `${dateOf(id)}\u0000${id}`;
+const sortById = (a, b) => {
+  const ka = sortKey(a.id);
+  const kb = sortKey(b.id);
+  return ka < kb ? -1 : ka > kb ? 1 : 0;
+};
 
 const errors = [];
 const err = (msg) => errors.push(msg);
@@ -71,7 +91,15 @@ function parseFrontmatter(text, file) {
   return fm;
 }
 
-function h1Title(text, file) {
+function h1Title(text, file, id) {
+  if (!id.startsWith('D-')) {
+    const m = text.match(/^# (.+)$/m);
+    if (!m) {
+      err(`${file}: H1 見出し（# 問い）がない`);
+      return '';
+    }
+    return m[1].trim();
+  }
   const m = text.match(/^# (D-[^:]+): (.+)$/m);
   if (!m) {
     err(`${file}: H1 見出し（# D-...: 問い）がない`);
@@ -84,16 +112,20 @@ function h1Title(text, file) {
 
 function scanDecisions() {
   if (!fs.existsSync(DECISIONS_DIR)) return [];
-  const files = fs.readdirSync(DECISIONS_DIR).filter((f) => /^D-.*\.md$/.test(f)).sort();
+  // 名前の形が崩れたファイルを黙って読み飛ばさないよう、索引とひな形以外の .md はすべて見る。
+  const files = fs.readdirSync(DECISIONS_DIR).filter((f) => f.endsWith('.md') && !NOT_RECORDS.has(f)).sort();
   const records = [];
   for (const f of files) {
     const rel = `decisions/${f}`;
+    const base = f.replace(/\.md$/, '');
+    if (!isDecisionId(base)) {
+      err(`${rel}: ファイル名が YYYY-MM-DD-<英語の名前>.md（新しい形）か D-YYYYMMDD-<chat>-<n>.md（過去の形）になっていない`);
+      continue;
+    }
     const text = read(path.join(DECISIONS_DIR, f));
     const fm = parseFrontmatter(text, rel);
     if (!fm) continue;
-    const base = f.replace(/\.md$/, '');
     if (fm.id !== base) err(`${rel}: id (${fm.id}) がファイル名と一致しない`);
-    if (!D_ID_RE.test(base)) err(`${rel}: ファイル名が D-YYYYMMDD-<chat>-<n>.md 形式でない`);
     if (fm.type !== 'decision') err(`${rel}: type は decision のみ（${fm.type}）`);
     if (!STATUS_ENUM.includes(fm.status)) err(`${rel}: status enum 外（${fm.status}）`);
     if (!DATE_RE.test(fm.asked ?? '')) err(`${rel}: asked が YYYY-MM-DD でない（${fm.asked}）`);
@@ -106,20 +138,20 @@ function scanDecisions() {
     for (const key of ['refs', 'supersedes', 'superseded-by', 'implemented-by']) {
       if (fm[key] !== undefined && !Array.isArray(fm[key])) err(`${rel}: ${key} は配列にする`);
     }
-    records.push({ id: base, file: rel, title: h1Title(text, rel), fm });
+    records.push({ id: base, file: rel, title: h1Title(text, rel, base), fm });
   }
-  // supersedes ⇔ superseded-by の双方向検証（D-ID 形式のエントリのみ。文書位置の文字列は対象外）
+  // supersedes ⇔ superseded-by の双方向検証（決定の ID の形のエントリのみ。文書位置の文字列は対象外）
   const byId = new Map(records.map((r) => [r.id, r]));
   for (const r of records) {
     for (const target of r.fm.supersedes ?? []) {
-      if (!D_ID_RE.test(target)) continue;
+      if (!isDecisionId(target)) continue;
       const t = byId.get(target);
       if (!t) err(`${r.file}: supersedes の ${target} が台帳に存在しない`);
       else if (!(t.fm['superseded-by'] ?? []).includes(r.id))
         err(`${t.file}: superseded-by に ${r.id} がない（${r.file} が supersedes 宣言済み — 双方向にする）`);
     }
     for (const target of r.fm['superseded-by'] ?? []) {
-      if (!D_ID_RE.test(target)) continue;
+      if (!isDecisionId(target)) continue;
       const t = byId.get(target);
       if (!t) err(`${r.file}: superseded-by の ${target} が台帳に存在しない`);
       else if (!(t.fm.supersedes ?? []).includes(r.id))
@@ -133,7 +165,7 @@ function scanAnswers() {
   const p = path.join(QUEUE_DIR, 'ANSWERS.md');
   if (!fs.existsSync(p)) return new Set();
   const ids = new Set();
-  for (const m of read(p).matchAll(/^- (D-\d{8}-[a-z-]+-\d+):/gm)) ids.add(m[1]);
+  for (const m of read(p).matchAll(new RegExp(`^- (${ID_IN_TEXT}):`, 'gm'))) ids.add(m[1]);
   return ids;
 }
 
@@ -142,13 +174,13 @@ function scanQueues(answeredIds) {
   const open = [];
   for (const f of fs.readdirSync(QUEUE_DIR).filter((n) => /^chat-.*\.md$/.test(n)).sort()) {
     const text = read(path.join(QUEUE_DIR, f));
-    for (const m of text.matchAll(/^##+ (D-\d{8}-[a-z-]+-\d+): (.+)$/gm)) {
+    for (const m of text.matchAll(new RegExp(`^##+ (${ID_IN_TEXT}): (.+)$`, 'gm'))) {
       if (answeredIds.has(m[1])) continue; // 回答済み（昇格待ち）は open に出さない
       if (/（取り下げ）\s*$/.test(m[2])) continue;
       open.push({ id: m[1], title: m[2].trim(), chat: f.replace(/^chat-|\.md$/g, '') });
     }
   }
-  open.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  open.sort(sortById);
   return open;
 }
 
@@ -223,7 +255,6 @@ function scanArchive() {
 
 // --- 生成 -------------------------------------------------------------------
 
-const sortById = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
 function renderDecisionsIndex(records, open) {
   const active = records.filter((r) => ['answered', 'recorded'].includes(r.fm.status) && (r.fm['superseded-by'] ?? []).length === 0).sort(sortById);
@@ -231,7 +262,7 @@ function renderDecisionsIndex(records, open) {
   const lines = [];
   lines.push('# Decisions Index');
   lines.push('');
-  lines.push('> **生成物 — 手編集禁止・git 非追跡の派生ビュー。** 再生成: `node .claude/scripts/records.mjs index`。正本 = 本ディレクトリの `D-*.md`（未決 = `comm/decisions/chat-*.md` キュー）。古ければ再生成する（→ [`README.md`](./README.md)）。');
+  lines.push('> **生成物 — 手編集禁止・git 非追跡の派生ビュー。** 再生成: `node .claude/scripts/records.mjs index`。正本 = 本ディレクトリの決定の記録（新しい形 `YYYY-MM-DD-<名前>.md`・過去の形 `D-*.md`）（未決 = `comm/decisions/chat-*.md` キュー）。古ければ再生成する（→ [`README.md`](./README.md)）。');
   lines.push('');
   lines.push('## Open（キュー — 回答待ち）');
   lines.push('');
@@ -315,7 +346,7 @@ function renderRootIndex(records, open, plans) {
   const lines = [];
   lines.push('# .claude INDEX — 記録の入口');
   lines.push('');
-  lines.push('> **生成物 — 手編集禁止・git 非追跡の派生ビュー。** 再生成: `node .claude/scripts/records.mjs index`（SessionStart hook でも自動実行。正本 = `decisions/D-*.md` + `docs/vision/plans/*.md`）。');
+  lines.push('> **生成物 — 手編集禁止・git 非追跡の派生ビュー。** 再生成: `node .claude/scripts/records.mjs index`（SessionStart hook でも自動実行。正本 = `decisions/` の決定の記録 + `docs/vision/plans/*.md`）。');
   lines.push('> 無人セッションの読む順: CLAUDE.md（自動ロード）→ 本ファイル → [`decisions/INDEX.md`](./decisions/INDEX.md) §Open + [`comm/decisions/ANSWERS.md`](./comm/decisions/ANSWERS.md) → `memory/chat-<self>.md` → 自分宛 open Issue。ここまで grep なしで届く。');
   lines.push('');
   lines.push('## 進行中の計画（`docs/vision/plans/` の Status 行より）');
