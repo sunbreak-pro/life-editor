@@ -77,4 +77,4 @@ Claude Code から触れるようにするなら `mcp-server/src/tools/` にツ�
 
 ## 実装中に計画外の変更が浮上したら
 
-**実装しません。** 現計画を続け、最後の報告のあとに AskUserQuestion で聞きます。無人の実行は、判断待ちの置き場（`.claude/comm/decisions/chat-<self>.md`）に書きます。Scope と AC の自己免除はしません（方針「実装中は範囲を凍結する」）。
+**実装しません。** 現計画を続け、最後の報告のあとに AskUserQuestion で聞きます。無人の実行は、判断待ちの置き場（`.claude/comm/decisions/chat-<self>.md`）に書きます。Scope と AC の自己免除はしません（方針「実装中スコープ凍結」。[`POLICY.md`](../../comm/decisions/POLICY.md)）。
