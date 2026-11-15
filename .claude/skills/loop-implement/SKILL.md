@@ -26,16 +26,16 @@ disable-model-invocation: true
 ## 停止条件（人間に返す）
 
 - 反復上限・時間上限に当たった
-- **DDL / migration が必要**と分かった（適用はユーザーの手番。ローカルファイル先行 → `supabase db push`）
+- **DDL / migration が必要**と分かった（適用はこうだいさんの作業。ローカルファイル先行 → `supabase db push`）
 - 宣言した Scope の外に手を入れないと進まない（広げず、計画書か Issue の更新を先に依頼する）
 - 要件が二義的で、どちらに倒すかで成果物が変わる（`decisions/chat-<self>.md` に A/B で書く）
 - 検証の失敗が環境起因に見える（切り分けをこのループでやらず、止めて報告する）
 
 ## 使ってよい道具
 
-- `lead-pipeline` スキル — 軽 / 中 / 重のティア判定と、どの工程を呼ぶかの采配表
-- `role-engineer` エージェント — 重ティアの実装主体（起動はメインが Agent ツールで行う。再帰起動は不可）
-- `session-verifier` スキル — 検証ゲートの正本。ゲートの中身をこのループに転記しない
+- `lead-pipeline` スキル — 作業の重さ（軽い・中くらい・重い）の判定と、どの工程を呼ぶかを決める表
+- `role-engineer` エージェント — 重い作業の実装主体（起動はメインが Agent ツールで行う。再帰起動は不可）
+- `session-verifier` スキル — 検証ゲートの元になる文書。ゲートの中身をこのループに転記しない
 - `worktree-policy` スキル — ブランチ切替・main 取り込み・マージ済み判定
 - `git-workflow` スキル — commit 規約と破壊的操作のガードレール
 
@@ -43,8 +43,8 @@ disable-model-invocation: true
 
 - **無人実行では `git push*` と `gh pr create*` が拒否される**（実体 = `run-routine.ps1` が `--settings` で渡す `.claude/automation/settings-unattended-implement.json` の deny。対話セッションの `permissions.ask` からは 2026-08-10 に外れている = #618）。だから本ループの完了条件は commit までで、無人実行では commit が残っていれば launcher が push して draft PR を作る（2026-09-26〜）。対話セッションで回すときの push / PR 作成は人間の判断
 - **メインリポジトリ直下は `main` 専有**。feature 作業は worktree から。ブランチを切り替えたら `.claude/comm/.session-branch` を必ず書き換える
-- **tracker（`memory/` + `history/`）を実装ブランチに載せない**（D-20260801-main-1）。並行ブランチが必ず衝突する。記録は merge 後に 1 commit でまとめ、PR 本文側に要約を書く
-- 検証コマンドは `shared` / `web` / `desktop` で別々に回す必要がある（`web` の lint は `web/` 配下しか歩かない）。一覧の正本は CLAUDE.md §7.1
+- **tracker（`memory/` + `history/`）を実装ブランチに載せない**（進捗の記録の衝突を避ける決定 `.claude/decisions/D-20260801-main-1.md`）。並行ブランチが必ず衝突する。記録は merge 後に 1 commit でまとめ、PR 本文側に要約を書く
+- 検証コマンドは `shared` / `web` / `desktop` で別々に回す必要がある（`web` の lint は `web/` 配下しか歩かない）。一覧の元になる文書は CLAUDE.md §7.1
 - **スキル / エージェントは全マシンで同じものが見える**（2026-08-10 に repo 内 vendor 化・`docs/known-issues/031-mac-only-symlinked-skills-agents.md`）。repo 外を指す symlink を新規追加しないこと
 
 ---
