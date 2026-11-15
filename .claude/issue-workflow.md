@@ -153,7 +153,7 @@ work-finishers が、main のセッションが `runtime: true` の印を付け�
 
 ## 仕上げ
 
-work-finishers が、実行のすべてのブランチが終わったあとに 1 度だけ行います。起動前の確認で merge まで回すと決まった実行だけです。手順は共通の `merge-round` スキルの「work-finishers が回すとき」に従い、対象はこの実行の PR（{{prs}}）だけにします。merge のコマンドの形は `merge-round.mjs check <n>` が表示します。ここには life-editor だけの決まりを書きます。
+work-finishers が、実行のすべてのブランチが終わったあとに 1 度だけ行います。台本の `merge` が `true` になった実行（`## 仕上げ` があり、承認が要る種類の Issue を選んでいない実行）だけです。手順は共通の `merge-round` スキルの「work-finishers が回すとき」に従い、対象はこの実行の PR（{{prs}}）だけにします。merge のコマンドの形は `merge-round.mjs check <n>` が表示します。ここには life-editor だけの決まりを書きます。
 
 1. `fixes` の前に、この実行の PR のうち open のものの `wf-*` の worktree を外します。場所は `git -C {{main}} worktree list --porcelain` で確かめ、`git -C {{main}} worktree remove <その場所>` で外します（理由は「実行のあと」の 2 つめの項目）。全体確認で落ちて PR のない `wf-*` は外しません。
 2. `supabase db push` は打ちません。Issue も close しません。どちらもこうだいさんか chat-main の作業です。
@@ -162,7 +162,7 @@ work-finishers が、実行のすべてのブランチが終わったあとに 1
 
 chat-main（リポジトリ直下の main の checkout）が、実行の報告を受けて次を行います。
 
-- **merge は共通の `merge-round` の回で進めます。** 起動前の確認で merge まで回すと決まった実行では、work-finishers が仕上げとして merge-round を回します（`## 仕上げ`）。仕上げを回さなかった実行の PR と、承認が要るファイルを変えるので仕上げ役が飛ばした PR は、chat-main が merge-round を回して入れます。承認が要る PR は、hook の確認でこうだいさんがその場で決めます。
+- **merge は共通の `merge-round` の回で進めます。** 台本の `merge` が `true` になった実行（`## 仕上げ` があり、承認が要る種類の Issue を選んでいない実行）では、work-finishers が仕上げとして merge-round を回します（`## 仕上げ`）。仕上げを回さなかった実行の PR と、承認が要るファイルを変えるので仕上げ役が飛ばした PR は、chat-main が merge-round を回して入れます。承認が要る PR は、hook の確認でこうだいさんがその場で決めます。
 - **PR が open の `wf-*` の worktree は、merge-round の「衝突と確認の赤を振り分ける」（`fixes`）より前に外します。** main の checkout で `git worktree remove <worktreeRoot>/wf-<番号>` を打ちます。ブランチは origin に残るので、PR はそのまま動きます。共通の `merge-round.mjs` は、main の checkout の外にある worktree を、自分が作る一時 worktree（`merge-verify`・`autofix-*`）を除いてすべて担当の作業場所に数えるためです。残しておくと、誰もいない worktree 宛てに `/goal` の指示文が出ます。chat-main が衝突を直す autofix も、「レーンがブランチを開いている」と判定されて止まります。PR のない `wf-*`（全体確認で落ちたもの）は外さずに残します。
 - **実ブラウザでの確認は、印の付いた PR を work-finishers が、残りを chat-main がします。** `runtime: true` の印を付けた Issue の PR は、work-finishers の動作確認（`## 動作確認`）が確かめて PR にコメントします。印のない画面に関わる PR と、動作確認が chat-main に残した分は、merge の後に chat-main が playwright MCP と dev server で確かめます。db push が要る PR は、こうだいさんの作業として伝えます。
 - **Issue の close は workflow がしません。** 実ブラウザでの確認と db push が済んだあとに、こうだいさんか chat-main が手で閉じます（CLAUDE.md §7.2）。

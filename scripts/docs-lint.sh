@@ -151,7 +151,7 @@ fi
 #     （手元で CI を流す node scripts/local-ci.mjs では回る）。CI の checkout には origin/main
 #     という名前の参照がないので --base HEAD で読む。
 # ---------------------------------------------------------------------------
-SHARED_SCOPE_OVERLAP="${HOME}/.claude/skills/worktree-policy/scripts/scope-overlap.mjs"
+SHARED_SCOPE_OVERLAP="${HOME:-}/.claude/skills/worktree-policy/scripts/scope-overlap.mjs"
 if command -v node >/dev/null 2>&1; then
   if [ -f "${SHARED_SCOPE_OVERLAP}" ]; then
     MAP_OUT=$(node "${SHARED_SCOPE_OVERLAP}" --check-map --base HEAD 2>&1) || while IFS= read -r line; do
