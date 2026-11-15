@@ -9,6 +9,10 @@ paths:
 > CLAUDE.md §6 の詳細。`shared/` / `web/` のファイルを扱う時のみ自動ロードされる。
 > 作成手順は `add-component` スキル、デザイン判断は `frontend-react-designer` スキル（rules = 不変式と表、skills = 手順）。
 
+## コンポーネントの書き方
+
+- コンポーネントは関数コンポーネントとフックで書き、クラスのコンポーネントを避ける。例外はエラー境界（`shared/src/components/ErrorBoundary.tsx`）で、React の仕様上クラスでしか書けない
+
 ## UI 2 層モデル（2026-06-07 に UI 集約方針として確定）
 
 - 新規 UI は `shared/src/components/`（部品層）に集約し、画面層は `web/src/`。Web / Electron / Capacitor の 3 配布形態が同一ソースを共用する（デザインシステム + `lumen-*` トークン + i18n en/ja catalog も `shared/` 側）。詳細 → `docs/vision/coding-principles.md §6`。旧 `frontend/`（Tauri 時代）は 2026-07-11 削除済み（#197・復元 = git tag `pre-tauri-removal`）
@@ -22,7 +26,6 @@ paths:
 ## 命名（プロジェクト固有のみ）
 
 - Context Value 型は PascalCase ファイル名: `AudioContextValue.ts`。他は一般的 TS/React 慣習（コンポーネント PascalCase / フック `use`+camelCase / 定数 SCREAMING_SNAKE_CASE）
-- コンポーネントは関数コンポーネントとフックで書き、クラスのコンポーネントを避ける
 
 ## Sync の再取得はドメイン単位（#499）
 
