@@ -123,7 +123,7 @@
 知らないと事故る禁止事項だけここに残す:
 
 - **メイン（リポジトリ直下）は chat-main 専有・`main` のみ。`git checkout <feature>` 禁止** — feature 作業は worktree から
-- **着手前と PR 前に `node ~/.claude/skills/worktree-policy/scripts/scope-overlap.mjs` を打つ** — 同じファイルを動いている別の PR・別の worktree が触っていると、並列の PR は必ず衝突する。BLOCK が出たら直列にする。担当表の元 = [`.claude/scripts/lane-ownership.json`](./scripts/lane-ownership.json)（設定の `workspaceMapPath`）。main の checkout は持ち主の名前 `main` で数える
+- **着手前と PR 前に `node ~/.claude/skills/worktree-policy/scripts/scope-overlap.mjs` を打つ** — 同じファイルを動いている別の PR・別の worktree が触っていると、並列の PR は必ず衝突する。BLOCK が出たら直列にする。担当表の唯一の元 = [`.claude/scripts/lane-ownership.json`](./scripts/lane-ownership.json)（設定の `workspaceMapPath`）。main の checkout は持ち主の名前 `main` で数える
 - **worktree はリポジトリの外**（設定の `worktreeRoot` = `../workspaces/life-editor` の下の `<slug>/`）に**絶対パスで**作る — 相対パスは cwd 基準で解決され、リポジトリ内にネストした worktree ができる
 - **worktree が `Permission denied` で消えないとき** — 掴んでいるのが Orca のターミナルなら、`orca terminal list --json` で handle を探し、`orca terminal close --terminal <handle>` で閉じてから消す
 - **`.claude/comm/.session-branch` と `.session-name` はブランチを切り替えるたびに書き換える** — 抜けると、共通の hook がセッションの最初に名前とブランチの食い違いを警告する。Orca の画面で作った worktree は書かれないので、Claude Code を起動する前に手で書く
