@@ -49,9 +49,9 @@
 
 **`status:frozen` の Issue は選びません。** 着手するかどうかを、こうだいさんがまだ決めていないためです。報告の「選ばなかった Issue」に理由つきで載せます。
 
-**`shared-fix` でタイトルが `[all]` の Issue は選びません。** `[all]` は Epic と全レーン向けの告知だけに使う決まりです（`docs-workflow` スキル、D-20260731-main-2）。2026-07-31 に `[all]` の #473 / #499 を 2 つのレーンが同時に拾い、片方の実装が丸ごと無駄になりました。中に実装が要るなら、個別の Issue に分けて起票し直すよう報告で提案します。
+**`shared-fix` でタイトルが `[all]` の Issue は選びません。** `[all]` は Epic と、すべての担当の区分に向けた告知だけに使う決まりです（`docs-workflow` スキルと、`[all]` の Issue の二重着手を防ぐ決定 `decisions/D-20260731-main-2.md`）。2026-07-31 に `[all]` の #473 / #499 を 2 つの担当のチャットが同時に拾い、片方の実装が丸ごと無駄になりました。中に実装が要るなら、個別の Issue に分けて起票し直すよう報告で提案します。
 
-**ラベルは選び方とモデルの判定に使いません。** `section:<id>` と `shared-fix` は、以前は貼り付け先のチャットを決めるために使っていました。この workflow は 1 つのセッションから実装役を起動するので、宛先のチャットを決める必要がありません。ラベルは起票の決まり（`docs-workflow`）として残り、常設のレーンのチャットが自分宛の Issue を拾うときに使います。レーンのチャットが同じ Issue をすでに拾っていれば、共通の除外（既存のブランチと open PR）で外れます。テストするパッケージも、ラベルではなく Scope のパスで決めます。
+**ラベルは選び方とモデルの判定に使いません。** `section:<id>` と `shared-fix` は、以前は貼り付け先のチャットを決めるために使っていました。この workflow は 1 つのセッションから実装役を起動するので、宛先のチャットを決める必要がありません。ラベルは起票の決まり（`docs-workflow`）として残り、常設の担当のチャットが自分宛の Issue を拾うときに使います。担当のチャットが同じ Issue をすでに拾っていれば、共通の除外（既存のブランチと open PR）で外れます。テストするパッケージも、ラベルではなく Scope のパスで決めます。
 
 ### 依存の読み方
 
@@ -60,7 +60,7 @@
 - `依存: なし（#n は close 済み）` のように先頭が `なし` の行は依存なしとし、括弧の中の番号は拾いません。
 - 依存先が満たされたかは、close ではなく PR が origin/main に入ったかで決めます（手順はグローバルのスキル）。close は確認が済んだあとに手で行う作業（`.claude/CLAUDE.md` §7.2）なので遅れるうえ、PR の merge 前に手で close されることもあるためです。
 
-依存はラベルでは代わりになりません。ツアーの 4 本（#1122〜#1125）はラベル上 3 つのレーン宛でしたが、3 本が基盤の完了を前提にしていました。依存を無視して並べると、存在しない `TourProvider` に 3 本が同時に着手し、全員が `shared/src/i18n/resources.ts` を触るところでした（2026-08-27）。
+依存はラベルでは代わりになりません。ツアーの 4 本（#1122〜#1125）はラベル上 3 つの担当の区分宛でしたが、3 本が基盤の完了を前提にしていました。依存を無視して並べると、存在しない `TourProvider` に 3 本が同時に着手し、全員が `shared/src/i18n/resources.ts` を触るところでした（2026-08-27）。
 
 ### Scope の取り方と重なりの判定
 
@@ -78,7 +78,7 @@
 - **終了コードが 3（未確認）のとき**は、重なりなしとは読みません。gh の認証かネットワークを直して打ち直し、それでも 3 なら回を始めません。
 - **終了コードが 4（設定が足りない）のとき**も回を始めません。出力の「足りない項目」を報告します。
 
-どのファイルが追記型や生成物に入るかと、どのレーンがどのパスを持つかは、担当表 [`lane-ownership.json`](./scripts/lane-ownership.json) が唯一の元になる文書です。`wf-*` の worktree はどのレーンにも当たらないので、scope-overlap のレーン外の報告は出ません。同じファイルの検査だけが頼りになります。
+どのファイルが追記型や生成物に入るかと、どの担当の区分がどのパスを持つかは、担当表 [`lane-ownership.json`](./scripts/lane-ownership.json) が唯一の元になる文書です。`wf-*` の worktree はどの担当の区分にも当たらないので、scope-overlap が「担当の区分の外」を報告することはありません。同じファイルの検査だけが頼りになります。
 
 ### 選ぶ順番
 
@@ -92,7 +92,7 @@
 
 あなたは life-editor（`{{repo}}`）の Issue #{{n}} を、worktree `{{worktree}}` のブランチ `{{branch}}` で実装します。main の checkout は `{{main}}` です。
 
-1. `gh issue view {{n}} -R {{repo}}` で Issue を読みます。「作るもの」「範囲の外」「Scope」「完了条件」が仕様です（古い Issue では「DoD」「Definition of Done」が完了条件です）。Scope の外のファイルは変えません。Scope の外の変更が要ると分かったら、実装せずに notes へ書きます（POLICY P-008）。自分で Issue を起票しません。起票は chat-main が `issue-dispatch` で行います。
+1. `gh issue view {{n}} -R {{repo}}` で Issue を読みます。「作るもの」「範囲の外」「Scope」「完了条件」が仕様です（古い Issue では「DoD」「Definition of Done」が完了条件です）。Scope の外のファイルは変えません。Scope の外の変更が要ると分かったら、実装せずに notes へ書きます（`POLICY.md` の方針「実装中スコープ凍結」）。自分で Issue を起票しません。起票は chat-main が `issue-dispatch` で行います。
 2. 作業を始める前に、共通の `worktree-policy` スキル（`~/.claude/skills/worktree-policy/SKILL.md`）を読みます。`{{worktree}}/.claude/comm/.session-branch` に `{{branch}}` を、`{{worktree}}/.claude/comm/.session-name` に `wf-{{n}}` を書きます。あとでこの worktree を Claude で開いたときに、セッション開始の hook が読むためです。作業は `{{worktree}}` の中だけで行い、`{{main}}` ではブランチを切り替えません。
 3. 実ブラウザ（playwright MCP・Chrome・Claude Design）と dev server（`npm run dev`）は使いません（CLAUDE.md §7.4）。worktree で localhost を重ねて起動すると、どの画面がどの変更かの確認が壊れるためです。Issue が実ブラウザでの調査を求めていても、コードを読んで調べ、実ブラウザでの確認は notes に「chat-main に残す」と書きます。画面での確認は、全体確認の後に別の役（work-finishers の動作確認）が受け持ちます。
 4. 変える前に既存のコードを読みます。テストは Issue の完了条件に沿って足すか直します（shared と web の書き方は `{{worktree}}/.claude/skills/test-writing/SKILL.md`）。振る舞いを変えるときは、古い振る舞いを固定しているテストを grep で探して直します。`web/tests/` の jsdom にはレイアウトがなく座標がすべて 0 なので、画面座標に頼る入力経路はテストできません。
@@ -106,7 +106,7 @@
    - **mobile**: CI に入っていないので、触ったら notes にそう書きます。
    - 自分が起こした失敗は直します。触っていない場所の失敗は直さず notes に書きます。
 6. `{{branch}}` に commit します。題は英語で `<type>(<area>): <subject> (refs #{{n}})` の形にし、`git commit --cleanup=verbatim -F <file>` で書きます。本文の行を `#` で始めません（git が黙って捨てるためです。known-issues 032）。
-7. `.claude/memory/`・`.claude/history/`・`.claude/comm/outbox/` は触りません。tracker と outbox は実装の PR に載せない決まりです（D-20260801-main-1）。並行するブランチが同じ記録のファイルに追記すると、必ず衝突するためです。commit を止める共通の hook（`bash-guards.mjs`）は、コマンドの `cd` か `git -C` が指した worktree の index を見て止めます。hook が行き先を読めない形もあるので、この決まりは自分でも守ります。
+7. `.claude/memory/`・`.claude/history/`・`.claude/comm/outbox/` は触りません。tracker と outbox は実装の PR に載せない決まりです（進捗の記録の衝突を避ける決定 `decisions/D-20260801-main-1.md`）。並行するブランチが同じ記録のファイルに追記すると、必ず衝突するためです。commit を止める共通の hook（`bash-guards.mjs`）は、コマンドの `cd` か `git -C` が指した worktree の index を見て止めます。hook が行き先を読めない形もあるので、この決まりは自分でも守ります。
 
 notes は日本語（です・ます）で書き、置いた仮定、Scope の外で気づいたこと、chat-main に残す作業（実ブラウザでの確認・db push など）を並べます。
 
@@ -163,7 +163,7 @@ work-finishers が、実行のすべてのブランチが終わったあとに 1
 chat-main（リポジトリ直下の main の checkout）が、実行の報告を受けて次を行います。
 
 - **merge は共通の `merge-round` の回で進めます。** 台本の `merge` が `true` になった実行（`## 仕上げ` があり、承認が要る種類の Issue を選んでいない実行）では、work-finishers が仕上げとして merge-round を回します（`## 仕上げ`）。仕上げを回さなかった実行の PR と、承認が要るファイルを変えるので仕上げ役が飛ばした PR は、chat-main が merge-round を回して入れます。承認が要る PR は、hook の確認でこうだいさんがその場で決めます。
-- **PR が open の `wf-*` の worktree は、merge-round の「衝突と確認の赤を振り分ける」（`fixes`）より前に外します。** main の checkout で `git worktree remove <worktreeRoot>/wf-<番号>` を打ちます。ブランチは origin に残るので、PR はそのまま動きます。共通の `merge-round.mjs` は、main の checkout の外にある worktree を、自分が作る一時 worktree（`merge-verify`・`autofix-*`）を除いてすべて担当の作業場所に数えるためです。残しておくと、誰もいない worktree 宛てに `/goal` の指示文が出ます。chat-main が衝突を直す autofix も、「レーンがブランチを開いている」と判定されて止まります。PR のない `wf-*`（全体確認で落ちたもの）は外さずに残します。
+- **PR が open の `wf-*` の worktree は、merge-round の「衝突と確認の赤を振り分ける」（`fixes`）より前に外します。** main の checkout で `git worktree remove <worktreeRoot>/wf-<番号>` を打ちます。ブランチは origin に残るので、PR はそのまま動きます。共通の `merge-round.mjs` は、main の checkout の外にある worktree を、自分が作る一時 worktree（`merge-verify`・`autofix-*`）を除いてすべて担当の作業場所に数えるためです。残しておくと、誰もいない worktree 宛てに `/goal` の指示文が出ます。chat-main が衝突を直す autofix も、「作業場所がブランチを開いている」と判定されて止まります。PR のない `wf-*`（全体確認で落ちたもの）は外さずに残します。
 - **実ブラウザでの確認は、印の付いた PR を work-finishers が、残りを chat-main がします。** `runtime: true` の印を付けた Issue の PR は、work-finishers の動作確認（`## 動作確認`）が確かめて PR にコメントします。印のない画面に関わる PR と、動作確認が chat-main に残した分は、merge の後に chat-main が playwright MCP と dev server で確かめます。db push が要る PR は、こうだいさんの作業として伝えます。
 - **Issue の close は workflow がしません。** 実ブラウザでの確認と db push が済んだあとに、こうだいさんか chat-main が手で閉じます（CLAUDE.md §7.2）。
 - **全体確認で落ちた Issue** はブランチが `wf-<番号>` の worktree に残るので、次の回では共通の除外で外れます。その worktree で直して PR まで進めるか、ブランチと worktree を消して次の回に回すかを、chat-main がこうだいさんに聞きます。
