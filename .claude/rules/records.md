@@ -5,11 +5,11 @@ paths:
 
 # Records — 記録グラフ層の規約（どこに書くか・ノードとエッジ）
 
-> 設計の正本 = [`archive/2026-08-09-record-graph-layer.md`](../archive/2026-08-09-record-graph-layer.md)（採用 = [`D-20260809-main-1`](../decisions/D-20260809-main-1.md)。2026-08-31 に COMPLETED で archive 入り — #1337）。入口 = [`.claude/INDEX.md`](../INDEX.md)。
+> 設計の元になる文書 = [`archive/2026-08-09-record-graph-layer.md`](../archive/2026-08-09-record-graph-layer.md)（採用 = [決定の台帳を新しく作る決定](../decisions/D-20260809-main-1.md)。2026-08-31 に COMPLETED で archive 入り — #1337）。入口 = [`.claude/INDEX.md`](../INDEX.md)。
 
-## 1. 記録型ごとの正本（一枚表）
+## 1. 記録型ごとの元になる文書（一枚表）
 
-| 記録型            | 正本（SSOT）                                               | 書き手                    | 派生ビュー（手書き禁止）                       |
+| 記録型            | 元になる文書                                               | 書き手                    | 派生ビュー（手書き禁止）                       |
 | ----------------- | ---------------------------------------------------------- | ------------------------- | ---------------------------------------------- |
 | 判断（未決）      | `comm/decisions/chat-<n>.md`                               | 当該チャットのみ          | `decisions/INDEX.md` §Open（git 非追跡）       |
 | 判断（確定・Why） | `decisions/YYYY-MM-DD-<名前>.md`（1 決定 1 ファイル。過去は `D-*.md`） | 起票チャット・昇格時 1 回 | `decisions/INDEX.md`（git 非追跡）             |
@@ -20,7 +20,7 @@ paths:
 | 恒久の事実・規約  | CLAUDE.md / `rules/`                                       | PR                        | —                                              |
 | 連絡              | `comm/outbox/chat-<n>.md`                                  | 当該チャットのみ          | digest                                         |
 
-- **派生ビューにしか存在しない情報を作らない**。索引・INDEX・digest への手書きは禁止（正本を書いて再生成する）
+- **派生ビューにしか存在しない情報を作らない**。索引・INDEX・digest への手書きは禁止（元になる文書を書いて再生成する）
 - **同じ事実の 2 か所目からは、本文を書き写さず、決定の中身の名前で呼びます**。要る所にだけ、決定の記録のパス（`decisions/YYYY-MM-DD-<名前>.md` の形）を添えます。方針も番号ではなく中身で呼びます（[`POLICY.md`](../comm/decisions/POLICY.md) の方針「merge と main への取り込み」など）。Issue は `#NNN`、計画書はファイル名で指します。これは、数値の非複製原則（`docs-consistency.md` §1）を広げた決まりです。過去の記録（`D-…` の名前の 205 本）は書き直しません。過去の記録を新しく指すときも、中身の名前で呼んでパスを添えます
 
 ## 2. どこに書くか — 1 分判定
@@ -33,7 +33,7 @@ A/B に割れるユーザー判断?      → 対話のチャットは、最後�
                                  回答が付いたら decisions/<日付>-<名前>.md へ昇格します
 計画横断で効く設計判断（自裁）? → decisions/<日付>-<名前>.md（status: recorded。ただし方針「ユーザー体験が変わる仕様分岐は実装で先行しない」に当たる分岐は自裁しません。上の行のとおり聞きます）
 計画スコープ内の設計判断?      → その plan の決定録 / Worklog（横断化したら台帳へ昇格し ID 参照に置換）
-やったこと（事実）?            → history/chat-<self>.md（実装ブランチに載せない — D-20260801-main-1）
+やったこと（事実）?            → history/chat-<self>.md（実装ブランチに載せない。並行するブランチが同じ記録に追記して衝突するため）
 今やってる / 次やること?       → memory/chat-<self>.md（3 件枠）
 再発しうる障害知見?            → プロダクト = GitHub Issue / 環境系 = docs/known-issues/
 恒久の事実・規約?              → CLAUDE.md（「消したら Claude が間違うか」基準）or rules/
@@ -41,7 +41,7 @@ A/B に割れるユーザー判断?      → 対話のチャットは、最後�
 上のどれでもない?              → 書かない
 ```
 
-- **`docs/known-issues/` に書く条件 = 常時ロードされる場所（CLAUDE.md / `rules/` / `memory/`）から ID 参照を張れること**（[`D-20260823-shared-fix-1`](../decisions/D-20260823-shared-fix-1.md)）。知見の価値は「書いてあること」ではなく「必要な瞬間に視界へ入ること」で決まる — 実測で 30 本中 5 本が参照 0、最多の 2 本すら自発参照ではなく常時ロード面からの注入だった（計測 = `scripts/known-issue-usage.mjs`・[#1086](https://github.com/sunbreak-pro/life-editor/issues/1086)）。**入口を張れないときは、先に `rules/` へ 1 行足してから書く**（足せないなら、その知見は書かない）
+- **`docs/known-issues/` に書く条件 = 常時ロードされる場所（CLAUDE.md / `rules/` / `memory/`）から ID 参照を張れること**（[入口を張れない知見の扱いの決定](../decisions/D-20260823-shared-fix-1.md)）。知見の価値は「書いてあること」ではなく「必要な瞬間に視界へ入ること」で決まる — 実測で 30 本中 5 本が参照 0、最多の 2 本すら自発参照ではなく常時ロード面からの注入だった（計測 = `scripts/known-issue-usage.mjs`・[#1086](https://github.com/sunbreak-pro/life-editor/issues/1086)）。**入口を張れないときは、先に `rules/` へ 1 行足してから書く**（足せないなら、その知見は書かない）
 
 ## 3. グラフ意味論（ノードとエッジ）
 
@@ -52,7 +52,7 @@ A/B に割れるユーザー判断?      → 対話のチャットは、最後�
 
 ## 4. 索引の再生成
 
-- **索引 5 本はすべて git 非追跡の派生ビュー**（`.claude/INDEX.md` / `decisions/INDEX.md` = 2026-08-12 #735 で追跡解除・`archive/INDEX.md` = [`D-20260809-main-2`](../decisions/D-20260809-main-2.md) で追加（#1337）・`memory/INDEX.md` / `history/INDEX.md` = 従来から）。commit に載らないので **merge 衝突が起きない**（#735 以前は「plans か decisions を変えた PR と同一コミットで再生成」を機械強制していて、判断を 1 件足すだけで並行レーンが必ず衝突していた）
+- **索引 5 本はすべて git 非追跡の派生ビュー**（`.claude/INDEX.md` / `decisions/INDEX.md` = 2026-08-12 #735 で追跡解除・`archive/INDEX.md` = [archive の索引を作り直す決定](../decisions/D-20260809-main-2.md)で追加（#1337）・`memory/INDEX.md` / `history/INDEX.md` = 従来から）。commit に載らないので **merge 衝突が起きない**（#735 以前は「plans か decisions を変えた PR と同一コミットで再生成」を機械強制していて、判断を 1 件足すだけで並行する担当のブランチが必ず衝突していた）
 - 再生成 = SessionStart hook が自動実行（2 本立て。決定と計画の索引は `.claude/settings.json` の `records.mjs index`、進捗の索引は claude-dotfiles の共通の hook `project-session-start.mjs`）。手元で古いと感じたら `node .claude/scripts/records.mjs index` をいつ回してもよい（追跡外なので `git status` に出ない）
-- `records.mjs check`（docs-lint 経由で CI ゲート）が見るのは**正本側だけ** — frontmatter スキーマ・supersede 双方向リンク・`ANSWERS.md` との突合。索引の鮮度は検査しない
+- `records.mjs check`（docs-lint 経由で CI ゲート）が見るのは**元になる文書の側だけ** — frontmatter スキーマ・supersede 双方向リンク・`ANSWERS.md` との突合。索引の鮮度は検査しない
 - **frontmatter の配列は 1 行に保つ**（`refs: ["#1", "#2"]`）。PostToolUse formatter が 80 桁超の flow 配列を折り返すと、行単位で読む `records.mjs` のパーサが `refs は配列にする` で落ちる（[known-issues 030](../docs/known-issues/030-posttooluse-formatter-wraps-frontmatter-arrays.md)。現在は `records.mjs` 側に折り返しを畳む前処理が入っている）

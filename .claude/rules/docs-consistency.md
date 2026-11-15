@@ -11,7 +11,7 @@ paths:
 
 ## 1. 数値の非複製原則
 
-個数・列挙（テーブル数 / ツール数 / Provider 一覧 / 機能数など）は**単一の正本（コード or SSOT）だけに書き、他文書は参照にする**。
+個数・列挙（テーブル数 / ツール数 / Provider 一覧 / 機能数など）は**元になる場所 1 か所（コードか、元になる文書）だけに書き、他文書は参照にする**。
 
 - 「一覧はコードが正」と書くなら数字を併記しない（数字だけ古くなる自己矛盾の典型パターン）
 - 同じ事実が SSOT → CLAUDE.md → vision → requirements → briefs → skills の最大 6 層に転記されると、決定 1 つに対し更新箇所が N 箇所になり必ず漏れる
@@ -41,9 +41,9 @@ grep -rn '<旧名>' <claude-dotfiles>/claude/
 `Draft` / `IN PROGRESS` / `BLOCKED` / `COMPLETED` / `SUPERSEDED` / `DEFERRED` / `REFERENCE` / `ACTIVE (adopted policy)`
 
 - `COMPLETED` / `SUPERSEDED` になったファイルは `archive/` へ移動する（plans/ に残置しない）
-- **レーンごと畳んだ `DEFERRED` も `archive/` に置いてよい**（実例 = [`2026-05-23-filechanged-comm-watch.md`](../archive/2026-05-23-filechanged-comm-watch.md)・`comm/README.md` が「DEFERRED で archive 済」として参照している）。ただし Status 行に**畳んだ理由**を書くこと — 理由の無い `DEFERRED` は「まだ生きている計画」と読めるので plans/ に残す
+- **担当の区分ごと畳んだ `DEFERRED` も `archive/` に置いてよい**（実例 = [`2026-05-23-filechanged-comm-watch.md`](../archive/2026-05-23-filechanged-comm-watch.md)・`comm/README.md` が「DEFERRED で archive 済」として参照している）。ただし Status 行に**畳んだ理由**を書くこと — 理由の無い `DEFERRED` は「まだ生きている計画」と読めるので plans/ に残す
 - 禁止例: In-progress / EXECUTED / READY FOR PR / SKELETON / FROZEN / SHIPPED / CLOSED
-- **enum を当てるのは plans/ 由来の文書だけ**（2026-08-01 ユーザー確定 D-20260801-main-2）: `archive/` には計画書以外（要件定義書・棚卸しメモ）も同居しており、そちらの `**Status**: SPECIFICATION（凍結）` / `ARCHIVED` は**文書種別を表す語**なので enum 化しない。Status 行が無い非計画書に足す必要もない。enum は「計画がどこまで進んだか」の語彙で、要件定義書に `COMPLETED` を当てても意味が通らない
+- **enum を当てるのは plans/ 由来の文書だけ**（2026-08-01 ユーザー確定。[archive の Status 表記の決定](../decisions/D-20260801-main-2.md)）: `archive/` には計画書以外（要件定義書・棚卸しメモ）も同居しており、そちらの `**Status**: SPECIFICATION（凍結）` / `ARCHIVED` は**文書種別を表す語**なので enum 化しない。Status 行が無い非計画書に足す必要もない。enum は「計画がどこまで進んだか」の語彙で、要件定義書に `COMPLETED` を当てても意味が通らない
 - **全数チェックには `grep -n "^Status:"` では足りない**（#474 実測・2 本を見落とした）: `**Status**:` 形式と blockquote 前置（`> Status:`）を拾うため、各ファイル先頭 14 行に `^>?\s*Status:` と `^>?\s*-?\s*\*\*Status[^*]*\*\*:` の両方を当てる
 
 ## 4. 完了イベント時の docs 追随（DoD）
