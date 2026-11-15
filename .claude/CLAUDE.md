@@ -68,9 +68,10 @@
 
 - **役割分担 = `role-pm` → `role-engineer` → `role-qa`**: メインが Agent ツールで順に起動する（サブエージェントからの再帰起動は禁止）
 - **commit 前は `session-verifier`、作業の区切りで `task-tracker`** を必ず通す
-- **worktree / ブランチ運用 = `worktree-policy` スキル**（§7.4 は要約のみ）／ **Issue 起票・docs 運用 = `docs-workflow` スキル**（§9 は要約のみ）
+- **worktree / ブランチ運用 = 共通の `worktree-policy` スキル**（§7.4 は life-editor だけの決まり）／ **Issue 起票 = 共通の `issue-dispatch` スキル**、**docs 運用 = `docs-workflow` スキル**（§9 は要約のみ）／ **PR の merge = 共通の `merge-round` スキル**（§7.2）
 - **整合監査 = `life-editor-migration-validator` / `life-editor-sync-auditor`**（`-ipc-validator` は Tauri IPC 前提のため 2026-07-08 retire = D-20260708-main-1）
-- **スキル / エージェントの実体は repo 内に置く**（2026-08-10 ユーザー確定 D-20260810-main-2 → [known-issues 031](./docs/known-issues/031-mac-only-symlinked-skills-agents.md)）: `.claude/skills/` と `.claude/agents/` に **repo 外を指す symlink を作らない**。全マシンで同じものが見える状態を不変式とする（旧 `skill-lib` / `agents-lib` 参照は Windows で解決できず空振りしていた）
+- **共通の道具は claude-dotfiles のものを使い、claude-dotfiles を入れた PC だけで作業する**（2026-11-15 の決定 = [`decisions/2026-11-15-use-shared-tools-on-dotfiles-pcs.md`](./decisions/2026-11-15-use-shared-tools-on-dotfiles-pcs.md)）: `merge-round`・`worktree-policy`・`issue-dispatch`・`issue-workflow` と hook はリポジトリに置かない。claude-dotfiles の無い PC・クラウドのセッション・clone では commit・起票・merge を止める hook が動かず、`permissions.deny` だけが残るので、別の PC では先に claude-dotfiles の `install.mjs` を流す
+- **プロジェクト固有のスキル / エージェントの実体は repo 内に置く**（[known-issues 031](./docs/known-issues/031-mac-only-symlinked-skills-agents.md)）: `.claude/skills/` と `.claude/agents/` に **repo 外を指す symlink を作らない**（旧 `skill-lib` / `agents-lib` 参照は Windows で解決できず空振りしていた）
 - **ツール実行ハング（応答停止）**: 原因は Claude Code 本体の SSE バグでローカルはシロ（詳細 = `~/.claude/docs/bash-tool-stability.md`）。**運用既定 = 状態変更・複数行系の Bash（git 操作 / build / test / install / コマンド連結）はサブエージェント or background 経由、単発の軽い読み取り（ls / git status / 単発 grep）は直接実行**
 - **open bug の確認** = `gh issue list -R sunbreak-pro/life-editor --label type:bug`（過去知見は `--state closed --search` と `docs/known-issues/` grep）
 
@@ -100,7 +101,7 @@
 
 - **本文の行頭 `#` は git に無警告で捨てられる**（`core.commentChar` 既定 = `#`）。Issue 番号で行を始めず、`git commit -F` には `--cleanup=verbatim` を付ける（[known-issues 032](./docs/known-issues/032-git-commit-message-hash-line-dropped.md)）
 
-- **`git-workflow` §0.1.1（PR の自動マージ）は life-editor では適用しない**（2026-08-06 ユーザー確定 D-20260806-main-1 = B）。本プロジェクトは POLICY **P-001** を優先する。2026-11-02 の改定（D-20261102-main-1）で、merge はこうだいさんが打つか、こうだいさんが chat-main で **`merge-round` スキル**を起動したときだけ行う。スキルは事前確認を通った PR だけを `gh pr merge <n> -R sunbreak-pro/life-editor --squash` で 1 本ずつ merge し、作業レーン（worktree）は merge しない。`issue-workflow` の起動前の確認でこうだいさんが merge-round まで回すと選んだ実行だけは、サブエージェント `work-finishers` がその実行の PR で merge-round を回す（P-001 の例外）。機械側の担保は `hooks/merge-gate.mjs`（レーンからは deny、回の外は確認）
+- **merge は [`POLICY.md`](./comm/decisions/POLICY.md) の方針「merge と main への取り込み」に従う**（2026-11-15 に共通の決まりへ合わせた = [`decisions/2026-11-15-adopt-shared-merge-rules.md`](./decisions/2026-11-15-adopt-shared-merge-rules.md)）。条件を満たした PR は、メインのチャットか仕上げ役 `work-finishers` が、共通の **`merge-round` スキル**で 1 本ずつ入れる（コマンドの形は `merge-round.mjs check <n>` が表示する）。作業レーン（worktree）と無人の実行は merge しない。承認が要る種類（設定・hook・秘密の値・データベースなど）の PR は共通の hook が止め、メインのチャットが回す merge-round で、こうだいさんがその場で決める
 
 - **PR 本文は `Refs #N`。`Closes` / `Fixes` / `Resolves` を使わない**（#2349）: merge で Issue が勝手に close されると、実ブラウザ確認や db push が残っていても完了に見える。close は確認が済んだあとにユーザーか chat-main が手で行う
 - **1 Issue = 1 ブランチ = 1 PR**（#2349）: 複数 Issue を 1 本にまとめず、1 本の PR に別 Issue の変更を混ぜない。ブランチ名に Issue 番号を入れる（`claude/<slug>-<issue>`）
@@ -112,18 +113,19 @@
 - **Scope 宣言**（触ってよいパス）・**Gate 列**（🤖 自律 / 👀 目視 / 🛑 人手 = DDL push・シークレット投入・PR merge・本番デプロイ）・**機械検証可能な Acceptance Criteria**
 - DDL は「ローカルファイル先行 → ユーザー `supabase db push`」（**`apply_migration` MCP 単独使用禁止**）。`Bash(supabase db push*)` は `permissions.ask` に入れて機械側でも担保済み（#2349）
 - **反映済み（db push 済み）のマイグレーションは中身も編集しない。直すときは次の番号で新しいファイルを足す**（#2349）: 反映済みの履歴を書き換えると、本番の実態とファイルが静かに食い違う。空白やコメントの整形も対象。反映済みかどうかは `supabase migration list` で見る。番号の衝突は PR 巡回で `origin/main` と突き合わせる
-- hooks 連動（検査内容の正本 = 各スクリプト。SessionStart / PreToolUse の登録は `.claude/settings.json` が正・全 hook `${CLAUDE_PROJECT_DIR}` 相対で worktree 側の実体が走る）: PreToolUse(Bash) = `hooks/pre-commit-mcp-check.sh`（トークン平文検知）+ `hooks/pre-commit-index-guard.sh`（derived INDEX の commit 混入を自動除外）+ `hooks/pre-commit-tracker-guard.sh`（tracker の更新を実装コミットに混ぜたらブロック = D-20260801-main-1・逃がし道は `[tracker-ok]`。index は、コマンドが `cd` か `git -C` で指した repo のものを見る）。`hooks/merge-gate.mjs` は、サブエージェント（hook の入力に `agent_id` がある。`agent_type` が `work-finishers` で、承認の印 `.git/merge-round/finisher-approved.json` が 6 時間以内のものは除き、ほかの条件は同じに当てる）と、`cd` でレーンの worktree に入ってから打つ `gh pr merge` も deny する。Workflow のエージェントは main の checkout から Bash を始めて `cd` で worktree に移るためで（2026-11-08 の issue-workflow の試験）、読む部品は `hooks/lib/hook-context.mjs`、テストは `node --test ".claude/hooks/__tests__/*.test.mjs"`
+- hooks 連動: hook はこのリポジトリに置かず、claude-dotfiles の共通の 2 本を使う（登録は claude-dotfiles の `claude/settings.json`）。SessionStart の `project-session-start.mjs` が進捗の索引を作り直し、`.session-name` / `.session-branch` の食い違いを警告する。PreToolUse(Bash) の `bash-guards.mjs` が、`.mcp.json` のトークンの平文、生成物 `INDEX.md` の commit 混入、tracker の更新と実装の同梱（逃がし道は `[tracker-ok]`）、main 以外の `gh issue create`、条件の欠けた merge のコマンドを止める。どちらも `.claude/issue-workflow.md` の設定値を、main の checkout から読む。`.claude/settings.json` に残す hook は、決定の索引を作る `records.mjs index` の 1 本だけ
 
-### 7.4 Multi-chat Worktree Policy（要約 — 正本は `worktree-policy` スキル）
+### 7.4 Multi-chat Worktree Policy（要約 — 手順は共通の `worktree-policy` スキル）
 
-**"1 chat = 1 worktree、ブランチは課題ごとに切替"**。手順（新規作成 4 ステップ / ブランチ切替 2 ステップ / main 取り込み / 初回 push / Windows での削除 / Orca ADE 例外）と各規約の理由・実測エピソードは [`skills/worktree-policy/SKILL.md`](./skills/worktree-policy/SKILL.md) が正本 — **worktree に触る前に必ず開く**。既知制約と prune 手順は [`2026-05-24-multi-chat-worktree-policy.md`](./docs/vision/plans/2026-05-24-multi-chat-worktree-policy.md)。
+**"1 chat = 1 worktree、ブランチは課題ごとに切替"**。置き場・作り方・ブランチの切り替え・main の取り込み・merge 済みの判定・消し方は、共通の `worktree-policy` スキルに従う — **worktree に触る前に必ず開く**。既知制約・prune 手順と、life-editor だけの決まり（臨時の worktree を並べない、Orca のターミナルが掴んだ worktree の消し方）は [`2026-05-24-multi-chat-worktree-policy.md`](./docs/vision/plans/2026-05-24-multi-chat-worktree-policy.md)。
 
 知らないと事故る禁止事項だけここに残す:
 
 - **メイン（リポジトリ直下）は chat-main 専有・`main` のみ。`git checkout <feature>` 禁止** — feature 作業は worktree から
-- **着手前と PR 前に `node .claude/scripts/scope-overlap.mjs` を打つ** — 同じファイルを動いている別の PR・別の worktree が触っていると、並列の PR は必ず衝突する。BLOCK が出たら直列にする。担当表の唯一の正本 = [`.claude/scripts/lane-ownership.json`](./scripts/lane-ownership.json)、手順 = `worktree-policy` スキル
-- **worktree はリポジトリの外**（`<repos-parent>/workspaces/life-editor/<slug>/`）に**絶対パスで**作る — 相対パスは cwd 基準で解決され、リポジトリ内にネストした worktree ができる
-- **`.claude/comm/.session-branch` はブランチを切り替えるたびに書き換える** — 抜けると hook が無音スキップし、監査が「宣言と実態の不一致」と誤判定する
+- **着手前と PR 前に `node ~/.claude/skills/worktree-policy/scripts/scope-overlap.mjs` を打つ** — 同じファイルを動いている別の PR・別の worktree が触っていると、並列の PR は必ず衝突する。BLOCK が出たら直列にする。担当表の唯一の正本 = [`.claude/scripts/lane-ownership.json`](./scripts/lane-ownership.json)（設定の `workspaceMapPath`）。main の checkout は持ち主の名前 `main` で数える
+- **worktree はリポジトリの外**（設定の `worktreeRoot` = `../workspaces/life-editor` の下の `<slug>/`）に**絶対パスで**作る — 相対パスは cwd 基準で解決され、リポジトリ内にネストした worktree ができる
+- **worktree が `Permission denied` で消えないとき** — 掴んでいるのが Orca のターミナルなら、`orca terminal list --json` で handle を探し、`orca terminal close --terminal <handle>` で閉じてから消す
+- **`.claude/comm/.session-branch` と `.session-name` はブランチを切り替えるたびに書き換える** — 抜けると、共通の hook がセッションの最初に名前とブランチの食い違いを警告する。Orca の画面で作った worktree は書かれないので、Claude Code を起動する前に手で書く
 - **tracker（`memory/` + `history/`）の更新を実装ブランチに載せない**（2026-08-01 D-20260801-main-1）— 並行ブランチが必ず衝突する。PR 本文側に要約を書き、tracker は専用ブランチ `chore/tracker-<chat>-YYYYMMDD` に分ける。**実行は `session-verifier` が緑になった直後**で、実装 PR の merge を待たない（2026-08-10 D-20260810-main-1）。**`.claude/comm/outbox/` も同じ扱い**（実装 PR に載せず別枠 = 2026-08-12 D-20260802-sched-1）
 - **マージ済み判定は `gh pr list --json number,state,headRefName` の state**。`git diff` / `git log` / `git cherry` は squash merge を「未マージ」と誤判定する
 - **playwright MCP（実ブラウザ検証）と dev server は chat-main のみ**で起動する（ポート重複で確認が壊れるため）。worktree 側は build / 型検証まで。例外は chat-main のサブエージェント `work-finishers` の動作確認で、1 度に 1 本、固定のポートで `wf-*` の worktree に dev server を立て、終わったら止める（手順 = `.claude/issue-workflow.md` の「動作確認」）
@@ -139,8 +141,8 @@
 
 Issue のラベル routing（`section:<id>` / `shared-fix`）・`[all]` 禁止則・plans のライフサイクル・comm / decisions の運用は [`skills/docs-workflow/SKILL.md`](./skills/docs-workflow/SKILL.md) が正本。**docs を書く / Issue を起票する前に開く**。
 
-- **進捗 / 履歴は per-chat**: `.claude/memory/chat-<self>.md` + `.claude/history/chat-<self>.md`（task-tracker 経由・git 追跡・単一書込者）。集約 INDEX は git 非追跡の派生ビュー（`hooks/regen-index.sh` が再生成）。チャット名宣言 = `.claude/comm/.session-name`
-- **課題追跡の正 = GitHub Issues + Projects**（`gh -R sunbreak-pro/life-editor`）。**起票は chat-main に一元化**する — worktree チャットは実装に着手してよいが、自分で起票せず outbox に依頼を append する
+- **進捗 / 履歴は per-chat**: `.claude/memory/chat-<self>.md` + `.claude/history/chat-<self>.md`（task-tracker 経由・git 追跡・単一書込者）。集約 INDEX は git 非追跡の派生ビュー（共通の hook `project-session-start.mjs` が再生成）。チャット名宣言 = `.claude/comm/.session-name`
+- **課題追跡の正 = GitHub Issues + Projects**（`gh -R sunbreak-pro/life-editor`）。**起票は chat-main に一元化**する — worktree チャットは実装に着手してよいが、自分で起票せず outbox に依頼を append する。設定の `issueCreation` が `main-only` なので、共通の hook が main 以外の `gh issue create` を止める
 - **Issue はプロダクト課題専用**。判定 = 「life-editor のコードを直せば直るか？」— No（Claude Code の環境 / hook / ツール挙動）なら Issue 化せず `docs/known-issues/` + `rules/` で管理する
 - **実装プラン** = `docs/vision/plans/YYYY-MM-DD-<slug>.md` → 完了で `archive/` へ移動（Status enum の語彙 → [`rules/docs-consistency.md`](./rules/docs-consistency.md)）。移行 SSOT のみ `.claude/` 直下に置く例外。**決定の Why・却下案 = [`decisions/`](./decisions/README.md) 台帳**（回答済みキューを昇格・旧「ADR は作らない」は D-20260809-main-1 で SUPERSEDE。どこに書くかの判定 = `rules/records.md`）
-- **鉄則**: 機能追加 / 削除時は §8 更新 ／ バイナリは repo に置かない — 音源の実体は Supabase Storage の **public** バケット `sounds`（`shared/src/constants/sounds.ts`）、ノートの添付は **非公開**バケット `attachments` から（#1404。ドキュメントはパスだけを持ち URL は毎回署名する — `shared/src/constants/attachments.ts`）。どちらも `.gitignore` の機械ガードは無い／ API キーをフロントエンドに直書きしない ／ **`.mcp.json` のトークンは `${SUPABASE_ACCESS_TOKEN}` 等の参照のまま維持・平文展開禁止**（2026-05-17 流出未遂。`hooks/pre-commit-mcp-check.sh` が commit 時に機械チェック）
+- **鉄則**: 機能追加 / 削除時は §8 更新 ／ バイナリは repo に置かない — 音源の実体は Supabase Storage の **public** バケット `sounds`（`shared/src/constants/sounds.ts`）、ノートの添付は **非公開**バケット `attachments` から（#1404。ドキュメントはパスだけを持ち URL は毎回署名する — `shared/src/constants/attachments.ts`）。どちらも `.gitignore` の機械ガードは無い／ API キーをフロントエンドに直書きしない ／ **`.mcp.json` のトークンは `${SUPABASE_ACCESS_TOKEN}` 等の参照のまま維持・平文展開禁止**（2026-05-17 流出未遂。共通の hook `bash-guards.mjs` が commit 時に機械チェック）

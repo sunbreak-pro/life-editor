@@ -58,7 +58,7 @@ mcp-server/.wrangler/
 
 # Derived aggregate views — NOT tracked (SSOT は各 chat-*.md)。
 # git 追跡 + 並行チャットの全文再生成が #1 マージ衝突源だったため追跡対象から除外。
-# .claude/hooks/regen-index.sh が SessionStart hook / task-tracker から決定論的に再生成する。
+# 共通の hook（claude-dotfiles の project-session-start.mjs）が SessionStart と task-tracker から決定論的に再生成する。
 # 追跡される chat-*.md（単一書込者）は衝突しないので維持。
 .claude/memory/INDEX.md
 .claude/history/INDEX.md
@@ -77,7 +77,7 @@ mcp-server/.wrangler/
 .claude/comm/digest/
 
 # Hook-generated outbox reports (per-session 動的データ; chat-*.md は task-tracker 経由
-# 人手管理なので追跡を維持。session-start-check.sh / stop-check.sh が吐く reports のみ無視)
+# 人手管理なので追跡を維持。以前の session-start-check.sh / stop-check.sh が吐いた reports のみ無視)
 .claude/comm/outbox/*/session-start-warnings.md
 .claude/comm/outbox/*/stop-report.md
 

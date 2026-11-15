@@ -200,3 +200,5 @@
 - D-20261109-harness-1: **A**（中ティアでも仕組みの仮説は書いて進み、止まるのは既存の 👀 / 🛑 Gate だけにする。2026-11-09 チャットの AskUserQuestion で回答・harness が転記 / 昇格）
 - D-20261109-harness-2: **A**（PR 本文の「確かめたこと / 確かめていないこと」「読む順」の見出しを検査する hook を次の PR で足す。2026-11-09 チャットの AskUserQuestion で回答・harness が転記 / 昇格）
 - D-20261111-harness-1: **A**（CLAUDE.md の経緯の記述だけを、移行完了を待たずに決定の台帳と要件の文書へ移す。節の組み直しは D-20260806-main-3 のとおり移行完了後のまま。行数の目標は tok の上限に変える。2026-11-11 claude-dotfiles のセッションの AskUserQuestion で回答・同セッションが転記）
+- 2026-11-15-adopt-shared-merge-rules: **A**（merge の方針を共通の決まり（claude-dotfiles の `claude/docs/development-flow.md` の「merge」）に合わせる。POLICY の方針「merge と main への取り込み」を書き換える。2026-11-15 チャットで回答・chat-main が転記 / 昇格）
+- 2026-11-15-use-shared-tools-on-dotfiles-pcs: **A**（Mac は当面そのままにし、claude-dotfiles を入れた PC だけで作業する。共通の道具と同じ名前のスキル 3 本と hook をリポジトリから消す。2026-11-15 チャットで回答・chat-main が転記 / 昇格）
