@@ -10,6 +10,7 @@
 #                          DEFERRED / REFERENCE / ACTIVE (adopted policy) のみ許可
 #   (d) 完了プラン残置   : Status: COMPLETED / SUPERSEDED のファイルが plans/ に残っていないか
 #   (e) 記録グラフ層 / (f) known-issue 計測の自己検査 / (g) 担当表とファイルの重なり検査の自己検査
+#   (h) 入口の文書の大きさ: .claude/CLAUDE.md の推定 tok が上限を超えていないか
 #
 # 実行: bash scripts/docs-lint.sh
 #   - ローカル: リポジトリ内どこからでも可（git toplevel へ cd する）
@@ -167,6 +168,32 @@ if command -v node >/dev/null 2>&1; then
   done <<<"$(tail -n 30 <<<"${REC_TEST_OUT}")"
 else
   echo "docs-lint: warn — node が無いため (g) の担当表の検査と records のテストをスキップ" >&2
+fi
+
+# ---------------------------------------------------------------------------
+# (h) 入口の文書の大きさ
+#     .claude/CLAUDE.md は毎回読まれるので、行数ではなく推定 tok で上限を見る。行数の目標は守れて
+#     いたのに、1 行の括弧に経緯が足されて 3 か月で 1.84 倍になった（計測 =
+#     .claude/docs/reports/2026-08-06-context-fixed-cost-baseline.md §10）。係数は
+#     .claude/scripts/context-cost-measure.mjs と同じ。Windows の作業ツリー（CRLF）と CI（LF）で
+#     値が揃うよう、改行を LF にしてから数える。上限は 2026-11-15 の大きさに余白を足した値で、
+#     目標の 7,600 tok ではない（届かない理由 = 同じ報告書の §10 の最後の段落）。
+# ---------------------------------------------------------------------------
+CLAUDE_MD_TOK_LIMIT=9500
+if command -v node >/dev/null 2>&1; then
+  CLAUDE_MD_TOK=$(node -e '
+    const s = require("fs").readFileSync(".claude/CLAUDE.md", "utf8").replace(/\r\n/g, "\n");
+    let ascii = 0, wide = 0;
+    for (const ch of s) (ch.codePointAt(0) < 128 ? ascii++ : wide++);
+    console.log(Math.round(ascii / 3.6 + wide * 0.9));
+  ' 2>&1)
+  if ! [[ "${CLAUDE_MD_TOK}" =~ ^[0-9]+$ ]]; then
+    report "docs-lint(h) .claude/CLAUDE.md の大きさを測れませんでした: ${CLAUDE_MD_TOK}"
+  elif [ "${CLAUDE_MD_TOK}" -gt "${CLAUDE_MD_TOK_LIMIT}" ]; then
+    report "docs-lint(h) .claude/CLAUDE.md is ${CLAUDE_MD_TOK} tok (limit ${CLAUDE_MD_TOK_LIMIT}). 経緯（日付・決定の番号・閉じた Issue）は決定の記録か docs/requirements/ へ移し、CLAUDE.md には今の状態と、決定の名前とリンクだけを残してください"
+  fi
+else
+  echo "docs-lint: warn — node が無いため (h) の入口の文書の大きさの検査をスキップ" >&2
 fi
 
 if [ "${FAIL}" -ne 0 ]; then

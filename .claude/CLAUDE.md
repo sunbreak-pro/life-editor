@@ -1,21 +1,21 @@
 # CLAUDE.md — Life Editor 統合定義書
 
-> 設計判断・実装規約の SSOT。**「変わらない事実」だけを持ち、手順はスキル / エージェント、frontend 詳細規約は [`.claude/rules/`](./rules/) へ委譲**。各行は「消したら Claude が間違うか」基準で維持する（150 行目標）。
+> 設計判断・実装規約の SSOT。**「変わらない事実」だけを持ち、手順はスキル / エージェント、frontend 詳細規約は [`.claude/rules/`](./rules/) へ委譲**。各行は「消したら Claude が間違うか」基準で維持する。大きさの上限は `scripts/docs-lint.sh` の (h) が tok で見る。経緯は書かず、決定の記録へのリンクで指す。
 >
-> ⚠️ **Active Migration**: Tauri 2 + D1 + portable-pty → **Electron + Capacitor + Web + Supabase** へ移行中。**現行スタック・Phase 状況・移行手順の SSOT は [`2026-05-04-cross-platform-migration.md`](./2026-05-04-cross-platform-migration.md) と `memory/INDEX.md`** (進捗 / 履歴は per-chat — §9 参照)。本ファイルの実装パス/コマンドはアーキ非依存に一般化済み（具体は移行 SSOT 参照）。方針: 学習ログ廃止 / 完成までコスト $0 厳守。
+> ⚠️ **Active Migration**: Tauri 2 + D1 + portable-pty → **Electron + Capacitor + Web + Supabase** へ移行中。**現行スタック・Phase 状況・移行手順の SSOT は [`2026-05-04-cross-platform-migration.md`](./2026-05-04-cross-platform-migration.md) と `memory/INDEX.md`** (進捗 / 履歴は per-chat — §9 参照)。本ファイルの実装パス/コマンドはアーキ非依存に一般化済み（具体は移行 SSOT 参照）。方針: 学習ログ廃止 / 完成までコスト $0 厳守。<!-- words-ok: D1 は Cloudflare のデータベースの製品名 -->
 
 ---
 
 ## 0. Meta
 
 - **更新規則**: 実装変更はコードと同一 PR で更新。新機能は §8 + `docs/requirements/` に記入
-- **数値の非複製原則**: 個数・列挙は単一の正本（コード or SSOT）だけに書き、他文書は参照にする。「一覧はコードが正」と書くなら数字を併記しない。改名・退役時の波及手順は [`rules/docs-consistency.md`](./rules/docs-consistency.md)
-- **再編中（航法 / 目的の 2 層）**: 各節をどちらの層に置き、層外の記述をどこへ移すかは [`docs/vision/claude-md-layering.md`](./docs/vision/claude-md-layering.md) が正本（固定費の実測 = [`docs/reports/2026-08-06-context-fixed-cost-baseline.md`](./docs/reports/2026-08-06-context-fixed-cost-baseline.md)）。**移送は移行完了後**のため、それまで本ファイルの構成は現状維持（D-20260806-main-3）
+- **数値の非複製原則**: 個数・列挙は単一の元になる文書（コード or SSOT）だけに書き、他文書は参照にする。「一覧はコードが正」と書くなら数字を併記しない。改名・退役時の波及手順は [`rules/docs-consistency.md`](./rules/docs-consistency.md)
+- **再編中（航法 / 目的の 2 層）**: 各節をどちらの層に置き、層外の記述をどこへ移すかは [`docs/vision/claude-md-layering.md`](./docs/vision/claude-md-layering.md) が元になる文書（固定費の実測 = [`docs/reports/2026-08-06-context-fixed-cost-baseline.md`](./docs/reports/2026-08-06-context-fixed-cost-baseline.md)）。**移送は移行完了後**のため、それまで本ファイルの構成は現状維持（[移送を移行の完了後にする決定](./decisions/D-20260806-main-3.md)）
 - **関連**: 記録の入口 = [`INDEX.md`](./INDEX.md)（`records.mjs` 生成・git 非追跡の派生ビュー = 2026-08-12 ユーザー確定 / #735）・進捗 / 履歴 = per-chat `chat-*.md`（§9。集約 `memory/INDEX.md` / `history/INDEX.md` も同じく git 非追跡の派生ビュー）・設計 = `docs/vision/`・要件 = `docs/requirements/`・障害知見 = [`docs/known-issues/INDEX.md`](./docs/known-issues/INDEX.md)・完了プラン = `archive/`（所在表 = `archive/INDEX.md` も同じく派生ビュー）
 
 ## 1. Vision（詳細 → [`docs/vision/core.md`](./docs/vision/core.md)）
 
-- AI と会話しながら生活を設計・記録・運用するパーソナル OS です。**作者本人（macOS + iOS）だけが使う個人の道具**で、他人への配布とサインアップの開放はしません（2026-10-22 ユーザー裁定 = D-20261022-main-1。限定人数配布の D-20260829-main-1 を SUPERSEDE）。リポジトリは参考のために公開したままで、ライセンスは All rights reserved（ルートの `LICENSE`）です。配布向けに作った機能（サインアップ・法的ページ・アカウント削除など）はコードに残しますが、配布を目標にはしません
+- AI と会話しながら生活を設計・記録・運用するパーソナル OS です。**作者本人（macOS + iOS）だけが使う個人の道具**で、他人への配布とサインアップの開放はしません（[個人の道具にする決定](./decisions/D-20261022-main-1.md)）。リポジトリは参考のために公開したままで、ライセンスは All rights reserved（ルートの `LICENSE`）です。配布向けに作った機能（サインアップ・法的ページ・アカウント削除など）はコードに残しますが、配布を目標にはしません
 - **Non-Goals**: 他人への配布 / マルチテナント（組織・共有・権限管理 — 各ユーザーは RLS で分離された個人ワークスペースのみ）/ 特化専用アプリ / Claude API 直課金 / モバイル単独起動
 
 ## 2. Platform
@@ -38,11 +38,11 @@
 - `items_meta` + `<role>_payload` モデル（テーブル一覧は `supabase/migrations/` + db-conventions が正）
 - **特化 vs 汎用 DB の判断**: 特化 UI（DnD / カレンダー / ルーチン生成 / リマインダー）が必要 → 特化テーブル。型付きフィールド + フィルタ + 集計で済む → 汎用 Database
 - **ID 不変式**: TodoNode `<type>-<timestamp+counter>`（`<type>` は `items_meta.role` の値。Todo は `task` のまま据え置き = #831） / DailyNode `daily-<YYYY-MM-DD>` / 他 `generateId(prefix)`。全 String。`id` は role を跨いで一意
-- **items_meta + composite FK**: 各 role（task / event / routine / note / daily / goal / table。一覧の正 = `items_meta_role_check` = 最新は `supabase/migrations/0040_note_table_items.sql`）は `items_meta(id, role)` が SSOT、payload テーブルは `(id, role)` 複合 FK で参照。WikiTag / Link 系は role 区別なしで `items_meta.id` を参照。**目標 ↔ Todo は専用の `goal_todo_links`**（`(goal_id, 'goal')` / `(todo_id, 'task')` の複合 FK で種類の取り違えを DB が拒否）で、アイテム間リンクの表には入れない（#2101・規約 → db-conventions §15）。**`table` はノート本文の中の表**で、タグを初めて付けたときだけアイテムになる。セルの正本は本文のままで、本文の表ノードが `tableId` 属性でアイテムを指す（#2094・規約 → db-conventions §16）
-- **`items_meta` の外の独立テーブル**: 拡張アプリの数値の記録 `app_records` と、拡張アプリの台帳 `extension_apps`（0039）と、記録の種類ごとの見せ方 `record_views`（0041・D-20261017-main-1）は、timer 系（0018）と同じく自分の `updated_at` を持つ独立テーブルで、ゴミ箱にも出さない（D-20261008-main-1・規約 → db-conventions §17）。記録の id の接頭辞 `record-` は `items_meta.role` の値ではない
-- **Routine**: Event の生成テンプレート。Routine 専用 Tag/Link UI は持たない（必要なら生成された Event 側に付与）。UI 上は「単一アイテム型（Event）+ 繰り返し設定」として提示し、Routine は実装詳細（2026-07-11 #185 決定 = D-20260711-main-1）
+- **items_meta + composite FK**: 各 role（task / event / routine / note / daily / goal / table。一覧の正 = `items_meta_role_check` = 最新は `supabase/migrations/0040_note_table_items.sql`）は `items_meta(id, role)` が SSOT、payload テーブルは `(id, role)` 複合 FK で参照。WikiTag / Link 系は role 区別なしで `items_meta.id` を参照。**目標 ↔ Todo は専用の `goal_todo_links`**（`(goal_id, 'goal')` / `(todo_id, 'task')` の複合 FK で種類の取り違えを DB が拒否）で、アイテム間リンクの表には入れない（#2101・規約 → db-conventions §15）。**`table` はノート本文の中の表**で、タグを初めて付けたときだけアイテムになる。セルの元は本文のままで、本文の表ノードが `tableId` 属性でアイテムを指す（#2094・規約 → db-conventions §16）
+- **`items_meta` の外の独立テーブル**: 拡張アプリの数値の記録 `app_records` と、拡張アプリの台帳 `extension_apps`（0039）と、記録の種類ごとの見せ方 `record_views`（0041・[記録の見せ方の決定](./decisions/D-20261017-main-1.md)）は、timer 系（0018）と同じく自分の `updated_at` を持つ独立テーブルで、ゴミ箱にも出さない（[拡張アプリとの役割分担の決定](./decisions/D-20261008-main-1.md)・規約 → db-conventions §17）。記録の id の接頭辞 `record-` は `items_meta.role` の値ではない
+- **Routine**: Event の生成テンプレート。Routine 専用 Tag/Link UI は持たない（必要なら生成された Event 側に付与）。UI 上は「単一アイテム型（Event）+ 繰り返し設定」として提示し、Routine は実装詳細（[Routine を実装詳細に隠す決定](./decisions/D-20260711-main-1.md)）
 - **ソフトデリート**: `is_deleted` + `deleted_at` → TrashView 復元。対象の正 = `shared/src/components/TrashView.tsx::TrashCategory`（5 カテゴリ・Events 含む）
-- 汎用 Database は凍結（D-20260704-main-1）・現行スタックに実装なし。旧 PropertyType 5 種は退役スタック側の記録（requirements 参照）
+- 汎用 Database は凍結（[凍結の決定](./decisions/D-20260704-main-1.md)）・現行スタックに実装なし。旧 PropertyType 5 種は退役スタック側の記録（requirements 参照）
 
 ## 5. AI Integration
 
@@ -57,19 +57,20 @@
 
 - **詳細規約 = [`.claude/rules/frontend.md`](./rules/frontend.md)**（path-scoped: `shared/src/**` / `web/src/**` を扱う時のみ自動ロード）: Provider 順序 / Pattern A / 配置表 / デザイン規約 / IME 等の gotcha
 - 不変式の要約: `lumen-*` トークン必須（色ハードコード禁止）/ i18n は props 経由・en / ja 両 catalog / DataService はコールバック注入 / 主要 UI 背景に透明度禁止
-- **新規 UI は `shared/src/components/` に集約**（W0 案 A = D-20260607-main-1 → `docs/vision/coding-principles.md §6`。旧 `frontend/` は 2026-07-11 削除済み #197）
-- **Web/Mobile UI デザインの追跡正本 = Epic #321 + [`docs/requirements/mobile-scope.md`](./docs/requirements/mobile-scope.md) + Issue 群**（2026-08-01 ユーザー確定 D-20260730-tags-1）。旧 W-parity ロードマップ（#121/#127）と ClaudeDesign fan-out 計画書はどちらも完了・`archive/` 済（[`archive/2026-07-04-claudedesign-screen-design-fanout.md`](./archive/2026-07-04-claudedesign-screen-design-fanout.md) — brief 作成手順の参照元としてのみ有効）
+- TypeScript は、export する関数とコンポーネントの戻り値の型を明示する（公開 API の型を推論に任せない。strict は各パッケージの tsconfig が守る）
+- **新規 UI は `shared/src/components/` に集約**（[UI 部品を shared/ に集める決定](./decisions/D-20260607-main-1.md) → `docs/vision/coding-principles.md §6`）
+- **Web/Mobile UI デザインの追跡の元 = Epic #321 + [`docs/requirements/mobile-scope.md`](./docs/requirements/mobile-scope.md) + Issue 群**（[追跡の元を付け替える決定](./decisions/D-20260730-tags-1.md)）。ClaudeDesign の brief の作り方だけは [`archive/2026-07-04-claudedesign-screen-design-fanout.md`](./archive/2026-07-04-claudedesign-screen-design-fanout.md) を見る
 
 ## 7. Development Workflows
 
-### 7.0 ワークフロー = スキル / エージェント（手順の正本）
+### 7.0 ワークフロー = スキル / エージェント（手順の元）
 
 手順は本ファイルに書かず委譲する。**実装タスクの起点は `lead-pipeline` スキル**（軽 = 直接 / 中 = verifier → tracker / 重 = フルチェーン）。各スキルの説明文は自動で読まれるため、ここには説明文から読み取れない規律だけを置く。
 
 - **役割分担 = `role-pm` → `role-engineer` → `role-qa`**: メインが Agent ツールで順に起動する（サブエージェントからの再帰起動は禁止）
 - **commit 前は `session-verifier`、作業の区切りで `task-tracker`** を必ず通す
 - **worktree / ブランチ運用 = 共通の `worktree-policy` スキル**（§7.4 は life-editor だけの決まり）／ **Issue 起票 = 共通の `issue-dispatch` スキル**、**docs 運用 = `docs-workflow` スキル**（§9 は要約のみ）／ **PR の merge = 共通の `merge-round` スキル**（§7.2）
-- **整合監査 = `life-editor-migration-validator` / `life-editor-sync-auditor`**（`-ipc-validator` は Tauri IPC 前提のため 2026-07-08 retire = D-20260708-main-1）
+- **整合監査 = `life-editor-migration-validator` / `life-editor-sync-auditor`**（`-ipc-validator` は Tauri IPC 前提のため退役 = [退役の決定](./decisions/D-20260708-main-1.md)）
 - **共通の道具は claude-dotfiles のものを使い、claude-dotfiles を入れた PC だけで作業する**（2026-11-15 の決定 = [`decisions/2026-11-15-use-shared-tools-on-dotfiles-pcs.md`](./decisions/2026-11-15-use-shared-tools-on-dotfiles-pcs.md)）: `merge-round`・`worktree-policy`・`issue-dispatch`・`issue-workflow` と hook はリポジトリに置かない。claude-dotfiles の無い PC・クラウドのセッション・clone では commit・起票・merge を止める hook が動かず、`permissions.deny` だけが残るので、別の PC では先に claude-dotfiles の `install.mjs` を流す
 - **プロジェクト固有のスキル / エージェントの実体は repo 内に置く**（[known-issues 031](./docs/known-issues/031-mac-only-symlinked-skills-agents.md)）: `.claude/skills/` と `.claude/agents/` に **repo 外を指す symlink を作らない**（旧 `skill-lib` / `agents-lib` 参照は Windows で解決できず空振りしていた）
 - **ツール実行ハング（応答停止）**: 原因は Claude Code 本体の SSE バグでローカルはシロ（詳細 = `~/.claude/docs/bash-tool-stability.md`）。**運用既定 = 状態変更・複数行系の Bash（git 操作 / build / test / install / コマンド連結）はサブエージェント or background 経由、単発の軽い読み取り（ls / git status / 単発 grep）は直接実行**
@@ -77,9 +78,9 @@
 
 ### 7.1 開発コマンド
 
-> 生きている本流は `shared/`（コード本体）+ `web/`（renderer）。旧 `frontend/` は削除済み（2026-07-11 #197）。
+> 生きている本流は `shared/`（コード本体）+ `web/`（renderer）。旧 `frontend/` は削除済み。
 
-**PR 前に回すゲートの正本は [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)** — `verify` ジョブのステップ列（shared → web → desktop → mcp-server の順）と `docs-lint` ジョブがすべて。**ここにコマンドを列挙しない**（2026-08-16 D-20260816-main-2 = B / #1010）: 手で写した表は必ず CI から遅れ、実際に `typecheck:tests` と mcp-server の 2 系統が漏れて PR #924 / #980 / #842 / #985 の 4 本が「ローカル全緑・CI だけ赤」で落ちた。
+**PR 前に回すゲートの元は [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)** — `verify` ジョブのステップ列（shared → web → desktop → mcp-server の順）と `docs-lint` ジョブがすべて。**ここにコマンドを列挙しない**（[列挙をやめる決定](./decisions/D-20260816-main-2.md)）: 手で写した表は必ず CI から遅れ、「ローカル全緑・CI だけ赤」を生むため。
 
 回し方 = **`node scripts/local-ci.mjs`**（#2349）。`ci.yml` を実行時に読み、`docs-lint` と `verify` の全ステップを各 `working-directory` で回してステップごとの終了コード表を出す（コマンドを持たないので CI と食い違わない。`--list` で読み取り結果だけ確認 / `--skip-install` で `npm ci` を飛ばせる）。手で回すなら `verify` ジョブを上から読み、各ステップの `working-directory` へ `cd` して同じ `npm run <script>` を打つ。**触ったパッケージだけでなく全部回す** — 依存が shared → web → desktop / mcp-server と一方向に繋がっており、`shared/` の変更だけで下流 3 つが落ちる。CI に無いローカル起動だけ別記: `cd web && npm run dev`（vite）。
 
@@ -89,7 +90,7 @@
 - **`web` の lint は `web/` 配下しか歩かない**ので、`shared/` に入れた lint error は `cd shared && npm run lint` でしか出ない（2026-07-30 PR #488 で CI だけが落ちた）
 - `web/tsconfig.json` が `../shared` を参照するため、`cd web && npm run build` は shared も **web 側の tsc** で検査する。片方だけ緑でも安心しない
 - `scripts/docs-lint.sh` をローカルで回すときは `LC_ALL=C` を付ける（Git Bash の grep 3.0 + UTF-8 locale では日本語を含む Status 行が偽陽性になる）
-- **ゲートをまとめて回すラッパーを書くなら、`( npm run X | tail )` で終了コードを取らない**（2026-09-02 実測）: 括弧の終了コードは中の**最後のコマンド = `tail`** のものになるので、`npm run` が何本エラーを吐いても常に 0 が返る。エラー本文は画面に出るのに集計行だけが緑になり、PR #1424 / #1433 が「ローカル全緑」の報告のまま CI で落ちた。**出力を先に変数へ取り、`code=$?` を見てから `tail` で表示する**（`set -o pipefail` でも可）。なお #1436 はこの症状を `tsc -b` の `.tsbuildinfo` のせいだと書いたが**それは誤り** — キャッシュが温まった状態で import を壊しても `tsc -b` は `TS2307` で exit 1 する（実測）
+- **ゲートをまとめて回すラッパーを書くなら、`( npm run X | tail )` で終了コードを取らない**（2026-09-02 実測）: 括弧の終了コードは中の**最後のコマンド = `tail`** のものになるので、`npm run` が何本エラーを吐いても常に 0 が返る。エラー本文は画面に出るのに集計行だけが緑になり、PR #1424 / #1433 が「ローカル全緑」の報告のまま CI で落ちた。**出力を先に変数へ取り、`code=$?` を見てから `tail` で表示する**（`set -o pipefail` でも可）。`tsc -b` の `.tsbuildinfo` のキャッシュは原因ではない（#1436 の見立ては誤り）— 温まった状態で import を壊しても `tsc -b` は exit 1 する（実測）
 
 `web/tests/` は jsdom に**レイアウトが無い**（要素の座標がすべて 0）。ProseMirror の `posAtCoords` のように画面座標を文書位置へ戻す経路はここでは検証できないので、UI の入力経路は座標に依存しない形（DOM イベント + `closest()` 等）で組む — 座標依存のままにするとテストが書けず、#475 のように壊れても気付けない。
 
@@ -101,7 +102,7 @@
 
 - **本文の行頭 `#` は git に無警告で捨てられる**（`core.commentChar` 既定 = `#`）。Issue 番号で行を始めず、`git commit -F` には `--cleanup=verbatim` を付ける（[known-issues 032](./docs/known-issues/032-git-commit-message-hash-line-dropped.md)）
 
-- **merge は [`POLICY.md`](./comm/decisions/POLICY.md) の方針「merge と main への取り込み」に従う**（2026-11-15 に共通の決まりへ合わせた = [`decisions/2026-11-15-adopt-shared-merge-rules.md`](./decisions/2026-11-15-adopt-shared-merge-rules.md)）。条件を満たした PR は、メインのチャットか仕上げ役 `work-finishers` が、共通の **`merge-round` スキル**で 1 本ずつ入れる（コマンドの形は `merge-round.mjs check <n>` が表示する）。作業レーン（worktree）と無人の実行は merge しない。承認が要る種類（設定・hook・秘密の値・データベースなど）の PR は共通の hook が止め、メインのチャットが回す merge-round で、こうだいさんがその場で決める
+- **merge は [`POLICY.md`](./comm/decisions/POLICY.md) の方針「merge と main への取り込み」に従う**（[共通の merge の決まりに合わせる決定](./decisions/2026-11-15-adopt-shared-merge-rules.md)）。条件を満たした PR は、メインのチャットか仕上げ役 `work-finishers` が、共通の **`merge-round` スキル**で 1 本ずつ入れる（コマンドの形は `merge-round.mjs check <n>` が表示する）。担当の worktree と無人の実行は merge しない。承認が要る種類（設定・hook・秘密の値・データベースなど）の PR は共通の hook が止め、メインのチャットが回す merge-round で、こうだいさんがその場で決める
 
 - **PR 本文は `Refs #N`。`Closes` / `Fixes` / `Resolves` を使わない**（#2349）: merge で Issue が勝手に close されると、実ブラウザ確認や db push が残っていても完了に見える。close は確認が済んだあとにユーザーか chat-main が手で行う
 - **1 Issue = 1 ブランチ = 1 PR**（#2349）: 複数 Issue を 1 本にまとめず、1 本の PR に別 Issue の変更を混ぜない。ブランチ名に Issue 番号を入れる（`claude/<slug>-<issue>`）
@@ -122,12 +123,12 @@
 知らないと事故る禁止事項だけここに残す:
 
 - **メイン（リポジトリ直下）は chat-main 専有・`main` のみ。`git checkout <feature>` 禁止** — feature 作業は worktree から
-- **着手前と PR 前に `node ~/.claude/skills/worktree-policy/scripts/scope-overlap.mjs` を打つ** — 同じファイルを動いている別の PR・別の worktree が触っていると、並列の PR は必ず衝突する。BLOCK が出たら直列にする。担当表の唯一の正本 = [`.claude/scripts/lane-ownership.json`](./scripts/lane-ownership.json)（設定の `workspaceMapPath`）。main の checkout は持ち主の名前 `main` で数える
+- **着手前と PR 前に `node ~/.claude/skills/worktree-policy/scripts/scope-overlap.mjs` を打つ** — 同じファイルを動いている別の PR・別の worktree が触っていると、並列の PR は必ず衝突する。BLOCK が出たら直列にする。担当表の唯一の元 = [`.claude/scripts/lane-ownership.json`](./scripts/lane-ownership.json)（設定の `workspaceMapPath`）。main の checkout は持ち主の名前 `main` で数える
 - **worktree はリポジトリの外**（設定の `worktreeRoot` = `../workspaces/life-editor` の下の `<slug>/`）に**絶対パスで**作る — 相対パスは cwd 基準で解決され、リポジトリ内にネストした worktree ができる
 - **worktree が `Permission denied` で消えないとき** — 掴んでいるのが Orca のターミナルなら、`orca terminal list --json` で handle を探し、`orca terminal close --terminal <handle>` で閉じてから消す
 - **`.claude/comm/.session-branch` と `.session-name` はブランチを切り替えるたびに書き換える** — 抜けると、共通の hook がセッションの最初に名前とブランチの食い違いを警告する。Orca の画面で作った worktree は書かれないので、Claude Code を起動する前に手で書く
-- **tracker（`memory/` + `history/`）の更新を実装ブランチに載せない**（2026-08-01 D-20260801-main-1）— 並行ブランチが必ず衝突する。PR 本文側に要約を書き、tracker は専用ブランチ `chore/tracker-<chat>-YYYYMMDD` に分ける。**実行は `session-verifier` が緑になった直後**で、実装 PR の merge を待たない（2026-08-10 D-20260810-main-1）。**`.claude/comm/outbox/` も同じ扱い**（実装 PR に載せず別枠 = 2026-08-12 D-20260802-sched-1）
-- **マージ済み判定は `gh pr list --json number,state,headRefName` の state**。`git diff` / `git log` / `git cherry` は squash merge を「未マージ」と誤判定する
+- **tracker（`memory/` + `history/`）の更新を実装ブランチに載せない**（[tracker を分ける決定](./decisions/D-20260801-main-1.md)）— 並行ブランチが必ず衝突するため。PR 本文側に要約を書き、tracker は専用ブランチ `chore/tracker-<chat>-YYYYMMDD` に分ける。**実行は `session-verifier` が緑になった直後**で、実装 PR の merge を待たない（[実行の時期の決定](./decisions/D-20260810-main-1.md)）。**`.claude/comm/outbox/` も同じ扱い**（実装 PR に載せず別枠 = [outbox を分ける決定](./decisions/D-20260802-sched-1.md)）
+- **マージ済み判定は `gh pr list --json number,state,headRefName` の state**。`git diff` / `git log` / `git cherry` は、設定の `mergeMethod`（`.claude/issue-workflow.md`）で 1 つの commit にまとめて入れた PR を「未マージ」と誤判定する
 - **playwright MCP（実ブラウザ検証）と dev server は chat-main のみ**で起動する（ポート重複で確認が壊れるため）。worktree 側は build / 型検証まで。例外は chat-main のサブエージェント `work-finishers` の動作確認で、1 度に 1 本、固定のポートで `wf-*` の worktree に dev server を立て、終わったら止める（手順 = `.claude/issue-workflow.md` の「動作確認」）
 
 ## 8. Feature Tier Map（詳細 → `docs/requirements/`）
@@ -138,12 +139,12 @@
 - 退役・移設・凍結の経緯と決定の記録のパスは、各 tier のファイルの機能の節にある
 - 次の段階の計画は移行の計画書が元になる文書（残す知見の置き場 = [`archive/SUMMARY.md`](./archive/SUMMARY.md)）
 
-## 9. Document System（要約 — 正本は `docs-workflow` スキル）
+## 9. Document System（要約 — 元は `docs-workflow` スキル）
 
-Issue のラベル routing（`section:<id>` / `shared-fix`）・`[all]` 禁止則・plans のライフサイクル・comm / decisions の運用は [`skills/docs-workflow/SKILL.md`](./skills/docs-workflow/SKILL.md) が正本。**docs を書く / Issue を起票する前に開く**。
+Issue のラベル routing（`section:<id>` / `shared-fix`）・`[all]` 禁止則・plans のライフサイクル・comm / decisions の運用は [`skills/docs-workflow/SKILL.md`](./skills/docs-workflow/SKILL.md) が元になる文書。**docs を書く / Issue を起票する前に開く**。
 
 - **進捗 / 履歴は per-chat**: `.claude/memory/chat-<self>.md` + `.claude/history/chat-<self>.md`（task-tracker 経由・git 追跡・単一書込者）。集約 INDEX は git 非追跡の派生ビュー（共通の hook `project-session-start.mjs` が再生成）。チャット名宣言 = `.claude/comm/.session-name`
 - **課題追跡の正 = GitHub Issues + Projects**（`gh -R sunbreak-pro/life-editor`）。**起票は chat-main に一元化**する — worktree チャットは実装に着手してよいが、自分で起票せず outbox に依頼を append する。設定の `issueCreation` が `main-only` なので、共通の hook が main 以外の `gh issue create` を止める
 - **Issue はプロダクト課題専用**。判定 = 「life-editor のコードを直せば直るか？」— No（Claude Code の環境 / hook / ツール挙動）なら Issue 化せず `docs/known-issues/` + `rules/` で管理する
-- **実装プラン** = `docs/vision/plans/YYYY-MM-DD-<slug>.md` → 完了で `archive/` へ移動（Status enum の語彙 → [`rules/docs-consistency.md`](./rules/docs-consistency.md)）。移行 SSOT のみ `.claude/` 直下に置く例外。**決定の Why・却下案 = [`decisions/`](./decisions/README.md) 台帳**（回答済みキューを昇格・旧「ADR は作らない」は D-20260809-main-1 で SUPERSEDE。どこに書くかの判定 = `rules/records.md`）
+- **実装プラン**の置き場と書き方は共通の `code-plan-editor` スキルに従い、完了で `archive/` へ移動する（Status enum の語彙 → [`rules/docs-consistency.md`](./rules/docs-consistency.md)）。移行 SSOT のみ `.claude/` 直下に置く例外。**決定の Why・却下案 = [`decisions/`](./decisions/README.md) 台帳**（[台帳を作る決定](./decisions/D-20260809-main-1.md)。どこに書くかの判定 = `rules/records.md`）
 - **鉄則**: 機能追加 / 削除時は §8 更新 ／ バイナリは repo に置かない — 音源の実体は Supabase Storage の **public** バケット `sounds`（`shared/src/constants/sounds.ts`）、ノートの添付は **非公開**バケット `attachments` から（#1404。ドキュメントはパスだけを持ち URL は毎回署名する — `shared/src/constants/attachments.ts`）。どちらも `.gitignore` の機械ガードは無い／ API キーをフロントエンドに直書きしない ／ **`.mcp.json` のトークンは `${SUPABASE_ACCESS_TOKEN}` 等の参照のまま維持・平文展開禁止**（2026-05-17 流出未遂。共通の hook `bash-guards.mjs` が commit 時に機械チェック）
