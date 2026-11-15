@@ -1,6 +1,6 @@
 ---
 name: add-component
-description: life-editor の UI を 1 つ足すときの機構（どこに置くか / Pattern A の Context 3 ファイル / セクションを足す 2 箇所 / i18n と Provider の登録先）。デザイン判断そのものは frontend-react-designer、不変式と配置表の正本は rules/frontend.md。Use when creating a new component, panel, dialog, provider, context, hook, or section in shared/ or web/. Triggers include "コンポーネント追加", "部品を作る", "Provider を足す", "セクション追加", "画面を足す", "add component", "new panel", "new section".
+description: life-editor の UI を 1 つ足すときの機構（どこに置くか / Pattern A の Context 3 ファイル / セクションを足す 2 箇所 / i18n と Provider の登録先）。デザイン判断そのものは frontend-react-designer、不変式と配置表の元になる文書は rules/frontend.md。Use when creating a new component, panel, dialog, provider, context, hook, or section in shared/ or web/. Triggers include "コンポーネント追加", "部品を作る", "Provider を足す", "セクション追加", "画面を足す", "add component", "new panel", "new section".
 ---
 
 # Add Component — UI を 1 つ足すときの機構
@@ -63,7 +63,7 @@ export const useFooContext = createContextHook(FooContext, "useFooContext");
 登録:
 
 1. `shared/src/context/index.ts` に Provider / Context / 型を export
-2. **Provider 鎖に挿す**。グローバル層 = `web/src/main.tsx` + `web/src/AppProviders.tsx`、セクション層 = `web/src/sectionDescriptors.tsx` の該当行。**順序には依存制約がある**（内側は外側の Context に依存可・逆は不可）— 現行の並びは rules/frontend.md §Provider 順序が正本
+2. **Provider 鎖に挿す**。グローバル層 = `web/src/main.tsx` + `web/src/AppProviders.tsx`、セクション層 = `web/src/sectionDescriptors.tsx` の該当行。**順序には依存制約がある**（内側は外側の Context に依存可・逆は不可）— 現行の並びは rules/frontend.md §Provider 順序が元になる文書
 3. モバイルで省略する Provider にするなら Optional バリアント必須（消費側は null ガードで no-op）
 
 例外: 他の Provider から依存されない自己完結なものは 1 ファイルでよい（例 `ToastContext`）。
@@ -85,7 +85,7 @@ Realtime の更新を受け取るために、読む effect で `useSyncDomains("
 
 - `cd shared && npm run lint`（`web` の lint は `shared/` を歩かない）
 - テストは `shared/tests/` か `web/tests/` に（コロケーションではない）→ `test-writing` スキル
-- ゲート一式は CLAUDE.md §7.1（正本は `.github/workflows/ci.yml` の `verify` ジョブ）
+- ゲート一式は CLAUDE.md §7.1（元になる場所は `.github/workflows/ci.yml` の `verify` ジョブ）
 
 ## チェックリスト
 

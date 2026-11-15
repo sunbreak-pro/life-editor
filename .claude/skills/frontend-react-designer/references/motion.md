@@ -1,10 +1,10 @@
 # Motion — life-editor 控えめ運動 + reduced-motion
 
-> 既存 keyframes の流用、長さ 3 段と easing 2 種のトークン、prefers-reduced-motion 対応、過剰回避ルール。数値の正本は `shared/src/styles/tokens.css` で、このファイルは使い方を書く。
+> 既存 keyframes の流用、長さ 3 段と easing 2 種のトークン、prefers-reduced-motion 対応、過剰回避ルール。数値の元になる場所は `shared/src/styles/tokens.css` で、このファイルは使い方を書く。
 
-## §1 既存 keyframes 一覧（正本 = `shared/src/styles/tokens.css`）
+## §1 既存 keyframes 一覧（元になる場所 = `shared/src/styles/tokens.css`）
 
-tokens.css に定義されている keyframes は下表の 5 つで、どれも入場用です。一覧の正本はコードなので、使う前に `grep -n "@keyframes" shared/src/styles/tokens.css` で確かめる。**新しい keyframes を増やす前に流用を検討する**。旧 `frontend/src/index.css` にあった `check-pop` / `slide-up` / `check-in` などは 2026-07-11 の #197 で消えていて、tokens.css には無い（class を書いても何も起きない）。
+tokens.css に定義されている keyframes は下表の 5 つで、どれも入場用です。一覧の元はコードなので、使う前に `grep -n "@keyframes" shared/src/styles/tokens.css` で確かめる。**新しい keyframes を増やす前に流用を検討する**。旧 `frontend/src/index.css` にあった `check-pop` / `slide-up` / `check-in` などは 2026-07-11 の #197 で消えていて、tokens.css には無い（class を書いても何も起きない）。
 
 | keyframe / class       | 用途                                                  | 長さ / easing               | fill-mode |
 | ---------------------- | ----------------------------------------------------- | --------------------------- | --------- |
@@ -38,7 +38,7 @@ keyframes 名と class 名は同じで、class を付ければ動く（`classNam
 - アイコンの永続 spin / pulse (loading 以外)
 - bounce / wobble / elastic 系の演出 (Lumen calm minimal にそぐわない)
 
-## §3 長さ 3 段と easing 2 種（値の正本 = tokens.css の `@theme`）
+## §3 長さ 3 段と easing 2 種（値の元になる場所 = tokens.css の `@theme`）
 
 長さは下の 3 段だけを使う。値は旧来の 3 つの帯（100〜150 / 200〜300 / 400〜600ms）から 1 つずつ選んだもので、隣り合う段はおよそ 1.6 倍ずつ離れている（#2036）。
 
