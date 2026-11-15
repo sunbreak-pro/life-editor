@@ -32,7 +32,7 @@ const LOCALE = /\/i18n\/locales\/[^/]+\.json$/;
 const TEST = /(^|\/)tests?\//;
 // 製品のコードに触らない場所（ハーネス・文書・CI の設定・開発用スクリプト）。
 // CLAUDE.md §9 の判定で、ここだけを直す変更には Issue を作らないので、Refs が無くても merge の対象にする
-const HARNESS_PATH = /^(?:\.claude|\.github|\.agents|\.codex|scripts)\/|^[^/]+\.md$/;
+const HARNESS_PATH = /^(?:\.claude|\.github|scripts)\/|^[^/]+\.md$/;
 export const harnessOnly = (files) => Array.isArray(files) && files.length > 0 && files.every((f) => HARNESS_PATH.test(f));
 const HOLD_LABEL = "merge:hold";
 const AUTOFIX_PREFIX = "autofix-";
