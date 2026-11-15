@@ -1,11 +1,11 @@
 ---
 name: docs-workflow
-description: life-editor のドキュメント体系と課題管理運用の正本。GitHub Issue のラベル routing（section:<id> / shared-fix）・Issue 起票の一元化ルール・Issue と docs/known-issues のスコープ境界・実装プラン（plans/）のライフサイクル・並行チャット通信（comm/）・無人の実行が使う判断の非同期キュー（decisions/）を扱う。Issue を起票する / 自分宛タスクを探す / プランを書く or archive する / 他チャットへ連絡する / 無人の実行でユーザー判断をキューに積む ときに読む。Triggers include "Issue 起票", "issue dispatch", "自分宛", "shared-fix", "section ラベル", "plans", "archive", "known-issues", "comm", "decisions", "判断キュー".
+description: life-editor のドキュメント体系と課題管理運用の元になる文書。GitHub Issue のラベル routing（section:<id> / shared-fix）・Issue 起票の一元化ルール・Issue と docs/known-issues のスコープ境界・実装プラン（plans/）のライフサイクル・並行チャット通信（comm/）・無人の実行が使う判断の非同期キュー（decisions/）を扱う。Issue を起票する / 自分宛タスクを探す / プランを書く or archive する / 他チャットへ連絡する / 無人の実行でユーザー判断をキューに積む ときに読む。Triggers include "Issue 起票", "issue dispatch", "自分宛", "shared-fix", "section ラベル", "plans", "archive", "known-issues", "comm", "decisions", "判断キュー".
 ---
 
 # Document System — ドキュメント体系と課題管理
 
-> CLAUDE.md §9 の本体。CLAUDE.md 側には「進捗は per-chat / 追跡は GitHub Issues / 起票は chat-main 一元 / 鉄則」の要約だけを残し、運用の詳細はここが正本。
+> CLAUDE.md §9 の本体。CLAUDE.md 側には「進捗は per-chat / 追跡は GitHub Issues / 起票は chat-main 一元 / 鉄則」の要約だけを残し、運用の詳細はここが元になる文書です。
 
 ## 進捗 / 履歴は per-chat
 
@@ -17,7 +17,7 @@ description: life-editor のドキュメント体系と課題管理運用の正�
 
 Status 語彙は enum のみ: `Draft` / `IN PROGRESS` / `BLOCKED` / `COMPLETED` / `SUPERSEDED` / `DEFERRED` / `REFERENCE` / `ACTIVE (adopted policy)`（enum の適用範囲・全数チェック方法 → `rules/docs-consistency.md`）。
 
-移行 SSOT（`2026-05-04-cross-platform-migration.md`）のみ歴史的経緯で `.claude/` 直下に置く例外。設計判断の Why・却下案は **`.claude/decisions/` の決定台帳**に残す（旧「ADR は作らない」方針は D-20260809-main-1 で SUPERSEDE — 陳腐化は上書きでなく supersede 連鎖で表現する。書き込み先の判定 = `rules/records.md`）。
+移行 SSOT（`2026-05-04-cross-platform-migration.md`）のみ歴史的経緯で `.claude/` 直下に置く例外。設計判断の Why・却下案は **`.claude/decisions/` の決定台帳**に残す（旧「ADR は作らない」方針は、決定の台帳を新しく作る決定（`.claude/decisions/D-20260809-main-1.md`）で SUPERSEDE — 陳腐化は上書きでなく supersede 連鎖で表現する。書き込み先の判定 = `rules/records.md`）。
 
 大型の仕様の詳細は、計画書として main のチャットが一元で作ります。main への直接の push は禁止なので、一時の worktree から commit と PR を出し、push したらその worktree をすぐ消します。作業の分配や進捗を追う一覧の `.md`（orders など）は、新しく作りません。計画書のひな形の「Worktree 分担」は、Issue を参照する形です。
 
@@ -29,23 +29,23 @@ Status 語彙は enum のみ: `Draft` / `IN PROGRESS` / `BLOCKED` / `COMPLETED` 
 
 ### スコープ境界（Issue に何を書くか）
 
-**どこに書くかの判定も、`docs/known-issues/` に書いてよいかの採否条件も正本は [`rules/records.md`](../../rules/records.md) §2**（Issue かどうか = 「life-editor のコードを直せば直るか？」/ known-issue に書くか = 「常時ロード面から ID 参照を張れるか」。後者は D-20260823-shared-fix-1）。ここに条件を書き写さない — 2 箇所に別文言で載った時点で片方が古くなる。
+**どこに書くかの判定も、`docs/known-issues/` に書いてよいかの採否条件も元になる文書は [`rules/records.md`](../../rules/records.md) §2**（Issue かどうか = 「life-editor のコードを直せば直るか？」/ known-issue に書くか = 「常時ロード面から ID 参照を張れるか」。後者は入口を張れない知見の扱いの決定 `.claude/decisions/D-20260823-shared-fix-1.md`）。ここに条件を書き写さない — 2 箇所に別文言で載った時点で片方が古くなる。
 
 境界の実例だけ置く: cwd 漂流 028 / formatter 挙動 026 は、life-editor のコードを直しても直らないので Issue にしない。
 
 ## worktree 担当ルーティング（2026-07-10〜）
 
-セクション単位の Issue には `section:<id>` ラベルを付与（`<id>` は `shared/src/sections.ts` の SectionId と一致。trash は担当 worktree がないため chat-main 采配）。各セクション worktree は `gh issue list -R sunbreak-pro/life-editor --label section:<id>` で自分の担当タスクを判断する。
+セクション単位の Issue には `section:<id>` ラベルを付与（`<id>` は `shared/src/sections.ts` の SectionId と一致。trash は担当 worktree がないため chat-main が進め方を決める）。各セクション worktree は `gh issue list -R sunbreak-pro/life-editor --label section:<id>` で自分の担当タスクを判断する。
 
-セクションに紐づかない横断タスク（app-integration / layout-standard / docs-workspace 等のレーン）は **`shared-fix`** ラベルに集約（宛先 = タイトル prefix `[<worktree-slug>]`）。各 worktree チャットはセッション開始時と作業の区切りに `gh issue list --label shared-fix --state open` で自分宛を確認する（Outbox との使い分け → `comm/README.md` §Issue dispatch ルート）。
+セクションに紐づかない横断タスク（app-integration / layout-standard / docs-workspace 等の担当の区分）は **`shared-fix`** ラベルに集約（宛先 = タイトル prefix `[<worktree-slug>]`）。各 worktree チャットはセッション開始時と作業の区切りに `gh issue list --label shared-fix --state open` で自分宛を確認する（Outbox との使い分け → `comm/README.md` §Issue dispatch ルート）。
 
-ラベル一覧の正本は GitHub（`gh label list`）。
+ラベル一覧の元は GitHub（`gh label list`）。
 
 ### `[all]` prefix は実装タスクに使わない
 
-（2026-08-01 ユーザー確定 D-20260731-main-2）chat-main が**起票時点で宛先 slug を 1 つに決める**。`[all]` は Epic と全レーン共通の告知だけに使う。
+（2026-08-01 ユーザー確定。`[all]` の Issue の二重着手を防ぐ決定 `.claude/decisions/D-20260731-main-2.md`）chat-main が**起票時点で宛先 slug を 1 つに決める**。`[all]` は Epic と、すべての担当の区分に共通の告知だけに使う。
 
-理由 = 2026-07-31 に `[all]` の #473 / #499 を 2 レーンが同時に掴み、**どちらも片方の実装が丸ごと無駄になった**。回避策として試した 2 案はどちらも実証で潰れている — 着手宣言コメントは `gh issue list` の出力に出ないため一覧しか見ないレーンに届かず（宣言の 8 時間 23 分後に別レーンが PR を出した）、assignee はこの repo の作業者が GitHub 上 `sunbreak-pro` 一人なのでレーンを表せない。
+理由 = 2026-07-31 に `[all]` の #473 / #499 を 2 つの担当のチャットが同時に掴み、**どちらも片方の実装が丸ごと無駄になった**。回避策として試した 2 案はどちらも実証で潰れている — 着手宣言コメントは `gh issue list` の出力に出ないため一覧しか見ない担当のチャットに届かず（宣言の 8 時間 23 分後に別の担当のチャットが PR を出した）、assignee はこの repo の作業者が GitHub 上 `sunbreak-pro` 一人なので担当の区分を表せない。
 
 ### Issue 起票は chat-main に一元化する
 
@@ -93,7 +93,7 @@ GitHub Actions は、支払いのロックで 2026-11-05 から動いていま�
 - **Issue**: 1 行に 1 Issue。1 Issue = 1 ブランチ = 1 PR なので、行の数は PR の数に等しい
 - **検証の結果**: `通ったステップ数/全ステップ数`。分母は `node scripts/local-ci.mjs` が出す終了コード表のステップ数で、SKIP は数えない。回していないときは `未実施` と書き、`0/0` にしない
 - **Issue の状態**: `open` / `closed`。PR 本文は `Refs` なので、merge 後もこうだいさんが閉じるまで `open` のまま
-- **残っている手作業**: `db push` / 実ブラウザの確認 / merge / Issue の close のうち残っているものを、誰の手番かつきで書く。無ければ `なし`
+- **残っている手作業**: `db push` / 実ブラウザの確認 / merge / Issue の close のうち残っているものを、誰の作業かを添えて書く。無ければ `なし`
 - 表の下に、置いた仮定と判断が要る点を文で書く（グローバル CLAUDE.md の前提 1）
 
 ## 並行チャット通信
@@ -102,8 +102,8 @@ GitHub Actions は、支払いのロックで 2026-11-05 から動いていま�
 
 ## 判断の聞き方と非同期キュー（2026-07-28〜）+ 確定台帳（2026-08-09〜）
 
-ユーザー判断の聞き方は、対話のチャットと無人の実行で分かれます。対話のチャットは、最後の報告のあとに AskUserQuestion で聞きます。無人の実行は質問を出せないので、`.claude/comm/decisions/` に書き溜めて次の作業へ進みます（事前決裁 = `decisions/POLICY.md`・行動規定 = `rules/decision-queue.md`・設計 = `docs/vision/plans/2026-07-28-loop-engineering-harness.md`）。
+ユーザー判断の聞き方は、対話のチャットと無人の実行で分かれます。対話のチャットは、最後の報告のあとに AskUserQuestion で聞きます。無人の実行は質問を出せないので、`.claude/comm/decisions/` に書いて残し、次の作業へ進みます（事前決裁 = `decisions/POLICY.md`・行動規定 = `rules/decision-queue.md`・設計 = `docs/vision/plans/2026-07-28-loop-engineering-harness.md`）。
 
-回答が付いて実装 Issue を起票する前に、`gh issue list -R sunbreak-pro/life-editor --state closed --search <キーワード>` で先行着地が無いか確かめる（裁定は数日〜数週間寝るので、待っている間に別レーンが直していることがある — D-20260801-sched-2 は回答の 10 日前に PR #547 で着地済みで、#741 が重複起票になった）。
+回答が付いて実装 Issue を起票する前に、`gh issue list -R sunbreak-pro/life-editor --state closed --search <キーワード>` で先行着地が無いか確かめる（裁定は数日〜数週間寝るので、待っている間に別の担当のチャットが直していることがある — Connect グラフのダブルクリックの判断（`.claude/decisions/D-20260801-sched-2.md`）は回答の 10 日前に PR #547 で着地済みで、#741 が重複起票になった）。
 
-回答が付いたらキューを消す前に確定台帳へ昇格する（D-20260809-main-1）。**手順・書式・INDEX の扱いの正本 = [`.claude/decisions/README.md`](../../decisions/README.md)**。過去の判断の Why・却下案を探すときは grep でなく `.claude/decisions/INDEX.md` の Active 表・Topic 逆引きから辿る。
+回答が付いたらキューを消す前に確定台帳へ昇格する（決定の台帳を新しく作る決定）。**手順・書式・INDEX の扱いの元になる文書 = [`.claude/decisions/README.md`](../../decisions/README.md)**。過去の判断の Why・却下案を探すときは grep でなく `.claude/decisions/INDEX.md` の Active 表・Topic 逆引きから辿る。
