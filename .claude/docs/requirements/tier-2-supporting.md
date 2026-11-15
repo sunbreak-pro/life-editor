@@ -541,7 +541,7 @@ Life Editor の全 UI を en / ja で切替可能にする。Settings からい�
 
 タグを入口に Note / Todo / Event / Daily を種類別に読む「トピック軸の入口」。時間軸の入口 = Calendar との役割分担は #1153 の決定。旧 Connect の力学グラフは #1152 で退役済み（WikiTags 節「やらない」参照）で、本 Feature はその跡地に別物として再新設された。
 
-**2026-09-16（#1643）でタグマスタの編集所を兼ねる**（[`D-20260912-main-1`](../../decisions/D-20260912-main-1.md) Q1-A）。同じタグ一覧が本セクションのレールとタグ編集モーダルの 2 画面にあり、行の形まで揃えてあるのに編集できるのはモーダル側だけ、という二重保守を畳んだもの。モーダル（`shared/src/components/tagEdit/`）と、それを開いていた `web/src/tags/TagEditorHost.tsx` は削除済みで、レールの「…」と `TagHubEditBlock` が作成 / 改名 / アイコン / 色 / 削除を持つ。Mobile「その他」シートの「タグを編集」は本セクションへの遷移（`setSection("connect")`）に差し替わった。wide 側のサイドバー footer 行も同じ遷移にしたが、nav の「つながり」と行き先が同じで重複するため後に削除し、`SidebarNav` / `AppShell` から `onOpenTagEditor` ごと落ちている。
+**2026-09-16（#1643）でタグマスタの編集所を兼ねる**（[`D-20260912-main-1`](../../decisions/D-20260912-main-1.md) Q1-A）。同じタグ一覧が本セクションのレールとタグ編集モーダルの 2 画面にあり、行の形まで揃えてあるのに編集できるのはモーダル側だけ、という二重保守を畳んだもの。モーダル（`shared/src/components/tagEdit/`）と、それを開いていた `web/src/tags/TagEditorHost.tsx` は削除済みで、レールの「…」と `TagHubEditBlock` が作成 / 改名 / アイコン / 色 / 削除を持つ。Mobile「その他」シートの「タグを編集」は本セクションへの遷移（`setSection("connect")`）に差し替わったが、その後 #1851（修正は #1968）で行ごと消した。同じシートに Connect がセクションとして並んでいて、2 行が同じ画面に着くためである（`web/src/MobileShellActions.tsx` の冒頭のコメント）。wide 側のサイドバー footer 行も同じ遷移にしたが、nav の「つながり」と行き先が同じで重複するため後に削除し、`SidebarNav` / `AppShell` から `onOpenTagEditor` ごと落ちている。
 
 ### Boundary
 
