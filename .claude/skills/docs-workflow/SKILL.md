@@ -5,7 +5,7 @@ description: life-editor のドキュメント体系と課題管理運用の元�
 
 # Document System — ドキュメント体系と課題管理
 
-> CLAUDE.md §9 の本体。CLAUDE.md 側には「進捗は per-chat / 追跡は GitHub Issues / 起票は chat-main 一元 / 鉄則」の要約だけを残し、運用の詳細はここが元になる文書。
+> CLAUDE.md §9 の本体。CLAUDE.md 側には「進捗は per-chat / 追跡は GitHub Issues / 起票は chat-main 一元 / 鉄則」の要約だけを残し、運用の詳細はここが元になる文書です。
 
 ## 進捗 / 履歴は per-chat
 
