@@ -157,6 +157,10 @@ if command -v node >/dev/null 2>&1; then
   SO_TEST_OUT=$(node --test .claude/scripts/scope-overlap.test.mjs 2>&1) || while IFS= read -r line; do
     report "docs-lint(g) ${line}"
   done <<<"$(tail -n 30 <<<"${SO_TEST_OUT}")"
+  # records.mjs is run by (e) on every PR; its tests build their own temp trees and need no network.
+  REC_TEST_OUT=$(node --test .claude/scripts/records.test.mjs 2>&1) || while IFS= read -r line; do
+    report "docs-lint(g) ${line}"
+  done <<<"$(tail -n 30 <<<"${REC_TEST_OUT}")"
 else
   echo "docs-lint: warn — node が無いため (g) scope-overlap check をスキップ" >&2
 fi

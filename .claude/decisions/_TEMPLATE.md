@@ -1,5 +1,5 @@
 ---
-id: YYYY-MM-DD-<中身を表す英語の短い名前> # ファイル名から .md を除いたもの。キューを経た決定はキューの見出しの名前をそのまま使う
+id: YYYY-MM-DD-<中身を表す英語の短い名前> # ファイル名から .md を除いたものです。キューを経た決定は、キューの見出しの名前をそのまま使います
 type: decision
 status: answered # enum のみ: answered（ユーザー回答済み）/ recorded（事後記録・自裁）/ superseded / withdrawn
 asked: YYYY-MM-DD

@@ -6,12 +6,12 @@
 
 ## 使い方
 
-- **1 決定 1 ファイル**・ファイル名 = ID。ファイル名は `YYYY-MM-DD-<中身を表す英語の短い名前>.md` の形にする（2026-11-15 から。claude-dotfiles の `claude/docs/decisions/README.md` と同じ形）。日付は決めた日だが、キューを経た決定はキューの見出しの名前をそのまま使うので、日付は聞いた日になる。英語の名前は小文字・数字・`-` だけで書く。新規作成しか起きないため merge 衝突が構造的に発生しない
-- **過去の 205 本（`D-YYYYMMDD-<chat>-<n>.md`）は書き直さない**。`records.mjs` は新旧の両方の名前を読み、索引では日付順に並べる
+- **1 決定 1 ファイル**・ファイル名 = ID。ファイル名は `YYYY-MM-DD-<中身を表す英語の短い名前>.md` の形にします（2026-11-15 から。claude-dotfiles の `claude/docs/decisions/README.md` と同じ形です）。日付は決めた日です。ただし、キューを経た決定はキューの見出しの名前をそのまま使うので、日付は聞いた日になります。英語の名前は、小文字・数字・`-` だけで書きます。新規作成しか起きないため merge 衝突が構造的に発生しない
+- **過去の 205 本（`D-YYYYMMDD-<chat>-<n>.md`）は書き直しません**。`records.mjs` は新旧の両方の名前を読み、索引では日付順に並べます
 - **書くのは起票チャットのみ・昇格時 1 回**（単一書込者原則）。作成後は原則書き換えない — 例外は `superseded-by` / `implemented-by` / `promoted-to` への**追記**のみ
 - **陳腐化は上書きでなく追加で表現する**: 裁定が変わったら新しい決定の記録を作り、`supersedes` / `superseded-by` で双方向リンクする。[`INDEX.md`](./INDEX.md) は連鎖の末端（現在有効な裁定）だけを Active 表に出す
 - `status` enum: `answered`（ユーザー回答済み）/ `recorded`（事後記録 — ユーザー回答を経ない自裁・決着の後追い）/ `superseded` / `withdrawn`。**open はここに置かない**（未決の正本はキュー）
-- 方針「体験が変わる分岐は実装で先行しない」（[`POLICY.md`](../comm/decisions/POLICY.md)）に当たる判断は、必ずキュー経由。`recorded` で直接書いてよいのは計画横断の技術判断だけ
+- [`POLICY.md`](../comm/decisions/POLICY.md) の方針「ユーザー体験が変わる仕様分岐は実装で先行しない」に当たる判断は、`recorded` で自裁しません。対話のチャットは最後の報告のあとに AskUserQuestion で聞き、無人の実行はキューに書きます。`recorded` で直接書いてよいのは計画横断の技術判断だけ
 
 ## 昇格の手順（キューで回答が付いたら）
 
@@ -21,7 +21,7 @@
 
 ## INDEX.md について
 
-[`INDEX.md`](./INDEX.md) は **`records.mjs` の生成物（git 非追跡・手編集禁止）**。2026-08-12 に追跡を外した（[#735](https://github.com/sunbreak-pro/life-editor/issues/735)）— 決定の記録を 1 本足すたびに目次が全文書き換わり、並行レーンの PR が構造的に必ず衝突していたため。追跡外になったので **commit にも PR にも載せない**（再生成は SessionStart hook が自動で行う。手元で古ければ `node .claude/scripts/records.mjs index`）。正本は決定の記録のファイル群なので、消えてもいつでも作り直せる。
+[`INDEX.md`](./INDEX.md) は **`records.mjs` の生成物（git 非追跡・手編集禁止）**。2026-08-12 に追跡を外した（[#735](https://github.com/sunbreak-pro/life-editor/issues/735)）— 決定の記録を 1 本足すたびに目次が全文書き換わり、並行レーンの PR が構造的に必ず衝突していたため。追跡外になったので **commit にも PR にも載せない**（再生成は SessionStart hook が自動で行う。手元で古ければ `node .claude/scripts/records.mjs index`）。元になる文書は決定の記録のファイル群なので、消えてもいつでも作り直せます。
 
 ## 他の記録層との分担
 

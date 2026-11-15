@@ -8,10 +8,10 @@
 // 決定論の規約: 出力にタイムスタンプ・環境依存パスを含めない / ソートは日付 → ID のバイト順
 // （localeCompare 不使用）/ 改行 LF 固定 / 内容が同一なら書かない（無駄 diff ゼロ）。
 //
-// 決定の名前は 2 つの形を読む。2026-11-15 から新しい記録は `YYYY-MM-DD-<英語の名前>` で、
-// それより前の 205 本は `D-YYYYMMDD-<chat>-<n>` のまま書き直さない（計画書
-// docs/vision/plans/2026-11-15-align-with-shared-rules.md の Step 5）。キューの見出しと
-// ANSWERS.md の行も同じ 2 つの形で読む。
+// 決定の名前は 2 つの形を読みます。2026-11-15 からの新しい記録は `YYYY-MM-DD-<英語の名前>` です。
+// それより前の 205 本は、`D-YYYYMMDD-<chat>-<n>` のまま書き直しません（計画書
+// docs/vision/plans/2026-11-15-align-with-shared-rules.md でこうだいさんが決めました）。
+// キューの見出しと ANSWERS.md の行も、同じ 2 つの形で読みます。
 // リンク実在チェックは持たない — それは scripts/docs-lint.sh (a) の担当（検査の非複製）。
 //
 // 出力 3 本（.claude/INDEX.md / decisions/INDEX.md / archive/INDEX.md）は git 非追跡の
@@ -33,13 +33,13 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const D_ID_RE = /^D-\d{8}-[a-z][a-z-]*-\d+$/;
 const NAMED_ID_RE = /^\d{4}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const isDecisionId = (s) => D_ID_RE.test(s) || NAMED_ID_RE.test(s);
-// ANSWERS.md とキューの見出しから ID を拾う形。過去の形は従来の読み取りより狭めない。
+// 過去の形は、従来の読み取りより狭めません。狭めると、過去の回答の行を拾い損ねるためです。
 const ID_IN_TEXT = String.raw`D-\d{8}-[a-z-]+-\d+|\d{4}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*`;
 const NOT_RECORDS = new Set(['README.md', '_TEMPLATE.md', 'INDEX.md']);
 
-/** 新旧どちらの ID からも YYYY-MM-DD を取り出す。並べる順を形によらず日付順にするため。 */
+/** 新旧どちらの ID からも YYYY-MM-DD を取り出します。名前の形によらず、日付順に並べるためです。 */
 const dateOf = (id) => (id.startsWith('D-') ? `${id.slice(2, 6)}-${id.slice(6, 8)}-${id.slice(8, 10)}` : id.slice(0, 10));
-// 過去の ID だけなら ID のバイト順と同じ並びになる（日付が ID の先頭に並ぶため）。
+// 過去の ID だけなら、ID のバイト順と同じ並びになります。日付が ID の先頭にあるためです。
 const sortKey = (id) => `${dateOf(id)}\u0000${id}`;
 const sortById = (a, b) => {
   const ka = sortKey(a.id);
@@ -112,7 +112,7 @@ function h1Title(text, file, id) {
 
 function scanDecisions() {
   if (!fs.existsSync(DECISIONS_DIR)) return [];
-  // 名前の形が崩れたファイルを黙って読み飛ばさないよう、索引とひな形以外の .md はすべて見る。
+  // 索引とひな形のほかは、.md をすべて見ます。名前の形が崩れたファイルを、黙って読み飛ばさないためです。
   const files = fs.readdirSync(DECISIONS_DIR).filter((f) => f.endsWith('.md') && !NOT_RECORDS.has(f)).sort();
   const records = [];
   for (const f of files) {
@@ -140,7 +140,7 @@ function scanDecisions() {
     }
     records.push({ id: base, file: rel, title: h1Title(text, rel, base), fm });
   }
-  // supersedes ⇔ superseded-by の双方向検証（決定の ID の形のエントリのみ。文書位置の文字列は対象外）
+  // supersedes ⇔ superseded-by の双方向を確かめます。対象は決定の ID の形のエントリだけで、文書の位置の文字列は外します。
   const byId = new Map(records.map((r) => [r.id, r]));
   for (const r of records) {
     for (const target of r.fm.supersedes ?? []) {
@@ -262,7 +262,7 @@ function renderDecisionsIndex(records, open) {
   const lines = [];
   lines.push('# Decisions Index');
   lines.push('');
-  lines.push('> **生成物 — 手編集禁止・git 非追跡の派生ビュー。** 再生成: `node .claude/scripts/records.mjs index`。正本 = 本ディレクトリの決定の記録（新しい形 `YYYY-MM-DD-<名前>.md`・過去の形 `D-*.md`）（未決 = `comm/decisions/chat-*.md` キュー）。古ければ再生成する（→ [`README.md`](./README.md)）。');
+  lines.push('> **生成物 — 手編集禁止・git 非追跡の派生ビュー。** 再生成: `node .claude/scripts/records.mjs index`。元になる文書は、本ディレクトリの決定の記録です（新しい形は `YYYY-MM-DD-<名前>.md`、過去の形は `D-*.md`）（未決 = `comm/decisions/chat-*.md` キュー）。古ければ再生成する（→ [`README.md`](./README.md)）。');
   lines.push('');
   lines.push('## Open（キュー — 回答待ち）');
   lines.push('');
@@ -346,7 +346,7 @@ function renderRootIndex(records, open, plans) {
   const lines = [];
   lines.push('# .claude INDEX — 記録の入口');
   lines.push('');
-  lines.push('> **生成物 — 手編集禁止・git 非追跡の派生ビュー。** 再生成: `node .claude/scripts/records.mjs index`（SessionStart hook でも自動実行。正本 = `decisions/` の決定の記録 + `docs/vision/plans/*.md`）。');
+  lines.push('> **生成物 — 手編集禁止・git 非追跡の派生ビュー。** 再生成: `node .claude/scripts/records.mjs index`（SessionStart hook でも自動実行。元になる文書は `decisions/` の決定の記録と `docs/vision/plans/*.md` です）。');
   lines.push('> 無人セッションの読む順: CLAUDE.md（自動ロード）→ 本ファイル → [`decisions/INDEX.md`](./decisions/INDEX.md) §Open + [`comm/decisions/ANSWERS.md`](./comm/decisions/ANSWERS.md) → `memory/chat-<self>.md` → 自分宛 open Issue。ここまで grep なしで届く。');
   lines.push('');
   lines.push('## 進行中の計画（`docs/vision/plans/` の Status 行より）');
