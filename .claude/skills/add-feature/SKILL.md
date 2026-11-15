@@ -5,21 +5,21 @@ description: life-editor で機能を DB から UI まで貫いて足すとき�
 
 # Add Feature — DB から UI まで貫くときの順番
 
-> 本スキルは**通し手順（どの層をどの順に触るか）**だけを持つ。各層の中身は `db-migration` / `add-component` / `test-writing` が正本。
+> 本スキルは**通し手順（どの層をどの順に触るか）**だけを持つ。各層の中身は `db-migration` / `add-component` / `test-writing` が元になる文書。
 >
-> 単一層で終わる作業（UI だけ / 文言だけ / バグ修正）ではこれを開かない — `lead-pipeline` の軽・中ティアで足りる。
+> 単一層で終わる作業（UI だけ / 文言だけ / バグ修正）ではこれを開かない — `lead-pipeline` で軽い作業か中くらいの作業として進めれば足りる。
 
 ## 0. 着手前に
 
-- **本当に新しいテーブルが要るか**を先に判定する。特化 UI（DnD / カレンダー / ルーチン生成 / リマインダー）が要る → 特化テーブル。型付きフィールド + フィルタ + 集計で済む → 汎用 Database（ただし現在凍結中）。判定基準の正本は CLAUDE.md §4
+- **本当に新しいテーブルが要るか**を先に判定する。特化 UI（DnD / カレンダー / ルーチン生成 / リマインダー）が要る → 特化テーブル。型付きフィールド + フィルタ + 集計で済む → 汎用 Database（ただし現在凍結中）。判定基準の元になる文書は CLAUDE.md §4
 - 既存の 5 role（task / event / routine / note / daily）に**寄せられないか**を疑う。`notes_payload.note_type` に `'template'` を足したテンプレート機能（#1047）のように、**列 1 つで済むなら 2 行分割モデルと ID 不変式に手を入れない**のが最良の着地
 - 計画書が要る規模なら `docs/vision/plans/_TEMPLATE.md` ベースで先に書く（Scope 宣言 / Gate 列 / 機械検証可能な AC。CLAUDE.md §7.3）
 
 ## Phase 1: データ層（DDL）
 
-→ 手順の正本は **`db-migration` スキル**。
+→ 手順の元になる文書は **`db-migration` スキル**。
 
-`supabase/migrations/<連番>_<slug>.sql` を**ローカルに置くだけ**にする。適用（`supabase db push`）はこうだいさんの手番で、`apply_migration` MCP の単独使用は禁止（CLAUDE.md §7.3）。ここで止まるので、**Phase 2 以降は DDL の適用を待たずに書いてよい**（型は自分で書くため）。
+`supabase/migrations/<連番>_<slug>.sql` を**ローカルに置くだけ**にする。適用（`supabase db push`）はこうだいさんの作業で、`apply_migration` MCP の単独使用は禁止（CLAUDE.md §7.3）。ここで止まるので、**Phase 2 以降は DDL の適用を待たずに書いてよい**（型は自分で書くため）。
 
 ## Phase 2: サービス層（DataService 境界）
 
@@ -54,13 +54,13 @@ mapper の 3 つの罠（詳細 = `docs/vision/db-conventions.md` §10）:
 
 ## Phase 4: UI
 
-→ 手順の正本は **`add-component` スキル**、デザイン判断は `frontend-react-designer`。
+→ 手順の元になる文書は **`add-component` スキル**、デザイン判断は `frontend-react-designer`。
 
 hook（`shared/src/hooks/`）→ 必要なら Context（Pattern A）→ 部品（`shared/src/components/`）→ 画面への配線（`web/src/`）の順。読む effect で `useSyncDomains` を宣言する（Phase 3 の申告漏れはここで無言の stale になる）。
 
 ## Phase 5: テスト
 
-→ 手順の正本は **`test-writing` スキル**。
+→ 手順の元になる文書は **`test-writing` スキル**。
 
 最低限: mapper の純関数テスト（変換の往復と生成列の除外）+ hook / 画面のテスト。**`build` はテストファイルを見ず `vitest` は型を見ない**ので、`typecheck:tests` が独立のゲートとして要る。
 
