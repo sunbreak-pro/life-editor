@@ -288,4 +288,6 @@ D-20260806-main-2 = A を受けて 2 ラウンド実施。**merge 前の数値**
 | §9 Document System | 548 | 687 | +139 |
 | 合計 | 5,353 | 9,882 | +4,529 |
 
-2026-11-11 の節ごとの値は、§1 と同じ係数（ASCII 3.6 字/tok、それ以外 0.9 tok/字）で `## ` の見出しごとに数えた計算である。次の再測定は、`docs/vision/plans/2026-11-11-claude-md-history-offload.md` の Step 3〜5 の各 PR の前後で行う（D-20261111-harness-1）。
+2026-11-11 の節ごとの値は、§1 と同じ係数（ASCII 3.6 字/tok、それ以外 0.9 tok/字）で `## ` の見出しごとに数えた計算である。次の再測定は、`archive/2026-11-11-claude-md-history-offload.md` の Step 3〜5 の各 PR の前後で行う（経緯だけを先に外す決定 = `decisions/D-20261111-harness-1.md`）。2026-11-15 から、この Step 3〜5 は計画書 `docs/vision/plans/2026-11-15-align-with-shared-rules.md` の Step 7 が引き継いでいる。
+
+2026-11-15、機能の重さの表の節（§8）の経緯を `docs/requirements/tier-*.md` へ移す PR の前後で、同じ方法で測った。`.claude/CLAUDE.md` は 10,098 tok（34,756 B・148 行）から 9,442 tok（32,487 B・149 行）になり、§8 は 1,075 tok から 419 tok になった。

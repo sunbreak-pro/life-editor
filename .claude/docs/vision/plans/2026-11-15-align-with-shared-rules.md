@@ -198,7 +198,7 @@ claude-dotfiles の `claude/CLAUDE.md`・`claude/rules/`・`claude/skills/` は 
 .claude/docs/vision/claude-md-layering.md
 .claude/docs/vision/plans/_TEMPLATE.md
 .claude/docs/vision/plans/2026-05-24-multi-chat-worktree-policy.md
-.claude/docs/vision/plans/2026-11-11-claude-md-history-offload.md
+.claude/archive/2026-11-11-claude-md-history-offload.md
 .claude/docs/vision/plans/2026-11-15-align-with-shared-rules.md
 .claude/docs/requirements/tier-*.md
 .claude/docs/reports/2026-08-06-context-fixed-cost-baseline.md
@@ -391,7 +391,7 @@ claude-dotfiles の PR #106 が main に入り、claude-dotfiles が 2 本の ho
 - 元になる計画: claude-dotfiles の `claude/docs/plans/2026-11-11-project-rollout.md`（Step 13）
 - 引き渡しの一覧: claude-dotfiles の PR #106 の計画書 `claude/docs/plans/2026-11-11-flow-parts-into-core.md` の Worklog
 - 先に合わせたリポジトリの計画書: original-card-battle の `.claude/docs/vision/plans/2026-11-14-align-with-shared-rules.md`
-- 取り込む計画書: `.claude/docs/vision/plans/2026-11-11-claude-md-history-offload.md`
+- 取り込んだ計画書: `.claude/archive/2026-11-11-claude-md-history-offload.md`
 - 節の移し替えを待つ決定: `.claude/decisions/D-20260806-main-3.md`
 - スキルの実体をリポジトリに置く決定: `.claude/decisions/D-20260810-main-2.md`
 - 方針の文書: `.claude/comm/decisions/POLICY.md`
