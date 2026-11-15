@@ -1,6 +1,6 @@
 ---
 name: docs-workflow
-description: life-editor のドキュメント体系と課題管理運用の正本。GitHub Issue のラベル routing（section:<id> / shared-fix）・Issue 起票の一元化ルール・Issue と docs/known-issues のスコープ境界・実装プラン（plans/）のライフサイクル・並行チャット通信（comm/）・判断の非同期キュー（decisions/）を扱う。Issue を起票する / 自分宛タスクを探す / プランを書く or archive する / 他チャットへ連絡する / ユーザー判断をキューに積む ときに読む。Triggers include "Issue 起票", "issue dispatch", "自分宛", "shared-fix", "section ラベル", "plans", "archive", "known-issues", "comm", "decisions", "判断キュー".
+description: life-editor のドキュメント体系と課題管理運用の正本。GitHub Issue のラベル routing（section:<id> / shared-fix）・Issue 起票の一元化ルール・Issue と docs/known-issues のスコープ境界・実装プラン（plans/）のライフサイクル・並行チャット通信（comm/）・無人の実行が使う判断の非同期キュー（decisions/）を扱う。Issue を起票する / 自分宛タスクを探す / プランを書く or archive する / 他チャットへ連絡する / 無人の実行でユーザー判断をキューに積む ときに読む。Triggers include "Issue 起票", "issue dispatch", "自分宛", "shared-fix", "section ラベル", "plans", "archive", "known-issues", "comm", "decisions", "判断キュー".
 ---
 
 # Document System — ドキュメント体系と課題管理
@@ -71,9 +71,9 @@ Status 語彙は enum のみ: `Draft` / `IN PROGRESS` / `BLOCKED` / `COMPLETED` 
 
 `.claude/comm/`（自分の Outbox にのみ append → `comm/README.md`）。
 
-## 判断の非同期キュー（2026-07-28〜）+ 確定台帳（2026-08-09〜）
+## 判断の聞き方: 対話は質問、無人は非同期キュー（2026-07-28〜）+ 確定台帳（2026-08-09〜）
 
-ユーザー判断は `.claude/comm/decisions/` に書き溜めて次の作業へ進む（事前決裁 = `decisions/POLICY.md`・行動規定 = `rules/decision-queue.md`・設計 = `docs/vision/plans/2026-07-28-loop-engineering-harness.md`）。
+ユーザー判断の聞き方は、対話のチャットと無人の実行で分かれる。対話のチャットは、最後の報告のあとに AskUserQuestion で聞く。無人の実行は質問を出せないので、`.claude/comm/decisions/` に書き溜めて次の作業へ進む（事前決裁 = `decisions/POLICY.md`・行動規定 = `rules/decision-queue.md`・設計 = `docs/vision/plans/2026-07-28-loop-engineering-harness.md`）。
 
 回答が付いて実装 Issue を起票する前に、`gh issue list -R sunbreak-pro/life-editor --state closed --search <キーワード>` で先行着地が無いか確かめる（裁定は数日〜数週間寝るので、待っている間に別レーンが直していることがある — D-20260801-sched-2 は回答の 10 日前に PR #547 で着地済みで、#741 が重複起票になった）。
 
