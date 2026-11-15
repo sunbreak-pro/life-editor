@@ -17,7 +17,7 @@ life-editor は N=1 個人用ツール。市販の見た目より「作者にと
 - DB → `docs/vision/db-conventions.md` + CLAUDE.md §7.3（手順は `db-migration` スキル。UI の機構は `add-component`、層をまたぐ機能追加は `add-feature` — 5 本とも #1336 で現行アーキへ書き直し済み）
 - 本スキル → **見た目・状態・a11y・motion の判断**（新規 UI 作成 **および既存 UI の系統的 remediation 両方**）
 
-> ⚠️ **UI 2 層モデル（W0 2026-06-07 確定 = 案 A）**: `frontend/`（Tauri 時代）は **削除済み（2026-07-11 #197）**。新規 UI は `shared/src/components/` に集約し、Web / Electron / Capacitor が同一ソースを共用する（トークン / i18n も `shared/` 側）。本スキルは greenfield 作成だけでなく、既存 UI を本ガイドの基準に揃える remediation でも同じ判断軸を適用する。改修時は Anti-Patterns を「これから書かない」ではなく「既存から検出し直す」チェックリストとして使う（SSOT → CLAUDE.md §6 / `.claude/rules/frontend.md`）。
+> ⚠️ **UI 2 層モデル（2026-06-07 に UI 集約方針として確定）**: `frontend/`（Tauri 時代）は **削除済み（2026-07-11 #197）**。新規 UI は `shared/src/components/` に集約し、Web / Electron / Capacitor が同一ソースを共用する（トークン / i18n も `shared/` 側）。本スキルは greenfield 作成だけでなく、既存 UI を本ガイドの基準に揃える remediation でも同じ判断軸を適用する。改修時は Anti-Patterns を「これから書かない」ではなく「既存から検出し直す」チェックリストとして使う（SSOT → CLAUDE.md §6 / `.claude/rules/frontend.md`）。
 
 ## ワークフロー (5 ステップ)
 
@@ -26,7 +26,7 @@ UI を新規作成または改修する依頼を受けたら、必ず以下を�
 ### 1. 目的とトーンを 1 行で言語化
 
 「この UI が解決する具体的問題」と「何を一瞬で識別させたいか」を 1 行で書き出す。
-life-editor のトーンは **Lumen calm minimal**（朝刊・夕刊版のパレット = #269。色の正本は `shared/src/styles/tokens.css` の `--color-accent` ほかで、ここに値を写さない。旧 cobalt ink + mint と旧 Notion teal は retired）。派手な背景・装飾フォント・ネオン色は不採用。
+life-editor のトーンは **Lumen calm minimal**（朝刊・夕刊版のパレット = #269。色の元になる場所は `shared/src/styles/tokens.css` の `--color-accent` ほかで、ここに値を写さない。旧 cobalt ink + mint と旧 Notion teal は retired）。派手な背景・装飾フォント・ネオン色は不採用。
 
 見た目の良し悪し（アイコンの要否・余白のリズム・動きの量・視覚の階層）を判断するときは、`design-critique` スキルの計測と採点表を使う。本スキルは規約を満たすための判断軸で、採点の物差しは持たない。
 
@@ -91,4 +91,4 @@ WCAG 2.2 / フォーカス可視 / WAI-ARIA 3 点セット (`htmlFor` + `aria-de
 
 ## 参考: なぜこのスキルの粒度が適切か
 
-公式 Anthropic skills (`frontend-design` / `theme-factory` / `web-artifacts-builder`) は意図的に分割されているが、それは想定ユーザが多様で「Create / Transform / Stack 初期化」が排他的に発火するから。life-editor は N=1 個人用で Create と既存 remediation が中心、shadcn/ui ではなく独自トークンを使うため、Theme Factory に相当するスキルは不要。横断的な自動監査 (E3 Guard) や Storybook 連携が必要になった段階で `frontend-react-reviewer` を別スキルとして切り出す（本スキルは判断軸、reviewer は機械的検出を担う想定）。
+公式 Anthropic skills (`frontend-design` / `theme-factory` / `web-artifacts-builder`) は意図的に分割されているが、それは想定ユーザが多様で「Create / Transform / Stack 初期化」が排他的に発火するから。life-editor は N=1 個人用で Create と既存 remediation が中心、shadcn/ui ではなく独自トークンを使うため、Theme Factory に相当するスキルは不要。横断的な自動監査や Storybook 連携が必要になった段階で `frontend-react-reviewer` を別スキルとして切り出す（本スキルは判断軸、reviewer は機械的検出を担う想定）。

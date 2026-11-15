@@ -43,7 +43,7 @@ function makeDS(): DataService {
 
 - **純関数**（mapper / utils）はそのまま呼んで assert する。最も価値が高く書きやすい
 - **hook** は `renderHook` + `waitFor`。Provider が要るなら Provider ごと wrapper に入れる
-- **ボタンの挙動は、画面ごと render してハンドラを叩き、引数と呼び先を assert する**のが既定（[`D-20260812-refactor-2`](../../decisions/D-20260812-refactor-2.md) = A+B。実例 = `web/tests/trashScreenActions.test.tsx`）。純関数を切り出して直接呼ぶ形は、**その画面が jsdom に載らないときだけの逃げ道**（Provider 一式 + 実レイアウトが要る `CalendarTab` 等）— 載る画面でやるとテスト専用の間接層が 1 枚増えるだけになる
+- **ボタンの挙動は、画面ごと render してハンドラを叩き、引数と呼び先を assert する**のが既定（[ボタンの処理を叩く経路の決定](../../decisions/D-20260812-refactor-2.md)。実例 = `web/tests/trashScreenActions.test.tsx`）。純関数を切り出して直接呼ぶ形は、**その画面が jsdom に載らないときだけの逃げ道**（Provider 一式 + 実レイアウトが要る `CalendarTab` 等）— 載る画面でやるとテスト専用の間接層が 1 枚増えるだけになる
 - DOM 検索は `getByRole` > `getByText` > `getByTestId` の順に優先する
 - ユーザー操作は `@testing-library/user-event`、非同期は `waitFor`
 
@@ -78,4 +78,4 @@ cd web && npm run typecheck:tests
 - **mcp-server の日付テスト** → `vitest.config.ts` が TZ を `Asia/Tokyo` に pin している。ランナーは UTC なので、pin を外すと局所日付のテストが別の意味で緑になる
 - **`shared/` の lint エラーが web の lint で出ない** → `web` の lint は `web/` 配下しか歩かない。`cd shared && npm run lint` で見る
 
-ゲート一式の正本は `.github/workflows/ci.yml` の `verify` ジョブ（CLAUDE.md §7.1）。**触ったパッケージだけでなく全部回す** — 依存が shared → web → desktop / mcp-server と一方向に繋がっている。
+ゲート一式の元になる場所は `.github/workflows/ci.yml` の `verify` ジョブ（CLAUDE.md §7.1）。**触ったパッケージだけでなく全部回す** — 依存が shared → web → desktop / mcp-server と一方向に繋がっている。

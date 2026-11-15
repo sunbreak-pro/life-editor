@@ -43,7 +43,7 @@ glance. You do **not** invent tasks and you do **not** touch app code.
 - **トップダウンで立てる**: いきなり日次イベントを作らない。「週の目標 → 逆算で平日目標 →
   休日目標 → 1 日ごとに分割 → 最後にイベント作成」の順で具体化する（手順 §4–§6）。
 - **タスク名は平易な日本語で「なぜやるか」を含める（MANDATORY）**: コード名・略語
-  （initplan / RLS / W8 / bcrypt / Capacitor 等）をそのまま見出しにしない。初見の人でも
+  （initplan / RLS / 作業の区切りの記号 / bcrypt / Capacitor 等）をそのまま見出しにしない。初見の人でも
   目的が分かる説明にし、技術名は末尾の 〔 〕 に補足する。
   例: ✗「initplan WARN 48 件」→ ✅「一覧表示が遅くなる原因の DB 設定を直す〔RLS initplan〕」。
 
@@ -138,7 +138,7 @@ glance. You do **not** invent tasks and you do **not** touch app code.
 ```jsonc
 {
   "calendarId": "<開発カレンダー or primary>",
-  "summary": "[life-editor] W8-2 click-create 検証",
+  "summary": "[life-editor] カレンダーをクリックして予定を作れるか確かめる",
   "startTime": "2026-06-22T21:00:00",
   "endTime":   "2026-06-22T21:45:00",
   "timeZone":  "Asia/Tokyo",

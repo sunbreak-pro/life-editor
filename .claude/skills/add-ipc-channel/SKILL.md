@@ -1,13 +1,13 @@
 ---
 name: add-ipc-channel
-description: life-editor のデータアクセスは IPC を通らない（正本 = CLAUDE.md §3.1 の DataService 境界）ことの導線と、desktop 殻だけが持つ IPC ブリッジに 1 本足すときの 3 ファイル lockstep。Use when someone reaches for an IPC channel, a preload bridge, or `window.desktop`. Triggers include "IPC", "preload", "contextBridge", "ipcMain", "window.desktop", "チャンネル追加", "メインプロセスと通信".
+description: life-editor のデータアクセスは IPC を通らない（元になる文書 = CLAUDE.md §3.1 の DataService 境界）ことの導線と、desktop 殻だけが持つ IPC ブリッジに 1 本足すときの 3 ファイル lockstep。Use when someone reaches for an IPC channel, a preload bridge, or `window.desktop`. Triggers include "IPC", "preload", "contextBridge", "ipcMain", "window.desktop", "チャンネル追加", "メインプロセスと通信".
 ---
 
 # IPC — まず「それは IPC の仕事ではない」を確認する
 
 ## データは IPC を通らない
 
-**Todo / Note / Schedule / Daily / タグ — アプリのデータに IPC は一切関与しない。** 正本は CLAUDE.md §3.1:
+**Todo / Note / Schedule / Daily / タグ — アプリのデータに IPC は一切関与しない。** 元になる文書は CLAUDE.md §3.1:
 
 > フロントは `getDataService()` 経由でのみデータアクセス。**コンポーネントから直接バックエンド呼び出し（`invoke()` 等）禁止**。実装 = `shared/src/services/`
 
@@ -17,7 +17,7 @@ Supabase Postgres へは renderer から直接行く。Web / Electron / Capacito
 
 ## 例外: desktop 殻のローカル事情
 
-完結しないのは「OS の外側にしか無いもの」だけ。実在するのはこれだけで、実体は `desktop/src/shared/ipcContract.ts` が正本:
+完結しないのは「OS の外側にしか無いもの」だけ。実在するのはこれだけで、実体は `desktop/src/shared/ipcContract.ts` が元になる場所:
 
 - テーマ設定とウィンドウ位置の永続化（`electron-store`）
 - アプリのバージョン
@@ -47,4 +47,4 @@ Electron の IPC は「main の `ipcMain.handle` と preload の `ipcRenderer.in
 cd desktop && npm run typecheck && npm run test
 ```
 
-`desktop/src` を触るのが配布まわりの作業の途中なら、それは配布の問題ではなくアプリの問題なので **P-008 に従い実装せずキュー / Issue へ**（`2026-08-30-desktop-app-packaging.md` の Scope 宣言）。
+`desktop/src` を触るのが配布まわりの作業の途中なら、それは配布の問題ではなくアプリの問題なので **方針「実装中スコープ凍結」（`POLICY.md`）に従い実装せずキュー / Issue へ**（`2026-08-30-desktop-app-packaging.md` の Scope 宣言）。
