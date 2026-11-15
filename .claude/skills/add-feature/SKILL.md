@@ -5,7 +5,7 @@ description: life-editor で機能を DB から UI まで貫いて足すとき�
 
 # Add Feature — DB から UI まで貫くときの順番
 
-> 本スキルは**通し手順（どの層をどの順に触るか）**だけを持つ。各層の中身は `db-migration` / `add-component` / `test-writing` が元になる文書。
+> 本スキルは**通し手順（どの層をどの順に触るか）**だけを持つ。各層の中身は `db-migration` / `add-component` / `test-writing` が元になる文書です。
 >
 > 単一層で終わる作業（UI だけ / 文言だけ / バグ修正）ではこれを開かない — `lead-pipeline` で軽い作業か中くらいの作業として進めれば足りる。
 
