@@ -2,20 +2,20 @@
 
 > 設計判断・実装規約の SSOT。**「変わらない事実」だけを持ち、手順はスキル / エージェント、frontend 詳細規約は [`.claude/rules/`](./rules/) へ委譲**。各行は「消したら Claude が間違うか」基準で維持する（150 行目標）。
 >
-> ⚠️ **Active Migration**: Tauri 2 + D1 + portable-pty → **Electron + Capacitor + Web + Supabase** へ移行中。**現行スタック・Phase 状況・移行手順の SSOT は [`2026-05-04-cross-platform-migration.md`](./2026-05-04-cross-platform-migration.md) と `memory/INDEX.md`** (進捗 / 履歴は per-chat — §9 参照)。本ファイルの実装パス/コマンドはアーキ非依存に一般化済み（具体は移行 SSOT 参照）。方針: 学習ログ廃止 / 完成までコスト $0 厳守。
+> ⚠️ **Active Migration**: Tauri 2 + D1 + portable-pty → **Electron + Capacitor + Web + Supabase** へ移行中。**現行スタック・Phase 状況・移行手順の SSOT は [`2026-05-04-cross-platform-migration.md`](./2026-05-04-cross-platform-migration.md) と `memory/INDEX.md`** (進捗 / 履歴は per-chat — §9 参照)。本ファイルの実装パス/コマンドはアーキ非依存に一般化済み（具体は移行 SSOT 参照）。方針: 学習ログ廃止 / 完成までコスト $0 厳守。<!-- words-ok: D1 は Cloudflare のデータベースの製品名 -->
 
 ---
 
 ## 0. Meta
 
 - **更新規則**: 実装変更はコードと同一 PR で更新。新機能は §8 + `docs/requirements/` に記入
-- **数値の非複製原則**: 個数・列挙は単一の正本（コード or SSOT）だけに書き、他文書は参照にする。「一覧はコードが正」と書くなら数字を併記しない。改名・退役時の波及手順は [`rules/docs-consistency.md`](./rules/docs-consistency.md)
-- **再編中（航法 / 目的の 2 層）**: 各節をどちらの層に置き、層外の記述をどこへ移すかは [`docs/vision/claude-md-layering.md`](./docs/vision/claude-md-layering.md) が正本（固定費の実測 = [`docs/reports/2026-08-06-context-fixed-cost-baseline.md`](./docs/reports/2026-08-06-context-fixed-cost-baseline.md)）。**移送は移行完了後**のため、それまで本ファイルの構成は現状維持（D-20260806-main-3）
+- **数値の非複製原則**: 個数・列挙は単一の元になる文書（コード or SSOT）だけに書き、他文書は参照にする。「一覧はコードが正」と書くなら数字を併記しない。改名・退役時の波及手順は [`rules/docs-consistency.md`](./rules/docs-consistency.md)
+- **再編中（航法 / 目的の 2 層）**: 各節をどちらの層に置き、層外の記述をどこへ移すかは [`docs/vision/claude-md-layering.md`](./docs/vision/claude-md-layering.md) が元になる文書（固定費の実測 = [`docs/reports/2026-08-06-context-fixed-cost-baseline.md`](./docs/reports/2026-08-06-context-fixed-cost-baseline.md)）。**移送は移行完了後**のため、それまで本ファイルの構成は現状維持（[移送を移行の完了後にする決定](./decisions/D-20260806-main-3.md)）
 - **関連**: 記録の入口 = [`INDEX.md`](./INDEX.md)（`records.mjs` 生成・git 非追跡の派生ビュー = 2026-08-12 ユーザー確定 / #735）・進捗 / 履歴 = per-chat `chat-*.md`（§9。集約 `memory/INDEX.md` / `history/INDEX.md` も同じく git 非追跡の派生ビュー）・設計 = `docs/vision/`・要件 = `docs/requirements/`・障害知見 = [`docs/known-issues/INDEX.md`](./docs/known-issues/INDEX.md)・完了プラン = `archive/`（所在表 = `archive/INDEX.md` も同じく派生ビュー）
 
 ## 1. Vision（詳細 → [`docs/vision/core.md`](./docs/vision/core.md)）
 
-- AI と会話しながら生活を設計・記録・運用するパーソナル OS です。**作者本人（macOS + iOS）だけが使う個人の道具**で、他人への配布とサインアップの開放はしません（2026-10-22 ユーザー裁定 = D-20261022-main-1。限定人数配布の D-20260829-main-1 を SUPERSEDE）。リポジトリは参考のために公開したままで、ライセンスは All rights reserved（ルートの `LICENSE`）です。配布向けに作った機能（サインアップ・法的ページ・アカウント削除など）はコードに残しますが、配布を目標にはしません
+- AI と会話しながら生活を設計・記録・運用するパーソナル OS です。**作者本人（macOS + iOS）だけが使う個人の道具**で、他人への配布とサインアップの開放はしません（[個人の道具にする決定](./decisions/D-20261022-main-1.md)）。リポジトリは参考のために公開したままで、ライセンスは All rights reserved（ルートの `LICENSE`）です。配布向けに作った機能（サインアップ・法的ページ・アカウント削除など）はコードに残しますが、配布を目標にはしません
 - **Non-Goals**: 他人への配布 / マルチテナント（組織・共有・権限管理 — 各ユーザーは RLS で分離された個人ワークスペースのみ）/ 特化専用アプリ / Claude API 直課金 / モバイル単独起動
 
 ## 2. Platform
@@ -38,11 +38,11 @@
 - `items_meta` + `<role>_payload` モデル（テーブル一覧は `supabase/migrations/` + db-conventions が正）
 - **特化 vs 汎用 DB の判断**: 特化 UI（DnD / カレンダー / ルーチン生成 / リマインダー）が必要 → 特化テーブル。型付きフィールド + フィルタ + 集計で済む → 汎用 Database
 - **ID 不変式**: TodoNode `<type>-<timestamp+counter>`（`<type>` は `items_meta.role` の値。Todo は `task` のまま据え置き = #831） / DailyNode `daily-<YYYY-MM-DD>` / 他 `generateId(prefix)`。全 String。`id` は role を跨いで一意
-- **items_meta + composite FK**: 各 role（task / event / routine / note / daily / goal / table。一覧の正 = `items_meta_role_check` = 最新は `supabase/migrations/0040_note_table_items.sql`）は `items_meta(id, role)` が SSOT、payload テーブルは `(id, role)` 複合 FK で参照。WikiTag / Link 系は role 区別なしで `items_meta.id` を参照。**目標 ↔ Todo は専用の `goal_todo_links`**（`(goal_id, 'goal')` / `(todo_id, 'task')` の複合 FK で種類の取り違えを DB が拒否）で、アイテム間リンクの表には入れない（#2101・規約 → db-conventions §15）。**`table` はノート本文の中の表**で、タグを初めて付けたときだけアイテムになる。セルの正本は本文のままで、本文の表ノードが `tableId` 属性でアイテムを指す（#2094・規約 → db-conventions §16）
-- **`items_meta` の外の独立テーブル**: 拡張アプリの数値の記録 `app_records` と、拡張アプリの台帳 `extension_apps`（0039）と、記録の種類ごとの見せ方 `record_views`（0041・D-20261017-main-1）は、timer 系（0018）と同じく自分の `updated_at` を持つ独立テーブルで、ゴミ箱にも出さない（D-20261008-main-1・規約 → db-conventions §17）。記録の id の接頭辞 `record-` は `items_meta.role` の値ではない
-- **Routine**: Event の生成テンプレート。Routine 専用 Tag/Link UI は持たない（必要なら生成された Event 側に付与）。UI 上は「単一アイテム型（Event）+ 繰り返し設定」として提示し、Routine は実装詳細（2026-07-11 #185 決定 = D-20260711-main-1）
+- **items_meta + composite FK**: 各 role（task / event / routine / note / daily / goal / table。一覧の正 = `items_meta_role_check` = 最新は `supabase/migrations/0040_note_table_items.sql`）は `items_meta(id, role)` が SSOT、payload テーブルは `(id, role)` 複合 FK で参照。WikiTag / Link 系は role 区別なしで `items_meta.id` を参照。**目標 ↔ Todo は専用の `goal_todo_links`**（`(goal_id, 'goal')` / `(todo_id, 'task')` の複合 FK で種類の取り違えを DB が拒否）で、アイテム間リンクの表には入れない（#2101・規約 → db-conventions §15）。**`table` はノート本文の中の表**で、タグを初めて付けたときだけアイテムになる。セルの元は本文のままで、本文の表ノードが `tableId` 属性でアイテムを指す（#2094・規約 → db-conventions §16）
+- **`items_meta` の外の独立テーブル**: 拡張アプリの数値の記録 `app_records` と、拡張アプリの台帳 `extension_apps`（0039）と、記録の種類ごとの見せ方 `record_views`（0041・[記録の見せ方の決定](./decisions/D-20261017-main-1.md)）は、timer 系（0018）と同じく自分の `updated_at` を持つ独立テーブルで、ゴミ箱にも出さない（[拡張アプリとの役割分担の決定](./decisions/D-20261008-main-1.md)・規約 → db-conventions §17）。記録の id の接頭辞 `record-` は `items_meta.role` の値ではない
+- **Routine**: Event の生成テンプレート。Routine 専用 Tag/Link UI は持たない（必要なら生成された Event 側に付与）。UI 上は「単一アイテム型（Event）+ 繰り返し設定」として提示し、Routine は実装詳細（[Routine を実装詳細に隠す決定](./decisions/D-20260711-main-1.md)）
 - **ソフトデリート**: `is_deleted` + `deleted_at` → TrashView 復元。対象の正 = `shared/src/components/TrashView.tsx::TrashCategory`（5 カテゴリ・Events 含む）
-- 汎用 Database は凍結（D-20260704-main-1）・現行スタックに実装なし。旧 PropertyType 5 種は退役スタック側の記録（requirements 参照）
+- 汎用 Database は凍結（[凍結の決定](./decisions/D-20260704-main-1.md)）・現行スタックに実装なし。旧 PropertyType 5 種は退役スタック側の記録（requirements 参照）
 
 ## 5. AI Integration
 
@@ -57,8 +57,9 @@
 
 - **詳細規約 = [`.claude/rules/frontend.md`](./rules/frontend.md)**（path-scoped: `shared/src/**` / `web/src/**` を扱う時のみ自動ロード）: Provider 順序 / Pattern A / 配置表 / デザイン規約 / IME 等の gotcha
 - 不変式の要約: `lumen-*` トークン必須（色ハードコード禁止）/ i18n は props 経由・en / ja 両 catalog / DataService はコールバック注入 / 主要 UI 背景に透明度禁止
-- **新規 UI は `shared/src/components/` に集約**（W0 案 A = D-20260607-main-1 → `docs/vision/coding-principles.md §6`。旧 `frontend/` は 2026-07-11 削除済み #197）
-- **Web/Mobile UI デザインの追跡正本 = Epic #321 + [`docs/requirements/mobile-scope.md`](./docs/requirements/mobile-scope.md) + Issue 群**（2026-08-01 ユーザー確定 D-20260730-tags-1）。旧 W-parity ロードマップ（#121/#127）と ClaudeDesign fan-out 計画書はどちらも完了・`archive/` 済（[`archive/2026-07-04-claudedesign-screen-design-fanout.md`](./archive/2026-07-04-claudedesign-screen-design-fanout.md) — brief 作成手順の参照元としてのみ有効）
+- TypeScript は、export する関数とコンポーネントの戻り値の型を明示する（公開 API の型を推論に任せない。strict は各パッケージの tsconfig が守る）
+- **新規 UI は `shared/src/components/` に集約**（[UI 部品を shared/ に集める決定](./decisions/D-20260607-main-1.md) → `docs/vision/coding-principles.md §6`）
+- **Web/Mobile UI デザインの追跡の元 = Epic #321 + [`docs/requirements/mobile-scope.md`](./docs/requirements/mobile-scope.md) + Issue 群**（[追跡の元を付け替える決定](./decisions/D-20260730-tags-1.md)）。ClaudeDesign の brief の作り方だけは [`archive/2026-07-04-claudedesign-screen-design-fanout.md`](./archive/2026-07-04-claudedesign-screen-design-fanout.md) を見る
 
 ## 7. Development Workflows
 
@@ -138,12 +139,12 @@
 - 退役・移設・凍結の経緯と決定の記録のパスは、各 tier のファイルの機能の節にある
 - 次の段階の計画は移行の計画書が元になる文書（残す知見の置き場 = [`archive/SUMMARY.md`](./archive/SUMMARY.md)）
 
-## 9. Document System（要約 — 正本は `docs-workflow` スキル）
+## 9. Document System（要約 — 元は `docs-workflow` スキル）
 
-Issue のラベル routing（`section:<id>` / `shared-fix`）・`[all]` 禁止則・plans のライフサイクル・comm / decisions の運用は [`skills/docs-workflow/SKILL.md`](./skills/docs-workflow/SKILL.md) が正本。**docs を書く / Issue を起票する前に開く**。
+Issue のラベル routing（`section:<id>` / `shared-fix`）・`[all]` 禁止則・plans のライフサイクル・comm / decisions の運用は [`skills/docs-workflow/SKILL.md`](./skills/docs-workflow/SKILL.md) が元になる文書。**docs を書く / Issue を起票する前に開く**。
 
 - **進捗 / 履歴は per-chat**: `.claude/memory/chat-<self>.md` + `.claude/history/chat-<self>.md`（task-tracker 経由・git 追跡・単一書込者）。集約 INDEX は git 非追跡の派生ビュー（共通の hook `project-session-start.mjs` が再生成）。チャット名宣言 = `.claude/comm/.session-name`
 - **課題追跡の正 = GitHub Issues + Projects**（`gh -R sunbreak-pro/life-editor`）。**起票は chat-main に一元化**する — worktree チャットは実装に着手してよいが、自分で起票せず outbox に依頼を append する。設定の `issueCreation` が `main-only` なので、共通の hook が main 以外の `gh issue create` を止める
 - **Issue はプロダクト課題専用**。判定 = 「life-editor のコードを直せば直るか？」— No（Claude Code の環境 / hook / ツール挙動）なら Issue 化せず `docs/known-issues/` + `rules/` で管理する
-- **実装プラン** = `docs/vision/plans/YYYY-MM-DD-<slug>.md` → 完了で `archive/` へ移動（Status enum の語彙 → [`rules/docs-consistency.md`](./rules/docs-consistency.md)）。移行 SSOT のみ `.claude/` 直下に置く例外。**決定の Why・却下案 = [`decisions/`](./decisions/README.md) 台帳**（回答済みキューを昇格・旧「ADR は作らない」は D-20260809-main-1 で SUPERSEDE。どこに書くかの判定 = `rules/records.md`）
+- **実装プラン**の置き場と書き方は共通の `code-plan-editor` スキルに従い、完了で `archive/` へ移動する（Status enum の語彙 → [`rules/docs-consistency.md`](./rules/docs-consistency.md)）。移行 SSOT のみ `.claude/` 直下に置く例外。**決定の Why・却下案 = [`decisions/`](./decisions/README.md) 台帳**（[台帳を作る決定](./decisions/D-20260809-main-1.md)。どこに書くかの判定 = `rules/records.md`）
 - **鉄則**: 機能追加 / 削除時は §8 更新 ／ バイナリは repo に置かない — 音源の実体は Supabase Storage の **public** バケット `sounds`（`shared/src/constants/sounds.ts`）、ノートの添付は **非公開**バケット `attachments` から（#1404。ドキュメントはパスだけを持ち URL は毎回署名する — `shared/src/constants/attachments.ts`）。どちらも `.gitignore` の機械ガードは無い／ API キーをフロントエンドに直書きしない ／ **`.mcp.json` のトークンは `${SUPABASE_ACCESS_TOKEN}` 等の参照のまま維持・平文展開禁止**（2026-05-17 流出未遂。共通の hook `bash-guards.mjs` が commit 時に機械チェック）
