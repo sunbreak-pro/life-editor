@@ -113,6 +113,14 @@ Step 1-6 は本ターンで完了させる。Step 7-8 は別ターン（運用�
 
 ---
 
+## 同じ担当の区分に、臨時の worktree を並べて立てない
+
+担当の区分が動いている間は、同じ section の `fix-<番号>` という臨時の worktree を並べて立てません。立てる前に、担当表の検査（`scope-overlap.mjs`）で、同じファイルを触る作業がないかを確かめます。持ち分のない横断の worktree（mobile-refine など）は、担当の区分の外の報告が出ません。そのため、同じファイルの検査だけが頼りになります。
+
+## Orca のターミナルが掴んでいる worktree を消す
+
+Windows では、`git worktree remove` が `Permission denied` で止まることがあります。node_modules がプロセスに掴まれているためです。このとき git 側の登録だけが外れ、ディレクトリが残ります。掴んでいるのが Orca（worktree を並べて開く道具）のターミナルなら、`orca terminal list --json` で該当の handle を探します。`orca terminal close --terminal <handle>` で解放してから、ディレクトリを消します（2026-07-29 に実測）。
+
 ## 既知の制約（許容前提）
 
 | 制約                               | 影響                                      | 緩和策                                                      |

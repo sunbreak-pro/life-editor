@@ -19,6 +19,8 @@ Status 語彙は enum のみ: `Draft` / `IN PROGRESS` / `BLOCKED` / `COMPLETED` 
 
 移行 SSOT（`2026-05-04-cross-platform-migration.md`）のみ歴史的経緯で `.claude/` 直下に置く例外。設計判断の Why・却下案は **`.claude/decisions/` の決定台帳**に残す（旧「ADR は作らない」方針は D-20260809-main-1 で SUPERSEDE — 陳腐化は上書きでなく supersede 連鎖で表現する。書き込み先の判定 = `rules/records.md`）。
 
+大型の仕様の詳細は、計画書として main のチャットが一元で作ります。main への直接の push は禁止なので、一時の worktree から commit と PR を出し、push したらその worktree をすぐ消します。作業の分配や進捗を追う一覧の `.md`（orders など）は、新しく作りません。計画書のひな形の「Worktree 分担」は、Issue を参照する形です。
+
 ## Known Issue / 課題管理（2026-07-04〜）
 
 追跡の正 = **GitHub Issues + Projects**（`gh -R sunbreak-pro/life-editor` で読み書き・種別 = label `type:*`）。新規バグは Issue で起票（`.github/ISSUE_TEMPLATE/known-issue.yml`）。
@@ -50,6 +52,33 @@ Status 語彙は enum のみ: `Draft` / `IN PROGRESS` / `BLOCKED` / `COMPLETED` 
 （2026-07-11 (2) ユーザー決定 — 同日の worktree 自己起票運用を SUPERSEDE）課題の起票はすべて chat-main が `issue-dispatch` スキルで行う（重複チェック → ラベル routing → DoD 付き body）。
 
 ユーザーが worktree チャットへ直接指示した場合、実装は即着手してよいが、そのチャットは自分で起票せず**自分の outbox に起票依頼を append** する（chat-main が拾って起票）。各 worktree はセッション開始時と作業の区切りに自分宛 open Issue（`section:<id>` + `shared-fix`）を確認して実行 → close まで担う。
+
+### 休んでいるチャットを起こす
+
+常設の worktree のチャットには、ラベルを付けて起票するだけで課題が届きます。新しく始めるチャットや、しばらく休んでいるチャットを起こすときだけ、次の 1 行の指示文を渡します。
+
+```text
+gh issue list -R sunbreak-pro/life-editor --label section:<id> --state open と
+--label shared-fix --state open で自分宛 open Issue を確認し、順に実装して close まで担うこと
+```
+
+## 整合の監査（必要なときだけ）
+
+課題を集める一環で、文書とコードのずれを洗うときは、general-purpose のサブエージェントに読み取りだけの監査を任せます。依頼文に「何も編集・作成・削除しない（edit/create/delete nothing）」と明記します。見る観点は次の 7 つです。
+
+1. CLAUDE.md の不変条件と、コードの食い違い。
+2. CLAUDE.md と、移行の元になる文書（`.claude/2026-05-04-cross-platform-migration.md`）の食い違い。
+3. Non-goals と、要件の §8 の食い違い。
+4. 計画書の完了状態。merge 済みなのに IN PROGRESS のままのものを探します。
+5. known-issues の INDEX との食い違い。
+6. リンク切れ。
+7. 数値のずれ（magic number drift）。コードの定数と、文書に書かれた数値の差を探します。
+
+サブエージェントには、指摘ごとに重大度・証拠（file:line を全数）・誤検出の可能性を書かせます。抜き取りで確かめて通ったものだけを、Issue にします。
+
+## CI が止まっている間の確認
+
+GitHub Actions は、支払いのロックで 2026-11-05 から動いていません。PR の CI は 1 本も走らないので、手元で `node scripts/local-ci.mjs` を流した結果が、いまの唯一の確認です。PR 本文に、その終了コード表を書きます。ロックが解けたら、この節を消します。
 
 ## セッション終了時の引き継ぎ表
 
