@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS # Step 1〜9・11 が終わりました。Step 10 は settings の 6 行、Step 12 は入口の文書の目標の扱いが残ります
+Status: COMPLETED # 2026-11-15 に Step 1〜12 が終わりました。入口の文書の大きさの目標は、こうだいさんの答えで 9,500 tok に合わせました
 Created: 2026-11-15
 Branch: claude/align-with-shared-rules-plan
 Owner-chat: main
@@ -124,7 +124,7 @@ claude-dotfiles の `claude/CLAUDE.md`・`claude/rules/`・`claude/skills/` は 
 - **選ぶと何が起きるか。**
   - 取り込む案では、その計画書の Step 3〜6 を、この計画の Step 7 として行います。経緯を外すときに、番号ではなく中身の名前を残します。その計画書は、Status を SUPERSEDED にして `.claude/archive/` へ移します。
   - 別々に進める案では、その計画書を先に終え、番号の直しは Step 9 で行います。入口の文書の同じ行を、2 回触ります。
-- **推奨と根拠。** 取り込む案を推奨します。1 回で済み、入口の文書を触る PR の数が減るためです。大きさの上限（7,600 tok）と検査を足す Step は、そのまま引き継ぎます。
+- **推奨と根拠。** 取り込む案を推奨します。1 回で済み、入口の文書を触る PR の数が減るためです。大きさの上限（7,600 tok）と検査を足す Step は、そのまま引き継ぎます（のちに 9,500 tok に合わせ直しました）。
 - **答え（2026-11-15）。** こうだいさんは、取り込む案を選びました。
 
 **6. 会話で使われていないスキルのうち、ループの 4 本を消すか。**
@@ -199,7 +199,7 @@ claude-dotfiles の `claude/CLAUDE.md`・`claude/rules/`・`claude/skills/` は 
 .claude/docs/vision/plans/_TEMPLATE.md
 .claude/docs/vision/plans/2026-05-24-multi-chat-worktree-policy.md
 .claude/archive/2026-11-11-claude-md-history-offload.md
-.claude/docs/vision/plans/2026-11-15-align-with-shared-rules.md
+.claude/archive/2026-11-15-align-with-shared-rules.md
 .claude/docs/requirements/tier-*.md
 .claude/docs/reports/2026-08-06-context-fixed-cost-baseline.md
 scripts/docs-lint.sh
@@ -226,10 +226,10 @@ AGENTS.md
 | 4 | 共通の側に無い中身を、残る文書へ移します | 自律 | 移した 6 件が移し先にあることを、PR の本文に grep で示す |
 | 5 | 番号を付ける決まりと、番号を読む道具を直します | 人手 | `node .claude/scripts/records.mjs check` が、新旧の両方の名前のファイルを確かめる |
 | 6 | 判断の聞き方を合わせます | 人手 | `rules/decision-queue.md` が、対話のチャットの聞き方を AskUserQuestion と書いている |
-| 7 | 入口の文書から経緯を外します（節ごとに 1 本の PR） | 自律 | 入口の文書が 7,600 tok 以下で、消した記述が移し先にある |
+| 7 | 入口の文書から経緯を外します（節ごとに 1 本の PR） | 自律 | 入口の文書が 9,500 tok 以下で（当初の目標は 7,600 tok。2026-11-15 に合わせ直しました）、消した記述が移し先にある |
 | 8 | 共通の道具へ切り替えます（claude-dotfiles が hook を登録する日） | 人手 | 止まるはずの `gh pr merge` と `gh issue create` を、共通の hook が止める |
 | 9 | 残りの語と番号を直します（文書ごとに 1 本の PR） | 人手 | 検査の番号と語のエラーが、例外を除いて 0 件である |
-| 10 | 共通の側から外す記述の受け皿を作ります | 自律 | TypeScript と React の規約が `rules/frontend.md` にある |
+| 10 | 共通の側から外す記述の受け皿を作ります | 自律 | React の規約が `rules/frontend.md` に、TypeScript の規約が入口の文書の Coding Standards にある（TypeScript は `mcp-server/` と `desktop/` にもあるので、2026-11-15 に置き場を分けました） |
 | 11 | 置き場の例外と、古い進捗の記録を扱います | 人手 | 例外の行の案が、claude-dotfiles の計画書の Worklog にある |
 | 12 | 検査を取り直し、結果を報告します | 自律 | 検査のエラーが、例外を除いて 0 件である |
 
@@ -360,17 +360,17 @@ claude-dotfiles の PR #106 が main に入り、claude-dotfiles が 2 本の ho
 
 ## Acceptance Criteria (機械検証可能)
 
-- [ ] `node <claude-dotfiles>/check-project.mjs <このリポジトリ>` のエラーが、例外の一覧に載せたものを除いて 0 件である
-- [ ] `git ls-files AGENTS.md .agents .codex` が何も出さない
-- [ ] `.claude/settings.json` の `hooks` に、`.claude/hooks/` を指す行が無い
-- [ ] `git ls-files .claude/skills/merge-round .claude/skills/worktree-policy .claude/skills/issue-dispatch .claude/hooks .claude/scripts/hooks-lib` が何も出さない
-- [ ] `node ~/.claude/skills/merge-round/scripts/merge-round.mjs status` が、設定の不足を表示せずに終わる
-- [ ] `node .claude/scripts/records.mjs check` が exit 0 で、`node --test .claude/scripts/records.test.mjs` が全 pass
-- [ ] `node .claude/scripts/context-cost-measure.mjs` で、`.claude/CLAUDE.md` が 7,600 tok 以下
-- [ ] `LC_ALL=C bash scripts/docs-lint.sh` が OK
-- [ ] `node scripts/local-ci.mjs` の全部の手順が exit 0
-- [ ] `git grep -n "\.claude/scripts/scope-overlap.mjs\|\.claude/scripts/merge-round.mjs" -- .claude/CLAUDE.md .claude/issue-workflow.md .claude/rules .claude/skills .claude/docs/vision/plans/_TEMPLATE.md .github` が何も出さない
-- [ ] 完了時に、この計画書と、取り込んだ計画書（`2026-11-11-claude-md-history-offload.md`）の Status を更新し、どちらも `.claude/archive/` へ移した
+- [x] `node <claude-dotfiles>/check-project.mjs <このリポジトリ>` のエラーが、例外の一覧に載せたものを除いて 0 件である
+- [x] `git ls-files AGENTS.md .agents .codex` が何も出さない
+- [x] `.claude/settings.json` の `hooks` に、`.claude/hooks/` を指す行が無い
+- [x] `git ls-files .claude/skills/merge-round .claude/skills/worktree-policy .claude/skills/issue-dispatch .claude/hooks .claude/scripts/hooks-lib` が何も出さない
+- [x] `node ~/.claude/skills/merge-round/scripts/merge-round.mjs status` が、設定の不足を表示せずに終わる
+- [x] `node .claude/scripts/records.mjs check` が exit 0 で、`node --test .claude/scripts/records.test.mjs` が全 pass
+- [x] `node .claude/scripts/context-cost-measure.mjs` で、`.claude/CLAUDE.md` が 9,500 tok 以下（当初は 7,600 tok。2026-11-15 に合わせ直しました。2026-11-15 の値は 9,428 tok）
+- [x] `LC_ALL=C bash scripts/docs-lint.sh` が OK
+- [x] `node scripts/local-ci.mjs` の全部の手順が exit 0
+- [x] `git grep -n "\.claude/scripts/scope-overlap.mjs\|\.claude/scripts/merge-round.mjs" -- .claude/CLAUDE.md .claude/issue-workflow.md .claude/rules .claude/skills .claude/docs/vision/plans/_TEMPLATE.md .github` が何も出さない
+- [x] 完了時に、この計画書と、取り込んだ計画書（`2026-11-11-claude-md-history-offload.md`）の Status を更新し、どちらも `.claude/archive/` へ移した
 
 ---
 
@@ -412,3 +412,5 @@ claude-dotfiles の PR #106 が main に入り、claude-dotfiles が 2 本の ho
 - 2026-11-15: Step 6 の残り。方針の文書 `POLICY.md` の 3 行（冒頭の説明、方針「ユーザー体験が変わる仕様分岐は実装で先行しない」、方針「実装中スコープ凍結」）を、対話のチャットは報告のあとに聞き、無人の実行は判断待ちの置き場に書く形に直しました。こうだいさんの 2026-11-15 の承認（推奨どおり）によります。#2739 が `MERGED b0c0226e` です。
 - 2026-11-15: Step 10 の受け皿。React の 1 行は、#2729 で `rules/frontend.md` の新しい節「コンポーネントの書き方」に足しました。エラー境界はクラスでしか書けないので、例外として書いています。TypeScript の 1 行（export する関数とコンポーネントの戻り値の型を明示する）は、#2740 で入口の文書の Coding Standards に足しました。claude-dotfiles の `claude/settings.json` にある、このリポジトリだけの 6 行は、auto mode の判定に渡す環境の説明（`autoMode.environment`）でした。プロジェクトの設定の `autoMode` を判定が読むかを確かめていないので、移していません。
 - 2026-11-15: Step 11。報告書の置き場（`.claude/docs/reports/`）は、こうだいさんの承認で、claude-dotfiles の例外の一覧に足す行を作りました。移行の文書の置き場と判断待ちの置き場は、先に足してあります。30 日以上変わっていない進捗の記録は、memory が 34 本のうち 29 本、history が 59 本のうち 54 本でした。共通の task-tracker が退避するのは、1 つのチャットの記録が 5 件を超えた分だけです。チャットごとの記録をまとめて退避する決まりは無いので、この計画では片付けていません。
+- 2026-11-15: こうだいさんの答え（推奨どおり）。入口の文書の大きさの目標は、docs-lint の上限と同じ 9,500 tok に合わせました。外せる経緯が出尽くし、残りは今の決まりで、節の組み直しは移送を移行の完了後にする決定（`decisions/D-20260806-main-3.md`）が止めているためです。claude-dotfiles の設定の、このリポジトリだけの 6 行（auto mode の判定に渡す環境の説明）は、核に残します。30 日以上変わっていない進捗の記録は、今は残し、claude-dotfiles の月次の点検の項目に回します。
+- 2026-11-15: Step 12。`check-project.mjs` は error 0・warn 0・例外あり 3 です。Acceptance の項目は、すべて確かめました。`node scripts/local-ci.mjs` は #2740 で 19 手順すべて通りました。そのあとの #2741 とこの PR は、文書とコメント 1 行だけの変更です。入口の文書は 9,428 tok です。この計画書を COMPLETED にして `.claude/archive/` へ移しました。
