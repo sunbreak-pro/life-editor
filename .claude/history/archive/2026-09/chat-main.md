@@ -1,5 +1,29 @@
 # HISTORY archive 2026-09 (chat-main)
 
+### 2026-09-23 - 棚卸し 3 本（デッドコード / 未完了 / 製品基準）→ 報告書 + 裁定 4 件（0030 push・デッドコード PR・配布前 Issue 4 本・完成条件の書き換え）
+
+#### 概要
+
+ユーザー依頼「dead コードがないか、他に着手していないものがないか、製品としての基準を満たしていないとしたら何がないかを確認して」。読み取り専用の調査エージェント 3 本（デッドコード / 未完了作業 / 製品基準）を並列に回し、Supabase の migration 台帳は自分で CLI 実測した。結果を HTML 報告書 1 枚にまとめて Artifact で発行し、こうだいさんの回答 4 件（push する / まとめて OK / きめる / かきかえて）を同じセッションで実行に移した。
+
+#### 変更点
+
+- **報告書**: `docs/reports/2026-09-23-product-audit.html`（Artifact https://claude.ai/artifact/6uBiKGVjaDjeHWN98iUdy3）。結論カード 3 枚 = 今日から（0030 push）/ 配る前に（SMTP・Electron・エクスポート・問い合わせ導線）/ 入れない（署名・自動更新・OAuth・Sentry・Tier 3）
+- **Issue 起票 5 本**: #1985（デッドコード削除・`[main]`）/ #1986（独自 SMTP・`[web-public]` shared-fix・配布前 1/4）/ #1987（Electron 33 → 44・`[main]` area:security・2/4）/ #1988（JSON エクスポート・section:settings・3/4）/ #1989（ヘルプと問い合わせ導線・section:settings・4/4）
+- **PR #1990（docs）**: 移行 SSOT の Phase 5 完了判定を書き換え（自動更新は完成後の判断表へ / MCP 条件は Desktop 起動導線 #1211 + Remote MCP / Phase 4 は完成条件から除外 / §9 Non-goals の「認証ありの公開配布」をマルチテナントに絞る / 5-A・5-B の着地済み項目にチェック）。台帳 D-20260923-main-1 / -2 を作成し ANSWERS.md へ転記。一時 worktree `main-ssot` は push 後に削除
+- **PR #1991（デッドコード削除・#1985）**: worktree `main-deadcode`・branch `chore/dead-code-sweep-20260923`。role-engineer が実装 + CI 相当 15 ステップ緑、role-qa が独立監査。中身 = MobileFab / QuickAddSheet（部品 + テスト）/ 関数 3 個 / 再 export 3 行 / i18n 18 キー / web の `@dnd-kit/sortable` / CSS トークン 26 名 / 消した名前を指すコメントと design-system docs の追随。**見送り 2 件** = `materials.tags.usageCount`（`i18n.test.ts` が複数形解決の確認に使う）/ mobile の `@capacitor/preferences`（`supabaseAuthStorage.ts:87` が実行時に `window.Capacitor.Plugins.Preferences` を呼ぶネイティブプラグイン — 監査エージェントの見落とし）
+- **tracker**: memory の Desktop ブロックに #1987 と D-20260830-main-3 を反映、直近の完了を 3 件に整理、history 4 エントリ（09-05 ×3 / 09-06）を `archive/2026-09/` へ
+
+#### 実測・知見
+
+- **migration 0030（タグの表示色 = PR #1603・09-12 merge）が本番の台帳に無い**: `supabase migration list --db-url` で 0001〜0029 は remote と一致、0030 だけ remote 空。`WIKI_TAG_ASSIGNMENTS_COLUMNS` が `created_at, is_display_color` を SELECT に含むため、列が無ければ `listAllTagAssignments` が 42703 で落ちる設計。0030 は `add column if not exists` で冪等なので手で当てていても push は安全。**push は auto mode の分類器（Production Deploy）で止まり、列の実在を読む node スクリプトも（Production Reads）で止まった** → 🛑 `cd supabase && npm run db:push` はこうだいさんの手番。Edge Function `delete-account` の deploy 状態はアクセストークンが 401 で未確認（Supabase MCP も同じ理由で Unauthorized）
+- **デッドコードの実態**: import グラフ 1,191 ファイルで完全孤立 0、退役機能（Terminal / File Explorer / d3 / Tauri / D1）のコード残骸 0、MCP カタログ 43 = 43。残るのは「バレルに載っているが誰も取り出さない」部品と i18n / トークン。判断が要るものは残した = `dataServiceRouting.ts`（型検査目的・tests 専用）/ Desktop IPC 4 本（`getTheme` 等 — `ThemeContext` が `setTheme` を呼ばず OS の `nativeTheme` に届いていない**配線漏れの可能性**）/ web の `@supabase/supabase-js`（dedupe 方針）/ `electron-updater`（完成後）/ `life_tags_migration_log`（rollback 用）/ `SectionId` 再 export（CLAUDE.md §3.2 連動）
+- **未完了の実態**: open Issue 12 件のうちコードで拾えるのは #1974 / #1973 / #1972 の 3 件。close 待ち = #1850 / #1335 / #1121（`gh issue close` は auto mode で止まる）。Remote MCP は計画書 Step 3〜5 が未実施で deploy ワークフローの実行 0 回。移行 SSOT の完成 8 条件は達成 2 のみ（→ PR #1990 で書き換え）。リモートブランチ 510 本は PR 無し 0 / 取り残し 1（`fix/analytics-restore-axis-label-helpers` = #1907 CLOSED の残骸）
+- **製品基準**: 認証（サインアップ〜削除）/ RLS 20 テーブル漏れ 0 / 法務 ja・en 本文実在 / ErrorBoundary 2 層 + オフラインバナー / テスト 549 ファイル 約 5,250 件 / typecheck 除外 0 / i18n 差は `_one` 12 件のみ。欠け = 内蔵 SMTP のまま Confirm email ON / Electron 33 系（現行 44・サポートは直近 3 メジャー）/ エクスポート無し / ヘルプ導線無し / Electron に CSP 無し / LICENSE・CHANGELOG・`.env.example` 無し / E2E 自動化無し。`npm audit --omit=dev` の high = web 1（tiptap）/ desktop 4 / mcp-server 4、critical 0
+- **記録の片付け候補（未実施）**: 回答済み判断の台帳化 4 件（D-20260905-shared-fix-1 は PR #1913 で実装済み・台帳未作成）/ memory 7 本の「未回答」表記 / `memory/chat-schedule-refine.md:98-100` の conflict 残骸 / CLAUDE.md:59 の閉じた Epic #321 参照 / ANSWERS.md:117 の旧パス / known-issues INDEX 集計行 / 未起票 3 件（ErrorBoundary 不在箇所・狭幅ツアーの z 順・Connect 一括操作の進捗表示）/ 未追跡 = Draft 計画書 `2026-09-02-fable-51-harness-retune.md`（commit か削除の判断）と `shots/` 71 枚 6.4 MB（`.gitignore` 候補）
+- **環境**: Bash の複合コマンドで `cd` すると cwd が漂流し、以後の相対パスが全部外れる（`.claude/comm/decisions` に落ちたまま `ls shared/src` が「無い」と返った）。`git -C` / `npm --prefix` / 絶対パスで書く。`MSYS_NO_PATHCONV=1 git -C /c/...` は `-C` 側の変換まで止めて失敗するので `C:/...` 形で渡す。PostToolUse の formatter は `.claude/**/*.md` の表を整形し直すため、触っていない表の hunk（9 行）が diff に混ざった → HEAD の内容を splice で戻した
+- **サブエージェントの申告差**: role-engineer は依頼した `Co-Authored-By: Claude Fable 5.1` を使わず自分のモデル名で署名した（squash merge で潰れるので放置）。amend + force-push の依頼は git-workflow の規約を理由に断り、追いコミットにした（正しい判断）
+
 ### 2026-09-19 - 他レーンの受信を実測で裁く → #1677 の依存解除・#1679 を実ブラウザ確認して close
 
 #### 概要

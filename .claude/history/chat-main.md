@@ -1,5 +1,30 @@
 # HISTORY (chat-main)
 
+### 2026-11-16 - ハーネスの点検（改善 6 件）・定時の実行が止まった原因の特定・進捗メモの棚卸し
+
+#### 概要
+
+こうだいさんの依頼「ハーネスの構造を確かめ、改善の余地と、Issue を片づける手順と依頼文を教えてほしい」を受けて点検した。open の Issue 124 件のうち 69 件は PR が main に入っていて、確認と close だけが残っていた。報告書 = `docs/reports/2026-11-15-harness-check-and-issue-prompts.html`。こうだいさんの回答は「69 件は振り分けてから閉じる」「ハーネスの直しは 5 つとも直す」。
+
+#### 変更点
+
+- **並列で作る PR の本文**: issue-workflow の「PR の決まり」に「確かめたこと / 確かめていないこと」と「読む順」を足した（PR #2743）。`--body-file` で本文を渡す PR には、リポジトリの PR の型が効いていなかった
+- **定時の実行**: 昼の監査とまとめが 2026-11-02 から 22 回続けて `setup failed` で止まっていた。作業場所 `workspaces/life-editor/routine` が worktree を外したあと空のフォルダだけ残り、起動スクリプトが印の無いフォルダを断っていた。空のフォルダを外し、空なら作り直すようにした（PR #2744）
+- **セッション開始の警告**: main の checkout で「名前のファイルが 3 日以上古い」が毎回出ていた。linked worktree だけで検査するよう直した（claude-dotfiles の PR #119。テスト 877 件が通過）
+- **進捗メモ**: 進行中 5 本と予定 8 本の見出しを PR・Issue・計画書の実測で判定し、すべて履歴へ移した。進行中は Issue #2715・#2714・#2361 の 3 件に立て直した
+  - 完了: Desktop 配布（Issue #1300 #1301 #1987 は CLOSED、Release は v0.2.1 が公開済み。Windows 実機の 1 項目だけ残る）、worktree の総入れ替え、2026-08-10 の /goal の残件、#524、クリーンアップ（挙げていた 17 本のブランチは無い）
+  - 運用が変わって無効: 拡張アプリの記録（削除の Issue #2720 が 2026-11-11 に立った。#2163 #2167 #2168 は OPEN）、ループカタログの試験運用（計画書は DEFERRED、loop のスキルは `loop-implement` だけ残る）、Loop Engineering の続き、ハーネス統合の残件、実機の目視待ち（Issue #2361 に引き継ぎ）、任意・将来タスク
+  - こうだいさんの作業として残る: #700 の検証用 MCP（`.mcp.json` に `life-editor-verify` が無い）
+- **merge 済みで open の 69 件の振り分け**: PR が変えたファイルで分けた。画面に見える変更 57 件、画面のファイルを触っていないもの 9 件、データベースの変更を含むもの 3 件
+
+#### 実測・知見
+
+- 進行中の枠は 3 件だが、13 本まで増えていた。完了した見出しを消さずに「現在」を足し続けたのが原因
+- 定時の実行は 2 週間止まっていたが、誰も気づかなかった。失敗は `automation/logs/runs.log` にしか出ず、セッションの最初にも報告の PR にも現れない
+- Issue #2714（2026-12-30 に完成させる範囲を決める・最優先）は「ハーネスの反映が終わるまで実装を止める」と書いている。点検の最初の報告はこれを見落とし、実装の回を先に勧めていた。Issue の一覧をラベルと件数だけで読むと、親の Issue の方針を落とす
+- 2026-11-04〜2026-11-15 の履歴の項目は無い。この間の作業は `git log --since=2026-11-03` と `archive/2026-11-15-align-with-shared-rules.md` で追える
+- 古い部品の調査で、判断待ちの置き場に、台帳へ昇格していない回答済みの判断が 6 件と未回答 1 件（`chat-refactor-core.md` に 2 件、`chat-schedule-refine.md` に 5 件）残っていると分かった。関連の PR はすべて merge 済み
+
 ### 2026-11-03 - worktree の片付け・並列 PR の衝突の調査と重なり検査（#2492）・PR 46 本の merge・main の CI 修理（#2534 / #2538）
 
 #### 概要
@@ -89,29 +114,5 @@
 - **つまずき ②（手順に反映）**: コネクタを OAuth 系の認証設定で追加すると、`initialize` が 200 で通っても Claude が `/.well-known/oauth-protected-resource` → `/.well-known/oauth-authorization-server` → `POST /register` へ進み、「サインインサービスに登録できませんでした」のトーストで止まる。認証設定は追加後に変えられないので、削除して **No sign-in** で追加し直すと通った。原因は `wrangler tail --format json` を 5 分流して特定した（URL のトークンは node のフィルタで長さだけ残して伏せた）
 - **`!` 経由のコマンドは Bash で動く**: `cd C:\Users\...` の `\` が消えて cd が失敗し、`npm ci` がリポジトリ直下で走った。`/c/Users/...` の形で渡す。`wrangler secret put` の対話入力は `!` の中では貼れない見込みなので、PowerShell で直接打ってもらった
 - **残り**: 本番のトークンが 8 文字で推測に弱い。64 文字への差し替えを #1994 のコメントでユーザー判断に回した
-
-### 2026-09-23 - 棚卸し 3 本（デッドコード / 未完了 / 製品基準）→ 報告書 + 裁定 4 件（0030 push・デッドコード PR・配布前 Issue 4 本・完成条件の書き換え）
-
-#### 概要
-
-ユーザー依頼「dead コードがないか、他に着手していないものがないか、製品としての基準を満たしていないとしたら何がないかを確認して」。読み取り専用の調査エージェント 3 本（デッドコード / 未完了作業 / 製品基準）を並列に回し、Supabase の migration 台帳は自分で CLI 実測した。結果を HTML 報告書 1 枚にまとめて Artifact で発行し、こうだいさんの回答 4 件（push する / まとめて OK / きめる / かきかえて）を同じセッションで実行に移した。
-
-#### 変更点
-
-- **報告書**: `docs/reports/2026-09-23-product-audit.html`（Artifact https://claude.ai/artifact/6uBiKGVjaDjeHWN98iUdy3）。結論カード 3 枚 = 今日から（0030 push）/ 配る前に（SMTP・Electron・エクスポート・問い合わせ導線）/ 入れない（署名・自動更新・OAuth・Sentry・Tier 3）
-- **Issue 起票 5 本**: #1985（デッドコード削除・`[main]`）/ #1986（独自 SMTP・`[web-public]` shared-fix・配布前 1/4）/ #1987（Electron 33 → 44・`[main]` area:security・2/4）/ #1988（JSON エクスポート・section:settings・3/4）/ #1989（ヘルプと問い合わせ導線・section:settings・4/4）
-- **PR #1990（docs）**: 移行 SSOT の Phase 5 完了判定を書き換え（自動更新は完成後の判断表へ / MCP 条件は Desktop 起動導線 #1211 + Remote MCP / Phase 4 は完成条件から除外 / §9 Non-goals の「認証ありの公開配布」をマルチテナントに絞る / 5-A・5-B の着地済み項目にチェック）。台帳 D-20260923-main-1 / -2 を作成し ANSWERS.md へ転記。一時 worktree `main-ssot` は push 後に削除
-- **PR #1991（デッドコード削除・#1985）**: worktree `main-deadcode`・branch `chore/dead-code-sweep-20260923`。role-engineer が実装 + CI 相当 15 ステップ緑、role-qa が独立監査。中身 = MobileFab / QuickAddSheet（部品 + テスト）/ 関数 3 個 / 再 export 3 行 / i18n 18 キー / web の `@dnd-kit/sortable` / CSS トークン 26 名 / 消した名前を指すコメントと design-system docs の追随。**見送り 2 件** = `materials.tags.usageCount`（`i18n.test.ts` が複数形解決の確認に使う）/ mobile の `@capacitor/preferences`（`supabaseAuthStorage.ts:87` が実行時に `window.Capacitor.Plugins.Preferences` を呼ぶネイティブプラグイン — 監査エージェントの見落とし）
-- **tracker**: memory の Desktop ブロックに #1987 と D-20260830-main-3 を反映、直近の完了を 3 件に整理、history 4 エントリ（09-05 ×3 / 09-06）を `archive/2026-09/` へ
-
-#### 実測・知見
-
-- **migration 0030（タグの表示色 = PR #1603・09-12 merge）が本番の台帳に無い**: `supabase migration list --db-url` で 0001〜0029 は remote と一致、0030 だけ remote 空。`WIKI_TAG_ASSIGNMENTS_COLUMNS` が `created_at, is_display_color` を SELECT に含むため、列が無ければ `listAllTagAssignments` が 42703 で落ちる設計。0030 は `add column if not exists` で冪等なので手で当てていても push は安全。**push は auto mode の分類器（Production Deploy）で止まり、列の実在を読む node スクリプトも（Production Reads）で止まった** → 🛑 `cd supabase && npm run db:push` はこうだいさんの手番。Edge Function `delete-account` の deploy 状態はアクセストークンが 401 で未確認（Supabase MCP も同じ理由で Unauthorized）
-- **デッドコードの実態**: import グラフ 1,191 ファイルで完全孤立 0、退役機能（Terminal / File Explorer / d3 / Tauri / D1）のコード残骸 0、MCP カタログ 43 = 43。残るのは「バレルに載っているが誰も取り出さない」部品と i18n / トークン。判断が要るものは残した = `dataServiceRouting.ts`（型検査目的・tests 専用）/ Desktop IPC 4 本（`getTheme` 等 — `ThemeContext` が `setTheme` を呼ばず OS の `nativeTheme` に届いていない**配線漏れの可能性**）/ web の `@supabase/supabase-js`（dedupe 方針）/ `electron-updater`（完成後）/ `life_tags_migration_log`（rollback 用）/ `SectionId` 再 export（CLAUDE.md §3.2 連動）
-- **未完了の実態**: open Issue 12 件のうちコードで拾えるのは #1974 / #1973 / #1972 の 3 件。close 待ち = #1850 / #1335 / #1121（`gh issue close` は auto mode で止まる）。Remote MCP は計画書 Step 3〜5 が未実施で deploy ワークフローの実行 0 回。移行 SSOT の完成 8 条件は達成 2 のみ（→ PR #1990 で書き換え）。リモートブランチ 510 本は PR 無し 0 / 取り残し 1（`fix/analytics-restore-axis-label-helpers` = #1907 CLOSED の残骸）
-- **製品基準**: 認証（サインアップ〜削除）/ RLS 20 テーブル漏れ 0 / 法務 ja・en 本文実在 / ErrorBoundary 2 層 + オフラインバナー / テスト 549 ファイル 約 5,250 件 / typecheck 除外 0 / i18n 差は `_one` 12 件のみ。欠け = 内蔵 SMTP のまま Confirm email ON / Electron 33 系（現行 44・サポートは直近 3 メジャー）/ エクスポート無し / ヘルプ導線無し / Electron に CSP 無し / LICENSE・CHANGELOG・`.env.example` 無し / E2E 自動化無し。`npm audit --omit=dev` の high = web 1（tiptap）/ desktop 4 / mcp-server 4、critical 0
-- **記録の片付け候補（未実施）**: 回答済み判断の台帳化 4 件（D-20260905-shared-fix-1 は PR #1913 で実装済み・台帳未作成）/ memory 7 本の「未回答」表記 / `memory/chat-schedule-refine.md:98-100` の conflict 残骸 / CLAUDE.md:59 の閉じた Epic #321 参照 / ANSWERS.md:117 の旧パス / known-issues INDEX 集計行 / 未起票 3 件（ErrorBoundary 不在箇所・狭幅ツアーの z 順・Connect 一括操作の進捗表示）/ 未追跡 = Draft 計画書 `2026-09-02-fable-51-harness-retune.md`（commit か削除の判断）と `shots/` 71 枚 6.4 MB（`.gitignore` 候補）
-- **環境**: Bash の複合コマンドで `cd` すると cwd が漂流し、以後の相対パスが全部外れる（`.claude/comm/decisions` に落ちたまま `ls shared/src` が「無い」と返った）。`git -C` / `npm --prefix` / 絶対パスで書く。`MSYS_NO_PATHCONV=1 git -C /c/...` は `-C` 側の変換まで止めて失敗するので `C:/...` 形で渡す。PostToolUse の formatter は `.claude/**/*.md` の表を整形し直すため、触っていない表の hunk（9 行）が diff に混ざった → HEAD の内容を splice で戻した
-- **サブエージェントの申告差**: role-engineer は依頼した `Co-Authored-By: Claude Fable 5.1` を使わず自分のモデル名で署名した（squash merge で潰れるので放置）。amend + force-push の依頼は git-workflow の規約を理由に断り、追いコミットにした（正しい判断）
 
 > 古いエントリは [`archive/2026-09/chat-main.md`](./archive/2026-09/chat-main.md)・[`archive/2026-08/chat-main.md`](./archive/2026-08/chat-main.md)・[`archive/2026-07/chat-main.md`](./archive/2026-07/chat-main.md)・[`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照
