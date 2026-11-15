@@ -1,11 +1,11 @@
 ---
 name: db-migration
-description: life-editor の Supabase Postgres に DDL を足すときの手順（連番ファイルの作法・Plan Gate の「ローカル先行 → ユーザーが db push」・items_meta + payload の 2 行分割・RLS と Realtime publication・mapper 側の追随）。規約の正本は docs/vision/db-conventions.md、既存 DDL の監査は life-editor-migration-validator エージェント。Use when adding or changing a table, column, constraint, index, or RLS policy. Triggers include "マイグレーション", "テーブル追加", "カラム追加", "DDL", "スキーマ変更", "migration", "supabase db push", "RLS".
+description: life-editor の Supabase Postgres に DDL を足すときの手順（連番ファイルの作法・Plan Gate の「ローカル先行 → ユーザーが db push」・items_meta + payload の 2 行分割・RLS と Realtime publication・mapper 側の追随）。規約の元になる文書は docs/vision/db-conventions.md、既存 DDL の監査は life-editor-migration-validator エージェント。Use when adding or changing a table, column, constraint, index, or RLS policy. Triggers include "マイグレーション", "テーブル追加", "カラム追加", "DDL", "スキーマ変更", "migration", "supabase db push", "RLS".
 ---
 
 # DB Migration — Supabase Postgres に DDL を足す
 
-> **規約の正本 = [`docs/vision/db-conventions.md`](../../docs/vision/db-conventions.md)**（特に §10 Payload Mapper 規約）。本スキルは「これから書く手順」だけを持つ。既存 DDL が規約に合っているかの**監査**は `life-editor-migration-validator` エージェントの仕事で、役割が違う。
+> **規約の元になる文書 = [`docs/vision/db-conventions.md`](../../docs/vision/db-conventions.md)**（特に §10 Payload Mapper 規約）。本スキルは「これから書く手順」だけを持つ。既存 DDL が規約に合っているかの**監査**は `life-editor-migration-validator` エージェントの仕事で、役割が違う。
 
 ## 🛑 最初に: Claude は DB に適用しない
 
@@ -86,7 +86,7 @@ LC_ALL=C bash scripts/docs-lint.sh
 
 ## Step 5.5: db push の前に、新しいマイグレーションがその作業フォルダにあるかを確かめる
 
-`supabase db push` は、コマンドを打ったフォルダの `supabase/migrations/` だけを見る。DDL を書いたのが worktree で、こうだいさんがリポジトリ直下（main）で打つと、新しいファイルは見えず「最新です」と出て何も流れない。逆に、他のレーンが先に入れた古い番号のファイルを含んだまま流すこともある。
+`supabase db push` は、コマンドを打ったフォルダの `supabase/migrations/` だけを見る。DDL を書いたのが worktree で、こうだいさんがリポジトリ直下（main）で打つと、新しいファイルは見えず「最新です」と出て何も流れない。逆に、他の担当のチャットが先に入れた古い番号のファイルを含んだまま流すこともある。
 
 push の前に、**push を打つフォルダで**次の 2 つを見る。
 
@@ -96,10 +96,10 @@ supabase migration list              # Remote の列が空なのが今回の分�
 ```
 
 - 今回のファイルが `tail` に出ない: フォルダが違う（worktree と main を取り違えている）。そのフォルダで push しない
-- `migration list` で Remote が空の行が今回の分より多い: 他のレーンの未反映分が混ざっている。何が流れるかを PR 本文に書いてから push する
-- 番号が `origin/main` の最新と重なる: 並行レーンが同じ番号を切っている。次の番号に付け替える（反映前のファイルに限る）
+- `migration list` で Remote が空の行が今回の分より多い: 他の担当のチャットの未反映分が混ざっている。何が流れるかを PR 本文に書いてから push する
+- 番号が `origin/main` の最新と重なる: 並行する担当のチャットが同じ番号を切っている。次の番号に付け替える（反映前のファイルに限る）
 
-この確認は Claude が行ってよい（読み取りだけ）。push 自体はこうだいさんの手番のまま。
+この確認は Claude が行ってよい（読み取りだけ）。push 自体はこうだいさんの作業のまま。
 
 ## Step 6: 引き渡し
 
