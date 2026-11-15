@@ -1,6 +1,6 @@
 # Comm Protocol — 複数 Claude チャット間のファイル経由通信
 
-複数の Claude チャットセッションが、ファイルを介して非同期にやり取りするための最小プロトコル。Outbox（チャット間の書き置き）から始まり、現在は decisions（判断キュー）・digest（朝の采配ダイジェスト）・Issue dispatch ルートまで拡張して運用中。
+複数の Claude チャットセッションが、ファイルを介して非同期にやり取りするための最小プロトコル。Outbox（チャット間の書き置き）から始まり、現在は decisions（無人の実行の判断キュー）・digest（朝の采配ダイジェスト）・Issue dispatch ルートまで拡張して運用中。
 
 ## このプロトコルの目的
 
@@ -18,7 +18,7 @@
 ├── outbox/
 │   ├── chat-<name>.md         # 各チャットの発信箱（書くのは本人のみ、読むのは全員）
 │   └── ...
-├── decisions/                 # 判断の非同期キュー（2026-07-28〜。README.md / POLICY.md / ANSWERS.md / chat-<name>.md）
+├── decisions/                 # 無人の実行が使う判断の非同期キュー（2026-07-28〜。README.md / POLICY.md / ANSWERS.md / chat-<name>.md）
 └── archive/
     └── YYYY-MM/               # 古くなった発言をここに退避
         └── chat-<name>.md
@@ -26,7 +26,7 @@
 
 ## Decision queue ルート（outbox と分離した判断専用レーン）
 
-ユーザー判断が要る点は outbox でなく `decisions/chat-<self>.md` に書く（単一書込者は outbox と同じ）。**運用の正本 = [`decisions/README.md`](./decisions/README.md)**（形式・昇格手順・恒久裁定 POLICY）／行動規定 = `rules/decision-queue.md`。
+対話のチャットは、ユーザー判断が要る点を、最後の報告のあとに AskUserQuestion で聞きます。無人の実行だけが、質問を出せないので、outbox でなく `decisions/chat-<self>.md` に書きます（単一書込者は outbox と同じ）。**運用の正本 = [`decisions/README.md`](./decisions/README.md)**（形式・昇格手順・恒久裁定 POLICY）／行動規定 = `rules/decision-queue.md`。
 
 ## 中核ルール: 単一書き込み者
 
