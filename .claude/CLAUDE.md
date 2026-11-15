@@ -62,14 +62,14 @@
 
 ## 7. Development Workflows
 
-### 7.0 ワークフロー = スキル / エージェント（手順の正本）
+### 7.0 ワークフロー = スキル / エージェント（手順の元）
 
 手順は本ファイルに書かず委譲する。**実装タスクの起点は `lead-pipeline` スキル**（軽 = 直接 / 中 = verifier → tracker / 重 = フルチェーン）。各スキルの説明文は自動で読まれるため、ここには説明文から読み取れない規律だけを置く。
 
 - **役割分担 = `role-pm` → `role-engineer` → `role-qa`**: メインが Agent ツールで順に起動する（サブエージェントからの再帰起動は禁止）
 - **commit 前は `session-verifier`、作業の区切りで `task-tracker`** を必ず通す
 - **worktree / ブランチ運用 = 共通の `worktree-policy` スキル**（§7.4 は life-editor だけの決まり）／ **Issue 起票 = 共通の `issue-dispatch` スキル**、**docs 運用 = `docs-workflow` スキル**（§9 は要約のみ）／ **PR の merge = 共通の `merge-round` スキル**（§7.2）
-- **整合監査 = `life-editor-migration-validator` / `life-editor-sync-auditor`**（`-ipc-validator` は Tauri IPC 前提のため 2026-07-08 retire = D-20260708-main-1）
+- **整合監査 = `life-editor-migration-validator` / `life-editor-sync-auditor`**（`-ipc-validator` は Tauri IPC 前提のため退役 = [退役の決定](./decisions/D-20260708-main-1.md)）
 - **共通の道具は claude-dotfiles のものを使い、claude-dotfiles を入れた PC だけで作業する**（2026-11-15 の決定 = [`decisions/2026-11-15-use-shared-tools-on-dotfiles-pcs.md`](./decisions/2026-11-15-use-shared-tools-on-dotfiles-pcs.md)）: `merge-round`・`worktree-policy`・`issue-dispatch`・`issue-workflow` と hook はリポジトリに置かない。claude-dotfiles の無い PC・クラウドのセッション・clone では commit・起票・merge を止める hook が動かず、`permissions.deny` だけが残るので、別の PC では先に claude-dotfiles の `install.mjs` を流す
 - **プロジェクト固有のスキル / エージェントの実体は repo 内に置く**（[known-issues 031](./docs/known-issues/031-mac-only-symlinked-skills-agents.md)）: `.claude/skills/` と `.claude/agents/` に **repo 外を指す symlink を作らない**（旧 `skill-lib` / `agents-lib` 参照は Windows で解決できず空振りしていた）
 - **ツール実行ハング（応答停止）**: 原因は Claude Code 本体の SSE バグでローカルはシロ（詳細 = `~/.claude/docs/bash-tool-stability.md`）。**運用既定 = 状態変更・複数行系の Bash（git 操作 / build / test / install / コマンド連結）はサブエージェント or background 経由、単発の軽い読み取り（ls / git status / 単発 grep）は直接実行**
@@ -77,9 +77,9 @@
 
 ### 7.1 開発コマンド
 
-> 生きている本流は `shared/`（コード本体）+ `web/`（renderer）。旧 `frontend/` は削除済み（2026-07-11 #197）。
+> 生きている本流は `shared/`（コード本体）+ `web/`（renderer）。旧 `frontend/` は削除済み。
 
-**PR 前に回すゲートの正本は [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)** — `verify` ジョブのステップ列（shared → web → desktop → mcp-server の順）と `docs-lint` ジョブがすべて。**ここにコマンドを列挙しない**（2026-08-16 D-20260816-main-2 = B / #1010）: 手で写した表は必ず CI から遅れ、実際に `typecheck:tests` と mcp-server の 2 系統が漏れて PR #924 / #980 / #842 / #985 の 4 本が「ローカル全緑・CI だけ赤」で落ちた。
+**PR 前に回すゲートの元は [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)** — `verify` ジョブのステップ列（shared → web → desktop → mcp-server の順）と `docs-lint` ジョブがすべて。**ここにコマンドを列挙しない**（[列挙をやめる決定](./decisions/D-20260816-main-2.md)）: 手で写した表は必ず CI から遅れ、「ローカル全緑・CI だけ赤」を生むため。
 
 回し方 = **`node scripts/local-ci.mjs`**（#2349）。`ci.yml` を実行時に読み、`docs-lint` と `verify` の全ステップを各 `working-directory` で回してステップごとの終了コード表を出す（コマンドを持たないので CI と食い違わない。`--list` で読み取り結果だけ確認 / `--skip-install` で `npm ci` を飛ばせる）。手で回すなら `verify` ジョブを上から読み、各ステップの `working-directory` へ `cd` して同じ `npm run <script>` を打つ。**触ったパッケージだけでなく全部回す** — 依存が shared → web → desktop / mcp-server と一方向に繋がっており、`shared/` の変更だけで下流 3 つが落ちる。CI に無いローカル起動だけ別記: `cd web && npm run dev`（vite）。
 
@@ -89,7 +89,7 @@
 - **`web` の lint は `web/` 配下しか歩かない**ので、`shared/` に入れた lint error は `cd shared && npm run lint` でしか出ない（2026-07-30 PR #488 で CI だけが落ちた）
 - `web/tsconfig.json` が `../shared` を参照するため、`cd web && npm run build` は shared も **web 側の tsc** で検査する。片方だけ緑でも安心しない
 - `scripts/docs-lint.sh` をローカルで回すときは `LC_ALL=C` を付ける（Git Bash の grep 3.0 + UTF-8 locale では日本語を含む Status 行が偽陽性になる）
-- **ゲートをまとめて回すラッパーを書くなら、`( npm run X | tail )` で終了コードを取らない**（2026-09-02 実測）: 括弧の終了コードは中の**最後のコマンド = `tail`** のものになるので、`npm run` が何本エラーを吐いても常に 0 が返る。エラー本文は画面に出るのに集計行だけが緑になり、PR #1424 / #1433 が「ローカル全緑」の報告のまま CI で落ちた。**出力を先に変数へ取り、`code=$?` を見てから `tail` で表示する**（`set -o pipefail` でも可）。なお #1436 はこの症状を `tsc -b` の `.tsbuildinfo` のせいだと書いたが**それは誤り** — キャッシュが温まった状態で import を壊しても `tsc -b` は `TS2307` で exit 1 する（実測）
+- **ゲートをまとめて回すラッパーを書くなら、`( npm run X | tail )` で終了コードを取らない**（2026-09-02 実測）: 括弧の終了コードは中の**最後のコマンド = `tail`** のものになるので、`npm run` が何本エラーを吐いても常に 0 が返る。エラー本文は画面に出るのに集計行だけが緑になり、PR #1424 / #1433 が「ローカル全緑」の報告のまま CI で落ちた。**出力を先に変数へ取り、`code=$?` を見てから `tail` で表示する**（`set -o pipefail` でも可）。`tsc -b` の `.tsbuildinfo` のキャッシュは原因ではない（#1436 の見立ては誤り）— 温まった状態で import を壊しても `tsc -b` は exit 1 する（実測）
 
 `web/tests/` は jsdom に**レイアウトが無い**（要素の座標がすべて 0）。ProseMirror の `posAtCoords` のように画面座標を文書位置へ戻す経路はここでは検証できないので、UI の入力経路は座標に依存しない形（DOM イベント + `closest()` 等）で組む — 座標依存のままにするとテストが書けず、#475 のように壊れても気付けない。
 
@@ -101,7 +101,7 @@
 
 - **本文の行頭 `#` は git に無警告で捨てられる**（`core.commentChar` 既定 = `#`）。Issue 番号で行を始めず、`git commit -F` には `--cleanup=verbatim` を付ける（[known-issues 032](./docs/known-issues/032-git-commit-message-hash-line-dropped.md)）
 
-- **merge は [`POLICY.md`](./comm/decisions/POLICY.md) の方針「merge と main への取り込み」に従う**（2026-11-15 に共通の決まりへ合わせた = [`decisions/2026-11-15-adopt-shared-merge-rules.md`](./decisions/2026-11-15-adopt-shared-merge-rules.md)）。条件を満たした PR は、メインのチャットか仕上げ役 `work-finishers` が、共通の **`merge-round` スキル**で 1 本ずつ入れる（コマンドの形は `merge-round.mjs check <n>` が表示する）。作業レーン（worktree）と無人の実行は merge しない。承認が要る種類（設定・hook・秘密の値・データベースなど）の PR は共通の hook が止め、メインのチャットが回す merge-round で、こうだいさんがその場で決める
+- **merge は [`POLICY.md`](./comm/decisions/POLICY.md) の方針「merge と main への取り込み」に従う**（[共通の merge の決まりに合わせる決定](./decisions/2026-11-15-adopt-shared-merge-rules.md)）。条件を満たした PR は、メインのチャットか仕上げ役 `work-finishers` が、共通の **`merge-round` スキル**で 1 本ずつ入れる（コマンドの形は `merge-round.mjs check <n>` が表示する）。担当の worktree と無人の実行は merge しない。承認が要る種類（設定・hook・秘密の値・データベースなど）の PR は共通の hook が止め、メインのチャットが回す merge-round で、こうだいさんがその場で決める
 
 - **PR 本文は `Refs #N`。`Closes` / `Fixes` / `Resolves` を使わない**（#2349）: merge で Issue が勝手に close されると、実ブラウザ確認や db push が残っていても完了に見える。close は確認が済んだあとにユーザーか chat-main が手で行う
 - **1 Issue = 1 ブランチ = 1 PR**（#2349）: 複数 Issue を 1 本にまとめず、1 本の PR に別 Issue の変更を混ぜない。ブランチ名に Issue 番号を入れる（`claude/<slug>-<issue>`）
@@ -122,12 +122,12 @@
 知らないと事故る禁止事項だけここに残す:
 
 - **メイン（リポジトリ直下）は chat-main 専有・`main` のみ。`git checkout <feature>` 禁止** — feature 作業は worktree から
-- **着手前と PR 前に `node ~/.claude/skills/worktree-policy/scripts/scope-overlap.mjs` を打つ** — 同じファイルを動いている別の PR・別の worktree が触っていると、並列の PR は必ず衝突する。BLOCK が出たら直列にする。担当表の唯一の正本 = [`.claude/scripts/lane-ownership.json`](./scripts/lane-ownership.json)（設定の `workspaceMapPath`）。main の checkout は持ち主の名前 `main` で数える
+- **着手前と PR 前に `node ~/.claude/skills/worktree-policy/scripts/scope-overlap.mjs` を打つ** — 同じファイルを動いている別の PR・別の worktree が触っていると、並列の PR は必ず衝突する。BLOCK が出たら直列にする。担当表の元 = [`.claude/scripts/lane-ownership.json`](./scripts/lane-ownership.json)（設定の `workspaceMapPath`）。main の checkout は持ち主の名前 `main` で数える
 - **worktree はリポジトリの外**（設定の `worktreeRoot` = `../workspaces/life-editor` の下の `<slug>/`）に**絶対パスで**作る — 相対パスは cwd 基準で解決され、リポジトリ内にネストした worktree ができる
 - **worktree が `Permission denied` で消えないとき** — 掴んでいるのが Orca のターミナルなら、`orca terminal list --json` で handle を探し、`orca terminal close --terminal <handle>` で閉じてから消す
 - **`.claude/comm/.session-branch` と `.session-name` はブランチを切り替えるたびに書き換える** — 抜けると、共通の hook がセッションの最初に名前とブランチの食い違いを警告する。Orca の画面で作った worktree は書かれないので、Claude Code を起動する前に手で書く
-- **tracker（`memory/` + `history/`）の更新を実装ブランチに載せない**（2026-08-01 D-20260801-main-1）— 並行ブランチが必ず衝突する。PR 本文側に要約を書き、tracker は専用ブランチ `chore/tracker-<chat>-YYYYMMDD` に分ける。**実行は `session-verifier` が緑になった直後**で、実装 PR の merge を待たない（2026-08-10 D-20260810-main-1）。**`.claude/comm/outbox/` も同じ扱い**（実装 PR に載せず別枠 = 2026-08-12 D-20260802-sched-1）
-- **マージ済み判定は `gh pr list --json number,state,headRefName` の state**。`git diff` / `git log` / `git cherry` は squash merge を「未マージ」と誤判定する
+- **tracker（`memory/` + `history/`）の更新を実装ブランチに載せない**（[tracker を分ける決定](./decisions/D-20260801-main-1.md)）— 並行ブランチが必ず衝突するため。PR 本文側に要約を書き、tracker は専用ブランチ `chore/tracker-<chat>-YYYYMMDD` に分ける。**実行は `session-verifier` が緑になった直後**で、実装 PR の merge を待たない（[実行の時期の決定](./decisions/D-20260810-main-1.md)）。**`.claude/comm/outbox/` も同じ扱い**（実装 PR に載せず別枠 = [outbox を分ける決定](./decisions/D-20260802-sched-1.md)）
+- **マージ済み判定は `gh pr list --json number,state,headRefName` の state**。`git diff` / `git log` / `git cherry` は、設定の `mergeMethod`（`.claude/issue-workflow.md`）で 1 つの commit にまとめて入れた PR を「未マージ」と誤判定する
 - **playwright MCP（実ブラウザ検証）と dev server は chat-main のみ**で起動する（ポート重複で確認が壊れるため）。worktree 側は build / 型検証まで。例外は chat-main のサブエージェント `work-finishers` の動作確認で、1 度に 1 本、固定のポートで `wf-*` の worktree に dev server を立て、終わったら止める（手順 = `.claude/issue-workflow.md` の「動作確認」）
 
 ## 8. Feature Tier Map（詳細 → `docs/requirements/`）
