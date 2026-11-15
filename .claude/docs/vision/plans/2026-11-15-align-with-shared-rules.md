@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS # 決めてもらう点の 7 つすべてに答えが出ました。Step 1 と 3 が終わりました
+Status: IN PROGRESS # Step 1〜6・8・9・11 が終わりました。Step 7 は #2740、Step 10 は settings の 6 行、Step 12 は入口の文書の目標の扱いが残ります
 Created: 2026-11-15
 Branch: claude/align-with-shared-rules-plan
 Owner-chat: main
@@ -405,3 +405,10 @@ claude-dotfiles の PR #106 が main に入り、claude-dotfiles が 2 本の ho
 - 2026-11-15: 計画書の PR #2721 と、Step 3 の設定の値の PR #2722 を、こうだいさんの承認で squash で main に入れました。`gh pr view` の出力は、#2721 が `MERGED d8a5856c`、#2722 が `MERGED c7e7b5c2` です。共通の `profile.mjs` で読んで、`found` が `true`、`errors` と `warnings` が空です。Step 1 と 3 は終わりです。
 - 2026-11-15: claude-dotfiles の PR #106 と #107 が main に入りました（#106 は `c2385d2`、#107 は `fbc67da`）。共通の hook 2 本の登録は、まだです。Step 8 と同じ日に、こうだいさんの承認を取って登録します。
 - 2026-11-15: 残りの 3 つにも答えが出ました。4 は、Mac を当面そのままにし、claude-dotfiles を入れた PC だけで作業します。6 は、どこからも読まれていないループの 4 本を Step 2 で消し、無人の実行が読む 3 本は残します。7 は、移行の文書を動かさずに例外の一覧に載せます。
+- 2026-11-15: Step 2・4・5・6・8 を、こうだいさんの承認で squash で main に入れました。`gh pr view` の出力は、#2723（計画書の記録）が `MERGED d244865b`、#2724（Step 2）が `MERGED 4c9f1d02`、#2725（Step 4）が `MERGED d25edbd2`、#2726（Step 5）が `MERGED 2f2b174c`、#2727（Step 6）が `MERGED ead8e8b2`、#2728（Step 8）が `MERGED 54c31f2c` です。同じ日に、claude-dotfiles が共通の hook 2 本を登録しました（claude-dotfiles の #111）。
+- 2026-11-15: Step 8 の確かめ。新しいプロセス（`claude -p`）で、merge-round の回の外の `gh pr merge` を、共通の hook が止めました。担当の worktree へ `cd` してからの `gh issue create` も止まりました。セッションを始めると、`.claude/memory/INDEX.md` と `.claude/history/INDEX.md` が作り直されました。止まったので revert はしていません。
+- 2026-11-15: Step 7 は、入口の文書の PR を 3 本にしました。#2730（機能の重さの表の節。取り込んだ計画書を SUPERSEDED にして archive へ移しました）が `MERGED 870808ba`、#2738（動作環境の節と AI 連携の節）が `MERGED 05ced653` です。3 本目と 4 本目（hook の説明の節と、残りの語と番号、上限の検査）は #2740 にまとめました。入口の文書は 10,098 tok から 9,425 tok になりました（CRLF の作業ツリーで測った値）。目標の 7,600 tok には届かないので、docs-lint の上限は 9,500 tok にしました。届かない理由は、外せる経緯が出尽くし、決定を番号ではなく名前つきのリンクで呼ぶと 1 件あたり 10〜25 tok 増えるためです。
+- 2026-11-15: Step 9 は、PR を 8 本にしました。`rules/` の 5 本を 1 本（#2729）、`issue-workflow.md` を 1 本（#2731）、エラーが 5 件以上のスキル 5 本を 1 本ずつ（#2732〜#2736）、4 件以下のスキル 7 ファイルを 1 本（#2737）です。小さいものをまとめたのは、メインのチャットの判断です。`gh pr view` の出力は、#2729 が `MERGED a117eba5`、#2731 が `MERGED b2f73601`、#2732 が `MERGED 93c3e649`、#2733 が `MERGED 8c660907`、#2734 が `MERGED 32b01c06`、#2735 が `MERGED 940d028b`、#2736 が `MERGED 5bf0d3ef`、#2737 が `MERGED 4fbe1b5e` です。例外にしたものはありません。検査の誤りの疑いは 1 件で、普通の語「書き溜める」を内輪の語と数えたものです。claude-dotfiles の計画書の Worklog に渡しました。
+- 2026-11-15: Step 6 の残り。方針の文書 `POLICY.md` の 3 行（冒頭の説明、方針「ユーザー体験が変わる仕様分岐は実装で先行しない」、方針「実装中スコープ凍結」）を、対話のチャットは報告のあとに聞き、無人の実行は判断待ちの置き場に書く形に直しました。こうだいさんの 2026-11-15 の承認（推奨どおり）によります。#2739 が `MERGED b0c0226e` です。
+- 2026-11-15: Step 10 の受け皿。React の 1 行は、#2729 で `rules/frontend.md` の新しい節「コンポーネントの書き方」に足しました。エラー境界はクラスでしか書けないので、例外として書いています。TypeScript の 1 行（export する関数とコンポーネントの戻り値の型を明示する）は、#2740 で入口の文書の Coding Standards に足しました。claude-dotfiles の `claude/settings.json` にある、このリポジトリだけの 6 行は、auto mode の判定に渡す環境の説明（`autoMode.environment`）でした。プロジェクトの設定の `autoMode` を判定が読むかを確かめていないので、移していません。
+- 2026-11-15: Step 11。報告書の置き場（`.claude/docs/reports/`）は、こうだいさんの承認で、claude-dotfiles の例外の一覧に足す行を作りました。移行の文書の置き場と判断待ちの置き場は、先に足してあります。30 日以上変わっていない進捗の記録は、memory が 34 本のうち 29 本、history が 59 本のうち 54 本でした。共通の task-tracker が退避するのは、1 つのチャットの記録が 5 件を超えた分だけです。チャットごとの記録をまとめて退避する決まりは無いので、この計画では片付けていません。
