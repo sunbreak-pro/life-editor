@@ -36,7 +36,7 @@ PLANS_DIR=".claude/docs/vision/plans"
 #     除外: http(s) / mailto / file: の絶対 URL、ページ内アンカー（#...）、
 #           git 非追跡の派生ビュー 5 本（memory/INDEX.md / history/INDEX.md /
 #           .claude/INDEX.md / .claude/decisions/INDEX.md / .claude/archive/INDEX.md —
-#           hooks/regen-index.sh と records.mjs index が再生成するため CI の checkout
+#           共通の hook と records.mjs index が再生成するため CI の checkout
 #           には存在しない。CLAUDE.md §9 / rules/records.md §4 参照。リンク元としても
 #           同様に除外）、
 #           旧式 worktree 置き場（.claude/worktrees/ — 別 checkout の実体）
@@ -143,26 +143,30 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# (g) 担当表とファイルの重なり検査の自己検査（正本 = .claude/scripts/scope-overlap.mjs）
-#     lane-ownership.json の glob がすべて tree のファイルに当たり、2 つのレーンが同じファイルを
-#     持たないこと。改名・削除で担当表が静かに古びるのを止める。CI の checkout には
-#     origin/main という名前の参照がないので --base HEAD で読む。単体テストは固定データだけで、
-#     gh もネットワークも使わない。
+# (g) 担当表の自己検査と records.mjs の単体テスト
+#     担当表（lane-ownership.json）の glob がすべて tree のファイルに当たり、2 つのレーンが同じ
+#     ファイルを持たないこと。改名・削除で担当表が静かに古びるのを止める。検査の道具は
+#     claude-dotfiles の共通の scope-overlap.mjs（worktree-policy スキル）で、リポジトリには置かない。
+#     CI の checkout には共通の道具が無いので、見つかったときだけ回し、無ければ警告して飛ばす
+#     （手元で CI を流す node scripts/local-ci.mjs では回る）。CI の checkout には origin/main
+#     という名前の参照がないので --base HEAD で読む。
 # ---------------------------------------------------------------------------
+SHARED_SCOPE_OVERLAP="${HOME}/.claude/skills/worktree-policy/scripts/scope-overlap.mjs"
 if command -v node >/dev/null 2>&1; then
-  MAP_OUT=$(node .claude/scripts/scope-overlap.mjs --check-map --base HEAD 2>&1) || while IFS= read -r line; do
-    report "docs-lint(g) ${line}"
-  done <<<"${MAP_OUT}"
+  if [ -f "${SHARED_SCOPE_OVERLAP}" ]; then
+    MAP_OUT=$(node "${SHARED_SCOPE_OVERLAP}" --check-map --base HEAD 2>&1) || while IFS= read -r line; do
+      report "docs-lint(g) ${line}"
+    done <<<"${MAP_OUT}"
+  else
+    echo "docs-lint: warn — 共通の scope-overlap.mjs（claude-dotfiles）が無いため (g) の担当表の検査をスキップ" >&2
+  fi
   # node --test prints the whole TAP stream; only its tail (the failing cases and the totals) is useful.
-  SO_TEST_OUT=$(node --test .claude/scripts/scope-overlap.test.mjs 2>&1) || while IFS= read -r line; do
-    report "docs-lint(g) ${line}"
-  done <<<"$(tail -n 30 <<<"${SO_TEST_OUT}")"
   # records.mjs is run by (e) on every PR; its tests build their own temp trees and need no network.
   REC_TEST_OUT=$(node --test .claude/scripts/records.test.mjs 2>&1) || while IFS= read -r line; do
     report "docs-lint(g) ${line}"
   done <<<"$(tail -n 30 <<<"${REC_TEST_OUT}")"
 else
-  echo "docs-lint: warn — node が無いため (g) scope-overlap check をスキップ" >&2
+  echo "docs-lint: warn — node が無いため (g) の担当表の検査と records のテストをスキップ" >&2
 fi
 
 if [ "${FAIL}" -ne 0 ]; then

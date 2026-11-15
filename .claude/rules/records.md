@@ -53,6 +53,6 @@ A/B に割れるユーザー判断?      → 対話のチャットは、最後�
 ## 4. 索引の再生成
 
 - **索引 5 本はすべて git 非追跡の派生ビュー**（`.claude/INDEX.md` / `decisions/INDEX.md` = 2026-08-12 #735 で追跡解除・`archive/INDEX.md` = [`D-20260809-main-2`](../decisions/D-20260809-main-2.md) で追加（#1337）・`memory/INDEX.md` / `history/INDEX.md` = 従来から）。commit に載らないので **merge 衝突が起きない**（#735 以前は「plans か decisions を変えた PR と同一コミットで再生成」を機械強制していて、判断を 1 件足すだけで並行レーンが必ず衝突していた）
-- 再生成 = SessionStart hook が自動実行（`.claude/settings.json`: `records.mjs index` + `hooks/regen-index.sh` の 2 本立て。後者は hooks-lib → vendor `scripts/hooks-lib/` の fallback chain）。手元で古いと感じたら `node .claude/scripts/records.mjs index` をいつ回してもよい（追跡外なので `git status` に出ない）
+- 再生成 = SessionStart hook が自動実行（2 本立て。決定と計画の索引は `.claude/settings.json` の `records.mjs index`、進捗の索引は claude-dotfiles の共通の hook `project-session-start.mjs`）。手元で古いと感じたら `node .claude/scripts/records.mjs index` をいつ回してもよい（追跡外なので `git status` に出ない）
 - `records.mjs check`（docs-lint 経由で CI ゲート）が見るのは**正本側だけ** — frontmatter スキーマ・supersede 双方向リンク・`ANSWERS.md` との突合。索引の鮮度は検査しない
 - **frontmatter の配列は 1 行に保つ**（`refs: ["#1", "#2"]`）。PostToolUse formatter が 80 桁超の flow 配列を折り返すと、行単位で読む `records.mjs` のパーサが `refs は配列にする` で落ちる（[known-issues 030](../docs/known-issues/030-posttooluse-formatter-wraps-frontmatter-arrays.md)。現在は `records.mjs` 側に折り返しを畳む前処理が入っている）

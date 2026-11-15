@@ -50,7 +50,7 @@ Previous: (任意) 前フェーズ完了計画書パス
 
 ## Worktree 分担（fan-out 計画のみ・単一 worktree の計画では本節を削除）
 
-作業の分配・進捗追跡の正本は **GitHub Issues**（起票 = chat-main に一元化。手順とラベル routing の正本 = `docs-workflow` スキル。起票手順そのものは `issue-dispatch` スキル）。計画書は仕様詳細と分担の全体像だけを持ち、**台帳としての作業オーダー .md は作らない**（2026-07-11〜。旧 orders 台帳 fan-out は retire）。
+作業の分配・進捗追跡の正本は **GitHub Issues**（起票 = chat-main に一元化。手順とラベル routing の正本 = `docs-workflow` スキル。起票手順そのものは共通の `issue-dispatch` スキル）。計画書は仕様詳細と分担の全体像だけを持ち、**台帳としての作業オーダー .md は作らない**（2026-07-11〜。旧 orders 台帳 fan-out は retire）。
 
 | worktree | 担当（1 行）        | 対応 Issue | 触ってよいパス |
 | -------- | ------------------- | ---------- | -------------- |
@@ -65,7 +65,7 @@ Previous: (任意) 前フェーズ完了計画書パス
 
 ## Scope (Touchable Paths)
 
-このプランで変更してよいパスを宣言する。コードブロックは 1 行 1 glob で書く。照合は `node .claude/scripts/scope-overlap.mjs --scope-plan <この計画書>` で行い、宣言外のパスと、動いている PR・他 worktree との重なりを報告する（exit 1 なら着手と PR の前に直す）。Phase を複数の Issue に分ける計画は、Scope を Issue ごとに分けて書き、2 つの Phase が同じファイルを書き換えるなら、後ろの Phase を前の Phase への依存に入れる。
+このプランで変更してよいパスを宣言する。コードブロックは 1 行 1 glob で書く。照合は `node ~/.claude/skills/worktree-policy/scripts/scope-overlap.mjs --scope-plan <この計画書>` で行い、宣言外のパスと、動いている PR・他 worktree との重なりを報告する（exit 1 なら着手と PR の前に直す）。Phase を複数の Issue に分ける計画は、Scope を Issue ごとに分けて書き、2 つの Phase が同じファイルを書き換えるなら、後ろの Phase を前の Phase への依存に入れる。
 
 ```
 frontend/src/services/tasks/**

@@ -9,7 +9,7 @@ description: life-editor のドキュメント体系と課題管理運用の正�
 
 ## 進捗 / 履歴は per-chat
 
-`.claude/memory/chat-<self>.md` + `.claude/history/chat-<self>.md`（task-tracker 経由・git 追跡・単一書込者）。集約 `memory/INDEX.md` / `history/INDEX.md` は **git 非追跡の派生ビュー**（`hooks/regen-index.sh` が再生成）。チャット名宣言 = `.claude/comm/.session-name`。
+`.claude/memory/chat-<self>.md` + `.claude/history/chat-<self>.md`（task-tracker 経由・git 追跡・単一書込者）。集約 `memory/INDEX.md` / `history/INDEX.md` は **git 非追跡の派生ビュー**（共通の hook `project-session-start.mjs` が再生成）。チャット名宣言 = `.claude/comm/.session-name`。
 
 ## 実装プラン（plans/）
 
@@ -49,7 +49,7 @@ Status 語彙は enum のみ: `Draft` / `IN PROGRESS` / `BLOCKED` / `COMPLETED` 
 
 ### Issue 起票は chat-main に一元化する
 
-（2026-07-11 (2) ユーザー決定 — 同日の worktree 自己起票運用を SUPERSEDE）課題の起票はすべて chat-main が `issue-dispatch` スキルで行う（重複チェック → ラベル routing → DoD 付き body）。
+（2026-07-11 (2) ユーザー決定 — 同日の worktree 自己起票運用を SUPERSEDE）課題の起票はすべて chat-main が共通の `issue-dispatch` スキルで行う（重複チェック → ラベル routing → DoD 付き body）。
 
 ユーザーが worktree チャットへ直接指示した場合、実装は即着手してよいが、そのチャットは自分で起票せず**自分の outbox に起票依頼を append** する（chat-main が拾って起票）。各 worktree はセッション開始時と作業の区切りに自分宛 open Issue（`section:<id>` + `shared-fix`）を確認して実行 → close まで担う。
 

@@ -52,9 +52,9 @@ CLAUDE.md は今、事実・手順・禁止・経緯が混ざっている。**�
 | §7.0 ワークフロー委譲     | **A**      | 起点が `lead-pipeline` である事実は残す。role 分担 3 行も残す（推論で埋まらない）                                                  | —                                                                                                        |
 | §7.0 ツール実行ハング     | **A**      | 運用既定 1 行は残す。原因の説明は既にグローバル側にある                                                                            | `~/.claude/docs/bash-tool-stability.md`（グローバル・参照のみ。2026-08-16 に `rules/` から移設）                                         |
 | §7.1 開発コマンド         | **A**      | **残す**。検証コマンドと落とし穴（`web` の lint が `shared/` を歩かない・TypeScript の版差・jsdom にレイアウトが無い）は航法の中核 | —                                                                                                        |
-| §7.2 コミット規約         | **A** 1 行 | 自動マージ非適用の裁定は POLICY と同じ内容                                                                                         | [`comm/decisions/POLICY.md`](../../comm/decisions/POLICY.md) P-001                                       | ✅ 実在 |
-| §7.3 Plan Gate Convention | **A** 1 行 | 必須項目・DDL 手順・hooks 連動の一覧                                                                                               | [`plans/_TEMPLATE.md`](./plans/_TEMPLATE.md) + [`settings.json`](../../settings.json)（hook 登録の正本） | ✅ 実在 |
-| §7.4 worktree             | **A** 4 行 | 禁止事項 4 行だけ残す（既にそう書いてある）。手順・理由は委譲済み                                                                  | [`skills/worktree-policy/SKILL.md`](../../skills/worktree-policy/SKILL.md)                               | ✅ 実在 |
+| §7.2 コミット規約         | **A** 1 行 | merge の方針は POLICY と同じ内容（2026-11-15 に共通の決まりへ合わせた）                                                                                   | [`comm/decisions/POLICY.md`](../../comm/decisions/POLICY.md) P-001                                       | ✅ 実在 |
+| §7.3 Plan Gate Convention | **A** 1 行 | 必須項目・DDL 手順・hooks 連動の一覧                                                                                               | [`plans/_TEMPLATE.md`](./plans/_TEMPLATE.md) + [`settings.json`](../../settings.json)（`permissions`。hook の登録は claude-dotfiles の `claude/settings.json`） | ✅ 実在 |
+| §7.4 worktree             | **A** 4 行 | 禁止事項 4 行だけ残す（既にそう書いてある）。手順・理由は委譲済み                                                                  | 共通の `worktree-policy` スキル（claude-dotfiles）と [`2026-05-24-multi-chat-worktree-policy.md`](./plans/2026-05-24-multi-chat-worktree-policy.md) | ✅ 実在 |
 
 §7.1 を残すのは、**この項目だけは「知らないと CI だけが落ちる」種類の事実**だから（PR #488 の実例が本文に書いてある）。手順に見えるが実際は罠の記録で、判定式の「消したら Claude が間違う」に真正面から当たる。
 
@@ -67,10 +67,10 @@ CLAUDE.md は今、事実・手順・禁止・経緯が混ざっている。**�
 | CLAUDE.md の禁止                           | 機械の実体                                     | 状態        |
 | ------------------------------------------ | ---------------------------------------------- | ----------- |
 | main / master への push                    | `settings.json` `permissions.deny` 27 項目     | ✅ 実体あり |
-| `gh pr merge` は merge-round の中だけ（P-001） | `hooks/merge-gate.mjs`（2026-11-02 に ask から置換） | ✅ 実体あり |
-| `.mcp.json` のトークン平文展開             | `hooks/pre-commit-mcp-check.sh`                | ✅ 実体あり |
+| `gh pr merge` は条件を満たした PR だけ（POLICY の方針「merge と main への取り込み」） | 共通の hook `bash-guards.mjs`（claude-dotfiles。2026-11-15 に `hooks/merge-gate.mjs` から置換） | ✅ 実体あり |
+| `.mcp.json` のトークン平文展開             | 共通の hook `bash-guards.mjs`                  | ✅ 実体あり |
 | 音源ファイルのコミット                     | `.gitignore`（`public/sounds/`）               | ✅ 実体あり |
-| 派生 INDEX のコミット混入                  | `hooks/pre-commit-index-guard.sh`              | ✅ 実体あり |
+| 派生 INDEX のコミット混入                  | 共通の hook `bash-guards.mjs`                  | ✅ 実体あり |
 | コンポーネントから直接バックエンド呼び出し | なし                                           | ⬜ 未実体   |
 | 色のハードコード（`lumen-*` トークン必須） | なし                                           | ⬜ 未実体   |
 | `.claude/` 直下にプラン `.md` を置かない   | なし（`scripts/docs-lint.sh` に 1 行で足せる） | ⬜ 未実体   |

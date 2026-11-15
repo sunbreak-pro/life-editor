@@ -1,5 +1,5 @@
 {
-  "_doc": "Single source of which worktree lane owns which paths; read by scope-overlap.mjs, and skills or rules link to this file instead of copying its globs.",
+  "_doc": "Single source of which worktree lane owns which paths; read by the shared scope-overlap.mjs (claude-dotfiles worktree-policy skill, workspaceMapPath in .claude/issue-workflow.md), and skills or rules link to this file instead of copying its globs. The main checkout counts as the lane named main.",
   "lanes": {
     "briefing-refine": {
       "paths": [
@@ -214,7 +214,7 @@
     {
       "kind": "owner-only",
       "owners": [
-        "chat-main",
+        "main",
         "digest"
       ],
       "recordBranches": true,

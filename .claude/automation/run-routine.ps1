@@ -18,7 +18,7 @@
 #
 # 権限は二層設計（親計画 §6）: claude 自身には push / PR 作成を許さない（無人専用の settings を
 # --settings で渡して機械側で止める）。push と PR 作成は、この決定論的なスクリプトだけが行う。
-# merge は常にこうだいさん（POLICY P-001）。
+# 無人の実行は merge しない。merge は POLICY の方針「merge と main への取り込み」（共通の決まり）に従う。
 #
 # 編集するときは UTF-8 BOM を保つ（routine-ids.md の注意書き）。文字列リテラルは ASCII だけにする。
 
@@ -112,7 +112,7 @@ function Reset-Worktree([string]$Dir, [string]$Branch, [string]$SessionName) {
     Invoke-Git $Dir @("checkout", "-q", "--detach", "origin/main") | Out-Null
     $SessionBranch = "detached"
   }
-  # worktree-policy: .session-branch / .session-name が無いと hook が無音スキップする
+  # .session-branch / .session-name が無いと、共通の hook がセッションの最初に名前とブランチの食い違いを警告する
   [System.IO.File]::WriteAllText((Join-Path $Dir ".claude/comm/.session-branch"), "$SessionBranch`n", $Utf8)
   [System.IO.File]::WriteAllText((Join-Path $Dir ".claude/comm/.session-name"), "$SessionName`n", $Utf8)
 }

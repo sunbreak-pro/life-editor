@@ -39,7 +39,7 @@
 
 身近な比喩で言うと、**各自の日記帳**です。他人の日記には書き込まない、でも借りて読むのは OK。これで同時編集衝突が**設計レベルで起きえない**構造になります。
 
-**例外（退役レーンの畳み込み = D-20260830-main-1）**: worktree を持たないレーンの `memory/chat-<name>.md` に限り、chat-main が先頭へ `> RETIRED: <日付> — <理由>` マーカーを 1 行付与してよい（`regen-index.sh` が「進行中」の集計から外す）。付与はマーカー 1 行のみで、本文・履歴には触らない。レーンが復活するときはマーカーを消せば元に戻る。書き手が消えたファイルは誰にも直せず INDEX を汚し続ける（#1135 = 11 件中 9 件が stale）ための限定例外で、書き手が生きているレーンには適用しない。
+**例外（退役レーンの畳み込み = D-20260830-main-1）**: worktree を持たないレーンの `memory/chat-<name>.md` に限り、chat-main が先頭へ `> RETIRED: <日付> — <理由>` マーカーを 1 行付与してよい（共通の hook `project-session-start.mjs` が「進行中」の集計から外す）。付与はマーカー 1 行のみで、本文・履歴には触らない。レーンが復活するときはマーカーを消せば元に戻る。書き手が消えたファイルは誰にも直せず INDEX を汚し続ける（#1135 = 11 件中 9 件が stale）ための限定例外で、書き手が生きているレーンには適用しない。
 
 ## チャット名の決め方
 
@@ -83,9 +83,9 @@ Outbox は append-only のため、チャット名を変えると過去エント
 
 ### `.session-branch` ファイル (worktree ブランチ宣言・必須)
 
-`.session-name`（チャット名）とは別に、**worktree で作業するブランチ名**を 1 行で宣言する必須ファイルが `.claude/comm/.session-branch` です。hook（Stop / SessionStart 系）がこの値を読んで「今どのブランチで作業しているか」を判定するため、**抜けていると hook が無音でスキップされる**。
+`.session-name`（チャット名）とは別に、**worktree で作業するブランチ名**を 1 行で宣言する必須ファイルが `.claude/comm/.session-branch` です。共通の hook（SessionStart の `project-session-start.mjs`）がこの値を読み、いまのブランチと食い違えば**セッションの最初に警告する**。
 
-- 書き方・書き換えるタイミング・Orca ADE 例外を含む運用規約の正本 = **`worktree-policy` スキル**
+- 書き方と書き換えるタイミングは共通の **`worktree-policy` スキル**に従う。Orca の画面で作った worktree には書かれないので、Claude Code を起動する前に手で書く（`.claude/CLAUDE.md` §7.4）
 
 `.session-branch` も `.session-name` と同じく `.gitignore` 対象（セッション固有・一時状態）。各 worktree で個別に宣言する。
 

@@ -73,7 +73,7 @@ Claude Code から触れるようにするなら `mcp-server/src/tools/` にツ�
 1. `session-verifier`（CI の `verify` ジョブを上から再現。触っていないパッケージも回す — 依存が shared → web → desktop / mcp-server と繋がっている）
 2. 機能の追加 / 削除なら **CLAUDE.md §8 の Tier 表**と `docs/requirements/` を更新
 3. `task-tracker`（**実装ブランチには載せない** — 専用ブランチ `chore/tracker-<chat>-YYYYMMDD` へ。CLAUDE.md §7.4）
-4. `git-workflow` に従って commit / PR。**merge はこうだいさんの手番**（P-001）
+4. `git-workflow` に従って commit / PR。**merge は [`POLICY.md`](../../comm/decisions/POLICY.md) の方針「merge と main への取り込み」に従い、chat-main が共通の `merge-round` で入れる**。worktree からは merge しない
 
 ## 実装中に計画外の変更が浮上したら
 
