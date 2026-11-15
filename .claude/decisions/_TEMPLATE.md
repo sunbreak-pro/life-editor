@@ -1,5 +1,5 @@
 ---
-id: D-YYYYMMDD-<chat略称>-<連番>
+id: YYYY-MM-DD-<中身を表す英語の短い名前> # ファイル名から .md を除いたものです。キューを経た決定は、キューの見出しの名前をそのまま使います
 type: decision
 status: answered # enum のみ: answered（ユーザー回答済み）/ recorded（事後記録・自裁）/ superseded / withdrawn
 asked: YYYY-MM-DD
@@ -8,13 +8,13 @@ chat: <chat-name>
 answer: A # ANSWERS.md の行と一致させる（監査突合キー）。recorded は裁定の要約 1 語でよい
 topics: [kebab-case, で複数可]
 refs: ["#NNN", "docs/vision/plans/....md"] # 根拠・関連（Issue / plan / file:line）
-supersedes: [] # 置換した旧決定の ID、または旧記述の "file § 位置"
-superseded-by: [] # 後継 D の ID（後継作成時に追記 — 双方向を records.mjs check が検証）
+supersedes: [] # 置換した旧決定の ID（新旧どちらの名前の形でもよい）、または旧記述の "file § 位置"
+superseded-by: [] # 後継の決定の ID（後継作成時に追記 — 双方向を records.mjs check が検証）
 implemented-by: [] # 実装が着地した PR / commit
 promoted-to: null # POLICY 昇格時に P-NNN
 ---
 
-# D-YYYYMMDD-<chat>-<n>: <問いを 1 行>
+# <問いを 1 行>
 
 ## 背景
 
