@@ -19,11 +19,11 @@ Supabase Postgres へは renderer から直接行く。Web / Electron / Capacito
 
 完結しないのは「OS の外側にしか無いもの」だけ。実在するのはこれだけで、実体は `desktop/src/shared/ipcContract.ts` が元になる場所:
 
-- テーマ設定とウィンドウ位置の永続化（`electron-store`）
-- アプリのバージョン
 - **Supabase の認証セッション保存**（#838）— パッケージ版の renderer は `file://` で動き、そこでは `localStorage` が確実に永続しない。だからセッションだけはメインプロセス側（`safeStorage` 暗号化）に置いている
 - **Claude Code の起動**（#1211）— OS のターミナルを開く操作は renderer から手が届かない
 - **OS 通知**（#1374）— 出せない環境では reject せず `false` を返し、renderer は in-app トーストへ落とす
+
+ウィンドウ位置の保存と復元は `electron-store` を使いますが、main の中だけで閉じていて IPC には出していません。テーマ・ウィンドウ位置・アプリのバージョンを読む連絡口は、renderer から呼ばれていなかったので #2758 で消しました。
 
 **Risk 1 の上限 = contextBridge の expose 関数 10 個まで**（#529）。実数はここに転記しない — `DesktopIpcApi` のメソッドを数える（`authStorage` は中の 3 メソッドで数える）。上限に当たったら、それは殻が厚くなりすぎたサインなので、足す前に `desktop/README.md` の Constraints を読み直す。
 

@@ -6,8 +6,9 @@ migration (`.claude/2026-05-04-cross-platform-migration.md` §Phase 3).
 ## What this is (and isn't)
 
 - This package is a **shell only**: BrowserWindow, native Menu, a tiny IPC
-  bridge, `electron-store` for window/theme prefs, and an `electron-updater`
-  skeleton (Phase 5 wires the real feed). **No business/UI logic lives here.**
+  bridge, and `electron-store` for the window position and tray preference.
+  There is no auto-updater (#2758): the app has a single user, so a release is
+  installed by hand. **No business/UI logic lives here.**
 - The renderer reuses `web/` verbatim. `electron.vite.config.ts` points the
   renderer `root` at `../web`, so `web/index.html` -> `web/src/main.tsx` runs
   unchanged and all renderer deps (react / tiptap / dnd-kit / supabase) resolve
@@ -164,10 +165,11 @@ produced it, so it would trade one broken download for a confusing one. The real
 fix is an Apple Developer Program membership ($99/year) for signing plus
 notarization, which the $0 policy defers until after completion.
 
-`electron-updater` is deliberately left as a no-op skeleton. Auto-updating an
-unsigned binary means anyone who can spoof the update feed can push arbitrary
-code onto the machine, so the feed gets enabled in the same change as signing —
-never before it.
+There is no auto-updater, and the no-op skeleton that used to sit in
+`src/main/index.ts` was removed in #2758. Auto-updating an unsigned binary
+means anyone who can spoof the update feed can push arbitrary code onto the
+machine, and the app has a single user who installs each release by hand, so
+there is nothing for an updater to do.
 
 ## Accepting a build on a real machine
 
@@ -259,7 +261,8 @@ app's checkout screen. Screenshots (`screencapture`) and process counts
 
 ## Constraints (Risk 1 — keep the shell thin)
 
-- preload `contextBridge` expose functions: **<= 10** (currently 4).
+- preload `contextBridge` expose functions: **<= 10** (currently 6, counted by
+  `desktop/tests/ipcContract.test.ts`).
 - Single BrowserWindow. `nodeIntegration: false`, `contextIsolation: true`,
   `sandbox: true`.
 - IPC payloads are serializable only — never pass functions across the bridge.

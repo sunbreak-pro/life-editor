@@ -22,9 +22,8 @@ function hostPlatform(): DesktopHostPlatform {
 }
 
 // Thin, serializable-only bridge. Business logic lives in shared/web; this only
-// exposes the desktop shell's local prefs (theme / window bounds / version),
-// the auth-session storage (#838), the Claude Code launcher (#1211) and the
-// OS notification (#1374).
+// exposes the auth-session storage (#838), the Claude Code launcher (#1211),
+// the OS notification (#1374) and the host platform (#1590).
 //
 // The channel names and the call signatures both come from ../shared/
 // ipcContract (#894) — main reads the same names, so renaming one end alone
@@ -32,10 +31,6 @@ function hostPlatform(): DesktopHostPlatform {
 // or mistyped method a build error here rather than a runtime rejection in
 // the packaged app.
 const api: DesktopIpcApi = {
-  getTheme: () => ipcRenderer.invoke(DESKTOP_IPC.getTheme),
-  setTheme: (theme) => ipcRenderer.invoke(DESKTOP_IPC.setTheme, theme),
-  getWindowBounds: () => ipcRenderer.invoke(DESKTOP_IPC.getWindowBounds),
-  getAppVersion: () => ipcRenderer.invoke(DESKTOP_IPC.getAppVersion),
   authStorage: {
     getItem: (key) => ipcRenderer.invoke(DESKTOP_IPC.authStorageGetItem, key),
     setItem: (key, value) =>

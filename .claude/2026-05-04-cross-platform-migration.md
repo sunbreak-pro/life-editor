@@ -113,10 +113,10 @@ Related:
 | ----------------- | ------------------------------------------ | --------------------------------------------------------------------------------- |
 | Scaffold          | **electron-vite**                          | Vite native 統合、TS 型安全 IPC ヘルパー組込、テンプレート豊富                    |
 | Builder           | **electron-builder**                       | デファクト、macOS / Win / Linux 全対応、auto-updater との統合滑らか               |
-| Updater           | **electron-updater + GitHub Releases**     | 設定ファイル数行で動く、無料、ドキュメント豊富                                    |
+| Updater           | ~~electron-updater + GitHub Releases~~     | 採用しない。本人だけが使う道具なので、雛形と依存を #2758 で消した                |
 | Process Mgr       | **メイン + 単一 preload + 単一 renderer**  | Multi-window や hidden helper は当面禁止                                          |
 | IPC               | **`contextBridge` + `ipcRenderer.invoke`** | Promise ベース、型定義 1 ファイル集中、context isolation 必須                     |
-| Persistent Config | **electron-store**                         | 1KB 設定（ウィンドウサイズ / テーマ）保存用。データ本体は Supabase なので最小用途 |
+| Persistent Config | **electron-store**                         | 1KB 設定（ウィンドウサイズ / トレイ常駐）保存用。データ本体は Supabase なので最小用途 |
 | Native menu       | electron 標準 Menu API                     | プラグイン不使用                                                                  |
 | Tray              | electron 標準 Tray                         | 同上                                                                              |
 | Tests             | なし（当面）                               | E2E は Playwright を将来検討。N=1 なら手動で十分                                  |
@@ -420,7 +420,7 @@ Web の配布は、ビルドのあとに `web/dist` の中身（`index.html`・P
 - [x] `mcp-server/` を Postgres 接続版に書き換え(better-sqlite3 → @supabase/supabase-js)（README「life-editor MCP のツールはすべて Supabase 接続」）
 - [x] Desktop 殻から素の `claude` を起動する常設導線（サイドバー下部 + Settings の AI 連携カード = #1211。旧「terminal-division の Main process からブリッジ」を置換）
 - [x] **Remote MCP を本番へ**: 計画書 [`2026-09-09-remote-mcp-mobile.md`](./archive/2026-09-09-remote-mcp-mobile.md) の Step 3〜5（2026-09-26 #1994 — `https://life-editor-mcp.sunbreak-pro.workers.dev` に配布・コネクタは No sign-in で登録）
-- ~~electron-updater + GitHub Releases 設定~~ → **完成後の判断へ移動**（署名と同時に配線。未署名のまま有効化しない — `desktop/src/main/index.ts` の雛形はそのまま。D-20260923-main-1）
+- ~~electron-updater + GitHub Releases 設定~~ → **作らない**（2026-11-16 こうだいさんの決定。本人だけが使う道具なので、`desktop/src/main/index.ts` の雛形と `electron-updater` の依存を #2758 で消した。それまでの扱いは D-20260923-main-1）
 - [x] **Web URL 公開**: Cloudflare Workers (Static Assets) デプロイ（2026-08-09 #600 — `https://life-editor.sunbreak-pro.workers.dev`・$0。Pages ではなく Workers なのは Cloudflare が Pages を Workers へ吸収する方向のため）
 
 #### 5-C: 旧スタック削除 + ドキュメント整理
@@ -447,7 +447,7 @@ Web の配布は、ビルドのあとに `web/dist` の中身（`index.html`・P
 - [ ] Electron ビルド時間 < 3 分（macOS aarch64 ローカル。計測記録なし — `release-desktop.yml` の CI 実測で代替可）
 - [ ] **ここまでの累計コスト = $0**（署名・Apple Developer・Supabase Pro を使っていないことの確認）
 
-除外した条件（完成後の判断表へ）: electron-updater の自動更新（署名と同時）/ Phase 4 の Capacitor ネイティブ殻（スマホの主導線は Web URL）。
+除外した条件: electron-updater の自動更新（作らない。#2758 で雛形を削除）/ Phase 4 の Capacitor ネイティブ殻（完成後の判断表へ。スマホの主導線は Web URL）。
 
 ---
 
@@ -461,7 +461,6 @@ Web の配布は、ビルドのあとに `web/dist` の中身（`index.html`・P
 | Supabase Pro                                   | 無料枠（500MB DB / 月 5GB egress 等）を超えたら                                  | $25/月                         |
 | Windows コード署名                             | 友達が SmartScreen 警告で困ったら                                                | $80-500/年                     |
 | macOS 公証                                     | 友達が「壊れたアプリ」警告で困ったら                                             | Apple Developer Program $99/年 |
-| 自動更新（electron-updater + GitHub Releases） | 署名 / 公証を入れたとき同時に配線（未署名のまま有効化しない。D-20260923-main-1） | 署名の費用に含む               |
 | Capacitor ネイティブ殻（iOS / Android）        | 友達から要望が出て Apple Developer に加入したとき（Phase 4 の手順を再開）        | 上記 $99/年に含む              |
 | Apple Sign-in                                  | iOS 友達配布開始時に同時実装                                                     | 上記 $99/年に含む              |
 | Sentry / ログ吸い上げ                          | 友達からのバグ報告が増えてきたら                                                 | 無料枠 → 必要に応じて $26/月   |

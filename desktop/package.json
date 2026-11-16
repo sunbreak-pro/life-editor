@@ -20,8 +20,7 @@
   },
   "dependencies": {
     "@electron-toolkit/utils": "^4.0.0",
-    "electron-store": "^10.0.0",
-    "electron-updater": "^6.3.9"
+    "electron-store": "^10.0.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.0",

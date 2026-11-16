@@ -23,16 +23,11 @@ import {
   protocol,
   Tray,
   nativeImage,
-  nativeTheme,
   safeStorage,
   screen,
 } from "electron";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import Store from "electron-store";
-// electron-updater is CJS whose exports the Node ESM loader cannot see as
-// named exports (crashes at import time in the packaged app) — go through the
-// default export instead.
-import electronUpdater from "electron-updater";
 // Channel names are declared once and read by BOTH ends (#894) — see the
 // contract module's header for what used to go wrong when they were literals.
 import {
@@ -60,8 +55,6 @@ import {
   resolveBundlePath,
 } from "./appProtocol";
 
-const { autoUpdater } = electronUpdater;
-
 // ---------------------------------------------------------------------------
 // userData location (#837). app.getPath("userData") is derived from
 // app.getName(), which returns the asar package.json's "name" ("desktop") —
@@ -80,7 +73,7 @@ function useProductNamedUserData(): void {
 }
 
 // One-time carry-over of the pre-#837 prefs file, so an existing install keeps
-// its window position / theme / tray preference instead of silently resetting.
+// its window position / tray preference instead of silently resetting.
 // Copy rather than move: the old build (or a downgrade) still finds its own
 // file, and this is ~1KB. Skipped as soon as the new location has a config, so
 // later edits are never overwritten by the stale copy.
@@ -173,8 +166,8 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 // ---------------------------------------------------------------------------
-// Persistent config (electron-store). Minimal use only: window bounds + theme +
-// tray residency preference. The data of the app itself lives in Supabase; this
+// Persistent config (electron-store). Minimal use only: window bounds + tray
+// residency preference. The data of the app itself lives in Supabase; this
 // is a ~1KB local prefs file.
 // ---------------------------------------------------------------------------
 interface WindowBounds {
@@ -186,7 +179,6 @@ interface WindowBounds {
 
 interface DesktopStoreSchema {
   windowBounds: WindowBounds;
-  theme: "light" | "dark" | "system";
   // When true, closing the window keeps the app resident in the tray instead of
   // quitting (so Supabase realtime stays connected and reopening is instant).
   closeToTray: boolean;
@@ -203,7 +195,6 @@ interface DesktopStoreSchema {
 const store = new Store<DesktopStoreSchema>({
   defaults: {
     windowBounds: { width: 1280, height: 800 },
-    theme: "system",
     closeToTray: true,
     authStorage: {},
     claudeProjectPath: "",
@@ -528,33 +519,6 @@ function setupApplicationMenu(): void {
 }
 
 // ---------------------------------------------------------------------------
-// Minimal IPC. Only serializable payloads cross the bridge — never functions.
-// Kept intentionally tiny (theme + window prefs); business logic stays in
-// shared/web, not here.
-// ---------------------------------------------------------------------------
-function prefsIpcHandlers() {
-  return {
-    [DESKTOP_IPC.getTheme]: () => store.get("theme"),
-
-    [DESKTOP_IPC.setTheme]: (_event: unknown, theme: unknown) => {
-      // Validate at the IPC boundary: the renderer can send any value regardless
-      // of the TS type, so whitelist before persisting/applying (an unchecked
-      // value would pollute the prefs JSON and be re-applied on next launch).
-      if (theme !== "light" && theme !== "dark" && theme !== "system") {
-        throw new Error(`config:setTheme: invalid theme ${String(theme)}`);
-      }
-      store.set("theme", theme);
-      nativeTheme.themeSource = theme;
-      return theme;
-    },
-
-    [DESKTOP_IPC.getWindowBounds]: () => store.get("windowBounds"),
-
-    [DESKTOP_IPC.getAppVersion]: () => app.getVersion(),
-  };
-}
-
-// ---------------------------------------------------------------------------
 // Supabase auth-session storage (#838).
 //
 // Why main-process storage: the packaged renderer used to be served via
@@ -812,7 +776,6 @@ function notificationIpcHandlers() {
  */
 function setupIpc(): void {
   const handlers: DesktopIpcHandlers = {
-    ...prefsIpcHandlers(),
     ...authStorageIpcHandlers(),
     ...claudeIpcHandlers(),
     ...notificationIpcHandlers(),
@@ -822,23 +785,6 @@ function setupIpc(): void {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Auto-updater: SKELETON ONLY for Phase 3. The real GitHub Releases feed and
-// the actual update check are wired in Phase 5. Do NOT call checkForUpdates()
-// here — this only constructs the structure so Phase 5 fills in config.
-// ---------------------------------------------------------------------------
-function setupAutoUpdater(): void {
-  autoUpdater.autoDownload = false;
-  // Phase 5: configure the GitHub Releases feed + call
-  // autoUpdater.checkForUpdatesAndNotify(). No-op in Phase 3.
-  //
-  // SECURITY: do NOT enable checkForUpdates while builds are unsigned
-  // (mac.identity:null / no win cert). electron-updater's package-signature
-  // check is only meaningful with code signing — enabling auto-update on
-  // unsigned builds would let a compromised feed push a malicious binary.
-  // Turn this on together with code signing (when the $0 policy is lifted).
-}
-
 app.whenReady().then(() => {
   electronApp.setAppUserModelId("com.life-editor.app");
 
@@ -846,16 +792,12 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window);
   });
 
-  // Apply persisted theme to the OS-level color scheme on launch.
-  nativeTheme.themeSource = store.get("theme");
-
   // Before createWindow: the first thing the window does is request
   // app://bundle/index.html.
   registerAppProtocol();
   setupIpc();
   setupApplicationMenu();
   setupTray();
-  setupAutoUpdater();
   createWindow();
 
   app.on("activate", () => {
