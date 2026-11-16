@@ -7,7 +7,7 @@ answered: 2026-11-16
 chat: main
 answer: AI のカスタマイズ以外の 11 件を消す
 topics: [feature-removal, cleanup, dead-code]
-refs: ["#2716", "#2757", "#2758", "docs/reports/2026-11-16-feature-inventory-for-removal.html"]
+refs: ["#2716", "#2757", "#2758", "docs/reports/2026-11-16-feature-inventory-for-removal.html", "https://claude.ai/artifact/7XVyuwdr2WXwxcRHmZiLiv"]
 supersedes: []
 superseded-by: []
 implemented-by: []

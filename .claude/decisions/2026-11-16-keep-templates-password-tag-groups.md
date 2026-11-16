@@ -7,7 +7,7 @@ answered: 2026-11-16
 chat: main
 answer: テンプレート・パスワード・タグのグループを残す
 topics: [feature-removal, notes, schedule, shortcuts]
-refs: ["#2716", "#2155", "docs/reports/2026-11-16-feature-inventory-for-removal.html"]
+refs: ["#2716", "#2155", "docs/reports/2026-11-16-feature-inventory-for-removal.html", "https://claude.ai/artifact/7XVyuwdr2WXwxcRHmZiLiv"]
 supersedes: []
 superseded-by: []
 implemented-by: []

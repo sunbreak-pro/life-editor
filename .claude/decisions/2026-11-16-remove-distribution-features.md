@@ -7,7 +7,7 @@ answered: 2026-11-16
 chat: main
 answer: 5 件とも消す
 topics: [feature-removal, distribution, auth, onboarding]
-refs: ["#2716", "#2749", "#2750", "#2751", "#2752", "#2753", "D-20261022-main-1", "docs/reports/2026-11-16-feature-inventory-for-removal.html"]
+refs: ["#2716", "#2749", "#2750", "#2751", "#2752", "#2753", "D-20261022-main-1", "docs/reports/2026-11-16-feature-inventory-for-removal.html", "https://claude.ai/artifact/7XVyuwdr2WXwxcRHmZiLiv"]
 supersedes: ["decisions/D-20261022-main-1.md § 波及「コードは変えません。…配布向けに作った機能はそのまま残します」"]
 superseded-by: []
 implemented-by: []

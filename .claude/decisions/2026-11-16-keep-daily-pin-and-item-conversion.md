@@ -7,7 +7,7 @@ answered: 2026-11-16
 chat: main
 answer: デイリーのピンと、予定と Todo の相互変換を残す
 topics: [feature-removal, daily, schedule, notes, offline]
-refs: ["#2716", "#2336", "#2337", "#2329", "docs/reports/2026-11-16-feature-inventory-for-removal.html"]
+refs: ["#2716", "#2336", "#2337", "#2329", "docs/reports/2026-11-16-feature-inventory-for-removal.html", "https://claude.ai/artifact/7XVyuwdr2WXwxcRHmZiLiv"]
 supersedes: []
 superseded-by: []
 implemented-by: []

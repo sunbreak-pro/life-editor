@@ -209,3 +209,8 @@
 - 2026-11-16-remove-audio-with-work-screen: **4 件とも消す**（環境音のミキサーと音の土台・完了のチャイム・サイドバーのタイマー表示を Work 画面と一緒に消し、サウンドアイテム #2369 は作らない。2026-11-16 チャットの AskUserQuestion で回答・chat-main が転記 / 昇格）
 - 2026-11-16-clean-up-unreachable-code: **AI のカスタマイズ以外の 11 件を消す**（実装は #2757 と #2758。DB の表と列は DROP しない。2026-11-16 チャットの AskUserQuestion で回答・chat-main が転記 / 昇格）
 - 2026-11-16-keep-daily-pin-and-item-conversion: **デイリーのピンと、予定と Todo の相互変換を残す**（表へのタグ付けとピン付きノートのオフライン保持は選ばれず、削除の候補に移す。2026-11-16 チャットの AskUserQuestion で回答・chat-main が転記 / 昇格）
+- 2026-11-16-remove-data-export: **消す**（実装は #2759。2026-11-16 チャットの文で回答・chat-main が転記 / 昇格）
+- 2026-11-16-remove-mobile-shells: **消す（今後もネイティブのアプリは作らない）**（実装は #2760。画面幅で出るモバイルの UI と Service Worker は残す。2026-11-16 チャットの文で回答・chat-main が転記 / 昇格）
+- 2026-11-16-remove-note-table-tagging: **消す**（実装は #2761。表そのものは残し、DB の表は変えない。2026-11-16 チャットの文で回答・chat-main が転記 / 昇格）
+- 2026-11-16-remove-offline-read-write: **圏外の読み書きまで消す**（実装は #2762。再読み込みを速くする保存と Service Worker は残す。2026-11-16 チャットの AskUserQuestion で回答・chat-main が転記 / 昇格）
+- 2026-11-16-keep-verification-tools-ai-customization-shortcuts: **検証用の MCP の道具・AI のカスタマイズ・ショートカットの割り当て直しを残す**（2026-11-16 チャットの文で回答・chat-main が転記 / 昇格）

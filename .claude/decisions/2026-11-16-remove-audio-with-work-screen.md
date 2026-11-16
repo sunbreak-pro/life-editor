@@ -7,7 +7,7 @@ answered: 2026-11-16
 chat: main
 answer: 4 件とも消す
 topics: [feature-removal, audio, timer, work-screen]
-refs: ["#2716", "#2717", "#2369", "docs/reports/2026-11-16-feature-inventory-for-removal.html"]
+refs: ["#2716", "#2717", "#2369", "docs/reports/2026-11-16-feature-inventory-for-removal.html", "https://claude.ai/artifact/7XVyuwdr2WXwxcRHmZiLiv"]
 supersedes: []
 superseded-by: []
 implemented-by: []
@@ -38,5 +38,5 @@ promoted-to: null
 
 - Issue #2717 に、消す範囲（`AudioContext.tsx`・`AudioContextValue.ts`・`useAudioContext.ts`・`ambientLoop.ts`・`audioVolumeRamp.ts`・`constants/sounds.ts`・`AppProviders.tsx` の `AudioHost`）をコメントで足しました。
 - CLAUDE.md §2 の「Audio は Provider 維持」、§3 の `AudioContext` の gotcha、§9 の音源のバケットの記述、`rules/frontend.md` の Provider の順序は、#2717 の PR で合わせます。
-- DB の表（`sound_settings` など）を DROP するかは決めていません。
+- DB の表（`sound_settings` など 0018 の表）は DROP しません。2026-11-12 にこうだいさんが「0018 の表は残し、画面と道具だけを消す」と決めています（#2717 の 2026-11-12 のコメント）。
 - Issue #2369 の close は、こうだいさんか chat-main が行います。
