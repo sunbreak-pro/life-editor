@@ -13,6 +13,8 @@ const REQUIRED_ENV = [
   "LIFE_EDITOR_SUPABASE_PASSWORD",
 ];
 
+const CALL_TIMEOUT_MS = 60000;
+
 export function checkMcpEnv(env = process.env) {
   for (const k of REQUIRED_ENV) {
     if (!env[k]) throw new Error(`環境変数 ${k} が未設定です`);
@@ -35,12 +37,25 @@ export function openMcp(entry = process.env.LIFE_EDITOR_MCP_ENTRY, env = process
     let nextId = 1;
     const pending = new Map();
     const send = (o) => child.stdin.write(JSON.stringify(o) + "\n");
+    // 1 回の呼び出しは 60 秒で諦める。応答が止まっても、タスクの 10 分の打ち切りまで固まらないため
     const request = (method, params) =>
       new Promise((res, rej) => {
         const id = nextId++;
-        pending.set(id, { res, rej });
+        const timer = setTimeout(() => {
+          pending.delete(id);
+          rej(new Error(`MCP ${method} timeout`));
+        }, CALL_TIMEOUT_MS);
+        pending.set(id, {
+          res: (v) => (clearTimeout(timer), res(v)),
+          rej: (e) => (clearTimeout(timer), rej(e)),
+        });
         send({ jsonrpc: "2.0", id, method, params });
       });
+    // 子が途中で落ちたら、待っている呼び出しをすべて失敗にする
+    child.on("exit", (code) => {
+      for (const p of pending.values()) p.rej(new Error(`MCP サーバーが終了しました (code ${code})`));
+      pending.clear();
+    });
     child.stdout.on("data", (d) => {
       buf += d.toString("utf8");
       let i;

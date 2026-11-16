@@ -27,9 +27,24 @@ if (-not (Test-Path (Join-Path $env:LOCALAPPDATA "life-briefing\key.bin"))) {
   throw "key.bin not found. Run set-key.ps1 first."
 }
 
+# 朝は起きた直後でネットワークが無いことがある。依存（@anthropic-ai/sdk）は登録の時点で main の checkout に入れておく
+$LauncherDir = Split-Path $Launcher -Parent
+if (-not (Test-Path (Join-Path $LauncherDir "node_modules"))) {
+  $Npm = (Get-Command npm.cmd -ErrorAction Stop).Source
+  $ErrorActionPreference = "Continue"
+  Push-Location $LauncherDir
+  & $Npm ci --ignore-scripts --no-audit --no-fund 2>&1 | Out-Null
+  $NpmCode = $LASTEXITCODE
+  Pop-Location
+  $ErrorActionPreference = "Stop"
+  if ($NpmCode -ne 0) { throw "npm ci failed in $LauncherDir" }
+}
+
 $TaskName = "LifeEditor-Briefing"
 $Principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Limited
+# ネットワークがつながるまで待ち、失敗したら 5 分後に 1 回だけやり直す。同じ日に書けた印があるので、やり直しで 2 回は書かない
 $Settings = New-ScheduledTaskSettingsSet -WakeToRun -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
+  -RunOnlyIfNetworkAvailable -RestartCount 1 -RestartInterval (New-TimeSpan -Minutes 5) `
   -ExecutionTimeLimit (New-TimeSpan -Minutes 10) -MultipleInstances IgnoreNew
 $Action = New-ScheduledTaskAction -Execute "powershell.exe" `
   -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$Launcher`"" `

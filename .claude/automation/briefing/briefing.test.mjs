@@ -67,12 +67,17 @@ describe("validateBriefing", () => {
   test("制御文字を含むと落ちる", () => fails((b) => (b.today = "ふつうの文\u0007です"), /制御文字/));
   test("news の url 以外に URL やリンクがあると落ちる", () => {
     fails((b) => (b.today = "詳しくは https://evil.example を見てください"), /URL やリンク/);
-    fails((b) => (b.news[0].summary = "evil-site.com を開いてください。"), /URL やリンク/);
+    fails((b) => (b.news[0].summary = "www.evil-site.example を開いてください。"), /URL やリンク/);
     fails((b) => (b.learning = "答え [ここ](https://x.example)"), /URL やリンク/);
   });
   test("表示を偽装する不可視の文字（ゼロ幅・双方向制御）があると落ちる", () => {
     fails((b) => (b.today = "ふつうの" + String.fromCodePoint(0x200b) + "文です"), /制御文字/);
     fails((b) => (b.today = "ふつうの" + String.fromCodePoint(0x202e) + "文です"), /制御文字/);
+  });
+  test("スキームの無いドメイン名（claude.ai）と、絵文字をつなぐ文字は通す", () => {
+    const b = goodBriefing();
+    b.today = "claude.ai の新機能を試す日です。" + String.fromCodePoint(0x1f469, 0x200d, 0x1f4bb);
+    assert.doesNotThrow(() => validateBriefing(b, config, { allowedUrls: new Set([URL_A]) }));
   });
   test("題材が空なら、学びが出ていると落ちる", () => {
     const c = { ...config, learningTopic: "" };
@@ -199,14 +204,27 @@ describe("runBriefing（つなぐ部分）", () => {
     }
   });
 
-  test("API が失敗したら、書き込まない", async () => {
+  test("API が失敗したら、書き込まない。そこまでに使った量はログに残す", async () => {
     const mcp = fakeMcp(ctxOf());
+    const boom = () => Object.assign(new Error("401"), { usage: { input: 1000, output: 100, searches: 1 } });
     await assert.rejects(
-      runBriefing({ date: DATE, config, home, deps: { openMcp: async () => mcp, compose: async () => { throw new Error("401"); } } }),
+      runBriefing({ date: DATE, config, home, deps: { openMcp: async () => mcp, compose: async () => { throw boom(); } } }),
       /401/,
     );
     assert.ok(!mcp.calls.some((c) => c[0] === "write_briefing"));
     assert.ok(!existsSync(join(home, "done", DATE)));
+    const last = logLines().at(-1);
+    assert.equal(last.result, "failed");
+    assert.equal(last.usage.input, 1000);
+    assert.ok(last.costUsd > 0);
+  });
+
+  test("材料が読めない日（todayDaily が無い）は、スキップではなく失敗にする", async () => {
+    const mcp = { calls: [], call: async () => ({ text: "not json" }), close() {} };
+    await assert.rejects(
+      runBriefing({ date: DATE, config, home, deps: { openMcp: async () => mcp, compose: async () => assert.fail("API を呼んだ") } }),
+      /todayDaily/,
+    );
     assert.equal(logLines().at(-1).result, "failed");
   });
 

@@ -61,9 +61,11 @@
 
 毎朝 05:30 に、今日の朝刊（フォーカスの 1 行と AI のコメント）を書く。計画 = [`../docs/vision/plans/2026-11-16-morning-briefing-on-api-credits.md`](../docs/vision/plans/2026-11-16-morning-briefing-on-api-credits.md)。上の `claude -p` の定期実行とは別の仕組みで、Ultra プランに付く毎月の API クレジットで払う。
 
-- **流れ**: `context.mjs` が MCP の `get_today_context` で材料を取り → `compose.mjs` が Claude API（`claude-sonnet-5-5`・サーバー側の Web 検索つき）を 1 回呼んで決まった形の JSON を受け取り → `validate.mjs` が検査し → `briefing.mjs` が `write_briefing` で書く。エージェントではなく、Claude はファイルにもコマンドにも触らない
+- **流れ**: `context.mjs` が MCP の `get_today_context` で材料を取り → `compose.mjs` が Claude API（`claude-sonnet-5-5`・サーバー側の Web 検索つき）を呼んで（検査に落ちたときだけ 1 回作り直す）決まった形の JSON を受け取り → `validate.mjs` が検査し → `briefing.mjs` が `write_briefing` で書く。エージェントではなく、Claude はファイルにもコマンドにも触らない
 - **書かない日**: 朝刊が既にある日（こうだいさんが書いた朝刊を含む）、鍵のかかった日、同じ日に書けた印（`%LOCALAPPDATA%\life-briefing\done\<日付>`）がある日
 - **鍵**: `%LOCALAPPDATA%\life-briefing\key.bin`（DPAPI）。`run-briefing.ps1` が復号して node のプロセスの環境にだけ渡す。**ユーザー環境変数 `ANTHROPIC_API_KEY` には置かない**（置くと対話型の Claude Code と上の定期実行まで API 払いになる）。しまい直すのは `set-key.ps1`
+- **やり直す**: こうだいさんが朝刊を消して書き直したい日は、`%LOCALAPPDATA%\life-briefing\done\<日付>` の印を消してから `run-briefing.ps1 -Date <日付>` を流す。印があると何も書かない
+- **既知の穴**: 上書きを避ける判定は日記のコメントの有無（`hasBriefing`）だけで、フォーカスの行は見ない。こうだいさんがフォーカスだけを書いた日に手で再実行すると、その 1 行が置き換わる。05:30 の定時の実行では起きにくい
 - **設定**: 話題・学びの題材・モデル・上限は `config.json`。文面の指示は `prompt.md`
 - **試す**: `run-briefing.ps1 -DryRun -Date YYYY-MM-DD`（書き込まず、JSON と費用を出す）。ログは `%LOCALAPPDATA%\life-briefing\logs\`（`briefing.log` に結果と費用、`runs.log` に終了コード）
 - **テスト**: `cd .claude/automation/briefing && npm ci && node --test`

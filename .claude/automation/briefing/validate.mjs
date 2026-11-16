@@ -11,13 +11,16 @@ export class ValidationError extends Error {
 
 // 改行以外の制御文字・書式文字（双方向制御やゼロ幅の文字、タグ文字）・行区切りを弾く。表示の偽装に使われるため
 const INVISIBLE = /^[\p{Cc}\p{Cf}\p{Co}\p{Cn}\p{Zl}\p{Zp}]$/u;
+// ZWJ と絵文字の異体字選択子は、絵文字の列に正当に入るので許す
+const EMOJI_JOINERS = new Set([String.fromCodePoint(0x200d), String.fromCodePoint(0xfe0f)]);
 function hasControl(v) {
-  for (const ch of v) if (ch !== "\n" && INVISIBLE.test(ch)) return true;
+  for (const ch of v) if (ch !== "\n" && !EMOJI_JOINERS.has(ch) && INVISIBLE.test(ch)) return true;
   return false;
 }
 
 // URL を出してよいのは news[].url だけ。ほかの項目に混ざったリンクは、検索結果に潜んだ指示で書かれた恐れがある
-const LINK_LIKE = /https?:\/\/|www\.|\]\(|\b[a-z0-9-]+\.(com|net|org|io|dev|ai|jp|co|app|info)\b/i;
+// スキームの無い裸のドメイン（claude.ai など）は、開けないうえに話題に自然に出るので弾かない
+const LINK_LIKE = /https?:\/\/|www\.|\]\(/i;
 
 /** 文字数は、画面に出る文字（サロゲートペアを 1 つ）で数える。 */
 export function charLength(s) {

@@ -58,7 +58,12 @@ export async function runBriefing({ date, dryRun = false, config, home, deps = {
   const mcp = await open();
   try {
     const ctx = await readContext(mcp, date);
-    const reason = skipReason(ctx) ?? (!dryRun && existsSync(marker) ? "marker" : null);
+    // 材料が読めない日を「スキップ」にすると、終了コード 0 のまま毎朝黙って朝刊が出なくなる。失敗として止める
+    if (skipReason(ctx) === "no-context") {
+      log({ result: "failed", stage: "context", error: "get_today_context の応答に todayDaily がありません" });
+      throw new Error("get_today_context の応答に todayDaily がありません");
+    }
+    const reason =skipReason(ctx) ?? (!dryRun && existsSync(marker) ? "marker" : null);
     if (reason && !dryRun) {
       log({ result: "skipped", reason });
       return { result: "skipped", reason };
@@ -77,7 +82,8 @@ export async function runBriefing({ date, dryRun = false, config, home, deps = {
         composed = await compose({ ctx, config: attemptConfig, feedback });
       } catch (e) {
         // API の失敗（認証・上限・拒否）は、同じ依頼を繰り返しても直らないので、その場で止める
-        log({ result: "failed", stage: "compose", attempt, error: e.message });
+        const spent = e.usage ? Object.fromEntries(Object.keys(total).map((k) => [k, total[k] + (e.usage[k] ?? 0)])) : total;
+        log({ result: "failed", stage: "compose", attempt, error: e.message, usage: spent, costUsd: costOf(spent, config) });
         throw e;
       }
       for (const k of Object.keys(total)) total[k] += composed.usage[k];
@@ -103,7 +109,7 @@ export async function runBriefing({ date, dryRun = false, config, home, deps = {
         return { result: "written", focus, paragraphs, usage: total, costUsd, attempt };
       } catch (e) {
         if (!(e instanceof ValidationError)) {
-          log({ result: "failed", stage: "write", attempt, error: e.message });
+          log({ result: "failed", stage: "write", attempt, error: e.message, usage: total, costUsd: costOf(total, config) });
           throw e;
         }
         lastError = e;
@@ -124,7 +130,11 @@ function parseArgs(argv) {
     else if (argv[i] === "--date") out.date = argv[++i];
     else throw new Error(`不明な引数: ${argv[i]}`);
   }
-  if (out.date && !/^\d{4}-\d{2}-\d{2}$/.test(out.date)) throw new Error("--date は YYYY-MM-DD で指定します");
+  if (out.date) {
+    const t = new Date(`${out.date}T00:00:00Z`);
+    const valid = /^\d{4}-\d{2}-\d{2}$/.test(out.date) && !Number.isNaN(t.getTime()) && t.toISOString().slice(0, 10) === out.date;
+    if (!valid) throw new Error("--date は実在する日付を YYYY-MM-DD で指定します");
+  }
   return out;
 }
 

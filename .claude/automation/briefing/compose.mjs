@@ -81,11 +81,13 @@ export async function composeBriefing({
   const messages = [{ role: "user", content: buildUserMessage(ctx, config, feedback) }];
   const usage = { input: 0, output: 0, searches: 0 };
   const searchUrls = new Set();
+  // 失敗したときも、そこまでに使った量を呼び出し側のログに残すため、例外に載せる
+  const fail = (msg) => Object.assign(new Error(msg), { usage: { ...usage } });
   // allowed_callers: ["direct"] は、動的フィルタリング（コード実行を挟む検索）を切る指定。費用を抑えるため
   for (let turn = 0; turn <= MAX_CONTINUES; turn++) {
     // pause_turn で続きを呼ぶたびに max_uses が数え直されるので、使った分を引いて渡す
     const left = Math.max(config.maxSearches - usage.searches, 0);
-    if (config.newsTopic && turn > 0 && left === 0) throw new Error("検索の回数の上限に達しました");
+    if (config.newsTopic && turn > 0 && left === 0) throw fail("検索の回数の上限に達しました");
     const tools = config.newsTopic
       ? [{ type: "web_search_20260209", name: "web_search", max_uses: Math.max(left, 1), allowed_callers: ["direct"] }]
       : [];
@@ -109,24 +111,24 @@ export async function composeBriefing({
     }
 
     const costUsd = costOf(usage, config);
-    if (costUsd > config.maxCostUsdPerRun) throw new Error(`費用の上限を超えました: $${costUsd.toFixed(3)}`);
+    if (costUsd > config.maxCostUsdPerRun) throw fail(`費用の上限を超えました: $${costUsd.toFixed(3)}`);
 
     if (res.stop_reason === "pause_turn") {
       messages.push({ role: "assistant", content: res.content });
       continue;
     }
-    if (res.stop_reason === "refusal") throw new Error(`API が応答を断りました (${res.stop_details?.category ?? "unknown"})`);
-    if (res.stop_reason === "max_tokens") throw new Error("max_tokens に達して応答が途中で切れました");
+    if (res.stop_reason === "refusal") throw fail(`API が応答を断りました (${res.stop_details?.category ?? "unknown"})`);
+    if (res.stop_reason === "max_tokens") throw fail("max_tokens に達して応答が途中で切れました");
 
     const textBlock = [...res.content].reverse().find((b) => b.type === "text");
-    if (!textBlock) throw new Error("応答に text ブロックがありません");
+    if (!textBlock) throw fail("応答に text ブロックがありません");
     let briefing;
     try {
       briefing = JSON.parse(textBlock.text);
     } catch {
-      throw new Error("応答が JSON として読めません");
+      throw fail("応答が JSON として読めません");
     }
     return { briefing, usage, costUsd, searchUrls };
   }
-  throw new Error("pause_turn が続いて終わりませんでした");
+  throw fail("pause_turn が続いて終わりませんでした");
 }
