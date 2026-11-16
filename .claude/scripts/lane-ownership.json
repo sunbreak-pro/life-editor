@@ -100,31 +100,6 @@
         "shared/tests/appRecord*"
       ]
     },
-    "work-refine": {
-      "paths": [
-        "shared/src/components/Pomodoro*",
-        "shared/src/components/SessionCompletionModal.tsx",
-        "shared/src/components/SessionDots.tsx",
-        "shared/src/components/AudioMixer.tsx",
-        "shared/src/components/NavTimerStatus.tsx",
-        "shared/src/components/WorkHistoryList.tsx",
-        "shared/src/components/WorkLoadFailed.tsx",
-        "shared/src/components/WorkTagSelector.tsx",
-        "shared/src/context/Timer*",
-        "shared/src/context/timerReducer.ts",
-        "shared/src/context/Audio*",
-        "web/src/work/**",
-        "web/src/TimerHost.tsx",
-        "web/tests/work*",
-        "web/tests/timerHost*",
-        "shared/tests/pomodoro*",
-        "shared/tests/timer*",
-        "shared/tests/work*",
-        "shared/tests/audioMixer*",
-        "shared/tests/sessionCompletion*",
-        "shared/tests/navTimer*"
-      ]
-    },
     "settings": {
       "anyLane": true,
       "paths": [

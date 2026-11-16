@@ -1089,7 +1089,7 @@ describe("DailyView — the body is the day's one text (#2123)", () => {
 });
 
 /*
- * #2123 — under the body: the mood stars and the four figures, nothing else.
+ * #2123 — under the body: the mood stars and the day's figures, nothing else.
  * The stars are the evening paper's: the same mood-line write, and the same
  * publish stamp on `evening_published_at`.
  */
@@ -1115,7 +1115,7 @@ describe("DailyView — the strip under the body (#2123)", () => {
   /** The content of the Nth upsertDaily call. */
   const saved = (n = 0) => state.upsertDaily.mock.calls[n]?.[1] as string;
 
-  /** A DataService carrying the day's rows for the four figures. */
+  /** A DataService carrying the day's rows for the figures. */
   function figuresDs(): DataService & {
     updateDailyUnified: ReturnType<typeof vi.fn>;
   } {
@@ -1144,23 +1144,13 @@ describe("DailyView — the strip under the body (#2123)", () => {
           scheduledAt: at(13).toISOString(),
         },
       ]),
-      fetchTimerSessions: vi.fn(async () => [
-        {
-          id: "s-1",
-          sessionType: "WORK",
-          startedAt: at(14),
-          completedAt: at(15),
-          duration: 90 * 60,
-          completed: true,
-        },
-      ]),
       updateDailyUnified: vi.fn(async () => eveningDaily),
     } as unknown as DataService & {
       updateDailyUnified: ReturnType<typeof vi.fn>;
     };
   }
 
-  it("draws the stars and the four figures, and no schedule list", async () => {
+  it("draws the stars and the three figures, and no schedule list", async () => {
     state.dailies = [eveningDaily];
     render(<DailyView dataService={figuresDs()} />);
 
@@ -1177,7 +1167,6 @@ describe("DailyView — the strip under the body (#2123)", () => {
     expect(terms).toEqual([
       "materials.daily.figureEvents",
       "materials.daily.figureTodos",
-      "materials.daily.figureWork",
       "materials.daily.figureGoals",
     ]);
     const values = within(footer)
@@ -1186,7 +1175,6 @@ describe("DailyView — the strip under the body (#2123)", () => {
     expect(values).toEqual([
       "2",
       "1/2",
-      "scheduleScreen.durationHourMin|1,30",
       "0",
     ]);
     // The schedule rows of the old evening card are gone.

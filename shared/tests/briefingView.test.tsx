@@ -50,20 +50,7 @@ const LABELS: BriefingLabels = {
   jumpToTodos: "Open in Todos",
 };
 
-const STREAK_LABELS = {
-  title: "Streak",
-  current: "Current",
-  longest: "Longest",
-  formatDays: (n: number) => (n === 1 ? "day" : "days"),
-  noStreak: "No streak",
-};
 const TREND_LABELS = { title: "Trend", completedCount: "Completed" };
-const BALANCE_LABELS = {
-  title: "Balance",
-  work: "Work",
-  break: "Break",
-  longBreak: "Long break",
-};
 
 const DATA: BriefingData = {
   dateLine: "2026-07-16",
@@ -111,7 +98,6 @@ const DATA: BriefingData = {
       completed: true,
     },
   ],
-  sessions: [],
   todoNodes: [],
 };
 
@@ -963,15 +949,13 @@ describe("Today's schedule as a time table (#2223)", () => {
 /*
  * #938 —「きのうまでの自分」left the paper's column for the shared detail
  * panel. The paper must no longer print it (nor take the widget labels), and
- * the panel component must render the same three widgets from the same
+ * the panel component must render the completion trend from the same
  * BriefingData the paper is fed.
  */
 describe("Visual zone moved to the detail panel (#938)", () => {
   it("no longer prints the visual zone on the paper", () => {
     renderView();
-    expect(screen.queryByText("Streak")).toBeNull();
     expect(screen.queryByText("Trend")).toBeNull();
-    expect(screen.queryByText("Balance")).toBeNull();
   });
 
   // #2285: carryover followed the widgets into the panel, so the schedule
@@ -987,33 +971,17 @@ describe("Visual zone moved to the detail panel (#938)", () => {
     expect(paper.textContent).not.toContain("Old todo");
   });
 
-  it("renders the three widgets in the panel under one heading", () => {
+  it("renders the completion trend in the panel under one heading", () => {
     render(
-      <BriefingVizPanel
-        sessions={[]}
-        todoNodes={[]}
-        title="VIZ"
-        streakLabels={STREAK_LABELS}
-        trendLabels={TREND_LABELS}
-        balanceLabels={BALANCE_LABELS}
-      />,
+      <BriefingVizPanel todoNodes={[]} title="VIZ" trendLabels={TREND_LABELS} />,
     );
     expect(screen.getByText("VIZ")).toBeTruthy();
-    expect(screen.getByText("Streak")).toBeTruthy();
     expect(screen.getByText("Trend")).toBeTruthy();
-    expect(screen.getByText("Balance")).toBeTruthy();
   });
 
   it("stacks the panel in one column (the well is ~320px)", () => {
     const { container } = render(
-      <BriefingVizPanel
-        sessions={[]}
-        todoNodes={[]}
-        title="VIZ"
-        streakLabels={STREAK_LABELS}
-        trendLabels={TREND_LABELS}
-        balanceLabels={BALANCE_LABELS}
-      />,
+      <BriefingVizPanel todoNodes={[]} title="VIZ" trendLabels={TREND_LABELS} />,
     );
     // The paper laid these out `sm:grid-cols-2`; at panel width that squeezes
     // each chart below what its axis labels need.

@@ -109,7 +109,7 @@ import { useDayFigures } from "./useDayFigures";
  * written only through readDailyText / writeDailyText, the pair the evening
  * paper's「一日の締めくくり」uses too. So the old body and the evening
  * reflection read as one document on both screens. Under it sit only the
- * mood stars and the day's four figures. #2228 took the read-only 朝の記録
+ * mood stars and the day's figures. #2228 took the read-only 朝の記録
  * (the 朝刊 comment and the 宣言) off this screen; the data stays stored.
  */
 
@@ -1076,18 +1076,11 @@ export function DailyView({
 
   /*
    * Under the body (#2123, D-20261006-main-7): the mood stars and the day's
-   * four figures, nothing else — the day's schedule list of #1046 is gone, and
+   * figures, nothing else — the day's schedule list of #1046 is gone, and
    * the reflection is part of the body now. Drawn on every day, so a blank
    * day can be rated too. The figures wait for their rows; until then (or
    * without a DataService) only the stars show.
    */
-  const formatDuration = (minutes: number): string => {
-    const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
-    if (h === 0) return t("scheduleScreen.durationMin", { m });
-    if (m === 0) return t("scheduleScreen.durationHour", { h });
-    return t("scheduleScreen.durationHourMin", { h, m });
-  };
   const dayFooter = (
     <DailyDayFooter
       mood={storedMood}
@@ -1108,11 +1101,6 @@ export function DailyView({
                   figures.todosTotal === 0
                     ? "—"
                     : `${figures.todosDone}/${figures.todosTotal}`,
-              },
-              {
-                id: "work",
-                label: t("materials.daily.figureWork"),
-                value: formatDuration(Math.round(figures.workMinutes)),
               },
               {
                 id: "goals",

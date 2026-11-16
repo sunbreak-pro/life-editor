@@ -3,7 +3,7 @@
 > 補助機能 / Tier 1 の補完。Phase B-2 で各機能の要件を記入する。
 > テンプレ・記入手順は [README.md](./README.md) 参照。Tier 2 は AC を 3-5 件に簡略化可。
 
-**Tier 2 機能一覧**: 本文の Feature 見出しが正（うち File Explorer は退役 = 移行 SSOT Phase 5-A 決定。本文は履歴として保持）
+**Tier 2 機能一覧**: 本文の Feature 見出しが正（うち File Explorer は退役 = 移行 SSOT Phase 5-A 決定、Audio Mixer / Playlist / Pomodoro Timer は 2026-11 #2717 で退役。本文は履歴として保持）
 
 > ⚠️ **退役スタック注記 (2026-07-04 doc-sync)**: 本ファイルの一部 Owner 記述は退役スタック（旧 Tauri `src-tauri/` / `portable-pty` / Cloudflare D1）を指す。`cloud/` は #110 で退役済・`frontend/` + `src-tauri/` は 2026-07-11 削除済み（#197・復元 = git tag `pre-tauri-removal`）・現行本流は `shared/` + `web/`。Owner 行の全面改訂は Phase 5。
 
@@ -20,7 +20,7 @@
 ## Feature: Audio Mixer
 
 **Tier**: 2
-**Status**: ◎完成
+**Status**: ✗RETIRED（2026-11 #2717 で Work 画面とともに削除。[Work 画面と音まわりを消す決定](../../decisions/2026-11-16-remove-audio-with-work-screen.md)。DB の表は残す。以下の本文は履歴として保持 → CLAUDE.md §8）
 **Owner Provider/Module**: `AudioProvider` / `frontend/src/components/Work/Music/` / `src-tauri/src/commands/{sound,custom_sound}_commands.rs`
 **MCP Coverage**: —
 **Supports Value Prop**: 補助（V1/V2/V3 直接支えず）
@@ -70,7 +70,7 @@
 ## Feature: Playlist
 
 **Tier**: 2
-**Status**: ◎完成
+**Status**: ✗RETIRED（2026-11 #2717 で Work 画面とともに削除。[Work 画面と音まわりを消す決定](../../decisions/2026-11-16-remove-audio-with-work-screen.md)。DB の表は残す。以下の本文は履歴として保持 → CLAUDE.md §8）
 **Owner Provider/Module**: `frontend/src/components/Work/Music/Playlist/` / `src-tauri/src/commands/playlist_commands.rs`
 **MCP Coverage**: —
 **Platform**: Desktop only（AudioProvider 依存）
@@ -112,7 +112,7 @@ Audio Mixer のサウンド（プリセット / カスタム）を任意の順�
 ## Feature: Pomodoro Timer
 
 **Tier**: 2
-**Status**: ◎完成
+**Status**: ✗RETIRED（2026-11 #2717 で Work 画面とともに削除。[Work 画面と音まわりを消す決定](../../decisions/2026-11-16-remove-audio-with-work-screen.md)。DB の表は残す。以下の本文は履歴として保持 → CLAUDE.md §8）
 **Owner Provider/Module**: `TimerProvider` / `frontend/src/components/Work/Timer/` / `src-tauri/src/commands/timer_commands.rs`
 **MCP Coverage**: —
 

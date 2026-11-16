@@ -143,15 +143,13 @@ describe("what happened today — one-line notes", () => {
       kind: "todo",
       title: "企画書の初稿",
       startTime: "11:28",
-      endTime: null,
       note: null,
     },
     {
-      key: "session:7",
-      kind: "session",
-      title: null,
+      key: "event:e7",
+      kind: "event",
+      title: "朝会",
       startTime: "09:30",
-      endTime: "11:20",
       note: "集中できた",
     },
   ];
@@ -159,20 +157,20 @@ describe("what happened today — one-line notes", () => {
   it("prints the time, the kind and the title of each row, and the summary", () => {
     renderPaper({
       events,
-      eventsSummary: "3 events · Todos 2/4 · 1 hr worked",
+      eventsSummary: "3 events · Todos 2/4",
     });
     const block = region(EVENING_LABELS.eventsTitle);
     expect(within(block).getByText("11:28")).toBeTruthy();
-    expect(within(block).getByText("09:30–11:20")).toBeTruthy();
+    expect(within(block).getByText("09:30")).toBeTruthy();
     expect(within(block).getByText("企画書の初稿")).toBeTruthy();
     expect(
-      within(block).getByText("3 events · Todos 2/4 · 1 hr worked"),
+      within(block).getByText("3 events · Todos 2/4"),
     ).toBeTruthy();
-    // A nameless session reads「Work」once and its note is its edit button.
+    // An event row carries no kind word, and its note is its edit button.
     expect(
       within(block).getByRole("button", {
         name: "集中できた",
-        description: "Edit the note: 09:30–11:20 Work",
+        description: "Edit the note: 09:30 朝会",
       }).textContent,
     ).toBe("集中できた");
   });
@@ -219,11 +217,11 @@ describe("what happened today — one-line notes", () => {
     renderPaper({ events, onSaveEventNote });
     fireEvent.click(
       screen.getByRole("button", {
-        description: "Edit the note: 09:30–11:20 Work",
+        description: "Edit the note: 09:30 朝会",
       }),
     );
     fireEvent.blur(
-      screen.getByRole("textbox", { name: "Edit the note: 09:30–11:20 Work" }),
+      screen.getByRole("textbox", { name: "Edit the note: 09:30 朝会" }),
     );
     expect(onSaveEventNote).not.toHaveBeenCalled();
   });
@@ -351,7 +349,6 @@ describe("the new controls meet the 44px floor below md only", () => {
           kind: "event",
           title: "歯科検診",
           startTime: "14:00",
-          endTime: null,
           note: "混んでいた",
         },
         {
@@ -359,7 +356,6 @@ describe("the new controls meet the 44px floor below md only", () => {
           kind: "todo",
           title: "初稿",
           startTime: "11:28",
-          endTime: null,
           note: null,
         },
       ],

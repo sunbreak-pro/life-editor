@@ -7,7 +7,6 @@ import { TagWorkTimeChart } from "../../src/components/Analytics/TagWorkTimeChar
 import { TodoCompletionTrend } from "../../src/components/Analytics/TodoCompletionTrend";
 import { TodoStagnationChart } from "../../src/components/Analytics/TodoStagnationChart";
 import { TodoWorkTimeChart } from "../../src/components/Analytics/TodoWorkTimeChart";
-import { WorkBreakBalance } from "../../src/components/Analytics/WorkBreakBalance";
 import { WorkTimeChart } from "../../src/components/Analytics/WorkTimeChart";
 import { formatDateKey } from "../../src/utils/dateKey";
 import type { ScheduleItem } from "../../src/types/schedule";
@@ -151,13 +150,6 @@ export const AXIS = {
   date: (key: string): string => key.substring(5),
 };
 
-export const WORK_BREAK_LABELS = {
-  title: "Balance",
-  work: "Work",
-  break: "Break",
-  longBreak: "Long Break",
-};
-
 export interface ChartFixture {
   name: string;
   element: ReactElement;
@@ -265,17 +257,6 @@ export const CHARTS: ChartFixture[] = [
         sessions={[session(1, "WORK", 30, "task-1")]}
         todoNameMap={new Map([["task-1", "Write the thing"]])}
         labels={{ title: "By todo", sessions: "Sessions", noTodo: "No Todo" }}
-        axis={AXIS}
-      />
-    ),
-  },
-  {
-    name: "WorkBreakBalance",
-    element: (
-      <WorkBreakBalance
-        sessions={ONE_MINUTE}
-        days={7}
-        labels={WORK_BREAK_LABELS}
         axis={AXIS}
       />
     ),

@@ -82,16 +82,4 @@ describe("Analytics tooltip formatters keep the series name (#943)", () => {
       expect(formatted).not.toBeNull();
     }
   });
-
-  it("Work / Break Balance passes the stacked series name straight through", () => {
-    const workBreak = CHARTS.find((c) => c.name === "WorkBreakBalance");
-    render(workBreak!.element);
-
-    // The stack is three series deep, so this is the chart where a dropped
-    // name cost the most: every row read as a bare "0m".
-    expect(captured[0].formatter?.(12, "Long Break", ENTRY)).toEqual([
-      "12m",
-      "Long Break",
-    ]);
-  });
 });

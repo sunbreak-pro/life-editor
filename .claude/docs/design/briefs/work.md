@@ -9,6 +9,8 @@ Branch: docs/work-brief-2037
 
 # Design Brief: Work（集中 = ポモドーロタイマー）
 
+> ✗RETIRED（2026-11 #2717）: Work セクションはタイマーと音の土台ごと削除しました（[Work 画面と音まわりを消す決定](../../../decisions/2026-11-16-remove-audio-with-work-screen.md)）。この brief は履歴として残し、ClaudeDesign には投入しません。本文中のパスは削除前のコードを指します。
+
 > 目的: **この 1 ファイルだけで「ClaudeDesign に貼るプロンプト」とその根拠が完結する**こと。
 > ClaudeDesign はリポジトリを読めないため、§4 のプロンプト本文は自己完結させる
 > （リポジトリのパス・「上記参照」「§1 の通り」等の内部参照を本文に書かない）。

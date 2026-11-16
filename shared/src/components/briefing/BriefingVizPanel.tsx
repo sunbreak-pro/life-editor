@@ -1,12 +1,6 @@
 import { lazy, Suspense } from "react";
 import type { TodoNode } from "../../types/todoTree";
-import type { TimerSession } from "../../types/timer";
-import {
-  StreakDisplay,
-  type StreakDisplayLabels,
-} from "../Analytics/StreakDisplay";
 import type { TodoCompletionTrendLabels } from "../Analytics/TodoCompletionTrend";
-import type { WorkBreakBalanceLabels } from "../Analytics/WorkBreakBalance";
 import { ChartCard } from "../Analytics/ChartCard";
 import {
   CHART_HEIGHT_MD,
@@ -18,11 +12,11 @@ import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { PANEL_BLOCK_RULE } from "./briefingStyles";
 
 /*
- * The two recharts-backed widgets load on demand (#991).
+ * The recharts-backed widget loads on demand (#991).
  *
  * Briefing is the default landing section (useStartupSection), so anything it
  * imports statically is in the first download. recharts is ~245 KB of it, and
- * these two charts were the only thing keeping it there — Analytics and
+ * this chart is the only thing that would keep it there — Analytics and
  * Connect have been code-split since #676 (a). Measured on #797: lazy() was
  * reaching 9% of a 2,090 KB initial bundle (gzip 586 KB).
  *
@@ -30,23 +24,12 @@ import { PANEL_BLOCK_RULE } from "./briefingStyles";
  * revisiting: "when the briefing's first paint is measured slow, not felt
  * slow". #797 is that measurement, and #991 is the Issue it produced.
  *
- * StreakDisplay stays static on purpose — it draws a number and a row of
- * marks, imports no charting library at all (grep: zero recharts references),
- * and so costs nothing to keep. Deferring it would buy no bytes and add a
- * second boundary for the panel to flicker through.
- *
- * `import type` for the label types: type-only imports are erased, so they
- * name the same modules without pulling them into this chunk.
+ * `import type` for the label type: type-only imports are erased, so it
+ * names the same module without pulling it into this chunk.
  */
 const TodoCompletionTrend = lazy(() =>
   import("../Analytics/TodoCompletionTrend").then((m) => ({
     default: m.TodoCompletionTrend,
-  })),
-);
-
-const WorkBreakBalance = lazy(() =>
-  import("../Analytics/WorkBreakBalance").then((m) => ({
-    default: m.WorkBreakBalance,
   })),
 );
 
@@ -68,12 +51,11 @@ function ChartPlaceholder({ title }: { title: string }) {
  * 「きのうまでの自分」— the morning paper's visual zone, moved out of the
  * paper's own column and into the shared detail panel (#938).
  *
- * Why it left the paper: the three widgets look BACKWARDS (streak, the last
- * seven days of completions, work/break balance) while everything above them
- * on the page is about today. Read top to bottom, the paper kept breaking its
- * own thread — and the widgets pushed 持ち越し, which IS about today, below the
- * fold. In the detail panel they are a thing you go and look at, which is what
- * they always were.
+ * Why it left the paper: the widget looks BACKWARDS (the last seven days of
+ * completions) while everything above it on the page is about today. Read top
+ * to bottom, the paper kept breaking its own thread — and the widgets pushed
+ * 持ち越し, which IS about today, below the fold. In the detail panel it is a
+ * thing you go and look at, which is what it always was.
  *
  * Nothing about the data changed: the host still computes it (the same
  * BriefingData it feeds the paper) and still resolves the widget copy from the
@@ -84,31 +66,24 @@ function ChartPlaceholder({ title }: { title: string }) {
  * squeeze each chart below the width its axis labels need.
  *
  * On a phone the panel is the MobileDrawer (~316px on a 390px screen), and the
- * two 7-day axes print every other day there (#2505) — seven labels touched and
+ * 7-day axis prints every other day there (#2505) — seven labels touched and
  * read as one run of digits. The wide panel (~478px) keeps all seven, and
  * Analytics, which mounts the same charts, is not touched: the count is a prop.
  *
  * Pure presentation (§6.4): no DataService, no useTranslation.
  */
 export interface BriefingVizPanelProps {
-  /** Timer sessions — feeds StreakDisplay + WorkBreakBalance. */
-  sessions: TimerSession[];
   /** Full todo tree — feeds TodoCompletionTrend. */
   todoNodes: TodoNode[];
   /** Panel heading (「きのうまでの自分」— briefing.vizTitle). */
   title: string;
-  streakLabels: StreakDisplayLabels;
   trendLabels: TodoCompletionTrendLabels;
-  balanceLabels: WorkBreakBalanceLabels;
 }
 
 export function BriefingVizPanel({
-  sessions,
   todoNodes,
   title,
-  streakLabels,
   trendLabels,
-  balanceLabels,
 }: BriefingVizPanelProps): React.JSX.Element {
   // Fallback true (wide): jsdom has no matchMedia, and wide is what the panel
   // drew before #2505.
@@ -132,28 +107,11 @@ export function BriefingVizPanel({
           heading down from the panel's top. */}
       <h3 className="text-sm font-semibold text-lumen-text">{title}</h3>
       <div className="flex flex-col gap-3">
-        <StreakDisplay sessions={sessions} labels={streakLabels} />
-        {/* One boundary around both charts, not one each: they arrive in the
-            same chunk, so two boundaries would only add a second way for the
-            panel to be half-drawn. */}
-        <Suspense
-          fallback={
-            <>
-              <ChartPlaceholder title={trendLabels.title} />
-              <ChartPlaceholder title={balanceLabels.title} />
-            </>
-          }
-        >
+        <Suspense fallback={<ChartPlaceholder title={trendLabels.title} />}>
           <TodoCompletionTrend
             nodes={todoNodes}
             days={7}
             labels={trendLabels}
-            maxDateTicks={maxDateTicks}
-          />
-          <WorkBreakBalance
-            sessions={sessions}
-            days={7}
-            labels={balanceLabels}
             maxDateTicks={maxDateTicks}
           />
         </Suspense>

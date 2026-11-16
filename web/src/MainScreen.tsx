@@ -55,7 +55,7 @@ import { signOutWithNotice } from "./hooks/signOutWithNotice";
  * `AppProviders.tsx` in #676 (a); each section's own Provider nesting stays in
  * its descriptor row. Every domain reads `useSyncDomains` to know when the
  * data IT owns changed, so since #499 a note edit does not refetch the todo
- * tree, the tag graph, or the timer settings.
+ * tree or the tag graph.
  *
  * Section routing is a local `useState` switch (no React Router — the
  * Tauri app uses `App.tsx::activeSection`, CLAUDE.md §3.2). The target IA
@@ -329,7 +329,7 @@ export function MainScreen({ session }: { session: Session }) {
   // NARROW layout row. The per-section chrome comes from the descriptor
   // (`narrowHeader`), so the old MOBILE_HAMBURGER_SECTIONS set and the
   // per-section switcher constants are gone: Materials/Briefing/Schedule get
-  // hamburger + segmented, Work/Settings the hamburger alone,
+  // hamburger + segmented, Settings the hamburger alone,
   // Analytics/Trash neither. Schedule joined the first group in #1033 — its
   // Calendar body used to draw a SECOND hamburger inside the month heading
   // row, so the same control sat in two different places depending on which

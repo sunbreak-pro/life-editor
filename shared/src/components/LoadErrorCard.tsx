@@ -32,7 +32,7 @@ export interface LoadErrorCardProps {
  * NoticePanel's tokens.
  *
  * Reloading stays with the screen: each one already keys its load on a
- * `reloadTick` (GoalsTodosScreen, WorkScreen), so `onRetry` bumps that tick.
+ * `reloadTick` (GoalsTodosScreen), so `onRetry` bumps that tick.
  *
  *   <LoadErrorCard
  *     message={t("scheduleScreen.loadFailed")}

@@ -5,7 +5,6 @@ import {
   useMediaQuery,
   useRightSidebarOptional,
   useTranslation,
-  AudioProvider,
   ItemPanelProvider,
   RightSidebarProvider,
   ShortcutConfigProvider,
@@ -23,7 +22,6 @@ import { ItemPanelHost } from "./schedule/ItemPanelHost";
 import { MaterialsCountsBridge } from "./MaterialsCountsBridge";
 import { OutboxNoticeHost } from "./components/OutboxNoticeHost";
 import { ScheduleReminderBridge } from "./ScheduleReminderBridge";
-import { TimerHost } from "./TimerHost";
 import { UndoRedoHost } from "./UndoRedoHost";
 
 /*
@@ -40,15 +38,12 @@ import { UndoRedoHost } from "./UndoRedoHost";
  * ORDER IS A DEPENDENCY GRAPH, not a preference (rules/frontend.md §Provider
  * 順序 — outer may not read inner):
  *
- *   Toast → Sync → UndoRedo → ShortcutConfig → Audio → Timer → RightSidebar
- *     → Tour → ItemPanel
+ *   Toast → Sync → UndoRedo → ShortcutConfig → RightSidebar → Tour
+ *     → ItemPanel
  *
  * - Sync is above everything that reads `useSyncDomains`, and is mounted once
  *   rather than per-section: a per-section mount would tear down and rebuild
  *   the Supabase Realtime channel on every navigation.
- * - Audio is OUTSIDE Timer because the Pomodoro's completion chime is Audio's
- *   to play — since #676 (c) that dependency runs inward like every other
- *   pair, and the old `chimeRef` + AudioChimeBridge back-channel is gone.
  * - RightSidebar is innermost so the shell AND the palette/tag-editor
  *   siblings the host renders as `children` all sit inside it.
  * - Tour (#1122) sits inside RightSidebar, i.e. innermost of all: nothing
@@ -131,22 +126,18 @@ export function AppProviders({
         <UndoRedoHost userId={userId}>
           <ShortcutConfigHost>
             <GlobalShortcuts {...shortcuts} />
-            <AudioHost dataService={dataService}>
-              <TimerHost dataService={dataService}>
-                <RightSidebarProvider>
-                  <TourRevealHost
-                    currentSection={currentSection}
-                    onNavigateToSection={onNavigateToSection}
-                    onRevealTodoTray={onRevealTodoTray}
-                  >
-                    <ItemPanelProvider>
-                      {children}
-                      <ItemPanelHost dataService={dataService} />
-                    </ItemPanelProvider>
-                  </TourRevealHost>
-                </RightSidebarProvider>
-              </TimerHost>
-            </AudioHost>
+            <RightSidebarProvider>
+              <TourRevealHost
+                currentSection={currentSection}
+                onNavigateToSection={onNavigateToSection}
+                onRevealTodoTray={onRevealTodoTray}
+              >
+                <ItemPanelProvider>
+                  {children}
+                  <ItemPanelHost dataService={dataService} />
+                </ItemPanelProvider>
+              </TourRevealHost>
+            </RightSidebarProvider>
           </ShortcutConfigHost>
         </UndoRedoHost>
       </SyncProvider>
@@ -164,41 +155,10 @@ export function AppProviders({
  * Settings hides the Shortcuts card. `isNativeMobile()` reads a runtime global
  * that never changes within a page load, so evaluating it during render is
  * stable (no reactivity needed).
- *
- * AudioProvider is deliberately NOT gated: the Pomodoro completion chime is
- * part of the Mobile-Full work timer (mobile-scope.md #10/#11 — user-confirmed
- * #319), so the Provider stays mounted everywhere and only the ambient-mixer
- * UI is native-omitted, inside WorkScreen.
  */
 function ShortcutConfigHost({ children }: { children: ReactNode }) {
   if (isNativeMobile()) return <>{children}</>;
   return <ShortcutConfigProvider>{children}</ShortcutConfigProvider>;
-}
-
-/*
- * The AudioProvider, told whether this screen shows the ambient mixer
- * (#2290). WorkScreen draws the mixer only on the wide layout and never on
- * the native shells; everywhere else the synced "rain is on" setting used to
- * start the loop anyway, streaming a sound the user had no control to stop.
- * The Provider itself stays mounted for the completion chime (see the note
- * on ShortcutConfigHost above).
- */
-function AudioHost({
-  dataService,
-  children,
-}: {
-  dataService: DataService;
-  children: ReactNode;
-}) {
-  const isWide = useMediaQuery(WIDE_QUERY, true);
-  return (
-    <AudioProvider
-      dataService={dataService}
-      ambient={isWide && !isNativeMobile()}
-    >
-      {children}
-    </AudioProvider>
-  );
 }
 
 /*

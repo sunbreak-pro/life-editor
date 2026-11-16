@@ -20,15 +20,14 @@ export interface SidebarNavSection {
   /** Already-sized icon node. */
   icon: ReactNode;
   /**
-   * Optional live status line under the label (#550 — the Work row's running
-   * timer, injected as a <NavTimerStatus /> by the host). Wide sidebar only;
-   * the narrow BottomTabBar ignores it.
+   * Optional live status line under the label. Wide sidebar only; the narrow
+   * BottomTabBar ignores it.
    */
   sublabel?: ReactNode;
   /**
-   * Optional icon-corner mark for the surfaces with no room for `sublabel`
-   * (#1858 — the Work row's <NavTimerDot />): the collapsed rail here and the
-   * narrow BottomTabBar. Hidden on the expanded row.
+   * Optional icon-corner mark for the surfaces with no room for `sublabel`:
+   * the collapsed rail here and the narrow BottomTabBar. Hidden on the
+   * expanded row.
    */
   badge?: ReactNode;
 }

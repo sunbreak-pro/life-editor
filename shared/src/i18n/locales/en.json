@@ -325,150 +325,6 @@
     "deletingMany": "Deleting…",
     "bulkPartialFailure": "{{n}} items could not be handled. Whatever is left is still here."
   },
-  "work": {
-    "sidebar": {
-      "targetSessions": "Target",
-      "sessionsProgress": "{{completed}} / {{target}} sessions"
-    },
-    "status": {
-      "paused": "Paused"
-    },
-    "controls": {
-      "start": "Start",
-      "pause": "Pause",
-      "resume": "Resume",
-      "reset": "Reset",
-      "skip": "Skip",
-      "subtractFive": "−5 min",
-      "addFive": "+5 min"
-    },
-    "phase": {
-      "WORK": "Work",
-      "BREAK": "Break",
-      "LONG_BREAK": "Long Break"
-    },
-    "todoSelector": {
-      "heading": "Work name",
-      "placeholder": "Free session",
-      "clear": "Back to a free session",
-      "select": "Free session",
-      "sheetTitle": "Link your work",
-      "clearSelection": "Clear selection",
-      "allDay": "All day",
-      "nameLabel": "Free session name",
-      "nameSubmit": "Work under this name",
-      "todoHeading": "Todo",
-      "eventHeading": "Events",
-      "sheetEmptyTitle": "Nothing to link yet",
-      "sheetEmptyBody": "Type a name above to start a free session.",
-      "loadFailedTitle": "Couldn't load your todos and events",
-      "loadFailedBody": "Check your connection and try again. You can still type a name above and start a free session.",
-      "retry": "Try again"
-    },
-    "taskPicker": {
-      "placeholder": "Search work names / type a new one…",
-      "createTodo": "Add “{{name}}” as a Todo",
-      "createEvent": "Add “{{name}}” as an event",
-      "createdTodo": "Added “{{name}}” as a Todo",
-      "pendingEvent": "“{{name}}” will be filed as an event when you finish working",
-      "createFailed": "Couldn't add “{{name}}” as a Todo. Please try again.",
-      "empty": "Nothing to link in the next 7 days. Type a name to add new work.",
-      "addAsTodo": "Add as a Todo",
-      "addAsEvent": "Add as an event"
-    },
-    "completion": {
-      "title": "Session {{index}} complete",
-      "body": "Logged {{minutes}} min to “{{todo}}”. Take a {{breakMinutes}}-minute break.",
-      "bodyNoTodo": "Logged {{minutes}} min. Take a {{breakMinutes}}-minute break.",
-      "startBreak": "Start break",
-      "oneMore": "One more session",
-      "close": "Close",
-      "logged": "Logged {{minutes}} min",
-      "startBreakMinutes": "Start a {{minutes}}-min break",
-      "startLongBreakMinutes": "Start a {{minutes}}-min long break"
-    },
-    "settings": {
-      "presetNamePlaceholder": "Preset name",
-      "saveAsPreset": "Save",
-      "apply": "Apply",
-      "presetsEmpty": "No presets yet",
-      "save": "Save",
-      "saved": "Saved",
-      "unsaved": "Unsaved",
-      "short": {
-        "work": "Work",
-        "break": "Break",
-        "longBreak": "Long break",
-        "sessionsBeforeLongBreak": "Until long break",
-        "target": "Daily goal"
-      },
-      "valueMinutes": "{{value}} min",
-      "valueCount": "{{value}}×",
-      "decrease": "Decrease {{label}}",
-      "increase": "Increase {{label}}",
-      "applied": "Applied",
-      "presetSummary": "{{work}}·{{brk}}·{{long}} min / {{sessions}}×",
-      "timeHeading": "Time"
-    },
-    "sidebarTabs": {
-      "label": "Work sidebar",
-      "settings": "Timer settings",
-      "history": "History"
-    },
-    "history": {
-      "today": "Today",
-      "yesterday": "Yesterday",
-      "latestDay": "Latest work day · {{date}}",
-      "empty": "No work sessions yet. Finished sessions will show up here.",
-      "noTarget": "Free session",
-      "minutes": "{{minutes}} min",
-      "manualEntry": "Entered by hand",
-      "emptyTitle": "No sessions yet",
-      "emptyBody": "Finish one session and it shows up here.",
-      "loadFailedTitle": "Couldn't load the history",
-      "loadFailedBody": "Check your connection and try again.",
-      "retry": "Try again"
-    },
-    "freeSession": {
-      "title": "Free session",
-      "tagHeading": "Tags",
-      "tagAdd": "Add a tag to the free session",
-      "tagAddShort": "Tag",
-      "tagSearch": "Search or create a tag…",
-      "tagCreate": "Create “{{name}}”",
-      "tagRemove": "Remove {{name}}",
-      "tagNoCandidates": "No tags yet",
-      "tagDialog": "Free session tags",
-      "tagSheetClose": "Close",
-      "tagDisabled": "Tags apply to a free session — clear the work name to use them.",
-      "tagAddRow": "Add tags",
-      "tagDisabledRow": "Tags are off while work is linked"
-    }
-  },
-  "audioMixer": {
-    "heading": "Ambient sounds",
-    "toggle": "Toggle sound",
-    "volume": "Volume",
-    "sound": {
-      "rain": "Rain",
-      "wind": "Wind",
-      "ocean": "Ocean",
-      "birds": "Birds",
-      "fire": "Fire"
-    }
-  },
-  "pomodoro": {
-    "title": "Pomodoro Settings",
-    "workDuration": "Work duration per session",
-    "breakDuration": "Break duration between sessions",
-    "longBreakDuration": "Long break duration between sets",
-    "sessionsPerSet": "Sessions per set",
-    "presets": "Presets",
-    "deletePreset": "Delete preset",
-    "deletePresetConfirm": "Delete the preset “{{name}}”?",
-    "autoStartBreaks": "Auto-start breaks",
-    "emptyValue": "Enter a number for {{field}}"
-  },
   "todoDetail": {
     "titleLabel": "Todo title",
     "delete": "Delete",
@@ -721,7 +577,6 @@
       "figuresLabel": "The day in numbers",
       "figureEvents": "Events",
       "figureTodos": "Todos",
-      "figureWork": "Work",
       "figureGoals": "Goals moved"
     },
     "tags": {
@@ -1415,7 +1270,6 @@
     "materials": "Materials",
     "connect": "Connect",
     "schedule": "Schedule",
-    "work": "Work",
     "analytics": "Analytics",
     "settings": "Settings",
     "briefing": "Briefing",
@@ -1916,9 +1770,8 @@
       "goalRemaining": "{{count}} to go",
       "eventsTitle": "WHAT HAPPENED TODAY",
       "noEvents": "Nothing recorded today yet",
-      "eventsSummary": "Events {{events}} · Todos {{todos}} · Worked {{work}}",
-      "eventsSummaryNoTodos": "Events {{events}} · Worked {{work}}",
-      "eventWork": "Work",
+      "eventsSummary": "Events {{events}} · Todos {{todos}}",
+      "eventsSummaryNoTodos": "Events {{events}}",
       "noteAdd": "Add a note: {{title}}",
       "noteEdit": "Edit the note: {{title}}",
       "noteButton": "Note",
@@ -1957,7 +1810,6 @@
         "schedule": "Your calendar and your todos, side by side on the time axis.",
         "materials": "Notes and daily entries — the things you write and come back to.",
         "connect": "The topic axis: pick a tag and read everything filed under it.",
-        "work": "A timer for focused work, with sound to sit behind it.",
         "analytics": "What your records add up to over a week or a month.",
         "apps": "The small apps that send you records: register them, and see when each last sent one.",
         "settings": "Appearance, language, shortcuts — the knobs for the app itself."

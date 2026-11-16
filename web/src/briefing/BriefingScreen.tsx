@@ -297,33 +297,14 @@ export function BriefingScreen({
   const { detailLabels: goalDetailLabels, linkLabels: goalLinkLabels } =
     useGoalTreeLabels(todayKey);
 
-  // Widget copy re-uses the EXISTING analytics.* keys (Analytics shrink:
-  // the three widgets moved in here — their labels come along unduplicated).
-  // Since #938 they dress <BriefingVizPanel> in the detail panel rather than a
-  // section of the paper; the resolution is unchanged.
-  const streakLabels = useMemo(
-    () => ({
-      title: t("analytics.streak.title"),
-      current: t("analytics.streak.current"),
-      longest: t("analytics.streak.longest"),
-      formatDays: (count: number) => t("analytics.streak.days", { count }),
-      noStreak: t("analytics.streak.noStreak"),
-    }),
-    [t],
-  );
+  // Widget copy re-uses the EXISTING analytics.* keys (Analytics shrink: the
+  // widget moved in here — its labels come along unduplicated). Since #938 it
+  // dresses <BriefingVizPanel> in the detail panel rather than a section of
+  // the paper; the resolution is unchanged.
   const trendLabels = useMemo(
     () => ({
       title: t("analytics.todoTrend.title"),
       completedCount: t("analytics.todoTrend.completedCount"),
-    }),
-    [t],
-  );
-  const balanceLabels = useMemo(
-    () => ({
-      title: t("analytics.workBreak.title"),
-      work: t("analytics.workBreak.work"),
-      break: t("analytics.workBreak.break"),
-      longBreak: t("analytics.workBreak.longBreak"),
     }),
     [t],
   );
@@ -372,7 +353,6 @@ export function BriefingScreen({
       noEvents: t("briefing.evening.noEvents"),
       // The Todos section's own word, like the statuses above (#796).
       eventDone: t("todoDetail.statusDone"),
-      eventWork: t("briefing.evening.eventWork"),
       eventNoteButton: t("briefing.evening.noteButton"),
       eventNoteAdd: (title: string) => t("briefing.evening.noteAdd", { title }),
       eventNoteEdit: (title: string) =>
@@ -618,17 +598,6 @@ export function BriefingScreen({
     [eveningStored],
   );
 
-  const formatDuration = useCallback(
-    (minutes: number) => {
-      const h = Math.floor(minutes / 60);
-      const m = minutes % 60;
-      if (h === 0) return t("scheduleScreen.durationMin", { m });
-      if (m === 0) return t("scheduleScreen.durationHour", { h });
-      return t("scheduleScreen.durationHourMin", { h, m });
-    },
-    [t],
-  );
-
   // ── The evening paper's blocks (#2107) ───────────────────────────────
   // All counting lives in shared/eveningDay.ts — the Daily rebuild (#2123)
   // prints the same numbers — so this only feeds it the day's rows. "Today"
@@ -674,7 +643,6 @@ export function BriefingScreen({
     dayStartHour,
     scheduleItems,
     todos: data.todoNodes,
-    sessions: data.sessions,
   };
   // `now` on every render, like `upcoming`: an event joins「今日の出来事」
   // once it has started.
@@ -693,21 +661,16 @@ export function BriefingScreen({
   // An empty day prints only the「まだありません」line (brief §11): a row of
   // zeros next to it would say the same thing twice. Each separator lives in
   // the catalogue, so a language can reorder or respell the whole line.
-  const work = formatDuration(Math.round(dayCounts.workMinutes));
   const eventsSummary =
-    dayCounts.events === 0 &&
-    dayCounts.todosTotal === 0 &&
-    dayCounts.workMinutes === 0
+    dayCounts.events === 0 && dayCounts.todosTotal === 0
       ? undefined
       : dayCounts.todosTotal === 0
         ? t("briefing.evening.eventsSummaryNoTodos", {
             events: dayCounts.events,
-            work,
           })
         : t("briefing.evening.eventsSummary", {
             events: dayCounts.events,
             todos: `${dayCounts.todosDone}/${dayCounts.todosTotal}`,
-            work,
           });
   // No line before the first issue: 「第 0 号」would announce a paper that
   // was never published. The streak half drops out on its own at 0.
@@ -801,12 +764,9 @@ export function BriefingScreen({
   const vizPortal = (
     <RightSidebarPortal>
       <BriefingVizPanel
-        sessions={data.sessions}
         todoNodes={data.todoNodes}
         title={t("briefing.vizTitle")}
-        streakLabels={streakLabels}
         trendLabels={trendLabels}
-        balanceLabels={balanceLabels}
       />
     </RightSidebarPortal>
   );

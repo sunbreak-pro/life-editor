@@ -153,9 +153,6 @@ export {
 // App shell (W5) — responsive single shell + its nav pieces. Pure
 // presentation: DataService-free, props-injected i18n (§3.1 / §6.4).
 export { NavItem, type NavItemProps, type NavItemTone } from "./NavItem";
-// Live Work-row timer line (#550) — a TimerContext bridge the host injects as
-// the Work section's `sublabel` (renders nothing while the timer is idle).
-export { NavTimerStatus, NavTimerDot } from "./NavTimerStatus";
 export {
   SidebarNav,
   type SidebarNavProps,
@@ -454,75 +451,6 @@ export {
   type AttachmentCleanupPanelProps,
   type AttachmentCleanupLabels,
 } from "./AttachmentCleanupPanel";
-// Work / Pomodoro (target-IA import) — pure timer face + phase badge + session
-// dots + todo selector/sheet + settings editor + completion modal.
-export {
-  PhaseBadge,
-  type PhaseBadgeProps,
-  type PomodoroPhase,
-} from "./PhaseBadge";
-export { SessionDots, type SessionDotsProps } from "./SessionDots";
-export {
-  PomodoroTimer,
-  type PomodoroTimerProps,
-  type PomodoroTimerLabels,
-} from "./PomodoroTimer";
-export {
-  PomodoroTodoSelector,
-  type PomodoroTodoSelectorProps,
-  type PomodoroTodoSelectorLabels,
-  type WorkTargetOption,
-  workTargetIcon,
-  workTargetChipClass,
-  WorkTargetGlyph,
-} from "./PomodoroTodoSelector";
-// #1666: the Work sidebar's history tab.
-export {
-  WorkHistoryList,
-  type WorkHistoryListProps,
-  type WorkHistoryListLabels,
-  type WorkHistoryEntry,
-  type WorkHistoryGroup,
-  type WorkHistoryTag,
-} from "./WorkHistoryList";
-// #1665: the free session's tag field, drawn beside the link-target selector.
-export {
-  WorkTagSelector,
-  type WorkTagSelectorProps,
-  type WorkTagSelectorLabels,
-  type WorkTagOption,
-} from "./WorkTagSelector";
-export {
-  PomodoroTodoSheet,
-  type PomodoroTodoSheetProps,
-  type PomodoroTodoSheetLabels,
-} from "./PomodoroTodoSheet";
-export {
-  PomodoroSettings,
-  type PomodoroSettingsProps,
-  type PomodoroSettingsLabels,
-  type PomodoroPresetOption,
-  // #714: the patch the save button hands the host + what a preset captures.
-  type PomodoroSettingsPatch,
-  type PomodoroSettingsDrawer,
-  type PomodoroNumberKey,
-  type PomodoroPresetValues,
-} from "./PomodoroSettings";
-export {
-  SessionCompletionModal,
-  type SessionCompletionModalProps,
-  type SessionCompletionModalLabels,
-} from "./SessionCompletionModal";
-// Audio (W3-C) — ambient mixer primitive + headless completion-chime bridge.
-export {
-  AudioMixer,
-  type AudioMixerProps,
-  type AudioMixerSound,
-  type AudioMixerLabels,
-} from "./AudioMixer";
-// AudioChimeBridge (W3-C) was retired in #676 (c): it existed only to carry
-// playCompletionChime BACKWARDS through the Provider chain, and Audio now sits
-// outside Timer so the Timer reads the chime directly (web/src/TimerHost.tsx).
 // Analytics (W4) — recharts dashboards (Overview/Todos/Work/Schedule). Pure
 // presentational: aggregation is pure, data + t are injected by the web host
 // (§6.4). Sub-barrel so the feature can grow exports without touching here.

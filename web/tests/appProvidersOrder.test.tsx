@@ -5,17 +5,14 @@ import type { DataService } from "@life-editor/shared";
 /*
  * The global Provider chain's ORDER (#676 (a)).
  *
- * Order here is a dependency graph, not a style choice, and it has been wrong
- * before: Audio used to sit inside Timer, which forced the `chimeRef` +
- * AudioChimeBridge back-channel that #676 (c) deleted. An inversion like that
- * is quiet — most of the app keeps working and only one feature goes dead — so
+ * Order here is a dependency graph, not a style choice, and an inversion is
+ * quiet — most of the app keeps working and only one feature goes dead — so
  * the nesting is worth pinning down now that it lives in one file.
  *
  * Every Provider is replaced by a marker div. The real ones are useless here
- * (Sync opens a Supabase Realtime channel, Audio builds HTMLAudioElements
- * against Storage URLs) and none of them says anything about which wraps
- * which, so the test asserts the one thing this module actually decides: the
- * ancestor chain a child sees.
+ * (Sync opens a Supabase Realtime channel) and none of them says anything
+ * about which wraps which, so the test asserts the one thing this module
+ * actually decides: the ancestor chain a child sees.
  */
 
 const h = vi.hoisted(() => ({
@@ -34,7 +31,6 @@ vi.mock("@life-editor/shared", async (importOriginal) => ({
   ToastProvider: h.marker("Toast"),
   SyncProvider: h.marker("Sync"),
   ShortcutConfigProvider: h.marker("ShortcutConfig"),
-  AudioProvider: h.marker("Audio"),
   RightSidebarProvider: h.marker("RightSidebar"),
   TourProvider: h.marker("Tour"),
   ItemPanelProvider: h.marker("ItemPanel"),
@@ -43,7 +39,6 @@ vi.mock("../src/schedule/ItemPanelHost", () => ({
   ItemPanelHost: () => <div data-testid="item-panel-host" />,
 }));
 vi.mock("../src/UndoRedoHost", () => ({ UndoRedoHost: h.marker("UndoRedo") }));
-vi.mock("../src/TimerHost", () => ({ TimerHost: h.marker("Timer") }));
 vi.mock("../src/GlobalShortcuts", () => ({
   GlobalShortcuts: () => <div data-testid="shortcuts" />,
 }));
@@ -102,10 +97,7 @@ describe("AppProviders", () => {
   it("nests the global chain outer→inner in dependency order", () => {
     renderChain();
 
-    // Audio OUTSIDE Timer is the load-bearing pair: the Timer's
-    // onSessionComplete rings a chime that Audio owns, so a swap here brings
-    // the ref back-channel with it. RightSidebar innermost is what lets the
-    // shell and its palette/tag-editor siblings all portal into the panel,
+    // RightSidebar innermost is what lets the shell and its palette/tag-editor siblings all portal into the panel,
     // and Tour inside THAT (#1122) is what puts the tour overlay in the same
     // shell-level band as the palette — it reads the section switch from
     // props, and nothing reads it, so it is the one that can go last.
@@ -114,8 +106,6 @@ describe("AppProviders", () => {
       "Sync",
       "UndoRedo",
       "ShortcutConfig",
-      "Audio",
-      "Timer",
       "RightSidebar",
       "Tour",
       "ItemPanel",
@@ -159,17 +149,13 @@ describe("AppProviders", () => {
 
     const chain = providersAround(screen.getByTestId("leaf"));
     expect(chain).not.toContain("ShortcutConfig");
-    // Audio is deliberately NOT gated — the completion chime is part of the
-    // Mobile-Full work timer (mobile-scope.md #10/#11). Tour is not gated
-    // either (#1122): it is not on the mobile omission roster, and a step
+    // Tour is not gated (#1122): it is not on the mobile omission roster, and a step
     // whose control is absent on a phone is handled by the anchor fallback
     // rather than by tearing the Provider out.
     expect(chain).toEqual([
       "Toast",
       "Sync",
       "UndoRedo",
-      "Audio",
-      "Timer",
       "RightSidebar",
       "Tour",
       "ItemPanel",

@@ -51,9 +51,9 @@ const SECTIONS: readonly TourLauncherSection[] = [
     hasSteps: true,
   },
   {
-    id: "work",
-    label: "Work",
-    summary: "A focus timer",
+    id: "connect",
+    label: "Connect",
+    summary: "The tag hub",
     icon: null,
     hasSteps: false,
   },
@@ -135,15 +135,15 @@ describe("the picker page", () => {
     const { onSelectSection } = setup();
 
     toPicker();
-    const work = screen.getByRole("button", { name: /Work/ });
+    const connect = screen.getByRole("button", { name: /Connect/ });
 
     // The badge is TEXT inside the button, so it is part of the accessible
     // name: "you cannot pick this" survives being read aloud, which a colour
     // or an opacity would not.
-    expect(work.textContent).toContain(LABELS.comingSoon);
-    expect((work as HTMLButtonElement).disabled).toBe(true);
+    expect(connect.textContent).toContain(LABELS.comingSoon);
+    expect((connect as HTMLButtonElement).disabled).toBe(true);
 
-    fireEvent.click(work);
+    fireEvent.click(connect);
     expect(onSelectSection).not.toHaveBeenCalled();
   });
 

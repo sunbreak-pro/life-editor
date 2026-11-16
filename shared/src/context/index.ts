@@ -125,34 +125,6 @@ export {
   type WikiTagsUnifiedContextValue,
 } from "./WikiTagsUnifiedContextValue";
 
-// Timer (W3-B): Pattern A. REQUIRED Provider (Timer is enabled on Mobile —
-// NOT a §2 省略 Provider). Reads useSyncContext, so it sits inside Sync; per
-// §6.2 it nests just INSIDE Audio (… → Audio → Timer → …): the Timer's
-// onSessionComplete rings the completion chime Audio owns (#676 (c)).
-export { TimerProvider, type TimerProviderProps } from "./TimerContext";
-export {
-  TimerContext,
-  type TimerContextValue,
-  // #714: the patch the Work panel's save button hands the Provider, and the
-  // durations "save as preset" carries with the name.
-  type TimerSettingsPatch,
-  type TimerPresetValues,
-} from "./TimerContextValue";
-export type { TimerPhase, ActiveWorkItem } from "./timerReducer";
-
-// Audio (W3-C): Pattern A + OPTIONAL hook. NOT a §2 Mobile 省略 Provider —
-// it is mounted on native mobile too (the completion chime belongs to the
-// work timer, Full on mobile per mobile-scope.md #10/#11); only the Ambient
-// mixer UI is omitted, in WorkScreen. Consumers still use useAudioContext
-// (null-safe) because the Provider is absent in partial chains and tests.
-// Per §6.2 it nests OUTSIDE Timer (… → Audio → Timer → …) since #676 (c).
-export { AudioProvider, type AudioProviderProps } from "./AudioContext";
-export {
-  AudioContext,
-  type AudioContextValue,
-  type AudioPresetState,
-} from "./AudioContextValue";
-
 // UndoRedo (Issue #304): app-wide single-stack undo/redo. Pattern A. Mounted
 // just inside SyncProvider (§6.2: Sync → UndoRedo → …), OUTSIDE the domain
 // providers it feeds. Domain providers auto-connect via useUndoRedoOptional.

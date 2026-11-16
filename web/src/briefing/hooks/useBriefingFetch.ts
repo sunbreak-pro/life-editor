@@ -7,7 +7,6 @@ import {
   type DataService,
   type NoteNode,
   type ScheduleItem,
-  type TimerSession,
   type TodoNode,
   type WikiTagConnectionUnified,
 } from "@life-editor/shared";
@@ -19,8 +18,6 @@ import {
  * Data sources (all EXISTING APIs — Step 1 shipped with zero DDL):
  *   - fetchScheduleItemsByDate(today)     → 今日の予定
  *   - fetchTodoTree()                     → 今日の Todo / 持ち越し / trend widget
- *   - fetchTimerSessions()                → streak + work/break widgets
- *     (follows the `sessions` domain since #993)
  *   - getDailyByDateUnified(today)        → the day's body, its evening notes
  *     and Claude's morning comment: the `morning_comment` column first (MCP
  *     write_briefing writes it, 0035), else the 「朝刊」 section an older
@@ -35,7 +32,7 @@ import {
  * without a reload. Sits inside SyncProvider (MainScreen mounts the screen
  * there).
  *
- * STALE-WHILE-REVALIDATE (#1157). The seven reads used to start from empty
+ * STALE-WHILE-REVALIDATE (#1157). The six reads used to start from empty
  * state on every mount, and Briefing is the DEFAULT landing screen, so the
  * eight-row skeleton was the first thing shown on every return to it
  * (#1038 §3.1). The load now runs through `useDomainLoad` under the
@@ -43,7 +40,7 @@ import {
  * reads become a background revalidate.
  *
  * `Promise.allSettled` is kept rather than `Promise.all` — one failing source
- * must not blank the other six. That is also why `load` cannot reject.
+ * must not blank the other five. That is also why `load` cannot reject.
  *
  * WHAT GETS STORED IS ALWAYS A WHOLE PAPER, never the delta. A failed slot is
  * filled from `lastPaperRef` (what is currently on screen) before `load`
@@ -73,7 +70,6 @@ function nextDateKey(key: string): string {
 interface BriefingPaper {
   scheduleItems: ScheduleItem[];
   todoNodes: TodoNode[];
-  sessions: TimerSession[];
   dailyContent: string | null;
   /** The day's evening_notes (#2107) — they ride on the same daily read. */
   eveningNotes: Record<string, string> | null;
@@ -97,7 +93,6 @@ interface BriefingPaper {
 const BLANK_PAPER: BriefingPaper = {
   scheduleItems: [],
   todoNodes: [],
-  sessions: [],
   dailyContent: null,
   eveningNotes: null,
   morningComment: null,
@@ -116,7 +111,6 @@ export interface BriefingFetchState {
   todoNodes: TodoNode[];
   setTodoNodes: Dispatch<SetStateAction<TodoNode[]>>;
   todosRead: boolean;
-  sessions: TimerSession[];
   dailyContent: string | null;
   setDailyContent: Dispatch<SetStateAction<string | null>>;
   eveningNotes: Record<string, string> | null;
@@ -135,11 +129,6 @@ export function useBriefingFetch(
   const syncVersion = useSyncDomains(
     "schedule",
     "todos",
-    // #993: the session LOG, not the timer settings — Briefing reads
-    // fetchTimerSessions and nothing else from the timer family, so it follows
-    // the `sessions` counter (declaring `timer` here also woke it on every
-    // settings edit, and hid that TimerProvider was waking on every session).
-    "sessions",
     "dailies",
     "notes",
     "tags",
@@ -149,7 +138,6 @@ export function useBriefingFetch(
   const [tomorrowItems, setTomorrowItems] = useState<ScheduleItem[]>([]);
   const [todoNodes, setTodoNodes] = useState<TodoNode[]>([]);
   const [todosRead, setTodosRead] = useState(false);
-  const [sessions, setSessions] = useState<TimerSession[]>([]);
   const [dailyContent, setDailyContent] = useState<string | null>(null);
   const [eveningNotes, setEveningNotes] = useState<Record<
     string,
@@ -187,13 +175,12 @@ export function useBriefingFetch(
       const results = await Promise.allSettled([
         service.fetchScheduleItemsByDate(todayKey),
         service.fetchTodoTree(),
-        service.fetchTimerSessions(),
         service.getDailyByDateUnified(todayKey),
         service.listNotesUnified(),
         service.listAllTagConnections(),
         service.fetchScheduleItemsByDate(tomorrowKey),
       ]);
-      const [sched, todos, sess, daily, allNotes, links, tomorrow] = results;
+      const [sched, todos, daily, allNotes, links, tomorrow] = results;
       // A read that threw keeps whatever that block is showing. Note the
       // asymmetry on the daily: a day with no daily row RESOLVES to null, and
       // that null is a result — only a rejection falls back.
@@ -203,7 +190,6 @@ export function useBriefingFetch(
           sched.status === "fulfilled" ? sched.value : previous.scheduleItems,
         todoNodes:
           todos.status === "fulfilled" ? todos.value : previous.todoNodes,
-        sessions: sess.status === "fulfilled" ? sess.value : previous.sessions,
         dailyContent:
           daily.status === "fulfilled"
             ? (daily.value?.content ?? null)
@@ -236,7 +222,6 @@ export function useBriefingFetch(
       lastPaperRef.current = paper;
       setScheduleItems(paper.scheduleItems);
       setTodoNodes(paper.todoNodes);
-      setSessions(paper.sessions);
       setDailyContent(paper.dailyContent);
       // `?? null`: a paper snapshot stored before #2107 has no such slot.
       setEveningNotes(paper.eveningNotes ?? null);
@@ -262,7 +247,6 @@ export function useBriefingFetch(
     todoNodes,
     setTodoNodes,
     todosRead,
-    sessions,
     dailyContent,
     setDailyContent,
     eveningNotes,

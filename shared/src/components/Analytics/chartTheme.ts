@@ -112,17 +112,6 @@ export interface ChartAxisFormat {
   date: (dateKey: string, unit: AxisDateUnit) => string;
 }
 
-/*
- * Language-neutral fallback for a chart mounted outside Analytics (the
- * Briefing panel draws WorkBreakBalance with labels of its own). It prints what
- * that chart printed before #1864, so such a host is unchanged until it passes
- * a real format.
- */
-export const FALLBACK_AXIS_FORMAT: ChartAxisFormat = {
-  duration: (minutes) => `${Math.round(minutes)}m`,
-  date: (dateKey, unit) =>
-    unit === "month" ? dateKey.substring(0, 7) : dateKey.substring(5),
-};
 
 /** Gutter for a duration axis — "1時間30分" at 11px needs more than the default 60. */
 export const DURATION_AXIS_WIDTH = 64;

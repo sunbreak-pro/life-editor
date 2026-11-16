@@ -23,7 +23,6 @@ Owner-chat: frontend (orchestrator)
 | 本流                 | Schedule   | Calendar（週グリッド）/ Routines                                                                                                  | Clock              |
 | 本流                 | Materials  | Todos / Notes / Daily / Tags                                                                                                      | Library            |
 | 本流                 | Connect    | Tag hub（タグ一覧 → 種類別のアイテム一覧）— ~~Graph / Backlinks~~ は 2026-08-29 退役（#1152）、同日 Tag hub として再新設（#1171） | Tags（旧 Network） |
-| 本流                 | Work       | （タブなし・単画面）                                                                                                              | Timer              |
 | 本流                 | Analytics  | Overview / Todos / Work / Schedule                                                                                                | BarChart3          |
 | 下部ユーティリティ枠 | Settings   | （タブなし・縦一列）                                                                                                              | Settings           |
 
@@ -52,7 +51,7 @@ Owner-chat: frontend (orchestrator)
 - **Desktop**: 全セクション画面の header タブ行右端に開閉トグル（lucide: PanelRight・28×28。open 中 = accent 文字 + accent-subtle 地）。パネル = 右端 **幅 320px（min 240px・左端 6px リサイズハンドル）** の押し込み式（overlay ではない）。背景は subsidebar 色 + 左 border、上部 48px に「詳細」ヘッダー + 閉じる X
 - **中身**: セクション文脈の詳細・補助 UI を portal する枠。生成デザインの例 = タスク選択中の `TodoDetailPanel`（タイトル / ステータス / 内容）。**セクションごとの中身の設計は各画面 brief / 実装の将来 iterate に委ねる**（本 IA はトグル・枠の標準のみ固定）
 - **Mobile**: セグメントコントロール行の左端にハンバーガー（lucide: Menu・36×36 border 付き）→ **左から幅 320px の drawer** に Desktop rightSidebar と同一内容 + 黒 30% スクリム。ナビ用 More ボトムシートとは役割分離（More = ナビ / ハンバーガー = 詳細パネル）
-- **生成デザイン未定義の補完（実装・brief 側で解決する）**: ①タブなし単画面（Work / Settings 等・Trash は #1293 で Settings 配下へ）のトグル置き場 = 画面最上部の右端（orchestrator 補完標準・v3 共通ブロックに記載）②タスク未選択などの空状態 ③drawer の safe-area 処理 ④aria 属性（生成 HTML に一切無いため実装で必須補完）⑤パレット外 hex 2 色（`#bfdbfe` スケルトンバー / `#25252b` dark カード地）は実装では既存 lumen トークンへ丸める
+- **生成デザイン未定義の補完（実装・brief 側で解決する）**: ①タブなし単画面（Settings 等・Trash は #1293 で Settings 配下へ）のトグル置き場 = 画面最上部の右端（orchestrator 補完標準・v3 共通ブロックに記載）②タスク未選択などの空状態 ③drawer の safe-area 処理 ④aria 属性（生成 HTML に一切無いため実装で必須補完）⑤パレット外 hex 2 色（`#bfdbfe` スケルトンバー / `#25252b` dark カード地）は実装では既存 lumen トークンへ丸める
 
 ## セクション外の画面
 

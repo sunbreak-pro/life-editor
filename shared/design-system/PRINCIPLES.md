@@ -165,7 +165,7 @@
 | **画面層（レイアウト）**       | 各機能画面の組み立て                                            | **機能特性で判断**：単純 = レスポンシブ単一 / 複雑 = 環境別分割 |
 
 - 単純画面（縦並びリスト: Settings / Trash / Notes / Daily）= 1 コンポーネントを幅で伸縮。
-- 複雑画面（PC とスマホで操作モデルが別物: Schedule カレンダー / Tasks DnD ツリー / Work タイマー）= 環境別に分割。
+- 複雑画面（PC とスマホで操作モデルが別物: Schedule カレンダー / Tasks DnD ツリー）= 環境別に分割。
 - 迷ったら単一で始め、必要になってから分割する（やりすぎ回避）。
 
 ### 4.2 集約先（W0 案 A）
@@ -188,7 +188,7 @@
 
 ### 4.4 Mobile Optional Providers
 
-- native mobile で省略する Provider は **ShortcutConfig のみ**（一覧の正本 = CLAUDE.md §2）。Audio は Provider ごと維持し、Ambient mixer の UI だけを native で省略する。ScreenLock / FileExplorer / CalendarTags は Provider ごと撤去済みで対象外。
+- native mobile で省略する Provider は **ShortcutConfig のみ**（一覧の正本 = CLAUDE.md §2）。ScreenLock / FileExplorer / CalendarTags / Audio / Timer は Provider ごと撤去済みで対象外。
 - 省略される Provider に依存する共有部品は **Optional バリアント必須**。
 - 必須 hook（`createContextHook`）= Provider 外で throw（Desktop 用）。
 - Optional hook（`createOptionalContextHook`）= Provider 外で null → 共有部品側で `if (!ctx) return null` ガード。
@@ -216,7 +216,6 @@
 - **IME（日本語入力）**: keydown 処理に `e.nativeEvent.isComposing` チェック必須（変換確定の Enter で誤発火しない）。
 - **silent transparent fail**: 未定義 `bg-lumen-*` は透明落ち。色は `@theme` 定義後に使う。
 - **DnD（@dnd-kit）**: ツリーの入れ子は #418 で退役。ツリー移動の API 自体が存在しない（旧 `moveNode` / `moveToRoot` は #1156 で削除）。
-- **AudioContext**: `suspended` 開始。ユーザー操作後に `resume()` 必須（音系部品）。
 - **リッチテキスト**: TipTap を使用。
 
 ---

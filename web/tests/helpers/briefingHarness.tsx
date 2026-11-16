@@ -99,7 +99,6 @@ export interface BriefingReadSeed {
   /** Schedule rows keyed by date — the hook fetches today AND tomorrow. */
   scheduleByDate?: Record<string, ScheduleItem[]>;
   todos?: TodoNode[];
-  sessions?: unknown[];
   /** Stored daily body, or null for "no daily yet". */
   dailyContent?: string | null;
   notes?: unknown[];
@@ -107,8 +106,10 @@ export interface BriefingReadSeed {
 }
 
 /**
- * The seven reads the initial fetch makes, as vi mocks. Spread into
- * `stubDataService` alongside whatever writes the suite is about.
+ * The six reads the initial fetch makes, as vi mocks, plus a stub for the
+ * timer-session read the paper no longer makes (so a test can assert it
+ * stays unread). Spread into `stubDataService` alongside whatever writes the
+ * suite is about.
  */
 export function briefingReads(
   seed: BriefingReadSeed = {},
@@ -116,7 +117,6 @@ export function briefingReads(
   const {
     scheduleByDate = {},
     todos = [],
-    sessions = [],
     dailyContent = null,
     notes = [],
     connections = [],
@@ -128,7 +128,7 @@ export function briefingReads(
         Promise.resolve(scheduleByDate[date] ?? []),
       ),
     fetchTodoTree: vi.fn().mockResolvedValue(todos),
-    fetchTimerSessions: vi.fn().mockResolvedValue(sessions),
+    fetchTimerSessions: vi.fn().mockResolvedValue([]),
     getDailyByDateUnified: vi
       .fn()
       .mockResolvedValue(

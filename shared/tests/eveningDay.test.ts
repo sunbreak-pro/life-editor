@@ -11,8 +11,6 @@ import {
   tomorrowCandidates,
 } from "../src/components/briefing/eveningDay";
 import type { ScheduleItem } from "../src/types/schedule";
-import type { TimerSession } from "../src/types/timer";
-import { MANUAL_SESSION_LABEL } from "../src/utils/timerSessions";
 import type { TodoNode } from "../src/types/todoTree";
 import { goal } from "./fixtures/goalLinkState";
 import { makeTodo } from "./helpers/nodeFixtures";
@@ -44,20 +42,6 @@ function event(over: Partial<ScheduleItem> & { id: string }): ScheduleItem {
     content: null,
     createdAt: "2026-09-01T00:00:00.000Z",
     updatedAt: "2026-09-01T00:00:00.000Z",
-    ...over,
-  };
-}
-
-function session(over: Partial<TimerSession> & { id: number }): TimerSession {
-  return {
-    todoId: null,
-    eventId: null,
-    sessionType: "WORK",
-    startedAt: new Date(at(9, 30)),
-    completedAt: new Date(at(11, 20)),
-    duration: 110 * 60,
-    completed: true,
-    label: null,
     ...over,
   };
 }
@@ -100,53 +84,33 @@ describe("eveningEvents", () => {
     makeTodo({ id: "t-plan", title: "企画書" }),
   ];
   todos[2] = { ...todos[2], isDeleted: true };
-  const sessions = [
-    session({ id: 1, todoId: "t-plan" }),
-    session({
-      id: 2,
-      startedAt: new Date(at(14)),
-      completedAt: null,
-      duration: null,
-      completed: false,
-    }),
-    session({ id: 3, sessionType: "BREAK", startedAt: new Date(at(12)) }),
-  ];
   const rows = eveningEvents({
     dateKey: DAY,
     dayStartHour: 0,
     scheduleItems,
     todos,
-    sessions,
     now: new Date(at(15)),
   });
 
   it("puts all-day first, then the day in time order", () => {
     expect(rows.map((r) => r.key)).toEqual([
       "event:holiday",
-      "session:1",
       "todo:t-draft",
       "event:dentist",
     ]);
   });
 
-  it("prints each kind's own time: HH:MM, a range for work, null all-day", () => {
-    expect(rows.map((r) => [r.startTime, r.endTime])).toEqual([
-      [null, null],
-      ["09:30", "11:20"],
-      ["11:28", null],
-      ["14:00", null],
-    ]);
+  it("prints each kind's own time: HH:MM, null all-day", () => {
+    expect(rows.map((r) => r.startTime)).toEqual([null, "11:28", "14:00"]);
   });
 
-  it("leaves out events not started yet, open / break sessions, deleted and dismissed rows", () => {
+  it("leaves out events not started yet, deleted and dismissed rows", () => {
     const keys = rows.map((r) => r.key);
     for (const k of [
       "event:dinner",
       "event:gone",
       "event:skipped",
       "event:other-day",
-      "session:2",
-      "session:3",
       "todo:t-yesterday",
       "todo:t-gone",
       "todo:t-open",
@@ -161,62 +125,19 @@ describe("eveningEvents", () => {
       dayStartHour: 0,
       scheduleItems: [event({ id: "now", startTime: "15:00" })],
       todos: [],
-      sessions: [],
       now: new Date(at(15)),
     }).map((r) => r.key);
     expect(keys).toEqual(["event:now"]);
   });
 
-  // #2407: the event may have moved off the day, leaving only the label to
-  // name the row, and that label is an identifier.
-  it("never prints a hand-entered row's label", () => {
-    const rows = eveningEvents({
-      dateKey: DAY,
-      dayStartHour: 0,
-      scheduleItems,
-      todos,
-      sessions: [
-        session({
-          id: 4,
-          eventId: "moved-away",
-          label: MANUAL_SESSION_LABEL,
-          startedAt: new Date(at(11)),
-        }),
-      ],
-    });
-    expect(rows.find((r) => r.key === "session:4")?.title).toBeNull();
-  });
-
-  it("names a session after its todo, then its event, then its label, else null", () => {
-    const named = eveningEvents({
-      dateKey: DAY,
-      dayStartHour: 0,
-      scheduleItems,
-      todos,
-      sessions: [
-        session({ id: 1, todoId: "t-plan" }),
-        session({ id: 2, eventId: "dentist", startedAt: new Date(at(10)) }),
-        session({ id: 3, label: "読書", startedAt: new Date(at(11)) }),
-        session({ id: 4, startedAt: new Date(at(12)) }),
-      ],
-    }).filter((r) => r.kind === "session");
-    expect(named.map((r) => r.title)).toEqual([
-      "企画書",
-      "歯科検診",
-      "読書",
-      null,
-    ]);
-  });
-
-  it("orders a tie event → work → done", () => {
+  it("orders a tie event → done", () => {
     const tie = eveningEvents({
       dateKey: DAY,
       dayStartHour: 0,
       scheduleItems: [event({ id: "e", startTime: "10:00" })],
       todos: [done("t", at(10))],
-      sessions: [session({ id: 9, startedAt: new Date(at(10)) })],
     });
-    expect(tie.map((r) => r.kind)).toEqual(["event", "session", "todo"]);
+    expect(tie.map((r) => r.kind)).toEqual(["event", "todo"]);
   });
 
   it("files a 03:00 completion under the previous day with a 4 o'clock start", () => {
@@ -226,7 +147,6 @@ describe("eveningEvents", () => {
       dayStartHour: 4,
       scheduleItems: [],
       todos: early,
-      sessions: [],
     }).map((r) => r.key);
     // 10-01 03:00 is still the night of 09-30; 09-30 03:00 belonged to 09-29.
     expect(keys).toEqual(["todo:t-night"]);
@@ -234,7 +154,7 @@ describe("eveningEvents", () => {
 });
 
 describe("eveningDayCounts", () => {
-  it("counts events, the day's scheduled todos and the work minutes", () => {
+  it("counts events and the day's scheduled todos", () => {
     const counts = eveningDayCounts({
       dateKey: DAY,
       dayStartHour: 0,
@@ -250,19 +170,12 @@ describe("eveningDayCounts", () => {
         { ...done("t4", at(12)), scheduledAt: at(10, 0, 29) },
         { ...open("t5", { scheduledAt: at(10) }), isDeleted: true },
       ],
-      sessions: [
-        session({ id: 1, duration: 50 * 60 }),
-        session({ id: 2, duration: 60 * 60, startedAt: new Date(at(14)) }),
-        session({ id: 3, sessionType: "BREAK", duration: 600 }),
-        session({ id: 4, duration: 3600, startedAt: new Date(at(9, 0, 29)) }),
-      ],
     });
     expect(counts).toEqual({
       events: 2,
       todosDone: 1,
       todosTotal: 3,
       todoRate: 1 / 3,
-      workMinutes: 110,
     });
   });
 
@@ -272,11 +185,9 @@ describe("eveningDayCounts", () => {
       dayStartHour: 0,
       scheduleItems: [],
       todos: [open("t1")],
-      sessions: [],
     });
     expect(counts.todoRate).toBeNull();
     expect(counts.todosTotal).toBe(0);
-    expect(counts.workMinutes).toBe(0);
   });
 
   it("files a scheduled todo by the day-start hour, as tomorrowCandidates does (#218)", () => {
@@ -297,7 +208,6 @@ describe("eveningDayCounts", () => {
         // All-day keeps its calendar date.
         open("all-day", { scheduledAt: at(0), isAllDay: true }),
       ],
-      sessions: [],
     });
     expect(counts.todosTotal).toBe(3);
     expect(counts.todosDone).toBe(1);

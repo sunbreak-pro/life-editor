@@ -288,13 +288,15 @@ describe("SettingsScreen — the preference selects", () => {
     render(<SettingsScreen />);
 
     const dialog = openPicker();
-    const work = within(dialog).getByRole("button", { name: /section\.work/ });
+    const connect = within(dialog).getByRole("button", {
+      name: /section\.connect/,
+    });
 
     // Listed, so the menu keeps the same shape as the app...
-    expect(work.textContent).toContain("tour.launcher.comingSoon");
+    expect(connect.textContent).toContain("tour.launcher.comingSoon");
     // ...but pressing it must not open a section with nothing to show.
-    expect((work as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.click(work);
+    expect((connect as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(connect);
     for (const name of SINKS) expect(sink(name)).not.toHaveBeenCalled();
   });
 

@@ -5,7 +5,7 @@ import { FOCUS_RING_TIGHT } from "../styleTokens";
 
 /*
  * The strip under the Daily body (#2123, D-20261006-main-7): the day's mood
- * stars and its four figures — events, todo rate, work time, goals moved.
+ * stars and its figures — events, todo rate, goals moved.
  * Nothing else sits under the body any more: the evening card of #1046 /
  * #1680 (mood + a separate reflection + the day's schedule) went when the
  * Daily body became the day's ONE text, which already holds the reflection.

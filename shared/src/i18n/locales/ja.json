@@ -325,150 +325,6 @@
     "deletingMany": "削除しています…",
     "bulkPartialFailure": "{{n}} 件を処理できませんでした。残っているものはここにそのままあります。"
   },
-  "work": {
-    "sidebar": {
-      "targetSessions": "目標",
-      "sessionsProgress": "{{completed}} / {{target}} セッション"
-    },
-    "status": {
-      "paused": "一時停止中"
-    },
-    "controls": {
-      "start": "開始",
-      "pause": "一時停止",
-      "resume": "再開",
-      "reset": "リセット",
-      "skip": "スキップ",
-      "subtractFive": "−5 分",
-      "addFive": "＋5 分"
-    },
-    "phase": {
-      "WORK": "ワーク",
-      "BREAK": "休憩",
-      "LONG_BREAK": "長い休憩"
-    },
-    "todoSelector": {
-      "heading": "作業名",
-      "placeholder": "フリーセッション",
-      "clear": "フリーセッションに戻す",
-      "select": "フリーセッション",
-      "sheetTitle": "作業を紐付ける",
-      "clearSelection": "選択を外す",
-      "allDay": "終日",
-      "nameLabel": "フリーセッションの名前",
-      "nameSubmit": "この名前で作業する",
-      "todoHeading": "Todo",
-      "eventHeading": "予定",
-      "sheetEmptyTitle": "紐付けられる Todo や予定がありません",
-      "sheetEmptyBody": "上の欄に名前を入れれば、フリーセッションとして始められます。",
-      "loadFailedTitle": "候補を読み込めませんでした",
-      "loadFailedBody": "通信を確認して、もう一度読み込んでください。上の欄に名前を入れれば、このままフリーセッションとして始められます。",
-      "retry": "もう一度読み込む"
-    },
-    "taskPicker": {
-      "placeholder": "作業名を検索 / 新しい名前を入力…",
-      "createTodo": "「{{name}}」を Todo として追加",
-      "createEvent": "「{{name}}」を予定として追加",
-      "createdTodo": "「{{name}}」を Todo として追加しました",
-      "pendingEvent": "「{{name}}」は、作業を終えたときに予定として記録します",
-      "createFailed": "「{{name}}」を Todo として追加できませんでした。もう一度試してください。",
-      "empty": "今後 7 日に紐付けられるものはありません。名前を入力すると新しい作業を追加できます。",
-      "addAsTodo": "Todo として追加",
-      "addAsEvent": "予定として追加"
-    },
-    "completion": {
-      "title": "セッション {{index}} が完了しました",
-      "body": "「{{todo}}」に {{minutes}} 分を記録しました。{{breakMinutes}} 分の休憩を挟みましょう。",
-      "bodyNoTodo": "{{minutes}} 分を記録しました。{{breakMinutes}} 分の休憩を挟みましょう。",
-      "startBreak": "休憩を開始",
-      "oneMore": "もう 1 セッション",
-      "close": "閉じる",
-      "logged": "{{minutes}} 分を記録しました",
-      "startBreakMinutes": "休憩を始める（{{minutes}} 分）",
-      "startLongBreakMinutes": "長い休憩を始める（{{minutes}} 分）"
-    },
-    "settings": {
-      "presetNamePlaceholder": "プリセット名",
-      "saveAsPreset": "保存",
-      "apply": "適用",
-      "presetsEmpty": "プリセットはまだありません",
-      "save": "保存",
-      "saved": "保存済み",
-      "unsaved": "未保存",
-      "short": {
-        "work": "作業",
-        "break": "休憩",
-        "longBreak": "長い休憩",
-        "sessionsBeforeLongBreak": "長い休憩まで",
-        "target": "1 日の目標"
-      },
-      "valueMinutes": "{{value}} 分",
-      "valueCount": "{{value}} 回",
-      "decrease": "{{label}}を減らす",
-      "increase": "{{label}}を増やす",
-      "applied": "適用中",
-      "presetSummary": "{{work}}・{{brk}}・{{long}} 分 / {{sessions}} 回",
-      "timeHeading": "時間"
-    },
-    "sidebarTabs": {
-      "label": "Work のサイドバー",
-      "settings": "タイマー設定",
-      "history": "履歴"
-    },
-    "history": {
-      "today": "今日",
-      "yesterday": "昨日",
-      "latestDay": "直近の作業日 · {{date}}",
-      "empty": "まだ作業の記録がありません。終えたセッションがここに並びます。",
-      "noTarget": "フリーセッション",
-      "minutes": "{{minutes}} 分",
-      "manualEntry": "手入力",
-      "emptyTitle": "まだ記録がありません",
-      "emptyBody": "作業を 1 セッション終えると、ここに残ります。",
-      "loadFailedTitle": "履歴を読み込めませんでした",
-      "loadFailedBody": "通信を確認して、もう一度読み込んでください。",
-      "retry": "もう一度読み込む"
-    },
-    "freeSession": {
-      "title": "フリーセッション",
-      "tagHeading": "タグ",
-      "tagAdd": "フリーセッションにタグを付ける",
-      "tagAddShort": "タグ",
-      "tagSearch": "タグを検索 / 作成…",
-      "tagCreate": "「{{name}}」を作る",
-      "tagRemove": "{{name}} を外す",
-      "tagNoCandidates": "タグがまだありません",
-      "tagDialog": "フリーセッションのタグ",
-      "tagSheetClose": "閉じる",
-      "tagDisabled": "タグはフリーセッション用です。作業名の選択を外すと使えます。",
-      "tagAddRow": "タグを追加",
-      "tagDisabledRow": "紐付け中はタグを使えません"
-    }
-  },
-  "audioMixer": {
-    "heading": "環境音",
-    "toggle": "音をオン/オフ",
-    "volume": "音量",
-    "sound": {
-      "rain": "雨",
-      "wind": "風",
-      "ocean": "海",
-      "birds": "鳥",
-      "fire": "焚き火"
-    }
-  },
-  "pomodoro": {
-    "title": "ポモドーロ設定",
-    "workDuration": "1セッションあたりの作業時間",
-    "breakDuration": "セッション間の休憩時間",
-    "longBreakDuration": "セット間の休憩時間",
-    "sessionsPerSet": "1セットあたりのセッション数",
-    "presets": "プリセット",
-    "deletePreset": "プリセット削除",
-    "deletePresetConfirm": "プリセット「{{name}}」を削除しますか？",
-    "autoStartBreaks": "休憩を自動開始",
-    "emptyValue": "{{field}}に数値を入力してください"
-  },
   "todoDetail": {
     "titleLabel": "Todo のタイトル",
     "delete": "削除",
@@ -720,7 +576,6 @@
       "figuresLabel": "この日の数字",
       "figureEvents": "予定",
       "figureTodos": "Todo",
-      "figureWork": "作業",
       "figureGoals": "進んだ目標"
     },
     "tags": {
@@ -1404,7 +1259,6 @@
     "materials": "素材",
     "connect": "つながり",
     "schedule": "予定",
-    "work": "集中",
     "analytics": "分析",
     "settings": "設定",
     "briefing": "朝刊",
@@ -1890,9 +1744,8 @@
       "goalRemaining": "あと {{count}} 件",
       "eventsTitle": "今日の出来事",
       "noEvents": "今日の出来事はまだありません",
-      "eventsSummary": "予定 {{events}} · Todo {{todos}} · 作業 {{work}}",
-      "eventsSummaryNoTodos": "予定 {{events}} · 作業 {{work}}",
-      "eventWork": "作業",
+      "eventsSummary": "予定 {{events}} · Todo {{todos}}",
+      "eventsSummaryNoTodos": "予定 {{events}}",
       "noteAdd": "一言を足す: {{title}}",
       "noteEdit": "一言を直す: {{title}}",
       "noteButton": "一言",
@@ -1931,7 +1784,6 @@
         "schedule": "カレンダーと Todo を、時間軸の上に並べて扱う場所です。",
         "materials": "ノートとデイリー。書いて、あとから読み返すものの置き場です。",
         "connect": "話題の軸です。タグを 1 つ選ぶと、それが付いたものをまとめて読めます。",
-        "work": "作業に集中するためのタイマーです。後ろに流す音も選べます。",
         "analytics": "1 週間・1 か月の記録を集計して、積み上がりを振り返ります。",
         "apps": "記録を送ってくる小さなアプリを登録して、最後に届いた日を確かめる場所です。",
         "settings": "見た目・言語・ショートカットなど、アプリ自体の設定です。"

@@ -625,7 +625,7 @@ describe("offering the tour on first run (#1123)", () => {
     const seen: SectionId[] = [];
     const steps: readonly TourStep[] = [
       { ...STEPS[0], section: "analytics" },
-      { ...STEPS[1], section: "work" },
+      { ...STEPS[1], section: "connect" },
     ];
     render(
       <AutoHarness

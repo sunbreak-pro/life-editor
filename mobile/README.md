@@ -67,9 +67,8 @@ npx cap open android    # opens Android Studio → run on AVD / device
 
 - Native-mobile gating (#320, roster SSOT = CLAUDE.md §2): `isNativeMobile()`
   (`shared/src/utils/platform.ts`) skips the ShortcutConfigProvider in
-  `web/src/MainScreen.tsx` and the ambient-mixer UI in WorkScreen —
-  AudioProvider stays mounted so the Pomodoro completion chime rings
-  (mobile-scope.md #10/#11).
+  `web/src/AppProviders.tsx`. The Audio and Timer providers were removed
+  with the Work section (#2717).
 - Android safe-area: a `fitsSystemWindows` fallback in `styles.xml` handles the
   targetSdk-36 edge-to-edge enforcement; `web/index.html` additionally sets
   `viewport-fit=cover` (#320) so `env(safe-area-inset-*)` resolves on notched

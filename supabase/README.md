@@ -385,12 +385,16 @@ free tier ended) and a fix is not quick.
 
 ## Ambient sounds — the `sounds` bucket (#1793)
 
+> Since #2717 the app plays none of these: the ambient mixer, the completion
+> chime and `shared/src/constants/sounds.ts` were removed with the Work
+> section. The bucket and this record of how the files were made are kept.
+
 The five ambient loops (`rain` / `wind` / `ocean` / `birds` / `fire`) and
 the completion chime (`complete.mp3`) are objects in the **public** Storage
-bucket `sounds`. The app only builds their URL
-(`shared/src/constants/sounds.ts`), so replacing a file changes what every
-user hears without a deploy. Audio does not go in the repo; the repo keeps
-how each loop was made:
+bucket `sounds`. The app only built their URL (in
+`shared/src/constants/sounds.ts`, removed in #2717), so replacing a file
+changed what every user heard without a deploy. Audio does not go in the
+repo; the repo keeps how each loop was made:
 
 | File                           | Purpose                                                                                                                         |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
@@ -424,7 +428,7 @@ content above 16 kHz, so `band18to20` now reads low and `wallHz` near
 16 kHz; that is the accepted price, not a sign of a double encode.
 
 The build writes `<id>-v<N>.mp3`. The number is `ASSET_VERSION` in the
-script and must match `objectName` in `shared/src/constants/sounds.ts`.
+script and matched `objectName` in the removed `shared/src/constants/sounds.ts`.
 A new build takes the next number rather than replacing a file, so every
 object can carry a year-long cache.
 
