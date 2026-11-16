@@ -21,7 +21,7 @@
 | `routine-night.md`      | 夜 — 実装レーン（`/loop-implement` の薄い殻。commit までを claude、push と draft PR を launcher が行う） | **Phase 2・未登録**（手動起動のみ） |
 | `goals.md`              | 夜のレーンの選定基準（今夜の 1 件をどう選ぶか。一覧は持たない）    | 現行                          |
 | `routine-morning.md`    | 退役（後継 = `routine-digest.md`）                                 | **退役 — 2026-08-06**         |
-| `dev-schedule.md`       | 週次開発スケジュール（schedule-management スキルが管理）           | 現行（本ハーネスとは独立）    |
+| `dev-schedule.md`       | 週次開発スケジュール（schedule-management スキルが管理）           | 休止中（2026-06-21 週を最後に更新なし。本ハーネスとは独立） |
 
 ---
 
