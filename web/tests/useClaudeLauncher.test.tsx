@@ -66,7 +66,7 @@ describe("useClaudeLauncher", () => {
     // `window.desktop` exists but predates #1211 — showing the button would
     // invoke a channel main has no handler for.
     (window as unknown as { desktop?: unknown }).desktop = {
-      getTheme: vi.fn(),
+      authStorage: { getItem: vi.fn(), setItem: vi.fn(), removeItem: vi.fn() },
     };
     const { result } = renderHook(() => useClaudeLauncher());
     expect(result.current.available).toBe(false);

@@ -141,10 +141,6 @@ describe("preload (#894)", () => {
   it("invokes only channels the contract declares", async () => {
     await import("../src/preload/index");
     const api = exposeInMainWorld.mock.calls[0][1] as {
-      getTheme: () => Promise<unknown>;
-      setTheme: (t: string) => Promise<unknown>;
-      getWindowBounds: () => Promise<unknown>;
-      getAppVersion: () => Promise<unknown>;
       authStorage: {
         getItem: (k: string) => Promise<unknown>;
         setItem: (k: string, v: string) => Promise<unknown>;
@@ -155,10 +151,6 @@ describe("preload (#894)", () => {
       notify: (args: { title: string; body?: string }) => Promise<unknown>;
     };
 
-    await api.getTheme();
-    await api.setTheme("dark");
-    await api.getWindowBounds();
-    await api.getAppVersion();
     await api.authStorage.getItem("k");
     await api.authStorage.setItem("k", "v");
     await api.authStorage.removeItem("k");
@@ -175,14 +167,25 @@ describe("preload (#894)", () => {
   it("forwards the arguments each channel expects", async () => {
     await import("../src/preload/index");
     const api = exposeInMainWorld.mock.calls[0][1] as {
-      setTheme: (t: string) => Promise<unknown>;
-      authStorage: { setItem: (k: string, v: string) => Promise<unknown> };
+      authStorage: {
+        getItem: (k: string) => Promise<unknown>;
+        setItem: (k: string, v: string) => Promise<unknown>;
+      };
+      notify: (args: { title: string; body?: string }) => Promise<unknown>;
     };
 
-    await api.setTheme("light");
+    await api.authStorage.getItem("session");
     await api.authStorage.setItem("session", "payload");
+    await api.notify({ title: "t", body: "b" });
 
-    expect(invoke).toHaveBeenCalledWith(DESKTOP_IPC.setTheme, "light");
+    expect(invoke).toHaveBeenCalledWith(
+      DESKTOP_IPC.authStorageGetItem,
+      "session",
+    );
+    expect(invoke).toHaveBeenCalledWith(DESKTOP_IPC.notifyShow, {
+      title: "t",
+      body: "b",
+    });
     expect(invoke).toHaveBeenCalledWith(
       DESKTOP_IPC.authStorageSetItem,
       "session",
@@ -240,9 +243,10 @@ describe("preload (#894)", () => {
       }
       return 0;
     };
-    // #1374 took it from 9 to 10 — exactly at the cap. The next channel has
-    // to raise the budget with a stated reason or fold into an existing one.
-    expect(count(api)).toBe(10);
+    // #2758 took it from 10 down to 6 by removing four channels that nothing in
+    // shared/ or web/ called. Pinned exactly so a channel added later also
+    // updates the count in the contract's guard comment.
+    expect(count(api)).toBe(6);
     expect(count(api)).toBeLessThanOrEqual(10);
   });
 });

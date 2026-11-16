@@ -28,7 +28,7 @@ Related:
   - Supabase の URL / anon key は **ビルド時に文字列として焼き込まれる**（Vite の `import.meta.env`）。実行時に読む口は無い。
 - **Non-goals**:
   - コード署名・公証（mac $99/年 / win $80-500/年 — SSOT §8「完成後の判断」）
-  - `electron-updater` の有効化（未署名の update feed を開けるのは危険。`desktop/src/main/index.ts` の SECURITY コメントの通り、署名導入と**同時**にしか入れない）
+  - `electron-updater` の有効化（未署名の update feed を開けるのは危険。自動更新は作らないことになり、雛形と依存は #2758 で消した）
   - Mac App Store / Microsoft Store 申請（SSOT §9 Non-goals）
   - Linux AppImage の配布（設定は既にあるが、今回の受け入れ対象から外す）
   - Capacitor（iOS / Android）側の配布（Phase 4 の別件）
@@ -58,7 +58,7 @@ Related:
 | electron-builder の `publish: github` に直接投げる         | ✗    | mac / win の 2 ジョブが同じ Release を取り合って draft が壊れる事故が起きやすい                                                                 | 単一 OS 構成に戻ったら                                         |
 | ad-hoc 署名（`mac.identity: "-"`）で「壊れています」を回避 | ✗    | **ad-hoc 署名はビルドしたマシンでしか動かない**ので配布の答えにならない。加えて electron-builder 26 系で ad-hoc のカメラ / マイク回帰報告がある | —                                                              |
 | 今回まとめて署名 + 公証を入れる                            | ✗    | $99/年 + $80-500/年。$0 原則（SSOT §8）に反する                                                                                                 | こうだいさんが有料化を裁定したら（配布先が警告で詰まった時）   |
-| `electron-updater` を同時に有効化                          | ✗    | 未署名バイナリへの自動更新は、feed が乗っ取られたら任意コードが流れ込む。署名とセットでしか安全にならない                                       | コード署名を導入したタイミングで同時に                         |
+| `electron-updater` を同時に有効化                          | ✗    | 未署名バイナリへの自動更新は、feed が乗っ取られたら任意コードが流れ込む。署名とセットでしか安全にならない                                       | 作らない（2026-11-16 の決定。#2758 で雛形を削除）              |
 
 > `ask-user` は今回使っていない（$0 原則・Non-goals・配布方針はいずれも既存の裁定で決着済みのため）。唯一割れる論点は下記の 1 件で、これは P-005 に従い実装で先行せずキューへ積む。
 

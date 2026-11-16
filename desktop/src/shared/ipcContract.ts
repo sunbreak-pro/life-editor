@@ -21,8 +21,6 @@
  * expectations against `DesktopAuthStorageApi` below.
  */
 
-export type ThemePreference = "light" | "dark" | "system";
-
 /**
  * The OS the shell runs on (#1590), narrowed to the three targets
  * `electron-builder.yml` ships. Mirrors Node's `process.platform`.
@@ -36,13 +34,6 @@ export type ThemePreference = "light" | "dark" | "system";
  */
 export type DesktopHostPlatform = "darwin" | "win32" | "linux";
 
-export interface WindowBounds {
-  width: number;
-  height: number;
-  x?: number;
-  y?: number;
-}
-
 /**
  * Channel names. One entry per `ipcMain.handle` / `ipcRenderer.invoke` pair.
  * Adding a channel means adding it here first — `DesktopIpcChannel` below is
@@ -50,10 +41,6 @@ export interface WindowBounds {
  * contain.
  */
 export const DESKTOP_IPC = {
-  getTheme: "config:getTheme",
-  setTheme: "config:setTheme",
-  getWindowBounds: "window:getBounds",
-  getAppVersion: "app:getVersion",
   authStorageGetItem: "authStorage:getItem",
   authStorageSetItem: "authStorage:setItem",
   authStorageRemoveItem: "authStorage:removeItem",
@@ -164,17 +151,10 @@ export interface DesktopAuthStorageApi {
  * object literal with this type, so the renderer-facing surface and the
  * channels above cannot drift apart in shape.
  *
- * Risk 1 guard (#529): keep the exposed function count <= 10. Current = 9.
+ * Risk 1 guard (#529): keep the exposed function count <= 10. Current = 6
+ * (#2758 removed the four channels nothing in shared/ or web/ called).
  */
 export interface DesktopIpcApi {
-  /** Read the persisted theme preference. */
-  getTheme(): Promise<ThemePreference>;
-  /** Persist the theme preference and apply it to the OS color scheme. */
-  setTheme(theme: ThemePreference): Promise<ThemePreference>;
-  /** Read the last persisted window bounds. */
-  getWindowBounds(): Promise<WindowBounds>;
-  /** Read the desktop app version (from package.json at runtime). */
-  getAppVersion(): Promise<string>;
   /**
    * Supabase auth-session storage (#838). The packaged renderer runs on
    * file://, where localStorage is not reliably persisted, so the session is
@@ -197,10 +177,6 @@ export interface DesktopIpcApi {
    * Raise an OS notification (#1374). Resolves `false` — never rejects — when
    * the platform cannot show one, so the renderer degrades to its in-app
    * toast instead of handling a rejection on a notification path.
-   *
-   * ⚠️ This takes the exposed surface to 10, exactly the #529 Risk 1 budget.
-   * The next channel has to either raise that budget with a stated reason or
-   * fold into an existing one.
    */
   notify(args: NotifyArgs): Promise<boolean>;
   /**
