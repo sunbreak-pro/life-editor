@@ -248,8 +248,8 @@ export function TagPicker({
    *
    * Escape used to leave `document.activeElement` on <body>, so the next Tab
    * restarted from the top of the page and the row the user was tagging was
-   * gone from under them. Same cleanup CommandPalette runs (#1874), and the
-   * same two guards:
+   * gone from under them. Same cleanup the removed command palette ran
+   * (#1874), and the same two guards:
    *
    *   - a focus that has already landed somewhere else is not ours to move.
    *     Clicking outside the picker to close it means the user is looking at
@@ -257,7 +257,7 @@ export function TagPicker({
    *   - a detached trigger is skipped. Focusing one does nothing, in silence,
    *     and this picker is drawn inside menus that unmount with it.
    *
-   * CommandPalette's other half -- reading the opener during render, because
+   * The palette's other half -- reading the opener during render, because
    * autoFocus may take it first -- is not needed here: the opener is this
    * component's own button and nothing else can claim it.
    */

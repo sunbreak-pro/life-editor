@@ -14,10 +14,10 @@ import type { ShortcutRow } from "../src/types/shortcut";
 
 const ROWS: ShortcutRow[] = [
   {
-    id: "global:command-palette",
+    id: "global:settings",
     category: "global",
-    label: "コマンドパレットを開く",
-    displayString: "⌘ + K",
+    label: "設定を開く",
+    displayString: "⌘ + ,",
     isModified: false,
   },
   {

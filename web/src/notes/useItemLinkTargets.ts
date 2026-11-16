@@ -26,8 +26,8 @@ import type { ItemLinkTarget } from "./itemLinkSuggestion";
  *
  * The lazy / stale / in-flight machinery this hook introduced in #430 now
  * lives in `useLazyStalePool` (shared), because the palette's cross-item
- * search (#503) needs the identical contract and the rules in it are each the
- * fix for a real bug — see that file's header. What stays here is the part
+ * search (#503, removed in #2719) needed the identical contract and the rules
+ * in it are each the fix for a real bug — see that file's header. What stays here is the part
  * that is actually about "[[": which lists make up the pool, and the shape the
  * suggestion menu reads.
  *

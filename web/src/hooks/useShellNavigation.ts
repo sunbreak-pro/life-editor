@@ -89,9 +89,8 @@ const ITEM_NAV_TARGET: Record<string, NavDestination | undefined> = {
   note: { section: "materials", tab: "notes" },
   daily: { section: "materials", tab: "daily" },
   task: { section: "schedule" },
-  // Events joined in #503 (palette search). They are NOT offered by the "[["
-  // autocomplete — that pool is built separately (useItemLinkTargets) — so
-  // this route is reached from the palette only, for now.
+  // Events joined in #503 for the palette search (removed in #2719). The
+  // Briefing still opens events through this route.
   event: { section: "schedule" },
 };
 
@@ -243,7 +242,7 @@ export function useShellNavigation({
   );
 
   /*
-   * The bare section switch (nav rail, bottom bar, palette commands). Not the
+   * The bare section switch (nav rail, bottom bar, shortcuts). Not the
    * raw setState any more, so it takes a section id rather than a React
    * updater — every caller already passed one.
    */
@@ -415,8 +414,8 @@ export function useShellNavigation({
    *
    * A second entry point rather than a new default, because the other callers
    * asked for something else. Connect's side trip (#2143 below) is built around
-   * that overlay: closing it is what takes the user back. The Briefing and the
-   * palette have not been asked about. So the descriptors say which one each
+   * that overlay: closing it is what takes the user back. The Briefing has
+   * not been asked about. So the descriptors say which one each
    * section gets.
    *
    * `date` is optional. The inline "[[" click only knows the id and the role, so

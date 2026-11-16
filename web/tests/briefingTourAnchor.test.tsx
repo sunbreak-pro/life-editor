@@ -38,9 +38,7 @@ vi.mock("@life-editor/shared", async (importOriginal) => ({
 }));
 
 function briefingTabDefs() {
-  const { result } = renderHook(() =>
-    useShellChrome({ setSection: vi.fn(), setMaterialsTab: vi.fn() }),
-  );
+  const { result } = renderHook(() => useShellChrome());
   return result.current.briefingTabDefs;
 }
 

@@ -7,8 +7,8 @@ import { fileURLToPath } from "node:url";
 /*
  * #1672 — every <kbd> names its font instead of inheriting preflight's.
  *
- * Tailwind preflight puts `kbd` on --font-mono. Nobody chose that for four of
- * the five keycaps; it just stayed, while the sidebar's hint had to move to
+ * Tailwind preflight puts `kbd` on --font-mono. Nobody chose that for most of
+ * the keycaps; it just stayed, while the sidebar's hint had to move to
  * `font-sans` (#1468) because a fixed-pitch "Ctrl K" overran the row. The
  * result was two typefaces for the same kind of thing on one screen.
  *
@@ -61,9 +61,10 @@ describe("<kbd> font family (#1672)", () => {
   );
 
   it("finds the keycaps it is meant to guard", () => {
-    // A scan that matches nothing would pass vacuously. Four since #2216
-    // took the sidebar's palette row (and its keycap) out.
-    expect(found.length).toBeGreaterThanOrEqual(4);
+    // A scan that matches nothing would pass vacuously. Two since #2719
+    // took the command palette and the header search field (and their
+    // keycaps) out: the shortcut settings' keycap and its edit modal.
+    expect(found.length).toBeGreaterThanOrEqual(2);
   });
 
   it("sets font-sans on every <kbd>", () => {

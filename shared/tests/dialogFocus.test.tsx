@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { useEffect, useRef, useState } from "react";
 import { render, screen, fireEvent, act } from "@testing-library/react";
-import { BottomSheet, CommandPalette, Modal } from "../src/components";
+import { BottomSheet, Modal } from "../src/components";
 import { useEscapeLayer } from "../src/hooks/useDialogA11y";
 
 /*
@@ -348,38 +348,5 @@ describe("dialog focus — the opener is read before the panel can claim it (#18
       fireEvent.keyDown(document, { key: "Escape" }),
     ).not.toThrow();
     expect(opener.isConnected).toBe(false);
-  });
-
-  // The palette is its own dialog, not a <Modal>, so it carries its own copy
-  // of this — it had no focus restore at all before (#1874).
-  it("returns focus to the opener when the command palette closes", async () => {
-    function PaletteHost() {
-      const [open, setOpen] = useState(false);
-      return (
-        <>
-          <button type="button" onClick={() => setOpen(true)}>
-            open palette
-          </button>
-          <CommandPalette
-            isOpen={open}
-            onClose={() => setOpen(false)}
-            commands={[]}
-            placeholder="Search"
-            noResultsLabel="No results"
-          />
-        </>
-      );
-    }
-    render(<PaletteHost />);
-    const opener = screen.getByText("open palette");
-    opener.focus();
-    fireEvent.click(opener);
-    await afterFrame();
-    const field = screen.getByPlaceholderText("Search");
-    expect(document.activeElement).toBe(field);
-
-    fireEvent.keyDown(field, { key: "Escape" });
-
-    expect(document.activeElement).toBe(opener);
   });
 });

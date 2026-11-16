@@ -185,7 +185,7 @@ Notes / Dailies / Schedule Items など RichTextEditor を持つエンティテ�
   - **ノートの表へのタグ付与**（2026-10 #2094 = D-20260927-materials-1 = A）: 表の操作パネルの「タグを付ける」で表が role `table` のアイテムになり、ほかのアイテムと同じようにタグが付く。Connect のタグ別一覧に出て、押すと親のノートが開く。MCP の `tag_entity` / `search_by_tag` も `table` を扱う（`search_by_tag` は親のノートの id を添える）。Daily の本文の表は対象外（計画書 Q1）。規約 → db-conventions §16
   - **管理 UI の所在は Connect セクション**（2026-09-16 #1643 = `D-20260912-main-1` Q1-A。専用モーダルは退役）
 - やらない:
-  - **タグ / リンクのグラフ可視化（力学グラフ）は 2026-08-29 退役**（#1152 — 旧 Connect セクション）。「約 3,700 行の描画層を維持するほどには、検索・タグ・バックリンクと役割が重複していた」が理由で、**データ側（`wiki_tag_connections` / inline リンク sync）は無傷**。関係をたどる導線は Notes の `LinkPanel`（双方向リンク一覧）・コマンドパレット検索・MCP `search_by_tag` / `search_all` が引き継ぐ。当初は再利用可能な部品（`shared/src/components/Backlinks/BacklinkView.tsx` + `shared/src/utils/itemLinks.ts`）を残したが、呼び出し元ゼロの実測により #1239 で削除（D-20260829-connect-1 = B）。リンク一覧は `web/src/wikitag/LinkPanel.tsx` が unified link cache から自前描画する。**2026-08-29 #1171 で「やる」側に移ったのはタグ軸の閲覧だけ** — Connect セクションは Tag hub（タグ一覧 → 種類別のアイテム一覧、`shared/src/components/TagHub/`）として再新設された。力学グラフはこの行のとおり退役のまま
+  - **タグ / リンクのグラフ可視化（力学グラフ）は 2026-08-29 退役**（#1152 — 旧 Connect セクション）。「約 3,700 行の描画層を維持するほどには、検索・タグ・バックリンクと役割が重複していた」が理由で、**データ側（`wiki_tag_connections` / inline リンク sync）は無傷**。関係をたどる導線は Notes の `LinkPanel`（双方向リンク一覧）・~~コマンドパレット検索~~（2026-11-16 #2719 で削除）・MCP `search_by_tag` / `search_all` が引き継ぐ。当初は再利用可能な部品（`shared/src/components/Backlinks/BacklinkView.tsx` + `shared/src/utils/itemLinks.ts`）を残したが、呼び出し元ゼロの実測により #1239 で削除（D-20260829-connect-1 = B）。リンク一覧は `web/src/wikitag/LinkPanel.tsx` が unified link cache から自前描画する。**2026-08-29 #1171 で「やる」側に移ったのはタグ軸の閲覧だけ** — Connect セクションは Tag hub（タグ一覧 → 種類別のアイテム一覧、`shared/src/components/TagHub/`）として再新設された。力学グラフはこの行のとおり退役のまま
   - 複数 entity_type を跨ぐリレーション型タグ（Database の relation プロパティで別対応）
   - 権限管理（個人利用前提、§1 Non-Goals）
   - ~~Todos へのタグ付与（Todo は RichTextEditor を持たないため UI 上で付与経路がなく、タグ管理は CalendarTags に集約。MCP `tag_entity` の entity_type='task' も将来要件として保留）~~ → **2026-07-11 #225 で解除**: life-tags 統一により Todos へのタグ付与は「やる」側（Kanban tag ビュー / assignments）
@@ -430,7 +430,7 @@ Life Editor の全 UI を en / ja で切替可能にする。Settings からい�
   - 6 カテゴリ × 計 29 ショートカットの定義 + Tips 画面での一覧表示
   - ユーザーカスタマイズ（キー割当変更、DB 永続化）
   - 重複検出（同一キーを複数アクションに割当できない）
-  - Cmd+K（コマンドパレット 16 コマンド）/ Ctrl+` （Terminal）/ Cmd+Z（Undo）等の標準キー
+  - ~~Cmd+K（コマンドパレット 16 コマンド）~~（2026-11-16 #2719 でパレットごと削除）/ Ctrl+` （Terminal）/ Cmd+Z（Undo）等の標準キー
 - やらない:
   - Mobile でのショートカット利用（ShortcutConfigProvider 省略、OS キーボード非前提）
   - アプリ外からのグローバルショートカット登録（Tauri global-shortcut 未導入）
@@ -439,13 +439,13 @@ Life Editor の全 UI を en / ja で切替可能にする。Settings からい�
 
 - [ ] AC1: Tips 画面で 29 件 / 6 カテゴリのショートカット一覧が表示され、各カテゴリが折りたたみ可能
 - [ ] AC2: Settings > Advanced でショートカットを別キーに再割当でき、重複は保存時に警告される
-- [ ] AC3: Cmd+K でコマンドパレット、Ctrl+` で Terminal、Cmd+Z で Undo がアプリ全体で動作する
+- [ ] AC3: ~~Cmd+K でコマンドパレット~~（#2719 で削除）、Ctrl+` で Terminal、Cmd+Z で Undo がアプリ全体で動作する
 - [ ] AC4: 再割当は DB に永続化され、再起動後も反映される
 
 ### Dependencies
 
 - DB Tables: `app_settings`（ショートカット設定保存）
-- 他機能: Todos / Schedule / Timer / Settings / CommandPalette / Terminal / UndoRedo
+- 他機能: Todos / Schedule / Timer / Settings / Terminal / UndoRedo（CommandPalette は #2719 で削除）
 
 ---
 

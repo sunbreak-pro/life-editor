@@ -189,9 +189,8 @@ describe("OfflineBanner", () => {
 
 describe("the sidebar's sign-out prompt", () => {
   const prompt = () =>
-    renderHook(() =>
-      useShellChrome({ setSection: () => {}, setMaterialsTab: () => {} }),
-    ).result.current.shellLabels.signOutPrompt;
+    renderHook(() => useShellChrome()).result.current.shellLabels
+      .signOutPrompt;
 
   it("is the plain question with nothing waiting", () => {
     expect(prompt()).toBe("nav.signOutPrompt");

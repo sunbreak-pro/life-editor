@@ -27,14 +27,14 @@ Owner-chat: frontend (orchestrator)
 | 下部ユーティリティ枠 | Settings   | （タブなし・縦一列）                                                                                                              | Settings           |
 
 - **Trash はこの表に無い**（2026-08-30 #1293）— サイドバーの行を畳んで Settings 画面のカテゴリ行へ移設し、`SectionId` からも外した。行が残っているのは Settings だけ
-- フッター: CommandPalette 起動（⌘K）/ ユーザー表示（email）/ サインアウト
+- フッター: ユーザー表示（email）/ サインアウト（~~CommandPalette 起動（⌘K）~~ は 2026-11-16 #2719 でパレットごと削除）
 - 展開 240px / 折畳 64px（アイコンのみ）は現行踏襲
 
 ## header タブの大枠（詳細は各 brief が肉付け・提案してよい範囲）
 
 - **Schedule**: Calendar / Routines の 2 タブ。カレンダー台帳の管理 UI（現 `CalendarView`）を第 3 タブにするか Routines 内・モーダルに畳むかは D1 brief の提案に委ねる → **決着（2026-08-29 #1173）**: どちらでもなく、台帳ごと退役。ツールバーのフィルタアイコンから開くタグ絞り込みパネル（マルチセレクト + 保存グループ）が後継
 - **Materials**: Todos / Notes / Daily / Tags の 4 タブ。タブ間で「新規作成」導線の位置・リスト密度・空状態の意匠を統一する
-- **Connect**: タブなし・単画面の **Tag hub**（タグ一覧 → 選んだタグの Note / Todo / Event / Daily を種類別に一覧・2026-08-29 = #1171）。~~Graph 主タブ + Backlinks~~ は同日退役（#1152）— 力学グラフは検索・タグ・バックリンクと役割が重複していたため撤去し、データ（タグ / アイテム間リンク）と取り出し口は温存した。関係を**リンク**でたどる導線は Notes の LinkPanel とコマンドパレット検索、**トピック**でたどる導線がこの Tag hub
+- **Connect**: タブなし・単画面の **Tag hub**（タグ一覧 → 選んだタグの Note / Todo / Event / Daily を種類別に一覧・2026-08-29 = #1171）。~~Graph 主タブ + Backlinks~~ は同日退役（#1152）— 力学グラフは検索・タグ・バックリンクと役割が重複していたため撤去し、データ（タグ / アイテム間リンク）と取り出し口は温存した。関係を**リンク**でたどる導線は Notes の LinkPanel（~~コマンドパレット検索~~ は #2719 で削除）、**トピック**でたどる導線がこの Tag hub
 - **Analytics**: 現行 4 タブ（Overview / Todos / Work / Schedule）を維持
 - タブ UI 自体（形状・アクティブ表現）は D7 shell brief が定義し、各画面 brief はそれを参照する
 
@@ -56,7 +56,7 @@ Owner-chat: frontend (orchestrator)
 ## セクション外の画面
 
 - **auth（ログイン / サインアップ）**: 未ログイン時の全画面。シェル外・中央寄せカード（D8）
-- **CommandPalette / Toast / OfflineBanner**: 全画面共通のオーバーレイ。意匠は D7 shell が定義
+- **Toast / OfflineBanner**: 全画面共通のオーバーレイ。意匠は D7 shell が定義（~~CommandPalette~~ は #2719 で削除）
 
 ## 廃止
 

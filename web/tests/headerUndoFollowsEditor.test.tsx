@@ -120,17 +120,13 @@ function renderSurface(surface: Surface, body: FakeBody | null, log: string[]) {
   else if (surface === "sheet")
     controls = (
       <ul>
-        <MobileShellActions onOpenPalette={() => {}} closeSheet={() => {}} />
+        <MobileShellActions />
       </ul>
     );
   else
     controls = (
       <ShortcutConfigProvider>
-        <GlobalShortcuts
-          onNavigate={() => {}}
-          onOpenSettings={() => {}}
-          onTogglePalette={() => {}}
-        />
+        <GlobalShortcuts onNavigate={() => {}} onOpenSettings={() => {}} />
       </ShortcutConfigProvider>
     );
   return render(

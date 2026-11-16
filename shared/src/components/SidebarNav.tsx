@@ -108,8 +108,8 @@ export interface SidebarNavProps {
  * Wide-layout sidebar (W5 app shell). Header (brand mark + name + collapse
  * toggle), a scrollable mainline section list, a bottom-pinned utility group
  * (separated by a divider), and a footer with the account row / sign-out.
- * The command palette has no row here (#2216): the header's search field
- * and Cmd/Ctrl+K open it. Collapsible to an icon-only rail. Pure presentation: section
+ * The command palette had no row here since #2216 and was removed in #2719.
+ * Collapsible to an icon-only rail. Pure presentation: section
  * state + labels are injected (§3.1 / §6.4), lumen-* tokens only with an
  * opaque container background (§5).
  */

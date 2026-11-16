@@ -75,7 +75,7 @@ const ENABLED_ITEMS = '[role="menuitem"]:not([aria-disabled="true"])';
 
 /*
  * Dropdown menu popover. No ClaudeDesign catalog card exists for a menu, so
- * this follows the Modal / CommandPalette patterns (per the port brief). NOT
+ * this follows the Modal pattern (per the port brief). NOT
  * portalled: the caller wraps the trigger + <Menu> in a `relative` box and the
  * menu positions itself just below (top-full). OPAQUE panel (bg-lumen-bg, §3.5)
  * — never a translucent popover. a11y: role=menu with roving focus (Arrow /

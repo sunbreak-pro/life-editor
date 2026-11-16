@@ -67,7 +67,6 @@ function renderChain() {
       shortcuts={{
         onNavigate: vi.fn(),
         onOpenSettings: vi.fn(),
-        onTogglePalette: vi.fn(),
         onNewTodo: vi.fn(),
       }}
       currentSection="briefing"

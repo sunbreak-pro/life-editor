@@ -66,9 +66,8 @@ export const SlashMenu = forwardRef<SlashMenuHandle, SlashMenuProps>(
      * The list caps itself (`max-h-72`, or the inline cap the placer hands it)
      * and scrolls, but moving `selected` only repaints the highlight — so ↓ held
      * down walked the selection past the bottom edge and left the user pressing
-     * Enter on a row they could not see. Same fix, same shape as
-     * CommandPalette.tsx: find the row by its index and ask for the nearest
-     * scroll position.
+     * Enter on a row they could not see. The fix: find the row by its index
+     * and ask for the nearest scroll position.
      *
      * Only for a KEY press. `onMouseEnter` also moves `selected`, and scrolling
      * under a stationary pointer slides the next row beneath it, which moves the

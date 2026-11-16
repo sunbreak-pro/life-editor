@@ -28,7 +28,7 @@ export interface SectionHeaderProps {
    */
   tabs?: ReactNode;
   /**
-   * The header's search field (CommandSearchField), drawn just before
+   * A search field, drawn just before
    * `controls`. It sits in its own slot rather than inside `controls` because
    * it is the one control that may narrow when the row runs short (#2508):
    * the slot owns its width, so the field fills it.
