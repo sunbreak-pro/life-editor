@@ -206,3 +206,6 @@
 - 2026-11-16-remove-analytics-section: **セクションごと消す**（朝刊の右パネルが借りている部品だけを移す。実装は #2754。2026-11-16 チャットの AskUserQuestion で回答・chat-main が転記 / 昇格）
 - 2026-11-16-remove-distribution-features: **5 件とも消す**（サインアップとメール確認・アカウント削除・利用規約とプライバシーポリシー・ヘルプ・ツアー。D-20261022-main-1 の「コードに残す」の 1 行だけを置き換える。実装は #2749〜#2753。2026-11-16 チャットの AskUserQuestion で回答・chat-main が転記 / 昇格）
 - 2026-11-16-keep-templates-password-tag-groups: **テンプレート・パスワード・タグのグループを残す**（使っているため。ショートカットの割り当て直しは選ばれず、削除の候補に移す。2026-11-16 チャットの AskUserQuestion で回答・chat-main が転記 / 昇格）
+- 2026-11-16-remove-audio-with-work-screen: **4 件とも消す**（環境音のミキサーと音の土台・完了のチャイム・サイドバーのタイマー表示を Work 画面と一緒に消し、サウンドアイテム #2369 は作らない。2026-11-16 チャットの AskUserQuestion で回答・chat-main が転記 / 昇格）
+- 2026-11-16-clean-up-unreachable-code: **AI のカスタマイズ以外の 11 件を消す**（実装は #2757 と #2758。DB の表と列は DROP しない。2026-11-16 チャットの AskUserQuestion で回答・chat-main が転記 / 昇格）
+- 2026-11-16-keep-daily-pin-and-item-conversion: **デイリーのピンと、予定と Todo の相互変換を残す**（表へのタグ付けとピン付きノートのオフライン保持は選ばれず、削除の候補に移す。2026-11-16 チャットの AskUserQuestion で回答・chat-main が転記 / 昇格）
