@@ -91,13 +91,19 @@ function Get-PendingMarker([string]$Branch) {
 # 作業用 worktree も並ぶので、launcher が作った印（.session-name）が無いものには触らない。
 function Reset-Worktree([string]$Dir, [string]$Branch, [string]$SessionName) {
   $NameFile = Join-Path $Dir ".claude/comm/.session-name"
-  if (Test-Path $Dir) {
+  # worktree を外したあとに空のフォルダだけが残ることがある（Windows で remove が途中で止まったときなど）。
+  # 空なら誰の作業も入っていないので、無いものとして作り直す。印が無いからと断ると、気づかれないまま
+  # 毎日 setup failed で止まり続ける（2026-11-02〜15 の 2 週間、digest と night-safe が 1 度も走らなかった）。
+  $HasContent = (Test-Path $Dir) -and [bool](Get-ChildItem -LiteralPath $Dir -Force | Select-Object -First 1)
+  if ($HasContent) {
     $Owner = ""
     if (Test-Path $NameFile) { $Owner = ([System.IO.File]::ReadAllText($NameFile)).Trim() }
     if ($Owner -ne $SessionName) {
       throw "Refusing to reset $Dir (session-name is '$Owner', expected '$SessionName')"
     }
   } else {
+    # フォルダを手で消した worktree の登録が残っていると add が断られるので、先に外す
+    Invoke-Git $MainRoot @("worktree", "prune") | Out-Null
     Invoke-Git $MainRoot @("worktree", "add", "--detach", $Dir, "origin/main") | Out-Null
   }
   Invoke-Git $Dir @("reset", "--hard", "-q") | Out-Null
