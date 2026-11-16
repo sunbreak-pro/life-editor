@@ -17,7 +17,6 @@ import {
   type ItemCreateOption,
   type NoteNode,
   type ScheduleItem,
-  type TimerSession,
   type TodoNode,
   type TodoStatus,
   type TodayTodoRow,
@@ -115,7 +114,6 @@ export interface BriefingAggregationInput {
   scheduleItems: ScheduleItem[];
   tomorrowItems: ScheduleItem[];
   todoNodes: TodoNode[];
-  sessions: TimerSession[];
   dailyContent: string | null;
   /** The day's morning_comment (0035); read before the body's 朝刊 section. */
   morningComment: string[] | null;
@@ -139,7 +137,6 @@ export function useBriefingAggregation({
   scheduleItems,
   tomorrowItems,
   todoNodes,
-  sessions,
   dailyContent,
   morningComment,
   notes,
@@ -299,10 +296,9 @@ export function useBriefingAggregation({
       schedule,
       todos: todayTodos,
       carryover,
-      sessions,
       todoNodes: liveTodos,
     }),
-    [dateLine, briefing, schedule, todayTodos, carryover, sessions, liveTodos],
+    [dateLine, briefing, schedule, todayTodos, carryover, liveTodos],
   );
 
   //「残りの Todo」— today's unfinished + open carryover, each carrying its real

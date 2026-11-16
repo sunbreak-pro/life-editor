@@ -21,7 +21,6 @@ export const TOUR_SECTION_SUMMARY_KEYS = {
   schedule: "tour.launcher.summary.schedule",
   materials: "tour.launcher.summary.materials",
   connect: "tour.launcher.summary.connect",
-  work: "tour.launcher.summary.work",
   analytics: "tour.launcher.summary.analytics",
   apps: "tour.launcher.summary.apps",
   settings: "tour.launcher.summary.settings",

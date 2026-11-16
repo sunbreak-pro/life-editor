@@ -10,7 +10,6 @@ import {
   Target,
 } from "lucide-react";
 import type { TodoNode, TodoStatus } from "../../types/todoTree";
-import type { TimerSession } from "../../types/timer";
 import { tagFaceStyle } from "../../utils/scheduleTagColor";
 import { SkeletonList } from "../SkeletonList";
 import { TAP_TARGET_TALL } from "../styleTokens";
@@ -142,12 +141,10 @@ export interface BriefingData {
    */
   carryover: BriefingCarryoverEntry[];
   /**
-   * Timer sessions. Not read by this view since #938 — they feed
-   * <BriefingVizPanel> in the detail panel, which the same host mounts from
-   * this same aggregate.
+   * Full todo tree. Not read by this view since #938 — it feeds
+   * <BriefingVizPanel>'s completion trend in the detail panel, which the same
+   * host mounts from this same aggregate.
    */
-  sessions: TimerSession[];
-  /** Full todo tree — same deal: <BriefingVizPanel>'s completion trend. */
   todoNodes: TodoNode[];
 }
 

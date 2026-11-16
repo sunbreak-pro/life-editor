@@ -27,7 +27,6 @@ describe("section registry", () => {
       "schedule",
       "materials",
       "connect",
-      "work",
       "analytics",
       "apps",
       "settings",
@@ -45,13 +44,18 @@ describe("section registry", () => {
     expect(SECTION_IDS).not.toContain("terminal");
   });
 
+  it("no longer carries the Work section (#2717)", () => {
+    // The focus timer was removed with its screen; a stored "work" falls back
+    // through useStartupSection's registry check.
+    expect(SECTION_IDS).not.toContain("work");
+  });
+
   it("splits mainline vs. utility groups", () => {
     expect(MAIN_SECTIONS.map((s) => s.id)).toEqual([
       "briefing",
       "schedule",
       "materials",
       "connect",
-      "work",
       "analytics",
       "apps",
     ]);
@@ -59,17 +63,17 @@ describe("section registry", () => {
   });
 
   it("orders the mobile bottom bar as fixed-4 + More overflow", () => {
-    // Fixed 4 = briefing/schedule/materials/work;
-    // More = analytics/connect/settings. Adding Connect (#1171) moved nothing
-    // on the bar itself — it took the More slot the retired Connect had, which
-    // is what keeps the phone's four first-open sections stable. #1293 dropped
-    // Trash off the end of More for the same reason it left the sidebar.
-    // Apps (#2165) joined More after Connect, and Settings stayed last.
+    // Fixed 4 = briefing/schedule/materials/analytics;
+    // More = connect/apps/settings. Analytics moved up into the fourth slot
+    // when Work left it (#2717). Adding Connect (#1171) moved nothing on the
+    // bar itself — it took the More slot the retired Connect had. #1293
+    // dropped Trash off the end of More for the same reason it left the
+    // sidebar. Apps (#2165) joined More after Connect, and Settings stayed
+    // last.
     expect(MOBILE_SECTIONS.map((s) => s.id)).toEqual([
       "briefing",
       "schedule",
       "materials",
-      "work",
       "analytics",
       "connect",
       "apps",

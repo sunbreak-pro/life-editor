@@ -9,11 +9,7 @@ import {
 } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
-import {
-  i18n,
-  type Session,
-  type TimerContextValue,
-} from "@life-editor/shared";
+import { i18n, type Session } from "@life-editor/shared";
 import { MainScreen } from "../src/MainScreen";
 
 /*
@@ -22,8 +18,8 @@ import { MainScreen } from "../src/MainScreen";
  * The real MainScreen, AppShell, tab band, section descriptors and i18next
  * catalog, so a label that never reaches the button, or a key missing from a
  * locale, fails here. What is stubbed is everything the name does not depend
- * on: the global Provider chain (only RightSidebar, which the toggle reads, and
- * an idle Timer for the sidebar stay) and the section bodies, each of which would otherwise need its own
+ * on: the global Provider chain (only RightSidebar, which the toggle reads,
+ * stays) and the section bodies, each of which would otherwise need its own
  * Providers and a DataService.
  */
 
@@ -43,15 +39,10 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
 });
 
 vi.mock("../src/AppProviders", async () => {
-  const { RightSidebarProvider, TimerContext } =
-    await import("@life-editor/shared");
-  // An idle timer: the sidebar's timer row reads it and then draws nothing.
-  const idleTimer = { isRunning: false } as TimerContextValue;
+  const { RightSidebarProvider } = await import("@life-editor/shared");
   return {
     AppProviders: ({ children }: { children: ReactNode }) => (
-      <TimerContext.Provider value={idleTimer}>
-        <RightSidebarProvider>{children}</RightSidebarProvider>
-      </TimerContext.Provider>
+      <RightSidebarProvider>{children}</RightSidebarProvider>
     ),
   };
 });
@@ -74,16 +65,13 @@ vi.mock("../src/daily/DailyView", () => ({
 vi.mock("../src/briefing/BriefingScreen", () => ({
   BriefingScreen: () => <div data-testid="briefing-body" />,
 }));
-vi.mock("../src/work/WorkScreen", () => ({
-  WorkScreen: () => <div data-testid="work-body" />,
-}));
 
 const SESSION = {
   user: { id: "user-1", email: "a@example.com", user_metadata: {} },
 } as unknown as Session;
 
 /** A navigation row, by the section's label in the current language. */
-function goToSection(key: "section.materials" | "section.work"): void {
+function goToSection(key: "section.materials" | "section.analytics"): void {
   fireEvent.click(screen.getByRole("button", { name: i18n.t(key) }));
 }
 
@@ -174,9 +162,9 @@ describe("rightSidebar toggle name (#2390)", () => {
     fireEvent.click(screen.getByRole("button", { name: "詳細を開く" }));
     expect(screen.getByRole("button", { name: "詳細を閉じる" })).toBeTruthy();
 
-    goToSection("section.work");
+    goToSection("section.analytics");
 
-    screen.getByTestId("work-body");
+    screen.getByTestId("analytics-body");
     expect(screen.getByRole("button", { name: "詳細を閉じる" })).toBeTruthy();
     expect(
       screen.queryByRole("button", { name: "ノート一覧を閉じる" }),

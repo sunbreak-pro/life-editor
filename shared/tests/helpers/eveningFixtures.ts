@@ -31,7 +31,6 @@ export const EVENING_LABELS: EveningLabels = {
   eventsTitle: "WHAT HAPPENED",
   noEvents: "Nothing recorded today yet",
   eventDone: "Done",
-  eventWork: "Work",
   eventNoteButton: "Note",
   eventNoteAdd: (title) => `Add a note: ${title}`,
   eventNoteEdit: (title) => `Edit the note: ${title}`,

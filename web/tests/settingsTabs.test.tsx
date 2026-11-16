@@ -106,7 +106,6 @@ const ROWS = [
   "section.briefing",
   "section.schedule",
   "section.materials",
-  "section.work",
   "section.analytics",
   "settings.tabs.claude",
   "settings.tabs.trash",
@@ -177,7 +176,7 @@ describe("SettingsScreen — the category list (#1174)", () => {
   it("gives a category with no settings yet a reason rather than a blank column", async () => {
     await renderSettings();
 
-    pressRow("section.work");
+    pressRow("section.analytics");
 
     screen.getByText("settings.placeholder.message");
     expect(generalOnScreen()).toBe(false);

@@ -18,7 +18,6 @@ import { DailyView } from "./daily/DailyView";
 import { BriefingScreen } from "./briefing/BriefingScreen";
 import { ScheduleScreen } from "./schedule/ScheduleScreen";
 import { SettingsScreen } from "./settings/SettingsScreen";
-import { WorkScreen } from "./work/WorkScreen";
 import { AppsScreen } from "./apps/AppsScreen";
 // The three heavy screens, code-split behind lazy() — see lazySections.ts.
 import { AnalyticsScreen, NotesView } from "./lazySections";
@@ -67,7 +66,7 @@ export type TabBandId = "materials" | "analytics" | "briefing" | "connect";
  *    longer means "no row": the row is drawn regardless to carry the
  *    app-global Undo/Redo, and the section simply contributes nothing to its
  *    left and middle
- *  - `hamburger`       — the detail-panel hamburger alone (Work / Settings)
+ *  - `hamburger`       — the detail-panel hamburger alone (Settings)
  *  - `tabs`            — the segmented tab control alone, no hamburger. No
  *    section uses it today: Schedule was the last one, until #1033 moved its
  *    hamburger out of the Calendar body and into the band
@@ -142,8 +141,8 @@ export const SECTION_DESCRIPTORS: Readonly<
 > = {
   /*
    * Briefing (Briefing plan Step 1) — the morning-paper home surface and the
-   * default landing section (useStartupSection). Crosses four domains
-   * (schedule / todos / timer / dailies) read-only, so it uses no per-section
+   * default landing section (useStartupSection). Crosses several domains
+   * (schedule / todos / goals / dailies) read-only, so it uses no per-section
    * Provider — BriefingScreen calls the injected DataService directly (same
    * pattern as TrashScreen) and re-fetches on Realtime syncVersion bumps,
    * which is how a briefing written by Claude via MCP appears without a
@@ -337,16 +336,6 @@ export const SECTION_DESCRIPTORS: Readonly<
           />
         </WikiTagsUnifiedProvider>
       ),
-  },
-  /*
-   * Work (W3-B) — Pomodoro timer + TodoSelector + settings/preset editor.
-   * TimerProvider is mounted at the shell level; this view reads
-   * useTimerContext + fetches the todo list via the injected DataService.
-   */
-  work: {
-    width: "wide",
-    narrowHeader: "hamburger",
-    body: ({ ds }) => <WorkScreen dataService={ds} />,
   },
   /*
    * Analytics (W4) — recharts dashboards (Overview/Todos/Work/Schedule). Host

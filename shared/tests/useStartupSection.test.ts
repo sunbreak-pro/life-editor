@@ -22,8 +22,8 @@ describe("resolveInitialSection", () => {
   });
 
   it("resumes the last-visited section when the pref is absent (implicit last)", () => {
-    persistLastSection("work");
-    expect(resolveInitialSection()).toBe("work");
+    persistLastSection("connect");
+    expect(resolveInitialSection()).toBe("connect");
   });
 
   it("resumes the last-visited section when the pref is explicitly 'last'", () => {
@@ -34,12 +34,19 @@ describe("resolveInitialSection", () => {
 
   it("opens a fixed section when the pref is a valid section id", () => {
     localStorage.setItem(STARTUP_KEY, "analytics");
-    persistLastSection("work");
+    persistLastSection("connect");
     expect(resolveInitialSection()).toBe("analytics");
   });
 
   it("falls back to the default for an invalid fixed section id", () => {
     localStorage.setItem(STARTUP_KEY, "does-not-exist");
+    expect(resolveInitialSection()).toBe("briefing");
+  });
+
+  it("falls back to the default for a stored section that was removed (#2717)", () => {
+    localStorage.setItem(LAST_KEY, "work");
+    expect(resolveInitialSection()).toBe("briefing");
+    localStorage.setItem(STARTUP_KEY, "work");
     expect(resolveInitialSection()).toBe("briefing");
   });
 

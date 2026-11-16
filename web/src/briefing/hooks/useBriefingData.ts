@@ -33,7 +33,6 @@ export function useBriefingData(ds: DataService, todayKey: string) {
     todoNodes,
     setTodoNodes,
     todosRead,
-    sessions,
     dailyContent,
     setDailyContent,
     eveningNotes,
@@ -58,7 +57,6 @@ export function useBriefingData(ds: DataService, todayKey: string) {
     scheduleItems,
     tomorrowItems,
     todoNodes,
-    sessions,
     dailyContent,
     morningComment,
     notes,
@@ -96,8 +94,8 @@ export function useBriefingData(ds: DataService, todayKey: string) {
     dailyContent,
     setDailyContent,
     // For the evening paper's rows (#2107): the raw schedule rows (`data`
-    // holds them only as paper entries) and the day's notes. Todo nodes and
-    // sessions are already in `data`.
+    // holds them only as paper entries) and the day's notes. Todo nodes are
+    // already in `data`.
     scheduleItems,
     eveningNotes,
     setEveningNotes,

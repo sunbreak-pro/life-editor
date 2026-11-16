@@ -75,7 +75,6 @@ const DATA: BriefingData = {
   carryover: [
     { id: "c1", title: "Old todo", daysLabel: "3日目", completed: false },
   ],
-  sessions: [],
   todoNodes: [],
 };
 

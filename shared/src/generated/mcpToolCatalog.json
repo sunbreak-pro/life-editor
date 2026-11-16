@@ -1149,41 +1149,6 @@
     }
   },
   {
-    "name": "list_work_sessions",
-    "description": "What the Work timer recorded — the time actually spent, as opposed to what was planned. Defaults to today; pass date for one day or start_date/end_date for a range (local days, inclusive). Returns { range, sessions, totals, hasMore }: `totals` covers the WHOLE range (minutesByType, and byItem ranked by minutes) while `sessions` is capped by limit. A session still running has durationMinutes null and is counted in totals.openSessions rather than as zero.",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "date": {
-          "type": "string",
-          "description": "A single local day, YYYY-MM-DD. Shorthand for start_date = end_date; wins over both."
-        },
-        "start_date": {
-          "type": "string",
-          "description": "First local day of the range, YYYY-MM-DD (inclusive)."
-        },
-        "end_date": {
-          "type": "string",
-          "description": "Last local day of the range, YYYY-MM-DD (inclusive)."
-        },
-        "session_type": {
-          "type": "string",
-          "enum": [
-            "WORK",
-            "BREAK",
-            "LONG_BREAK",
-            "FREE"
-          ],
-          "description": "Only this kind of session. 'FREE' is the open-ended timer, the rest are pomodoro phases. Omit for all."
-        },
-        "limit": {
-          "type": "number",
-          "description": "Max session rows to return (default: 50, capped at 200). Does not affect totals."
-        }
-      }
-    }
-  },
-  {
     "name": "list_goals",
     "description": "List the Briefing goals (目標) of a period, each with its progress and whether it is achieved. Without period_kind: the year, month and week goals of `date` (default today). Each goal carries `achievement` { achieved, via: links|manual|period_end|null, connected, todos {done,total}, children {achieved,total} } and `todos`, the live todos linked directly to it. A week goal is achieved when every linked todo is done; a month / year goal when every child goal is achieved and every directly linked todo is done.",
     "inputSchema": {

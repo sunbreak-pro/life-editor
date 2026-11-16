@@ -12,7 +12,6 @@ import { CONTENT_TOOLS } from "./tools/content.js";
 import { WIKI_TAG_TOOLS } from "./tools/wikiTag.js";
 import { ITEM_LINK_TOOLS } from "./tools/itemLink.js";
 import { TRASH_TOOLS } from "./tools/trash.js";
-import { WORK_TOOLS } from "./tools/work.js";
 import { GOAL_TOOLS } from "./tools/goal.js";
 import { AI_CUSTOMIZATION_TOOLS } from "./tools/aiCustomization.js";
 import { RECORD_TOOLS } from "./tools/record.js";
@@ -52,7 +51,6 @@ export const REMOTE_TOOL_DEFINITIONS: ToolDefinition[] = [
   ...WIKI_TAG_TOOLS,
   ...ITEM_LINK_TOOLS,
   ...TRASH_TOOLS,
-  ...WORK_TOOLS,
   ...GOAL_TOOLS,
   ...AI_CUSTOMIZATION_TOOLS,
   ...RECORD_TOOLS,

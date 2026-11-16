@@ -518,6 +518,8 @@ Schedule への add item 時、Desktop は現在 4 role（Task / Note / Daily / 
 
 ## Section: Work
 
+> ✗RETIRED（2026-11 #2717）: Work セクションはタイマーと音の土台ごと削除しました（[Work 画面と音まわりを消す決定](../../decisions/2026-11-16-remove-audio-with-work-screen.md)）。以下の本文は履歴として残します。
+
 Mobile `work` タブ（Pomodoro Timer）に関する追加要件。
 元 note 原文:
 

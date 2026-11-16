@@ -7,20 +7,15 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import {
-  TimerProvider,
-  clearDomainSnapshots,
-  type DataService,
-} from "@life-editor/shared";
+import { clearDomainSnapshots, type DataService } from "@life-editor/shared";
 import { createBumpableSync, stubDataService } from "./helpers";
 import { TrashScreen } from "../src/trash/TrashScreen";
-import { WorkScreen } from "../src/work/WorkScreen";
 import { AnalyticsScreen } from "../src/analytics/AnalyticsScreen";
 import { useBriefingFetch } from "../src/briefing/hooks/useBriefingFetch";
 import { useFocusNote } from "../src/briefing/hooks/useFocusNote";
 
 /*
- * #1157's acceptance test: the four self-fetching screens must draw what they
+ * #1157's acceptance test: the self-fetching screens must draw what they
  * had instead of a skeleton when the user comes back to them.
  *
  * The shape is always the same, and it is the shape shared/tests/
@@ -111,62 +106,6 @@ describe("Trash — second visit", () => {
   });
 });
 
-// ── Work ───────────────────────────────────────────────────────────────────
-
-const TODOS = [
-  { id: "task-1", type: "task", title: "Write the spec", isDeleted: false },
-];
-
-function workService(): DataService {
-  return stubDataService({
-    fetchTodoTree: vi.fn(async () => TODOS),
-    // #1375: the pick list is todos AND the coming week's events, read in one
-    // `Promise.all`. Leaving this out rejects the whole load, which shows up
-    // here as an empty picker rather than as a replayed one.
-    fetchScheduleItemsByDateRange: vi.fn(async () => []),
-    fetchTimerSettings: vi.fn(async () => ({ targetSessions: 4 })),
-    fetchTimerSessions: vi.fn(async () => []),
-    fetchPomodoroPresets: vi.fn(async () => []),
-  }) as DataService;
-}
-
-function renderWork(ds: DataService) {
-  const { wrapper: SyncWrapper } = createBumpableSync();
-  return render(
-    <SyncWrapper>
-      <TimerProvider dataService={ds}>
-        <WorkScreen dataService={ds} />
-      </TimerProvider>
-    </SyncWrapper>,
-  );
-}
-
-describe("Work — second visit", () => {
-  it("has the pick list before the refetch lands", async () => {
-    const ds = workService();
-    const first = renderWork(ds);
-    await waitFor(() =>
-      expect(
-        ds.fetchTodoTree as unknown as ReturnType<typeof vi.fn>,
-      ).toHaveBeenCalled(),
-    );
-    first.unmount();
-
-    const pending = deferred<unknown[]>();
-    (
-      ds.fetchTodoTree as unknown as ReturnType<typeof vi.fn>
-    ).mockReturnValueOnce(pending.promise);
-
-    renderWork(ds);
-    // While the host is fetching, PomodoroTodoSelector swaps its trigger for a
-    // skeleton bar. The trigger being present on the FIRST frame is exactly
-    // "the pick list came back without a load".
-    screen.getByRole("button", { name: "Free session" });
-
-    pending.resolve(TODOS);
-  });
-});
-
 // ── Briefing ───────────────────────────────────────────────────────────────
 
 /*
@@ -182,7 +121,6 @@ function briefingService(): DataService {
   return stubDataService({
     fetchScheduleItemsByDate: vi.fn(async () => []),
     fetchTodoTree: vi.fn(async () => []),
-    fetchTimerSessions: vi.fn(async () => []),
     getDailyByDateUnified: vi.fn(async () => ({ content: "morning" })),
     listNotesUnified: vi.fn(async () => []),
     listAllTagConnections: vi.fn(async () => []),
@@ -252,7 +190,6 @@ describe("Briefing — second visit", () => {
     for (const name of [
       "fetchScheduleItemsByDate",
       "fetchTodoTree",
-      "fetchTimerSessions",
       "getDailyByDateUnified",
       "listNotesUnified",
       "listAllTagConnections",

@@ -416,7 +416,6 @@ function DesktopAnalytics({
                     workTimeChart: { workTime: labels.workTime },
                     heatmap: labels.heatmap,
                     pomodoroRate: labels.pomodoroRate,
-                    workBreak: labels.workBreak,
                     timeline: {
                       title: labels.timeline.title,
                       noSessions: labels.timeline.noSessions,

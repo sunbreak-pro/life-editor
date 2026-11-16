@@ -290,16 +290,6 @@ const VALID_CALLS: Array<[string, Record<string, unknown>]> = [
   ],
   ["delete_record", { id: "record-1" }],
   ["list_extension_apps", {}],
-  ["list_work_sessions", {}],
-  [
-    "list_work_sessions",
-    {
-      start_date: "2026-09-14",
-      end_date: "2026-09-15",
-      session_type: "WORK",
-      limit: 10,
-    },
-  ],
   ["set_schedule_complete", { id: "si-1", completed: true }],
   ["set_schedule_dismissed", { id: "si-1", dismissed: false }],
   ["list_routines", {}],

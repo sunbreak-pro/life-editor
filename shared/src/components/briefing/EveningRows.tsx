@@ -20,7 +20,6 @@ export interface EveningEventEntry extends EveningEvent {
 export interface EveningRowLabels {
   allDay: string;
   eventDone: string;
-  eventWork: string;
   eventNoteButton: string;
   eventNoteAdd: (title: string) => string;
   eventNoteEdit: (title: string) => string;
@@ -39,10 +38,7 @@ const ROW_INPUT =
   "rounded-lumen-sm border border-lumen-border bg-lumen-bg px-2 py-1 text-base text-lumen-text outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11 md:text-sm";
 
 function eventTime(entry: EveningEvent, allDay: string): string {
-  if (entry.startTime === null) return allDay;
-  return entry.endTime === null
-    ? entry.startTime
-    : `${entry.startTime}–${entry.endTime}`;
+  return entry.startTime ?? allDay;
 }
 
 export function EveningEventRow({
@@ -59,21 +55,11 @@ export function EveningEventRow({
   // Enter / Esc close the field, and the blur that follows the unmount must
   // not save a second time (or save what Esc just threw away).
   const closedRef = useRef(false);
-  const kind =
-    entry.kind === "todo"
-      ? labels.eventDone
-      : entry.kind === "session"
-        ? labels.eventWork
-        : null;
-  // The spoken name carries the time and the kind as well as the title: a
-  // todo worked on and then done gives two rows with the same title, and a
-  // screen reader could not tell their note buttons apart otherwise. A
-  // session with nothing to name it reads「作業」once, not「作業 作業」.
-  const name = [
-    eventTime(entry, labels.allDay),
-    kind,
-    entry.title ?? (kind === null ? labels.eventWork : null),
-  ]
+  const kind = entry.kind === "todo" ? labels.eventDone : null;
+  // The spoken name carries the time and the kind as well as the title: an
+  // event and a todo can share a title, and a screen reader could not tell
+  // their note buttons apart otherwise.
+  const name = [eventTime(entry, labels.allDay), kind, entry.title]
     .filter((part): part is string => part !== null)
     .join(" ");
 
@@ -101,11 +87,9 @@ export function EveningEventRow({
             {kind}
           </span>
         )}
-        {entry.title !== null && (
-          <span className="min-w-0 flex-1 text-sm text-lumen-text">
-            {entry.title}
-          </span>
-        )}
+        <span className="min-w-0 flex-1 text-sm text-lumen-text">
+          {entry.title}
+        </span>
         {draft === null && entry.note === null && (
           <button
             type="button"

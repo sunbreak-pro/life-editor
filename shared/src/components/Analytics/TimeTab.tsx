@@ -16,10 +16,6 @@ import {
   PomodoroCompletionRate,
   type PomodoroCompletionRateLabels,
 } from "./PomodoroCompletionRate";
-import {
-  WorkBreakBalance,
-  type WorkBreakBalanceLabels,
-} from "./WorkBreakBalance";
 import { DailyTimeline, type DailyTimelineLabels } from "./DailyTimeline";
 import { AnalyticsEmptyState } from "./AnalyticsEmptyState";
 import type { ChartAxisFormat } from "./chartTheme";
@@ -40,7 +36,6 @@ export interface TimeTabLabels {
   workTimeChart: WorkTimeChartLabels;
   heatmap: WorkTimeHeatmapLabels;
   pomodoroRate: PomodoroCompletionRateLabels;
-  workBreak: WorkBreakBalanceLabels;
   timeline: DailyTimelineLabels;
   todoWorkTime: TodoWorkTimeChartLabels;
 }
@@ -137,12 +132,6 @@ export function TimeTab({
           days={days}
           targetPerDay={targetPerDay}
           labels={labels.pomodoroRate}
-          axis={labels.axis}
-        />
-        <WorkBreakBalance
-          sessions={sessions}
-          days={days}
-          labels={labels.workBreak}
           axis={labels.axis}
         />
         <DailyTimeline

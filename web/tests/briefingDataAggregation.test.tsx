@@ -446,7 +446,6 @@ describe("useBriefingData — evening blocks (#892)", () => {
       dayStartHour: 4,
       scheduleItems: result.current.scheduleItems,
       todos: [],
-      sessions: [],
       now: new Date(),
     }).map((e) => e.key);
     expect(happened).toEqual(["event:s-evening"]);
@@ -564,7 +563,6 @@ describe("attachBriefingTags (#2223)", () => {
       { id: "t1", title: "Todo", status: "NOT_STARTED", startTime: "", purposes: [] },
     ],
     carryover: [],
-    sessions: [],
     todoNodes: [],
   };
 

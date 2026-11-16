@@ -76,7 +76,6 @@ const DATA: BriefingData = {
     },
   ],
   carryover: [],
-  sessions: [],
   todoNodes: [],
 };
 

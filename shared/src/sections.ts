@@ -31,7 +31,6 @@ import {
   Clock,
   Library,
   Tags,
-  Timer,
   BarChart3,
   Blocks,
   Settings,
@@ -108,8 +107,7 @@ export const SECTIONS = [
   /*
    * Connect (#1171) — the topic-axis entrance, paired with Schedule's
    * time-axis one. Sits straight after Materials because those three are the
-   * ways INTO the records (when / what / about what), and before Work, which
-   * is a thing you do rather than a thing you read.
+   * ways INTO the records (when / what / about what).
    *
    * `mobileOrder: 5` puts it in the More sheet, not the fixed bottom four.
    * Deliberate: the phone's job is consumption and quick capture (§2), and the
@@ -123,13 +121,6 @@ export const SECTIONS = [
     icon: Tags,
     labelKey: "section.connect",
     mobileOrder: 5,
-  },
-  {
-    id: "work",
-    group: "main",
-    icon: Timer,
-    labelKey: "section.work",
-    mobileOrder: 3,
   },
   {
     id: "analytics",

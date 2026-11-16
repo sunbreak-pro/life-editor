@@ -1,7 +1,6 @@
 import type { DailyNode } from "../../types/daily";
 import type { Goal, GoalPeriodKind } from "../../types/goal";
 import type { ScheduleItem } from "../../types/schedule";
-import type { TimerSession } from "../../types/timer";
 import type { TodoNode } from "../../types/todoTree";
 import { dateKeyOfInstant, todayDateKey } from "../../utils/dateKey";
 import {
@@ -9,7 +8,6 @@ import {
   type GoalAchievementLink,
 } from "../../utils/goalAchievement";
 import { addDaysKey } from "../../utils/scheduleGridLayout";
-import { isCountedSession, isManualSession } from "../../utils/timerSessions";
 import { extractEveningSection } from "./eveningSection";
 import {
   applyGoalLinkEdit,
@@ -24,7 +22,7 @@ import {
  * and lists, as plain functions of the day's rows.
  *
  * Standalone and argument-driven on purpose: the Daily rebuild (#2123, Step
- * 13) prints the same four numbers under its body for ANY past day, and the
+ * 13) prints the same numbers under its body for ANY past day, and the
  * plan forbids a second way of counting them (D-20261006-main-3). So the day
  * and its start hour come in as arguments rather than being read off the
  * clock or localStorage here.
@@ -79,12 +77,6 @@ const liveEvent = (s: ScheduleItem, dateKey: string): boolean =>
 const isAllDayEvent = (s: ScheduleItem): boolean =>
   s.isAllDay === true || s.startTime === "";
 
-/** A counted, finished WORK session — what "worked" means on the paper. */
-const isWorkDone = (
-  s: TimerSession,
-): s is TimerSession & { duration: number; completedAt: Date } =>
-  s.sessionType === "WORK" && isCountedSession(s) && s.completedAt !== null;
-
 const doneInWindow = (
   t: TodoNode,
   w: { start: number; end: number },
@@ -94,15 +86,12 @@ const doneInWindow = (
 // ── 今日の出来事 ─────────────────────────────────────────────────────────
 
 export interface EveningEvent {
-  /** The evening_notes key: `event:<id>` / `todo:<id>` / `session:<id>`. */
+  /** The evening_notes key: `event:<id>` / `todo:<id>`. */
   key: string;
-  kind: "event" | "todo" | "session";
-  /** Null only for a session with nothing to name it (host prints「作業」). */
-  title: string | null;
+  kind: "event" | "todo";
+  title: string;
   /** Local "HH:MM"; null = an all-day event. */
   startTime: string | null;
-  /** Sessions only. */
-  endTime: string | null;
 }
 
 export interface EveningDayInput {
@@ -110,20 +99,19 @@ export interface EveningDayInput {
   dayStartHour: number;
   scheduleItems: readonly ScheduleItem[];
   todos: readonly TodoNode[];
-  sessions: readonly TimerSession[];
 }
 
-const KIND_ORDER = { event: 0, session: 1, todo: 2 } as const;
+const KIND_ORDER = { event: 0, todo: 1 } as const;
 
 /**
- * The day's events, completed todos and work sessions on one time line. With
+ * The day's events and completed todos on one time line. With
  * `now`, events that have not started yet stay off it — they are still
  * 「今後の予定」, not something that happened.
  */
 export function eveningEvents(
   input: EveningDayInput & { now?: Date },
 ): EveningEvent[] {
-  const { dateKey, dayStartHour, scheduleItems, todos, sessions, now } = input;
+  const { dateKey, dayStartHour, scheduleItems, todos, now } = input;
   const w = eveningDayWindow(dateKey, dayStartHour);
   const rows: Array<{ at: number; row: EveningEvent }> = [];
   const add = (at: number, row: EveningEvent): void => {
@@ -142,7 +130,6 @@ export function eveningEvents(
       kind: "event",
       title: s.title,
       startTime: allDay ? null : s.startTime,
-      endTime: null,
     });
   }
 
@@ -153,32 +140,11 @@ export function eveningEvents(
       kind: "todo",
       title: t.title,
       startTime: hhmm(t.completedAt),
-      endTime: null,
-    });
-  }
-
-  for (const s of sessions) {
-    if (!isWorkDone(s) || !inWindow(s.startedAt, w)) continue;
-    const title =
-      (s.todoId != null ? todos.find((t) => t.id === s.todoId)?.title : null) ??
-      (s.eventId != null
-        ? scheduleItems.find((e) => e.id === s.eventId)?.title
-        : null) ??
-      // #2407: a hand-entered row's label is an identifier, not a name.
-      (s.label !== null && s.label.trim() !== "" && !isManualSession(s)
-        ? s.label
-        : null);
-    add(new Date(s.startedAt).getTime(), {
-      key: `session:${s.id}`,
-      kind: "session",
-      title,
-      startTime: hhmm(s.startedAt),
-      endTime: hhmm(s.completedAt),
     });
   }
 
   // Ordered by the instant, not the "HH:MM" text: with a late day-start hour
-  // a 01:00 session belongs AFTER the evening, though its text sorts first.
+  // a todo done at 01:00 belongs AFTER the evening, though its text sorts first.
   // (Two all-day rows give -Infinity - -Infinity = NaN, which falls through
   // to the kind order like a tie.)
   return rows
@@ -196,31 +162,22 @@ export interface EveningDayCounts {
   todosTotal: number;
   /** done / total, null when nothing was scheduled. */
   todoRate: number | null;
-  /** Counted, finished WORK sessions that started inside the day. Unrounded. */
-  workMinutes: number;
 }
 
 /** The numbers the evening paper's「今日の出来事」header and #2123's Daily print. */
 export function eveningDayCounts(input: EveningDayInput): EveningDayCounts {
-  const { dateKey, dayStartHour, scheduleItems, todos, sessions } = input;
-  const w = eveningDayWindow(dateKey, dayStartHour);
+  const { dateKey, dayStartHour, scheduleItems, todos } = input;
   // The day a todo is scheduled on follows the day-start hour, the same rule
   // tomorrowCandidates and「明日に置く」use.
   const scheduled = todos.filter(
     (t) => t.isDeleted !== true && todoDayOf(t, dayStartHour) === dateKey,
   );
   const todosDone = scheduled.filter((t) => t.status === "DONE").length;
-  let workMinutes = 0;
-  for (const s of sessions) {
-    if (isWorkDone(s) && inWindow(s.startedAt, w))
-      workMinutes += s.duration / 60;
-  }
   return {
     events: scheduleItems.filter((s) => liveEvent(s, dateKey)).length,
     todosDone,
     todosTotal: scheduled.length,
     todoRate: scheduled.length === 0 ? null : todosDone / scheduled.length,
-    workMinutes,
   };
 }
 

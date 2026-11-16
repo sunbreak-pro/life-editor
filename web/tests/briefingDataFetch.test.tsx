@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
-import type { DataService, TimerSession } from "@life-editor/shared";
+import type { DataService } from "@life-editor/shared";
 import { makeTodo, stubDataService } from "./helpers";
 import {
   briefingReads,
@@ -14,7 +14,7 @@ import { useBriefingData } from "../src/briefing/hooks/useBriefingData";
 /*
  * Briefing's data layer, FETCH half (#892).
  *
- * The paper is assembled from seven reads fanned out through
+ * The paper is assembled from six reads fanned out through
  * `Promise.allSettled`, and every failure mode of that fan-out is silent by
  * construction: a read that is never called leaves its block permanently
  * empty, a read that rejects is swallowed by allSettled, and a domain missing
@@ -54,10 +54,12 @@ describe("useBriefingData — fetching (#892)", () => {
     const byDate = mockOf(ds, "fetchScheduleItemsByDate");
     expect(byDate.mock.calls.map((c) => c[0])).toEqual([TODAY, TOMORROW]);
     expect(mockOf(ds, "fetchTodoTree")).toHaveBeenCalledTimes(1);
-    expect(mockOf(ds, "fetchTimerSessions")).toHaveBeenCalledTimes(1);
     expect(mockOf(ds, "getDailyByDateUnified")).toHaveBeenCalledWith(TODAY);
     expect(mockOf(ds, "listNotesUnified")).toHaveBeenCalledTimes(1);
     expect(mockOf(ds, "listAllTagConnections")).toHaveBeenCalledTimes(1);
+    // The work log has no reader on the paper since the Work section and its
+    // widgets were removed (#2717).
+    expect(mockOf(ds, "fetchTimerSessions")).not.toHaveBeenCalled();
   });
 
   it("starts on the skeleton and leaves it once the reads settle", async () => {
@@ -74,7 +76,7 @@ describe("useBriefingData — fetching (#892)", () => {
         scheduleByDate: { [TODAY]: [scheduleItem({ id: "s1", date: TODAY })] },
         todos: [makeTodo({ id: "t1", title: "Write report" })],
       }),
-      fetchTimerSessions: vi.fn().mockRejectedValue(new Error("offline")),
+      listAllTagConnections: vi.fn().mockRejectedValue(new Error("offline")),
     });
     const { result } = renderData(ds);
 
@@ -82,7 +84,6 @@ describe("useBriefingData — fetching (#892)", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.data.schedule).toHaveLength(1);
     expect(result.current.data.todoNodes).toHaveLength(1);
-    expect(result.current.data.sessions).toEqual([]);
   });
 
   it("refetches when any domain it reads is bumped", async () => {
@@ -93,10 +94,6 @@ describe("useBriefingData — fetching (#892)", () => {
     for (const domain of [
       "schedule",
       "todos",
-      // #993: the session log lives on its own counter — Briefing reads
-      // fetchTimerSessions, so this is the domain its streak / work-break
-      // widgets follow.
-      "sessions",
       "dailies",
       "notes",
       "tags",
@@ -109,72 +106,19 @@ describe("useBriefingData — fetching (#892)", () => {
     }
   });
 
-  it("republishes the session log itself when the sessions domain moves", async () => {
-    // #993 — the loop above proves the EFFECT re-ran (it counts fetchTodoTree).
-    // It cannot tell that apart from a refetch whose rows are dropped on the
-    // way back, and dropping them is exactly what breaks Briefing's live
-    // streak. So this asserts on the read that matters and on the state the
-    // widgets are handed. `shared/tests/briefingVizPanelStreak.test.tsx` owns
-    // the other half — that those rows reach the number on screen.
-    const LATER: TimerSession[] = [
-      {
-        id: 1,
-        todoId: null,
-        sessionType: "WORK",
-        startedAt: new Date("2026-08-15T10:00:00Z"),
-        completedAt: new Date("2026-08-15T10:25:00Z"),
-        duration: 25 * 60,
-        completed: true,
-        label: null,
-      },
-    ];
-    const ds = stubDataService({
-      ...briefingReads(),
-      fetchTimerSessions: vi
-        .fn()
-        .mockResolvedValueOnce([])
-        .mockResolvedValue(LATER),
-    });
-    const { result, harness } = renderData(ds);
-    await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.data.sessions).toEqual([]);
-
-    act(() => harness.sync.bump("sessions"));
-
-    await waitFor(() => expect(result.current.data.sessions).toEqual(LATER));
-  });
-
-  it("does not re-read the session log when the timer SETTINGS domain moves", async () => {
-    // The mirror of the above, asserted on the session read rather than
-    // through fetchTodoTree. Since #993 split the two counters, a pomodoro
-    // press moves `sessions`, not `timer` — if Briefing drifted back onto
-    // `timer` this would start passing for the wrong reason, so both
-    // directions are pinned.
-    const ds = makeDS();
-    const { result, harness } = renderData(ds);
-    await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(mockOf(ds, "fetchTimerSessions")).toHaveBeenCalledTimes(1);
-
-    act(() => harness.sync.bump("timer"));
-    await act(async () => {});
-
-    expect(mockOf(ds, "fetchTimerSessions")).toHaveBeenCalledTimes(1);
-  });
-
   it("ignores domains it does not read", async () => {
     const ds = makeDS();
     const { result, harness } = renderData(ds);
     await waitFor(() => expect(result.current.loading).toBe(false));
     const before = mockOf(ds, "fetchTodoTree").mock.calls.length;
 
-    // Reading the timer settings WRITES (#499), so an over-declared domain is
-    // not merely wasted traffic — this is the assertion that keeps the list
-    // from being widened "just in case". Since #993 the timer SETTINGS counter
-    // is one of the domains it must ignore: Briefing reads the session log,
-    // not the settings.
-    act(() => harness.sync.bump("audio"));
+    // An over-declared domain refetches the whole paper for nothing — this is
+    // the assertion that keeps the list from being widened "just in case".
+    // The timer family has no reader here since #2717 removed the streak and
+    // work/break widgets, so the session log is ignored too.
     act(() => harness.sync.bump("audio"));
     act(() => harness.sync.bump("timer"));
+    act(() => harness.sync.bump("sessions"));
 
     await Promise.resolve();
     expect(mockOf(ds, "fetchTodoTree").mock.calls.length).toBe(before);

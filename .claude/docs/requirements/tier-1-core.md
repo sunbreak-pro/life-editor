@@ -22,7 +22,7 @@
 
 ### Purpose
 
-1 日 1 周ループ（朝刊 = 読む → Schedule = 組む → Work = 没入 → 夕刊 = 閉じる → Claude 分析 → 翌朝刊）の「読む」面。今日の文脈を新聞の紙面のように読み下せるホーム面で、Schedule から閲覧責務を移譲した（`2026-07-14-schedule-redesign.md` §1）。朝刊の講評は 2026-10 から `dailies_payload.morning_comment` 列に保存し、書き手は Claude（`write_briefing`）です（D-20261007-briefing-1）。それより前の日は、当日 DailyNode content 内の「朝刊」見出しセクションに残っていて、列が無い日だけそちらを読みます。
+1 日 1 周ループ（朝刊 = 読む → Schedule = 組む → 夕刊 = 閉じる → Claude 分析 → 翌朝刊。Work = 没入の面は 2026-11 #2717 で削除）の「読む」面。今日の文脈を新聞の紙面のように読み下せるホーム面で、Schedule から閲覧責務を移譲した（`2026-07-14-schedule-redesign.md` §1）。朝刊の講評は 2026-10 から `dailies_payload.morning_comment` 列に保存し、書き手は Claude（`write_briefing`）です（D-20261007-briefing-1）。それより前の日は、当日 DailyNode content 内の「朝刊」見出しセクションに残っていて、列が無い日だけそちらを読みます。
 
 ### Boundary
 
@@ -57,8 +57,8 @@
 ### Dependencies
 
 - DB Tables: `goals_payload` / `goal_todo_links`（目標）と `dailies_payload` の `morning_comment` / `evening_published_at` / `evening_notes`（2026-10〜）。夕刊の文章と気分は今も `dailies_payload.content_json` 内の見出しセクション
-- 読み取り: ScheduleItem（今日の約束）/ TodoNode（今日のタスク・持ち越し）/ TimerSession + タスクツリー（視覚ゾーン）/ WikiTagsUnified リンク（タスク行の purposes）
-- 他機能: Daily（朝刊・夕刊の保存先）/ Schedule（閲覧責務の移譲元）/ Todos / Work（Timer sessions）/ Analytics（視覚ゾーンのウィジェット移入元 — tier-3 凍結中）/ MCP Server（Step 2 の書き込み経路）
+- 読み取り: ScheduleItem（今日の約束）/ TodoNode（今日のタスク・持ち越し）/ タスクツリー（視覚ゾーンの完了推移。連続記録と作業・休憩の割合は #2717 で外し、`timer_sessions` は読まない）/ WikiTagsUnified リンク（タスク行の purposes）
+- 他機能: Daily（朝刊・夕刊の保存先）/ Schedule（閲覧責務の移譲元）/ Todos / Analytics（視覚ゾーンのウィジェット移入元 — tier-3 凍結中）/ MCP Server（Step 2 の書き込み経路）
 - 子計画: `2026-07-14-schedule-redesign.md`（「組む」）/ `2026-07-16-loop-friction-fixes.md`（F-1 / F-2 / F-6 — COMPLETED・`archive/` 移動済）
 
 ### Known Issues / Tech Debt
@@ -120,7 +120,7 @@ TodoTree を SSOT として、日次実行対象（Schedule）と長期構造（
 - [ ] AC5: 任意のタスクを削除するとゴミ箱に移動（`is_deleted=1`）、TrashView から復元または完全削除できる（旧フォルダ行は 2026-07-11 #225 以降 fetch 時に除外され UI に出ない）
 - [ ] AC6: Cmd+Z で直前の作成 / 移動 / 削除 / ステータス変更を 1 ステップずつ取り消し、Cmd+Shift+Z でやり直せる
 - [ ] AC7: タスクに `scheduledAt` を設定すると Schedule ビュー（Calendar / DayFlow）に同じアイテムとして表示され、どちらで編集しても双方に反映される（2026-07-14 注記: **未達** — `scheduledAt` / `scheduledEndAt` / `isAllDay` は型・Mapper・MCP に存在するが UI 出現 0 件。旧 DayFlow は退役済みのため表示先は Calendar（Week / Day / Month / 今日の流れ）に読み替え。Schedule 再設計 Step 1–3 で実装予定 → [`2026-07-14-schedule-redesign.md`](../../archive/2026-07-14-schedule-redesign.md)（COMPLETED で archive 済））
-- [ ] AC8: 実行中タスクには TodoTree 行に残り時間 + ミニプログレスバーが表示され、Work 画面 / サイドバーのタイマー表示と同じ値を示す
+- [ ] ~~AC8: 実行中タスクには TodoTree 行に残り時間 + ミニプログレスバーが表示され、Work 画面 / サイドバーのタイマー表示と同じ値を示す~~（#2717 でタイマーごと削除）
 - [ ] AC9: Claude Code が MCP `get_todo_tree` を呼ぶと、現在のアプリ UI に表示されているツリー構造と一致する階層（`max_depth` / `include_done` で絞込可）が返る
 - [ ] ~~AC10: フォルダに `color` を設定すると配下の新規タスクに継承され、フォルダ自身は `getColorByIndex` により自動で割当色を持つ~~ → **Retired (2026-07-11 #225)**: 色はタグ（life-tags）側が保持 — folder→tag 変換で色は tag へ継承済み
 
@@ -439,8 +439,8 @@ Claude Code に対し life-editor データを CRUD させるための MCP イ�
 ### Boundary
 
 - やる:
-  - Todos / Daily / Notes / Note context / Schedule / Wiki Tags / Item links / Content / Search / Trash / Work sessions の各ドメインツール（内訳・総数はコード `mcp-server/src/tools.ts` が正）
-  - 稼働時間（`timer_sessions`）は**読むだけ**: 開始・終了はその瞬間の行為なので、ツールから閉じられると「実際には使っていない時間」を書けてしまう
+  - Todos / Daily / Notes / Note context / Schedule / Wiki Tags / Item links / Content / Search / Trash の各ドメインツール（内訳・総数はコード `mcp-server/src/tools.ts` が正）
+  - 稼働時間（`timer_sessions`）を読む道具 `list_work_sessions` は #2717 で外した。表は残っている
   - Supabase Postgres へ owner 資格（env のメール + パスワード）でサインインし、統合スキーマ（`items_meta` + `<role>_payload`）に RLS 越しでアクセス（web クライアントと同じ権限モデル）
   - stdio JSON-RPC 通信（Claude Code の `claude` コマンドが自動接続）。同じハンドラを Remote MCP（Cloudflare Workers 上の Streamable HTTP・スマホの Claude アプリのカスタムコネクタ用・D-20260909-mcp-mobile-1）でも出す。ツール集合の正本は `mcp-server/src/remoteTools.ts`、`tools.ts` はそれに verification harness（`node:fs` の台帳）を足したもの
   - 引数スキーマの型安全性（各 handler で zod / JSON Schema 検証）

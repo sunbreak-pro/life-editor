@@ -96,8 +96,8 @@ function Surface({ section }: { section: SectionId }): ReactNode {
       <button type="button" onClick={() => tour.startSection("materials")}>
         go-materials
       </button>
-      <button type="button" onClick={() => tour.startSection("work")}>
-        go-work
+      <button type="button" onClick={() => tour.startSection("connect")}>
+        go-connect
       </button>
       <button type="button" onClick={tour.next}>
         next
@@ -215,10 +215,10 @@ describe("startSection walks one section", () => {
   it("does nothing at all for a section with no steps", async () => {
     render(<Harness />);
 
-    press("go-work");
+    press("go-connect");
     await afterFrame();
 
-    // Not "opens Work and shows nothing": a run with an empty list would
+    // Not "opens Connect and shows nothing": a run with an empty list would
     // navigate first and give up after, leaving the user in a section they
     // only asked about.
     expect(state()).toContain("none|idle");

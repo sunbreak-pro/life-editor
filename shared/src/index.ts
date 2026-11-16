@@ -864,31 +864,9 @@ export type {
   WikiTagConnectionOrigin,
 } from "./types/wikiTagUnified";
 
-// Timer domain (W3-B) — Pomodoro Provider + context hook + pure reducer
-// helpers (start-time based) + domain types. The reducer helpers are
-// exported so hosts/tests can compute elapsed/remaining without the Provider.
-export { TimerProvider, type TimerProviderProps } from "./context";
-export {
-  TimerContext,
-  type TimerContextValue,
-  // #714: the save button's patch + the durations a preset carries.
-  type TimerSettingsPatch,
-  type TimerPresetValues,
-  type TimerPhase,
-  type ActiveWorkItem,
-} from "./context";
-export { useTimerContext } from "./hooks/useTimerContext";
-export {
-  timerReducer,
-  createInitialState,
-  remainingSeconds,
-  elapsedSeconds,
-  nextBreakPhase,
-  DEFAULT_CONFIG,
-  type TimerState,
-  type TimerAction,
-  type TimerConfig,
-} from "./context/timerReducer";
+// Timer domain types — the timer_sessions / timer_settings rows the
+// DataService still reads (Analytics, the work-time fields). The Pomodoro
+// Provider and the Work section were removed in #2717.
 export type {
   TimerSettings,
   TimerSession,
@@ -898,28 +876,6 @@ export type {
   WorkTarget,
   WorkTargetKind,
 } from "./types/timer";
-
-// Audio domain (W3-C) — ambient mixer Provider + OPTIONAL context hook + the
-// 5 preset definitions / helpers. Audio is a §2 Mobile 省略 Provider, so the
-// hook is null-safe (useAudioContext).
-export { AudioProvider, type AudioProviderProps } from "./context";
-export {
-  AudioContext,
-  type AudioContextValue,
-  type AudioPresetState,
-} from "./context";
-export { useAudioContext } from "./hooks/useAudioContext";
-export {
-  SOUND_PRESETS,
-  COMPLETION_SOUND_OBJECT,
-  DEFAULT_SOUND_VOLUME,
-  DEFAULT_SOUND_ENABLED,
-  SOUND_VOLUME_MIN,
-  SOUND_VOLUME_MAX,
-  clampSoundVolume,
-  mergeSoundSettings,
-  type SoundPresetDef,
-} from "./constants/sounds";
 
 // Todos domain — tree utilities (host UI builds on these)
 export {

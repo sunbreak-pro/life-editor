@@ -7,13 +7,12 @@ import {
   useSyncDomains,
   type DataService,
   type ScheduleItem,
-  type TimerSession,
   type TodoNode,
 } from "@life-editor/shared";
 
 /*
- * The four numbers under the Daily body (#2123, D-20261006-main-7): the
- * day's events, its todo rate, its work time and the goals it moved.
+ * The numbers under the Daily body (#2123, D-20261006-main-7): the day's
+ * events, its todo rate and the goals it moved.
  *
  * Counted by the evening paper's own functions (eveningDayCounts /
  * goalsMovedToday) so the two screens cannot disagree — the plan forbids a
@@ -32,8 +31,6 @@ export interface DayFigures {
   events: number;
   todosDone: number;
   todosTotal: number;
-  /** Unrounded minutes. */
-  workMinutes: number;
   /** Null until the goals land (or when their read failed). */
   goalsMoved: number | null;
 }
@@ -42,7 +39,6 @@ interface Loaded {
   date: string;
   scheduleItems: ScheduleItem[];
   todos: TodoNode[];
-  sessions: TimerSession[];
 }
 
 const NO_TREE: readonly TodoNode[] = [];
@@ -51,7 +47,7 @@ export function useDayFigures(
   ds: DataService | undefined,
   date: string,
 ): DayFigures | null {
-  const syncVersion = useSyncDomains("schedule", "todos", "sessions");
+  const syncVersion = useSyncDomains("schedule", "todos");
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const goalSnapshot = useGoalLinkSnapshot(ds ?? null, {
     active: ds !== undefined,
@@ -63,12 +59,11 @@ export function useDayFigures(
     let cancelled = false;
     void (async () => {
       try {
-        const [scheduleItems, todos, sessions] = await Promise.all([
+        const [scheduleItems, todos] = await Promise.all([
           ds.fetchScheduleItemsByDate(date),
           ds.fetchTodoTree(),
-          ds.fetchTimerSessions(),
         ]);
-        if (!cancelled) setLoaded({ date, scheduleItems, todos, sessions });
+        if (!cancelled) setLoaded({ date, scheduleItems, todos });
       } catch (err: unknown) {
         // A read for a passive summary: keep whatever was shown, no toast.
         console.error("[DailyView] day figures fetch failed", err);
@@ -90,13 +85,11 @@ export function useDayFigures(
       dayStartHour,
       scheduleItems: loaded.scheduleItems,
       todos: loaded.todos,
-      sessions: loaded.sessions,
     });
     return {
       events: counts.events,
       todosDone: counts.todosDone,
       todosTotal: counts.todosTotal,
-      workMinutes: counts.workMinutes,
       goalsMoved:
         goalState === null
           ? null

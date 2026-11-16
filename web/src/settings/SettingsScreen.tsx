@@ -97,7 +97,7 @@ import { HelpDialog } from "../help/HelpDialog";
  *
  *   General — every preference that was already here, in the order it was in
  *   Schedule — the initial calendar view (the first per-section preference)
- *   briefing / materials / work / analytics — receptacles, so the list is the
+ *   briefing / materials / analytics — receptacles, so the list is the
  *     whole map of what Settings will cover rather than only what exists today
  *   Claude — the MCP connection, its tool catalog and the Claude Code
  *     launcher. App-wide like General, so it sits after the per-section rows
@@ -120,7 +120,6 @@ const SECTION_TAB_IDS = [
   "briefing",
   "schedule",
   "materials",
-  "work",
   "analytics",
 ] as const;
 
@@ -363,7 +362,7 @@ export function SettingsScreen({
         id,
         // No defaultValue: `labelKey` is typed as the catalog's key union
         // (#726), so a section whose label was never translated is a compile
-        // error rather than a row that quietly says "work".
+        // error rather than a row that quietly says "analytics".
         label: def ? t(def.labelKey) : id,
         icon: Icon ? <Icon size={16} /> : null,
       };

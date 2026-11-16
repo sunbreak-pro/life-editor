@@ -22,7 +22,7 @@
 
 - Desktop（macOS / Windows / Linux）= 全機能。Mobile（iOS / Android）= Consumption + Quick capture。**MCP の入口は 3 本で、stdio は Desktop 専用のまま**（入口ごとの役割 → §5）。アプリ内 Terminal は退役し、MCP Server は存続（→ §8）
 - **画面別 Mobile スコープの元になる文書 = [`docs/requirements/mobile-scope.md`](./docs/requirements/mobile-scope.md)**（[置き場の決定](./decisions/D-20260723-main-1.md)）: 各セクション内機能の Full / Consumption / Quick capture / 省略 と Phase 1/2 の段取り。§2 は大方針のみを持ち、画面別の取捨は同文書が正（数値の非複製原則）
-- **Mobile 省略ガード**: `mobile/` は `web/dist` を包む Capacitor 殻で独自 Provider 構成を持たず、web ホストが `isNativeMobile()` で native mobile 時に ShortcutConfig Provider を省略する。Audio は Provider 維持（完了チャイム = work タイマー Full の一部 — mobile-scope.md #10/#11）で Ambient mixer UI のみ native 省略（ScreenLock / FileExplorer / CalendarTags は Provider ごと撤去済みで対象外）。ネストの元 = `web/src/AppProviders.tsx`・規約は [`rules/frontend.md`](./rules/frontend.md) §Provider 順序
+- **Mobile 省略ガード**: `mobile/` は `web/dist` を包む Capacitor 殻で独自 Provider 構成を持たず、web ホストが `isNativeMobile()` で native mobile 時に ShortcutConfig Provider を省略する（ScreenLock / FileExplorer / CalendarTags / Audio / Timer は Provider ごと撤去済みで対象外）。ネストの元 = `web/src/AppProviders.tsx`・規約は [`rules/frontend.md`](./rules/frontend.md) §Provider 順序
 - **スマホからの主導線 = 公開 Web URL**（[主導線の決定](./decisions/D-20260807-main-1.md)）: モバイル UI は画面幅（`useMediaQuery`）で出るため、ブラウザで開けば Capacitor 殻と同じ画面になる。ネイティブ殻は併存。PWA の採用範囲・配布経路 → 移行 SSOT §8 / §9
 - Cloud Sync はログインしたアカウントごとに動きます（RLS owner-only でアカウント単位に分離）。使う人は §1 のとおり。ビルドの配布・署名の手順 → 移行 SSOT
 
@@ -31,7 +31,6 @@
 - **3.1 DataService 境界（不変式）**: フロントは `getDataService()` 経由でのみデータアクセス。**コンポーネントから直接バックエンド呼び出し（`invoke()` 等）禁止**。実装 = `shared/src/services/`（旧 `frontend/` は 2026-07-11 削除 #197・復元 = git tag `pre-tauri-removal`）。バックエンドが替わってもこの境界は不変
 - **3.2 Section Routing**: React Router なし。`web/src/MainScreen.tsx` の section state で切替（旧 frontend は `App.tsx::activeSection`）。セクション定義（`SectionId`・nav 順・グループ・アイコン・mobile 順）は **`shared/src/sections.ts` の registry が SSOT**（`types/todoTree.ts::SectionId` は registry 派生の再 export・一覧はコードが正）。旧 `terminal` セクションは SectionId / nav / i18n から除去済み（#146・退役の経緯 → §8）
 - **3.3 Sync**: `items_meta.updated_at` を LWW cursor とする 2 行分割モデル。`<role>_payload` は `updated_at` を持たない（詳細 → [`docs/vision/db-conventions.md`](./docs/vision/db-conventions.md) §10）。「全テーブルに version カラム」は旧 Tauri 時代の遺物で未使用。差分の読み出しの基準は `items_meta.changed_at`（トリガーでサーバーの時計を書く）と物理削除の記録 `items_meta_tombstones`（0045・#2333）で、`updated_at` は使わない
-- **gotcha**: `AudioContext` は `suspended` 開始 — ユーザー操作後に `resume()` 必須
 
 ## 4. Data Model（規約詳細 → `docs/vision/db-conventions.md` / 変更手順 → §7.3（ローカルファイル先行 → ユーザー db push）+ `supabase/migrations/`）
 
@@ -134,7 +133,7 @@
 ## 8. Feature Tier Map（詳細 → `docs/requirements/`）
 
 - **Tier 1 コア**: [`tier-1-core.md`](./docs/requirements/tier-1-core.md) — Briefing / Todos / Schedule / Notes / Daily / MCP Server / Cloud Sync。Briefing は目標と Todo をつなぐ朝刊・夕刊。退役した Terminal と凍結した汎用 Database は、本文を履歴として残す
-- **Tier 2 補助**: [`tier-2-supporting.md`](./docs/requirements/tier-2-supporting.md) — Audio / Playlist / Pomodoro / WikiTags / Templates / UndoRedo / Theme / i18n / Shortcuts / Toast / Connect（Tag hub）/ Apps / Trash。Trash の入口は Settings の中で、nav の独立セクションではない。タグの編集所は Connect で、Connect の力学グラフは復活させない（検索・タグ・リンク一覧と役割が重なったため）。File Explorer は退役し、本文を履歴として残す
+- **Tier 2 補助**: [`tier-2-supporting.md`](./docs/requirements/tier-2-supporting.md) — WikiTags / Templates / UndoRedo / Theme / i18n / Shortcuts / Toast / Connect（Tag hub）/ Apps / Trash。Trash の入口は Settings の中で、nav の独立セクションではない。タグの編集所は Connect で、Connect の力学グラフは復活させない（検索・タグ・リンク一覧と役割が重なったため）。File Explorer と、Work 画面とともに外した Audio / Playlist / Pomodoro は退役し、本文を履歴として残す
 - **Tier 3 実験 / 凍結**: [`tier-3-experimental.md`](./docs/requirements/tier-3-experimental.md) — Paper Boards / Analytics / NotebookLM / Google Calendar / Google Drive / Cognitive Architecture。Analytics は「記録」タブの分だけ凍結を解き、ほかのタブは凍結のまま
 - 退役・移設・凍結の経緯と決定の記録のパスは、各 tier のファイルの機能の節にある
 - 次の段階の計画は移行の計画書が元になる文書（残す知見の置き場 = [`archive/SUMMARY.md`](./archive/SUMMARY.md)）
@@ -147,4 +146,4 @@ Issue のラベル routing（`section:<id>` / `shared-fix`）・`[all]` 禁止�
 - **課題追跡の正 = GitHub Issues + Projects**（`gh -R sunbreak-pro/life-editor`）。**起票は chat-main に一元化**する — worktree チャットは実装に着手してよいが、自分で起票せず outbox に依頼を append する。設定の `issueCreation` が `main-only` なので、共通の hook が main 以外の `gh issue create` を止める
 - **Issue はプロダクト課題専用**。判定 = 「life-editor のコードを直せば直るか？」— No（Claude Code の環境 / hook / ツール挙動）なら Issue 化せず `docs/known-issues/` + `rules/` で管理する
 - **実装プラン**の置き場と書き方は共通の `code-plan-editor` スキルに従い、完了で `archive/` へ移動する（Status enum の語彙 → [`rules/docs-consistency.md`](./rules/docs-consistency.md)）。移行 SSOT のみ `.claude/` 直下に置く例外。**決定の Why・却下案 = [`decisions/`](./decisions/README.md) 台帳**（[台帳を作る決定](./decisions/D-20260809-main-1.md)。どこに書くかの判定 = `rules/records.md`）
-- **鉄則**: 機能追加 / 削除時は §8 更新 ／ バイナリは repo に置かない — 音源の実体は Supabase Storage の **public** バケット `sounds`（`shared/src/constants/sounds.ts`）、ノートの添付は **非公開**バケット `attachments` から（#1404。ドキュメントはパスだけを持ち URL は毎回署名する — `shared/src/constants/attachments.ts`）。どちらも `.gitignore` の機械ガードは無い／ API キーをフロントエンドに直書きしない ／ **`.mcp.json` のトークンは `${SUPABASE_ACCESS_TOKEN}` 等の参照のまま維持・平文展開禁止**（2026-05-17 流出未遂。共通の hook `bash-guards.mjs` が commit 時に機械チェック）
+- **鉄則**: 機能追加 / 削除時は §8 更新 ／ バイナリは repo に置かない — ノートの添付は **非公開**バケット `attachments` から（#1404。ドキュメントはパスだけを持ち URL は毎回署名する — `shared/src/constants/attachments.ts`）。`.gitignore` の機械ガードは無い／ API キーをフロントエンドに直書きしない ／ **`.mcp.json` のトークンは `${SUPABASE_ACCESS_TOKEN}` 等の参照のまま維持・平文展開禁止**（2026-05-17 流出未遂。共通の hook `bash-guards.mjs` が commit 時に機械チェック）

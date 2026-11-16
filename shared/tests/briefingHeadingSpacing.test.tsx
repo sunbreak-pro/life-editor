@@ -60,7 +60,6 @@ const DATA: BriefingData = {
   schedule: [],
   todos: [],
   carryover: [],
-  sessions: [],
   todoNodes: [],
 };
 
@@ -84,23 +83,9 @@ describe("#1826 — the detail panel heading stands apart", () => {
   it("puts a rule and padding above the panel heading", () => {
     render(
       <BriefingVizPanel
-        sessions={[]}
         todoNodes={[]}
         title="YOU, UP TO YESTERDAY"
-        streakLabels={{
-          title: "Streaks",
-          current: "Current",
-          longest: "Longest",
-          formatDays: (n: number) => (n === 1 ? "day" : "days"),
-          noStreak: "No streak yet",
-        }}
         trendLabels={{ title: "Completions", completedCount: "Completed" }}
-        balanceLabels={{
-          title: "Balance",
-          work: "Work",
-          break: "Break",
-          longBreak: "Long break",
-        }}
       />,
     );
     const panel = screen.getByText("YOU, UP TO YESTERDAY").closest("section");
