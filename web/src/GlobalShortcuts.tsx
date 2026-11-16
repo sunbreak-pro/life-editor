@@ -26,12 +26,10 @@ import {
 export function GlobalShortcuts({
   onNavigate,
   onOpenSettings,
-  onTogglePalette,
   onNewTodo,
 }: {
   onNavigate: (id: NavShortcutId) => void;
   onOpenSettings: () => void;
-  onTogglePalette: () => void;
   onNewTodo?: () => void;
 }) {
   const shortcutConfig = useShortcutConfig();
@@ -39,7 +37,6 @@ export function GlobalShortcuts({
   useGlobalShortcuts(shortcutConfig, {
     onNavigate,
     onOpenSettings,
-    onTogglePalette,
     onNewTodo,
     // #304 / #2141: the same `undoLatest` the header pair calls. Only reached
     // outside a field, so a body on screen competes with the app stack, newer

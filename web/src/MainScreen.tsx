@@ -1,10 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-  type ComponentProps,
-  type ReactNode,
-} from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 import {
   getDataService,
   accountDisplayLabel,
@@ -15,16 +9,12 @@ import {
   SegmentedControl,
   SectionHeader,
   RightSidebarToggle,
-  CommandSearchField,
   useMediaQuery,
   useFirstAppearance,
-  isMac,
-  CommandPalette,
   useTranslation,
   useUnsavedGuardOptional,
   PinnedNotesReadAhead,
   SECTION_ICONS,
-  type DataService,
   type SectionId,
   type Session,
   WIDE_QUERY,
@@ -40,7 +30,6 @@ import { prefetchLazySections } from "./lazySections";
 import { useShellNavigation } from "./hooks/useShellNavigation";
 import { TourHost } from "./TourHost";
 import { useShellChrome } from "./hooks/useShellChrome";
-import { usePaletteItemSearch } from "./hooks/usePaletteItemSearch";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import { SignOutFailureNotice } from "./components/SignOutFailureNotice";
 import { signOutWithNotice } from "./hooks/signOutWithNotice";
@@ -99,11 +88,9 @@ export interface TabBand {
  */
 export function TabBandHeader({
   band,
-  search,
   controls,
 }: {
   band: TabBand;
-  search?: ReactNode;
   controls: ReactNode;
 }): React.JSX.Element {
   return (
@@ -118,7 +105,6 @@ export function TabBandHeader({
           trailing={band.trailing}
         />
       }
-      search={search}
       controls={controls}
     />
   );
@@ -176,13 +162,12 @@ export function MainScreen({ session }: { session: Session }) {
     confirmLeave: unsavedGuard?.confirmDiscard,
   });
   const { section, setSection } = nav;
-  // Chrome half (hooks split — useShellChrome): the palette commands, the
-  // registry-derived nav section lists, the per-section tab-band defs, the
-  // translated shell labels, and the Materials count badges the headless
-  // MaterialsCountsBridge feeds via setMaterialsCounts.
+  // Chrome half (hooks split — useShellChrome): the registry-derived nav
+  // section lists, the per-section tab-band defs, the translated shell labels,
+  // and the Materials count badges the headless MaterialsCountsBridge feeds via
+  // setMaterialsCounts.
   const {
     setMaterialsCounts,
-    commands,
     navSections,
     mobileSections,
     materialsTabDefs,
@@ -190,11 +175,7 @@ export function MainScreen({ session }: { session: Session }) {
     briefingTabDefs,
     connectTabDefs,
     shellLabels,
-  } = useShellChrome({
-    setSection,
-    setMaterialsTab: nav.setMaterialsTab,
-  });
-  const [paletteOpen, setPaletteOpen] = useState(false);
+  } = useShellChrome();
   // Claude Code launcher (#1211) — `available` is false off the desktop shell.
   const claudeLauncher = useClaudeLauncher();
   // Narrow-width switch for the in-section tab controls (HeaderTabs ↔
@@ -248,21 +229,11 @@ export function MainScreen({ session }: { session: Session }) {
   const detailOpenLabel = t(toggleKeys?.open ?? "detailPanel.open");
   const detailCloseLabel = t(toggleKeys?.close ?? "detailPanel.close");
 
-  // Standard header controls (v2 §1). Left→right: the command-palette search
-  // field (#306), app-level Undo/Redo (#304), then the rightSidebar toggle:
-  // [search][Undo][Redo][rightSidebar]. The rightSidebar toggle is
-  // UNCONDITIONAL for all sections (v2 §3); the v2 §5 width tab was retired
-  // 2026-07-11 (all sections wide). The search field goes in SectionHeader's
-  // own `search` slot, which narrows it before the tab band when the row is
-  // short (#2508).
-  const headerSearch = (
-    <CommandSearchField
-      onOpen={() => setPaletteOpen(true)}
-      placeholder={t("commandPalette.trigger")}
-      label={t("nav.commandPalette")}
-      shortcutHint={isMac ? "⌘K" : "Ctrl K"}
-    />
-  );
+  // Standard header controls (v2 §1). Left→right: app-level Undo/Redo (#304),
+  // then the rightSidebar toggle: [Undo][Redo][rightSidebar]. The rightSidebar
+  // toggle is UNCONDITIONAL for all sections (v2 §3); the v2 §5 width tab was
+  // retired 2026-07-11 (all sections wide). The header search field went with
+  // the command palette (#2719) and nothing took its place.
   const headerControls = (
     <>
       <HeaderUndoRedo />
@@ -312,16 +283,11 @@ export function MainScreen({ session }: { session: Session }) {
   // band shows it as its title (divider={false}: the SectionHeader owns the
   // line); every other section shows its translated title.
   const sectionHeader = band ? (
-    <TabBandHeader
-      band={band}
-      search={headerSearch}
-      controls={headerControls}
-    />
+    <TabBandHeader band={band} controls={headerControls} />
   ) : (
     <SectionHeader
       title={t(`section.${section}`, { defaultValue: section })}
       icon={SECTION_ICONS[section]}
-      search={headerSearch}
       controls={headerControls}
     />
   );
@@ -418,13 +384,12 @@ export function MainScreen({ session }: { session: Session }) {
       shortcuts={{
         onNavigate: nav.handleNavigate,
         onOpenSettings: () => setSection("settings"),
-        onTogglePalette: () => setPaletteOpen((v) => !v),
         onNewTodo: nav.handleNewTodo,
       }}
       currentSection={section}
       onNavigateToSection={setSection}
       // #1773: the tour's tray steps need the Schedule panel standing on its
-      // todo tab, which is the same `nav:tasks` intent the palette raises —
+      // todo tab, which is the same `nav:tasks` intent the shortcut raises —
       // minus the navigation, since the tour only asks once it is already
       // there.
       onRevealTodoTray={nav.requestTodoTray}
@@ -484,20 +449,13 @@ export function MainScreen({ session }: { session: Session }) {
         detailPanelLabels={detailPanelLabels}
         header={sectionHeader}
         /*
-         * Narrow-only counterpart to `header` AND to the sidebar footer (#472).
-         * `header` is a wide-branch slot, so undo/redo and the command palette
-         * (#473) would otherwise be unreachable on mobile, and the Connect
-         * shortcut (#1290) has no sidebar row to fall back to. AppShell
+         * Narrow-only counterpart to `header` (#472). `header` is a wide-branch
+         * slot, so undo/redo would otherwise be unreachable on mobile. AppShell
          * hands these to the bottom bar's "More" sheet. A callback (not a node)
          * because the rows read UndoRedoContext, and MainScreen's own body sits
          * OUTSIDE the UndoRedo Provider that AppProviders mounts.
          */
-        bottomBarActions={(closeSheet) => (
-          <MobileShellActions
-            onOpenPalette={() => setPaletteOpen(true)}
-            closeSheet={closeSheet}
-          />
-        )}
+        bottomBarActions={() => <MobileShellActions />}
       >
         {/*
          * PageContainer (Layout Standard v1 #180 / v2) owns width + gutter +
@@ -521,8 +479,8 @@ export function MainScreen({ session }: { session: Session }) {
         >
           {/*
            * #1199: the section-level catch. It sits INSIDE the shell on
-           * purpose — a screen that throws during render leaves the nav,
-           * header and palette alive, so the user can walk to another
+           * purpose — a screen that throws during render leaves the nav
+           * and header alive, so the user can walk to another
            * section instead of meeting a blank page. `resetKey` is that
            * walk: a new section id clears the error without a reload.
            */}
@@ -533,24 +491,9 @@ export function MainScreen({ session }: { session: Session }) {
       </AppShell>
 
       {/*
-       * Command palette mounted ONCE at the shell level, outside the section
-       * switch (so Cmd+K works from any section). Copy is injected as props —
-       * the primitive never calls useTranslation.
-       */}
-      <PaletteWithItemSearch
-        isOpen={paletteOpen}
-        onClose={() => setPaletteOpen(false)}
-        commands={commands}
-        placeholder={t("commandPalette.placeholder")}
-        noResultsLabel={t("commandPalette.noResults")}
-        dataService={ds}
-        onOpenItem={nav.navigateToItem}
-      />
-
-      {/*
-       * Tutorial tour overlay (#1122), mounted beside the palette for the same
-       * reason: it has to be able to open over any section, and the tour walks
-       * between them. Renders nothing until a step's anchor resolves, which is
+       * Tutorial tour overlay (#1122), mounted at the shell level outside the
+       * section switch: it has to be able to open over any section, and the
+       * tour walks between them. Renders nothing until a step's anchor resolves, which is
        * why it is safe to mount before the sections carry their data-tour-id
        * attributes.
        */}
@@ -560,40 +503,5 @@ export function MainScreen({ session }: { session: Session }) {
       {/* #2334: pinned notes open offline even if the Notes tab never opened here. */}
       <PinnedNotesReadAhead dataService={ds} />
     </AppProviders>
-  );
-}
-
-/*
- * CommandPalette and its cross-item search (#503) mounted as one child. The
- * search hook (usePaletteItemSearch → useSyncDomains) reads SyncContext, and
- * MainScreen's own body runs OUTSIDE the SyncProvider MainScreen renders —
- * calling the hook there crashed every post-login mount (#548). Fusing hook
- * and palette into a child mounted inside the Provider makes the constraint
- * structural instead of remembered.
- */
-function PaletteWithItemSearch({
-  dataService,
-  onOpenItem,
-  ...palette
-}: Omit<
-  ComponentProps<typeof CommandPalette>,
-  "externalResults" | "onQueryChange"
-> & {
-  dataService: DataService | undefined;
-  onOpenItem: (target: { id: string; role: string; date?: string }) => void;
-}) {
-  // Lazy stays lazy (#430): nothing is fetched until a non-empty query is
-  // typed, so opening the palette to jump sections still costs zero queries.
-  const { results, handleQueryChange } = usePaletteItemSearch({
-    dataService,
-    isOpen: palette.isOpen,
-    onOpenItem,
-  });
-  return (
-    <CommandPalette
-      {...palette}
-      externalResults={results}
-      onQueryChange={handleQueryChange}
-    />
   );
 }

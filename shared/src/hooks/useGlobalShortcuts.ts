@@ -27,8 +27,6 @@ import { isImeComposing } from "../utils/imeGuard";
 
 /** Host-injected actions, keyed by intent. All optional → unmapped = no-op. */
 export interface GlobalShortcutHandlers {
-  /** global:command-palette — toggle the command palette. */
-  onTogglePalette?: () => void;
   /** global:settings — open the Settings section. */
   onOpenSettings?: () => void;
   /** global:new-task — start a new todo (W3-B: Materials + create dialog). */
@@ -153,7 +151,6 @@ export function resolveShortcut(
 
 /** ShortcutIds this executor dispatches, in match-priority order. */
 const DISPATCH_ORDER: readonly ShortcutId[] = [
-  "global:command-palette",
   "global:settings",
   "global:new-task",
   ...NAV_SHORTCUT_IDS,
@@ -171,14 +168,7 @@ export function useGlobalShortcuts(
   shortcutConfig: ShortcutConfigContextValue | null,
   handlers: GlobalShortcutHandlers,
 ): void {
-  const {
-    onTogglePalette,
-    onOpenSettings,
-    onNewTodo,
-    onNavigate,
-    onUndo,
-    onRedo,
-  } = handlers;
+  const { onOpenSettings, onNewTodo, onNavigate, onUndo, onRedo } = handlers;
 
   useEffect(() => {
     if (!shortcutConfig) return;
@@ -198,11 +188,6 @@ export function useGlobalShortcuts(
       }
 
       switch (id) {
-        case "global:command-palette":
-          if (!onTogglePalette) return;
-          e.preventDefault();
-          onTogglePalette();
-          return;
         case "global:settings":
           if (!onOpenSettings) return;
           e.preventDefault();
@@ -228,13 +213,5 @@ export function useGlobalShortcuts(
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [
-    shortcutConfig,
-    onTogglePalette,
-    onOpenSettings,
-    onNewTodo,
-    onNavigate,
-    onUndo,
-    onRedo,
-  ]);
+  }, [shortcutConfig, onOpenSettings, onNewTodo, onNavigate, onUndo, onRedo]);
 }

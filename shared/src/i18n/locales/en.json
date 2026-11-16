@@ -1,7 +1,6 @@
 {
   "settings": {
     "shortcutLabels": {
-      "commandPalette": "Open command palette",
       "openSettings": "Open settings",
       "newTodo": "Create new todo",
       "goToTodos": "Go to Todos",
@@ -64,10 +63,6 @@
         "fontSize": {
           "title": "Font size affects body text",
           "body": "Headings and UI stay fixed; only body readability is adjusted."
-        },
-        "palette": {
-          "title": "Jump to any screen with {{shortcut}}",
-          "body": "The command palette lists every screen. Type a name and press Enter to go there."
         }
       }
     },
@@ -1204,12 +1199,6 @@
     "retry": "Retry",
     "unsavedCloseConfirm": "You have unsaved changes. Discard them and close?"
   },
-  "commandPalette": {
-    "placeholder": "Search or type a command...",
-    "trigger": "Search or run a command",
-    "noResults": "No results found",
-    "goTo": "Go to"
-  },
   "apps": {
     "heading": "Registered apps",
     "register": "Register an app",
@@ -1278,7 +1267,6 @@
   "nav": {
     "collapse": "Collapse sidebar",
     "expand": "Expand sidebar",
-    "commandPalette": "Command palette",
     "signOut": "Sign out",
     "more": "More",
     "moreTitle": "More",

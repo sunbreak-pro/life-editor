@@ -10,7 +10,6 @@ import {
   getOutboxCounts,
   subscribeOutbox,
   useTranslation,
-  SECTIONS,
   MAIN_SECTIONS,
   MOBILE_SECTIONS,
   EMPTY_MATERIALS_COUNTS,
@@ -18,21 +17,17 @@ import {
   TOUR_ANCHORS,
   type AppShellSection,
   type MaterialsCounts,
-  type SectionId,
   type SectionDef,
-  type Command,
 } from "@life-editor/shared";
 import type { MaterialsTab } from "./useShellNavigation";
 
 /*
  * Chrome half of the app-shell host (extracted from MainScreen.tsx — hooks
  * split, zero behavior change): everything the shell DISPLAYS as opposed to
- * how it routes — the command-palette entries, the desktop/mobile nav
- * section lists derived from the shared registry (SSOT —
- * shared/src/sections.ts), the per-section tab-band defs, the translated
- * shell labels, and the Materials tab count badges fed by the headless
- * MaterialsCountsBridge. Setters come in from useShellNavigation so a
- * command / tab click routes through the same state the shell switches on.
+ * how it routes — the desktop/mobile nav section lists derived from the
+ * shared registry (SSOT — shared/src/sections.ts), the per-section tab-band
+ * defs, the translated shell labels, and the Materials tab count badges fed
+ * by the headless MaterialsCountsBridge.
  */
 
 const MATERIALS_TABS: readonly MaterialsTab[] = ["notes", "daily"];
@@ -54,17 +49,7 @@ function tabGlyph(Icon: LucideIcon): ReactElement {
  * union itself lives with the screen that switches on it (ScheduleScreen).
  */
 
-export function useShellChrome({
-  setSection,
-  setMaterialsTab,
-}: {
-  // Deliberately narrower than the useState setters the shell passes in:
-  // the commands memo lists these in its deps and stays cached only while
-  // their identity is stable, so the contract asks for a plain callback —
-  // hand it a per-render closure and every render rebuilds the palette list.
-  setSection: (id: SectionId) => void;
-  setMaterialsTab: (tab: MaterialsTab) => void;
-}) {
+export function useShellChrome() {
   const { t } = useTranslation();
   const outboxPending = useSyncExternalStore(
     subscribeOutbox,
@@ -76,32 +61,6 @@ export function useShellChrome({
   const [materialsCounts, setMaterialsCounts] = useState<MaterialsCounts>(
     EMPTY_MATERIALS_COUNTS,
   );
-
-  const commands = useMemo<Command[]>(() => {
-    const goTo = t("commandPalette.goTo", { defaultValue: "Go to" });
-    const sectionCmds = SECTIONS.map<Command>((s) => ({
-      id: `section-${s.id}`,
-      title: t(s.labelKey, { defaultValue: s.id }),
-      category: goTo,
-      icon: s.icon,
-      action: () => setSection(s.id),
-    }));
-    const materialsCmds = MATERIALS_TABS.map<Command>((tab) => ({
-      id: `materials-${tab}`,
-      title: t(`section.${tab}`, { defaultValue: tab }),
-      category: goTo,
-      icon: MATERIALS_ICON[tab],
-      action: () => {
-        setSection("materials");
-        setMaterialsTab(tab);
-      },
-    }));
-    // #1153: Schedule's two per-tab entries went with the tabs. The bare
-    // "Schedule" section command above is the whole of it now — asking for the
-    // todo tray specifically is nav:tasks, which raises an intent the section
-    // consumes rather than setting shell state.
-    return [...sectionCmds, ...materialsCmds];
-  }, [t, setSection, setMaterialsTab]);
 
   // W5 app shell: section lists (icon node + translated label). i18n is
   // resolved here and injected — the shared shell never calls useTranslation
@@ -233,7 +192,6 @@ export function useShellChrome({
 
   return {
     setMaterialsCounts,
-    commands,
     navSections,
     mobileSections,
     materialsTabDefs,

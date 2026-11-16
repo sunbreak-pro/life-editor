@@ -7,39 +7,15 @@ import {
   Card,
   Modal,
   BottomSheet,
-  CommandPalette,
   TrashView,
   Toast,
   ToastViewport,
   Menu,
   MenuItem,
   cn,
-  type Command,
   type TrashGroup,
   type TrashViewLabels,
 } from "../src/components";
-
-const Dot = () => <span>•</span>;
-
-function makeCommands(spy: () => void): Command[] {
-  return [
-    { id: "a", title: "Open Todos", category: "Go to", icon: Dot, action: spy },
-    {
-      id: "b",
-      title: "Open Notes",
-      category: "Go to",
-      icon: Dot,
-      action: () => {},
-    },
-    {
-      id: "c",
-      title: "Open Trash",
-      category: "Go to",
-      icon: Dot,
-      action: () => {},
-    },
-  ];
-}
 
 const TRASH_LABELS: TrashViewLabels = {
   empty: "Trash is empty",
@@ -174,74 +150,6 @@ describe("BottomSheet", () => {
     expect(dialog).toBeInTheDocument();
     // clicking the panel itself must NOT close (stopPropagation)
     fireEvent.mouseDown(dialog);
-    expect(onClose).not.toHaveBeenCalled();
-  });
-});
-
-describe("CommandPalette", () => {
-  it("renders nothing when closed", () => {
-    render(
-      <CommandPalette
-        isOpen={false}
-        onClose={() => {}}
-        commands={makeCommands(() => {})}
-        placeholder="Type a command..."
-        noResultsLabel="No results"
-      />,
-    );
-    expect(screen.queryByText("Open Todos")).not.toBeInTheDocument();
-  });
-
-  it("filters commands by query and shows the no-results label", () => {
-    render(
-      <CommandPalette
-        isOpen
-        onClose={() => {}}
-        commands={makeCommands(() => {})}
-        placeholder="Type a command..."
-        noResultsLabel="No results"
-      />,
-    );
-    const input = screen.getByPlaceholderText("Type a command...");
-    fireEvent.change(input, { target: { value: "trash" } });
-    expect(screen.getByText("Open Trash")).toBeInTheDocument();
-    expect(screen.queryByText("Open Todos")).not.toBeInTheDocument();
-
-    fireEvent.change(input, { target: { value: "zzz" } });
-    expect(screen.getByText("No results")).toBeInTheDocument();
-  });
-
-  it("runs the selected command on Enter and closes", () => {
-    const onClose = vi.fn();
-    const action = vi.fn();
-    render(
-      <CommandPalette
-        isOpen
-        onClose={onClose}
-        commands={makeCommands(action)}
-        placeholder="Type a command..."
-        noResultsLabel="No results"
-      />,
-    );
-    const input = screen.getByPlaceholderText("Type a command...");
-    // first item ("Open Todos") is selected by default → Enter fires it
-    fireEvent.keyDown(input, { key: "Enter" });
-    expect(onClose).toHaveBeenCalledTimes(1);
-  });
-
-  it("ignores navigation keys while composing (IME guard)", () => {
-    const onClose = vi.fn();
-    render(
-      <CommandPalette
-        isOpen
-        onClose={onClose}
-        commands={makeCommands(() => {})}
-        placeholder="Type a command..."
-        noResultsLabel="No results"
-      />,
-    );
-    const input = screen.getByPlaceholderText("Type a command...");
-    fireEvent.keyDown(input, { key: "Escape", isComposing: true });
     expect(onClose).not.toHaveBeenCalled();
   });
 });

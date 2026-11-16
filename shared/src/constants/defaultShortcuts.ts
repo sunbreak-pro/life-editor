@@ -9,13 +9,6 @@ import type { ShortcutDefinition } from "../types/shortcut";
 export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
   // Global
   {
-    id: "global:command-palette",
-    category: "global",
-    descriptionKey: "settings.shortcutLabels.commandPalette",
-    defaultBinding: { code: "KeyK", meta: true },
-    activeInInput: true,
-  },
-  {
     id: "global:settings",
     category: "global",
     descriptionKey: "settings.shortcutLabels.openSettings",

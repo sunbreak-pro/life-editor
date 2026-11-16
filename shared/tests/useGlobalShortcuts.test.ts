@@ -65,8 +65,8 @@ describe("hasAccelerator", () => {
 
 describe("isActiveInInput (QA #2 — definition-driven flag)", () => {
   it("reads activeInInput from the matching definition", () => {
-    // command-palette is activeInInput:true; new-todo is false (defaults).
-    expect(isActiveInInput("global:command-palette")).toBe(true);
+    // settings is activeInInput:true; new-todo is false (defaults).
+    expect(isActiveInInput("global:settings")).toBe(true);
     expect(isActiveInInput("global:new-task")).toBe(false);
   });
 
@@ -102,14 +102,14 @@ describe("isEditableTarget", () => {
 });
 
 describe("resolveShortcut", () => {
-  it("resolves the command palette accelerator", () => {
+  it("resolves the settings accelerator", () => {
     const id = resolveShortcut(
-      evt({ code: "KeyK", metaKey: true }),
+      evt({ code: "Comma", metaKey: true }),
       null,
       ALL_IDS,
       defaultMatchEvent,
     );
-    expect(id).toBe("global:command-palette");
+    expect(id).toBe("global:settings");
   });
 
   it("resolves a nav shortcut (Cmd+1 → nav:tasks)", () => {
@@ -133,8 +133,10 @@ describe("resolveShortcut", () => {
   });
 
   it("IME guard: returns null while composing", () => {
+    // An accelerator that WOULD match outside composition, so the null comes
+    // from the guard and not from a missing binding.
     const id = resolveShortcut(
-      evt({ code: "KeyK", metaKey: true, isComposing: true }),
+      evt({ code: "Comma", metaKey: true, isComposing: true }),
       null,
       ALL_IDS,
       defaultMatchEvent,
@@ -154,12 +156,12 @@ describe("resolveShortcut", () => {
 
   it("input guard: accelerator shortcuts STILL fire while typing", () => {
     const id = resolveShortcut(
-      evt({ code: "KeyK", metaKey: true }),
+      evt({ code: "Comma", metaKey: true }),
       document.createElement("input"),
       ALL_IDS,
       defaultMatchEvent,
     );
-    expect(id).toBe("global:command-palette");
+    expect(id).toBe("global:settings");
   });
 
   it("returns null when nothing matches", () => {
@@ -237,13 +239,12 @@ describe("resolveShortcut", () => {
 });
 
 /*
- * #2216 — with the sidebar's palette row gone, the keyboard route is one of
- * the two ways left to open the palette (the other is the header search
- * field, fenced in commandSearchField.test.tsx). This drives the hook end to
- * end on `window`, Ctrl+K and Cmd+K both, since the web treats them as one
- * accelerator.
+ * #2719 — the command palette is gone, and with it the Cmd+K / Ctrl+K
+ * binding. No default binding sits on K any more, so the key resolves to
+ * nothing; the settings accelerator next to it still dispatches end to end on
+ * `window`, which shows the null above is not a dead listener.
  */
-describe("useGlobalShortcuts — command palette (#2216)", () => {
+describe("useGlobalShortcuts — no palette binding (#2719)", () => {
   const config = {
     matchEvent: defaultMatchEvent,
   } as unknown as ShortcutConfigContextValue;
@@ -251,15 +252,40 @@ describe("useGlobalShortcuts — command palette (#2216)", () => {
   it.each([
     ["Ctrl+K", { ctrlKey: true }],
     ["Cmd+K", { metaKey: true }],
-  ])("toggles the palette on %s", (_name, mods) => {
-    const onTogglePalette = vi.fn();
-    const { unmount } = renderHook(() =>
-      useGlobalShortcuts(config, { onTogglePalette }),
+  ])("%s resolves to no shortcut", (_name, mods) => {
+    expect(
+      resolveShortcut(evt({ key: "k", code: "KeyK", ...mods }), null, ALL_IDS, defaultMatchEvent),
+    ).toBeNull();
+  });
+
+  it("no default binding is a palette id", () => {
+    expect(DEFAULT_SHORTCUTS.map((s) => s.id)).not.toContain(
+      "global:command-palette",
     );
+  });
+
+  it.each([
+    ["Ctrl+K", { ctrlKey: true }],
+    ["Cmd+K", { metaKey: true }],
+  ])("%s calls no handler, while Cmd+Comma still opens settings", (_name, mods) => {
+    const handlers = {
+      onOpenSettings: vi.fn(),
+      onNewTodo: vi.fn(),
+      onNavigate: vi.fn(),
+      onUndo: vi.fn(),
+      onRedo: vi.fn(),
+    };
+    const { unmount } = renderHook(() => useGlobalShortcuts(config, handlers));
     window.dispatchEvent(
       new KeyboardEvent("keydown", { key: "k", code: "KeyK", ...mods }),
     );
-    expect(onTogglePalette).toHaveBeenCalledTimes(1);
+    for (const fn of Object.values(handlers)) {
+      expect(fn).not.toHaveBeenCalled();
+    }
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { key: ",", code: "Comma", metaKey: true }),
+    );
+    expect(handlers.onOpenSettings).toHaveBeenCalledTimes(1);
     unmount();
   });
 });

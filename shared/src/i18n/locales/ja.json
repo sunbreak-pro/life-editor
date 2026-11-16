@@ -1,7 +1,6 @@
 {
   "settings": {
     "shortcutLabels": {
-      "commandPalette": "コマンドパレットを開く",
       "openSettings": "設定を開く",
       "newTodo": "新規 Todo を作成",
       "goToTodos": "Todo へ移動",
@@ -64,10 +63,6 @@
         "fontSize": {
           "title": "文字サイズは本文に反映",
           "body": "見出しやUIは固定のまま、本文の可読性だけを調整します。"
-        },
-        "palette": {
-          "title": "{{shortcut}} でどの画面にも移動",
-          "body": "コマンドパレットには全画面が並びます。名前を入力して Enter で移動します。"
         }
       }
     },
@@ -1195,12 +1190,6 @@
     "retry": "再試行",
     "unsavedCloseConfirm": "保存していない変更があります。破棄して閉じますか？"
   },
-  "commandPalette": {
-    "placeholder": "検索、またはコマンドを入力...",
-    "trigger": "検索・コマンド実行",
-    "noResults": "結果が見つかりません",
-    "goTo": "移動"
-  },
   "apps": {
     "heading": "登録したアプリ",
     "register": "アプリを登録",
@@ -1267,7 +1256,6 @@
   "nav": {
     "collapse": "サイドバーを折りたたむ",
     "expand": "サイドバーを展開",
-    "commandPalette": "コマンドパレット",
     "signOut": "サインアウト",
     "more": "その他",
     "moreTitle": "その他",

@@ -19,10 +19,6 @@ describe("SettingsDetailPanel", () => {
         tips={[
           { title: "変更は即時保存されます", body: "保存ボタンはありません。" },
           { title: "文字サイズは本文に反映", body: "本文の可読性だけを調整。" },
-          {
-            title: "⌘K から検索・変更",
-            body: "コマンドパレットでも変更できます。",
-          },
         ]}
         labels={{
           previewHeading: "現在の外観",
@@ -41,6 +37,6 @@ describe("SettingsDetailPanel", () => {
       screen.getByText("テーマ: ライト · 文字サイズ 16px（4/10）"),
     ).toBeInTheDocument();
     expect(screen.getByText("変更は即時保存されます")).toBeInTheDocument();
-    expect(screen.getByText("⌘K から検索・変更")).toBeInTheDocument();
+    expect(screen.getByText("文字サイズは本文に反映")).toBeInTheDocument();
   });
 });

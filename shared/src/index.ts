@@ -471,7 +471,7 @@ export { useInFlightGuard } from "./hooks/useInFlightGuard";
 export { useMinuteClock } from "./hooks/useMinuteClock";
 // #430 → #503 — fetch a candidate pool only when something actually asks for
 // it, and re-read it only after a sync says it went stale. Backs the "[["
-// autocomplete and the palette's cross-item search.
+// autocomplete.
 export {
   useLazyStalePool,
   type LazyPoolOptions,
@@ -815,14 +815,6 @@ export {
   tagFaceStyle,
   type TagFaceStyle,
 } from "./utils/scheduleTagColor";
-// #503 — cross-item title matching for the command palette (pure; the host
-// owns the fetching and the DataService boundary).
-export {
-  searchItemPool,
-  type SearchableItem,
-  type SearchableItemRole,
-  type ItemSearchOptions,
-} from "./utils/itemSearch";
 export {
   useScheduleItemsRoutineSync,
   type UseScheduleItemsRoutineSyncOptions,

@@ -15,7 +15,7 @@ import {
  * is the web-side component allowed to, so every string crosses the boundary
  * already resolved.
  *
- * Mounted beside CommandPalette at shell level, so the
+ * Mounted at shell level, outside the section switch, so the
  * bubble opens over whichever section the tour has navigated to.
  */
 export function TourHost() {

@@ -5,9 +5,10 @@ import { useCallback, useEffect, useRef } from "react";
  * re-fetch once a sync says it went out of date".
  *
  * Extracted from useItemLinkTargets (#430), which needed exactly this and is
- * now one of its two callers; the palette's cross-item search (#503) is the
- * other. The rules below are each the fix for a bug that was live at some
- * point, so they are worth stating rather than re-deriving:
+ * now its only caller (the command palette's cross-item search, #503, was the
+ * other until #2719 removed the palette). The rules below are each the fix
+ * for a bug that was live at some point, so they are worth stating rather
+ * than re-deriving:
  *
  *  - LAZY. Nothing is fetched on mount or on a sync bump — a bump only MARKS
  *    the pool stale. Fetching eagerly meant re-reading every list after every

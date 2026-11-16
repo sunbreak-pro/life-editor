@@ -275,7 +275,7 @@ export function ConnectScreen({
 
   /*
    * The lists flattened into one row shape. The conventions here are the
-   * command palette's (usePaletteItemSearch), deliberately: an event carries
+   * ones the removed cross-item search used (#503), deliberately: an event carries
    * its DATE because the Calendar cannot select a row outside the window it is
    * showing (#503), and a daily has no title of its own — its date IS its
    * name. `updatedAt` is what orders each kind, newest first.

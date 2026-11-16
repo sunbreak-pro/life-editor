@@ -13,7 +13,6 @@ import type { TranslationKey } from "../i18n/resources";
 
 export type ShortcutId =
   // Global
-  | "global:command-palette"
   | "global:settings"
   | "global:new-task"
   // Navigation — web MainScreen sections (see MainScreen.tsx `Section`)
