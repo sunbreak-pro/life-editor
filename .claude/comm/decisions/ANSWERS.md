@@ -202,3 +202,7 @@
 - D-20261111-harness-1: **A**（CLAUDE.md の経緯の記述だけを、移行完了を待たずに決定の台帳と要件の文書へ移す。節の組み直しは D-20260806-main-3 のとおり移行完了後のまま。行数の目標は tok の上限に変える。2026-11-11 claude-dotfiles のセッションの AskUserQuestion で回答・同セッションが転記）
 - 2026-11-15-adopt-shared-merge-rules: **A**（merge の方針を共通の決まり（claude-dotfiles の `claude/docs/development-flow.md` の「merge」）に合わせる。POLICY の方針「merge と main への取り込み」を書き換える。2026-11-15 チャットで回答・chat-main が転記 / 昇格）
 - 2026-11-15-use-shared-tools-on-dotfiles-pcs: **A**（Mac は当面そのままにし、claude-dotfiles を入れた PC だけで作業する。共通の道具と同じ名前のスキル 3 本と hook をリポジトリから消す。2026-11-15 チャットで回答・chat-main が転記 / 昇格）
+- 2026-11-16-remove-event-work-time: **消す**（予定の実績時間を消し、作業記録を読む画面と道具もまとめて外す。2026-11-16 チャットの AskUserQuestion で回答・chat-main が転記 / 昇格）
+- 2026-11-16-remove-analytics-section: **セクションごと消す**（朝刊の右パネルが借りている部品だけを移す。実装は #2754。2026-11-16 チャットの AskUserQuestion で回答・chat-main が転記 / 昇格）
+- 2026-11-16-remove-distribution-features: **5 件とも消す**（サインアップとメール確認・アカウント削除・利用規約とプライバシーポリシー・ヘルプ・ツアー。D-20261022-main-1 の「コードに残す」の 1 行だけを置き換える。実装は #2749〜#2753。2026-11-16 チャットの AskUserQuestion で回答・chat-main が転記 / 昇格）
+- 2026-11-16-keep-templates-password-tag-groups: **テンプレート・パスワード・タグのグループを残す**（使っているため。ショートカットの割り当て直しは選ばれず、削除の候補に移す。2026-11-16 チャットの AskUserQuestion で回答・chat-main が転記 / 昇格）
