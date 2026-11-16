@@ -1,0 +1,12 @@
+{
+  "name": "life-briefing",
+  "private": true,
+  "type": "module",
+  "description": "Writes the life-editor morning briefing every day through the Claude API (see docs/vision/plans/2026-11-16-morning-briefing-on-api-credits.md)",
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "1.8.0"
+  }
+}

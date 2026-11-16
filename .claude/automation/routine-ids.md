@@ -11,7 +11,9 @@
 | ---------- | ---------------------- | -------------- | ---------------------- | ---------- | ---------- |
 | night-safe | Windows Task Scheduler | 毎日 12:13 JST（スリープ解除） | `LifeEditor-NightSafe` | **ACTIVE** | 2026-09-02（2026-09-26 再登録・2026-10-17 時刻変更） |
 | digest | Windows Task Scheduler | 毎日 12:43 JST（スリープ解除） | `LifeEditor-Digest` | **ACTIVE** | 2026-09-02（2026-09-26 再登録・2026-10-17 時刻変更） |
+| briefing | Windows Task Scheduler + Claude API（`claude -p` ではない） | 毎日 05:30 JST（スリープ解除・上限 10 分） | `LifeEditor-Briefing` | **PENDING**（実装済み・未登録） | — |
 
+- briefing は上の 2 本と別の仕組み。鍵（`%LOCALAPPDATA%\life-briefing\key.bin`）で API 払いになり、プランのログインでは動かない。台帳への登録は `briefing/register-briefing.ps1` を流した日に ACTIVE へ直す
 - 夜には起動せず、お昼に動かす（2026-10-17 ユーザー決定。それまでは 2026-09-26 の決定で朝 07:13 / 07:43 に PC を起こしていた）。電源が切れていて逃した回は追わない（StartWhenAvailable なし）。監査を先に走らせ、30 分後の digest がその報告を読む順にしている
 - 発火時刻を 00 分 / 30 分から外しているのは意図的（ジャストの時刻は負荷が集中しやすい・数分の前後はこの用途で問題にならない）
 - 報告は当日の `reports/YYYY-MM-DD.md` に launcher が追記し、日次の報告 PR（`chore/routine-report-YYYYMMDD`）で届く

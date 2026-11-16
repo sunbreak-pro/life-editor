@@ -20,6 +20,7 @@
 | `routine-ids.md`        | 定期実行の登録台帳（何が・どこで・いつ動くか）                     | 現行                          |
 | `routine-night.md`      | 夜 — 実装レーン（`/loop-implement` の薄い殻。commit までを claude、push と draft PR を launcher が行う） | **Phase 2・未登録**（手動起動のみ） |
 | `goals.md`              | 夜のレーンの選定基準（今夜の 1 件をどう選ぶか。一覧は持たない）    | 現行                          |
+| `briefing/`             | 毎朝、今日の朝刊を Claude API で書いて `write_briefing` で書き込む（下の「朝刊の自動化」）。`claude -p` ではなく API を直接呼ぶ | 実装済み・**タスク未登録**（2026-11-16 作成。登録は `briefing/register-briefing.ps1`） |
 | `routine-morning.md`    | 退役（後継 = `routine-digest.md`）                                 | **退役 — 2026-08-06**         |
 | `dev-schedule.md`       | 週次開発スケジュール（schedule-management スキルが管理）           | 休止中（2026-06-21 週を最後に更新なし。本ハーネスとは独立） |
 
@@ -53,6 +54,21 @@
 ### 実行基盤（D-20260804-main-1 = A・2026-09-02 登録済み・2026-09-26 スリープ解除つきで再登録）
 
 採用 = **Windows Task Scheduler + `claude -p`（headless）**。2026-09-02〜25 の実測で、06:03 の digest は 24 日中 22 日、22:33 の night-safe は 14 日が PC のスリープ中で発火していなかった（タスクの WakeToRun が False・電源ログにタイマー復帰 0 件）。claude 本体は起動した回はすべて完走していた。そこで夜中を避けて朝 07:13 / 07:43 に PC を起こす設定へ切り替えた（`register-routines.ps1`）。2026-10-17 に、夜に起動しないよう昼 12:13 / 12:43 へ移し、逃した回を追う設定も外した。セッション常駐が不要で、2026-07-16 の朝刊プロトタイプ（`2026-07-16-briefing-headless-claude-prototype.md`）で同型を E2E 検証済み。セッション内の CronCreate（scheduled tasks）は**セッション限定・7 日で期限切れ**（2026-08-04 実測）のため、常駐運用にしない限り使わない。
+
+---
+
+## 朝刊の自動化（`briefing/`）
+
+毎朝 05:30 に、今日の朝刊（フォーカスの 1 行と AI のコメント）を書く。計画 = [`../docs/vision/plans/2026-11-16-morning-briefing-on-api-credits.md`](../docs/vision/plans/2026-11-16-morning-briefing-on-api-credits.md)。上の `claude -p` の定期実行とは別の仕組みで、Ultra プランに付く毎月の API クレジットで払う。
+
+- **流れ**: `context.mjs` が MCP の `get_today_context` で材料を取り → `compose.mjs` が Claude API（`claude-sonnet-5-5`・サーバー側の Web 検索つき）を 1 回呼んで決まった形の JSON を受け取り → `validate.mjs` が検査し → `briefing.mjs` が `write_briefing` で書く。エージェントではなく、Claude はファイルにもコマンドにも触らない
+- **書かない日**: 朝刊が既にある日（こうだいさんが書いた朝刊を含む）、鍵のかかった日、同じ日に書けた印（`%LOCALAPPDATA%\life-briefing\done\<日付>`）がある日
+- **鍵**: `%LOCALAPPDATA%\life-briefing\key.bin`（DPAPI）。`run-briefing.ps1` が復号して node のプロセスの環境にだけ渡す。**ユーザー環境変数 `ANTHROPIC_API_KEY` には置かない**（置くと対話型の Claude Code と上の定期実行まで API 払いになる）。しまい直すのは `set-key.ps1`
+- **設定**: 話題・学びの題材・モデル・上限は `config.json`。文面の指示は `prompt.md`
+- **試す**: `run-briefing.ps1 -DryRun -Date YYYY-MM-DD`（書き込まず、JSON と費用を出す）。ログは `%LOCALAPPDATA%\life-briefing\logs\`（`briefing.log` に結果と費用、`runs.log` に終了コード）
+- **テスト**: `cd .claude/automation/briefing && npm ci && node --test`
+- **Windows PowerShell から呼ぶとき**: PowerShell 7 の端末から `powershell.exe` を呼ぶと、`PSModulePath` が引き継がれて `ConvertTo-SecureString` を読み込めないことがある。そのときは `pwsh` で直接流すか、`PSModulePath` を外して呼ぶ（タスクスケジューラ経由は影響を受けない）
+- **前提**: PC が起きていないと動かない。電源が切れている日は朝刊が出ない（逃した回は追わない）
 
 ---
 
