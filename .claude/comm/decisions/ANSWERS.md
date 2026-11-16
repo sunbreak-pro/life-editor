@@ -214,3 +214,4 @@
 - 2026-11-16-remove-note-table-tagging: **消す**（実装は #2761。表そのものは残し、DB の表は変えない。2026-11-16 チャットの文で回答・chat-main が転記 / 昇格）
 - 2026-11-16-remove-offline-read-write: **圏外の読み書きまで消す**（実装は #2762。再読み込みを速くする保存と Service Worker は残す。2026-11-16 チャットの AskUserQuestion で回答・chat-main が転記 / 昇格）
 - 2026-11-16-keep-verification-tools-ai-customization-shortcuts: **検証用の MCP の道具・AI のカスタマイズ・ショートカットの割り当て直しを残す**（2026-11-16 チャットの文で回答・chat-main が転記 / 昇格）
+- 2026-11-16-triage-open-issues-for-completion: **期日までにやる 65 件・閉じる 16 件・あとに回す 4 件**（#2715 は閉じる、Todo の繰り返し #2674 はあとに回す、UI の子 35 件は全部やる。2026-11-16 チャットの AskUserQuestion で回答・chat-main が転記 / 昇格）
