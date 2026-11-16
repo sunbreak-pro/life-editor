@@ -117,3 +117,7 @@ graphify-out/
 # demand; the baseline percentages live in the PR body / plan, not in the tree
 shared/coverage/
 web/coverage/
+
+# 報告書の HTML は Artifact と「報告書の索引」で見るので、リポジトリには足さない（2026-11-16 こうだいさんの決定）。
+# 画像を埋め込んだ数 MB のファイルが履歴に溜まるのを防ぐ。2026-11-03 までに追加した分は追跡したままにする。
+.claude/docs/reports/*.html
