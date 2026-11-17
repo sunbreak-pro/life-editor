@@ -22,8 +22,6 @@ import {
   type NoteSortMode,
   type DataService,
   WIDE_QUERY,
-  useTourContextOptional,
-  tourAnchor,
   useRecentNoteIds,
   resolveRecentNotes,
   dateKeyOfInstant,
@@ -332,113 +330,6 @@ export function NotesView({
 
   const selected = notes.selectedNote;
 
-  /*
-   * Tutorial tour reporting (#1125).
-   *
-   * `notifyAction` is a no-op unless the tour is running AND the step on screen
-   * waits for that exact event, so every call below costs nothing with the tour
-   * off — which is what keeps "ツアー無効時に挙動・見た目が一切変わらない" true
-   * without a single `if (tourRunning)` in the handlers.
-   *
-   * Read through the OPTIONAL hook. Reporting an action is not consuming the
-   * tour, and the throwing variant would make TourProvider a mount-time
-   * dependency of the Notes view — and of every suite that renders it on its
-   * own. Same call as `useUndoRedoOptional`.
-   */
-  const tour = useTourContextOptional();
-  const notifyAction = tour?.notifyAction;
-  const notifyTour = useCallback(
-    (event: string) => notifyAction?.(event),
-    [notifyAction],
-  );
-
-  /*
-   * "The note now carries a tag."
-   *
-   * Watched rather than wired to a button, because there are two routes to it
-   * — the picker in the detail header and a drag onto a tag heading — and the
-   * step teaches the outcome, not one control. Counting live assignments for
-   * the SELECTED note and firing only on an increase is what keeps a removal,
-   * a re-render or a note switch from being mistaken for a new tag.
-   */
-  const taggedCountRef = useRef<{ noteId: string | null; count: number }>({
-    noteId: null,
-    count: 0,
-  });
-  const selectedId = selected?.id ?? null;
-  const selectedTagCount = selectedId
-    ? getTagsForItem(selectedId).filter((a) => !a.isDeleted).length
-    : 0;
-  useEffect(() => {
-    const prev = taggedCountRef.current;
-    taggedCountRef.current = { noteId: selectedId, count: selectedTagCount };
-    // A different note is a fresh baseline, never an increase.
-    if (prev.noteId !== selectedId) return;
-    if (selectedTagCount > prev.count) notifyTour("tag-assigned");
-  }, [selectedId, selectedTagCount, notifyTour]);
-
-  /*
-   * "The user typed in the body."
-   *
-   * A DOM `input` listener on a wrapper, not a ProseMirror callback and not
-   * anything coordinate-based: jsdom has no layout, so a position-derived
-   * signal could not be tested at all (CLAUDE.md §7.1) — `posAtCoords` is the
-   * exact shape #475 broke on. Bubbled events also mean the editor keeps its
-   * own prop list; nothing about it changes in order to be observed.
-   *
-   * THE IME GUARD IS THE POINT OF THIS HANDLER. A Japanese conversion raises
-   * `input` for every keystroke of the PRE-EDIT string, so an unguarded
-   * listener advances the tour — moving the bubble and taking focus with it —
-   * while the user is still choosing a candidate and has committed nothing.
-   *
-   * Guarded twice on purpose. `composition{start,end}` is the reliable half
-   * (both fire in jsdom, so the guard is testable, which `InputEvent
-   * .isComposing` is not — jsdom leaves it false); `isComposing` is the half
-   * that still holds if an input arrives before compositionstart. Note this is
-   * NOT `isImeComposing` from utils: that one answers a KEYDOWN question and
-   * leans on `keyCode === 229` to catch the Enter that CONFIRMS a conversion.
-   * A confirming Enter is a real commit here, and the step should advance on
-   * it.
-   */
-  const composingRef = useRef(false);
-  const handleCompositionStart = useCallback(() => {
-    composingRef.current = true;
-  }, []);
-  const handleCompositionEnd = useCallback(() => {
-    composingRef.current = false;
-    // The commit itself is typing, and it is not guaranteed to be followed by
-    // another `input` — so report here rather than waiting for one.
-    notifyTour("note-typed");
-  }, [notifyTour]);
-  const handleBodyInput = useCallback(
-    (e: React.FormEvent<HTMLDivElement>) => {
-      if (composingRef.current) return;
-      const native = e.nativeEvent as Partial<InputEvent>;
-      if (native.isComposing === true) return;
-      notifyTour("note-typed");
-    },
-    [notifyTour],
-  );
-
-  /*
-   * "The user followed a tag to what else carries it."
-   *
-   * The tag filter panel is the in-Notes way to do that, so selecting one — and
-   * only selecting one; clearing back to "all" is not following anything — is
-   * what completes the step.
-   */
-  const handleToggleTagFilter = useCallback(
-    (key: string) => {
-      toggleTagFilter(key);
-      // #1288: with multi-select, "following a tag" is any press that ADDS one.
-      // Reporting on the toggle rather than on the resulting set keeps this out
-      // of the set's identity — un-pressing the last chip is clearing, not
-      // following, and the tour must not count it.
-      if (!tagFilters.includes(key)) notifyTour("tag-filtered");
-    },
-    [toggleTagFilter, tagFilters, notifyTour],
-  );
-
   // #1149: what the empty state offers to select. Resolved against the live
   // notes array on every render rather than stored with titles, which is what
   // keeps a renamed note's row current and drops a deleted one — `notes.notes`
@@ -492,11 +383,7 @@ export function NotesView({
     const id = createNote();
     if (typeof id === "string") setFocusTitleNoteId(id);
     if (!isWide) closeSidebar();
-    // #1125: the capture step is satisfied by a real create — and since #1147
-    // retired the narrow title-first sheet, that is now the same create at
-    // both widths.
-    notifyTour("item-created");
-  }, [createNote, isWide, closeSidebar, notifyTour]);
+  }, [createNote, isWide, closeSidebar]);
 
   // #1179: the kebab entry registers the OPEN note as a template in one press.
   // The default name is derived here rather than in the hook because the name
@@ -737,7 +624,7 @@ export function NotesView({
       showTagFilter={showTagFilter}
       tagFilterOptions={tagFilterOptions}
       tagFilters={tagFilters}
-      onToggleTagFilter={handleToggleTagFilter}
+      onToggleTagFilter={toggleTagFilter}
       onClearTagFilters={clearTagFilters}
       listMode={listMode}
       defaultNotes={defaultNotes}
@@ -840,12 +727,7 @@ export function NotesView({
           !isWide && "pt-2",
         )}
       >
-        {/* The tour points at the pill through this wrapper rather than at the
-            button itself: AddPill is a shared primitive with a fixed prop list
-            and no data-* passthrough, and the wrapper is the same box either
-            way (inline-flex, no padding of its own) so the spotlight lands on
-            the pill. */}
-        <span {...tourAnchor("materials-add")} className="inline-flex">
+        <span className="inline-flex">
           <AddPill
             onClick={handleAddNote}
             label={t("materials.notes.addCta")}
@@ -941,12 +823,7 @@ export function NotesView({
               // its children — a readable size instead of a 0px strip.
               <div className="min-h-48" />
             ) : (
-              <div
-                {...tourAnchor("materials-note-body")}
-                onInput={handleBodyInput}
-                onCompositionStart={handleCompositionStart}
-                onCompositionEnd={handleCompositionEnd}
-              >
+              <div>
                 <AttachmentUploadStatus
                   fileName={uploadingFile}
                   uploadingLabel={t("attachment.uploading")}

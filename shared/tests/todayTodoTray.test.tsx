@@ -739,7 +739,7 @@ describe("TodayTodoTray metaLine (#2408)", () => {
  * Schedule puts a create pill in each heading so a list can be added to from
  * where it is read. The tray only places them: which one gives the todo a day
  * is the host's answer, and keeping the buttons out here is what lets the host
- * keep its copy and its tour anchor on them.
+ * keep its copy on them.
  */
 describe("TodayTodoTray heading actions", () => {
   it("places each action beside its own heading, and neither without one", () => {

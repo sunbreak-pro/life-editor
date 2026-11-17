@@ -39,8 +39,6 @@ export interface UseTodoAddDialogArgs {
   trayDay: string;
   /** Opens the new todo's detail straight after it is made. */
   setTodoDetailId: (id: string | null) => void;
-  /** The tour's create step (useTodoTourReporting). */
-  onCreated: () => void;
 }
 
 export interface TodoAddDialogApi {
@@ -54,7 +52,6 @@ export function useTodoAddDialog({
   updateNode,
   trayDay,
   setTodoDetailId,
-  onCreated,
 }: UseTodoAddDialogArgs): TodoAddDialogApi {
   const { t } = useTranslation();
 
@@ -107,9 +104,8 @@ export function useTodoAddDialog({
       // Straight into the detail: a title alone is rarely the whole thought,
       // and this is the surface that can take the rest of it.
       setTodoDetailId(node.id);
-      onCreated();
     },
-    [addNode, onCreated, setTodoDetailId, todoAddTarget, trayDay, updateNode],
+    [addNode, setTodoDetailId, todoAddTarget, trayDay, updateNode],
   );
 
   const todoAddDialog = (

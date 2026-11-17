@@ -987,19 +987,6 @@ export {
 // key gets annotated with, so a key that reaches t() through a variable is
 // checked where it is written down.
 export type { TranslationKey } from "./i18n/resources";
-// #1122 — the tutorial tour's position. REQUIRED Provider (throws outside it),
-// unlike the Mobile 省略 ones: a step whose control is absent on a phone is
-// handled by the anchor fallback, not by dropping the Provider.
-export {
-  TourProvider,
-  type TourProviderProps,
-  TourContext,
-  type TourContextValue,
-} from "./context";
-export { useTourContext, useTourContextOptional } from "./hooks/useTourContext";
-// The producer side of the tour (#1124): optional and stable, so a write
-// handler can report an action without depending on the tour being mounted.
-export { useTourAction } from "./hooks/useTourAction";
 // #2218 — open the Schedule's editor / creation panel from another screen.
 // Global Provider; the panels themselves are drawn by web's ItemPanelHost.
 export {
@@ -1017,7 +1004,3 @@ export {
   useItemPanelContext,
   useItemPanelOptional,
 } from "./hooks/useItemPanelContext";
-// Tour progress persistence (#1122). The single place that knows WHERE the
-// position is stored — see the file header for why that is localStorage and
-// not DataService today.
-export { useTourProgress, parseTourProgress } from "./hooks/useTourProgress";

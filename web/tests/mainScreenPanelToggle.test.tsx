@@ -47,7 +47,6 @@ vi.mock("../src/AppProviders", async () => {
   };
 });
 vi.mock("../src/HeaderUndoRedo", () => ({ HeaderUndoRedo: () => null }));
-vi.mock("../src/TourHost", () => ({ TourHost: () => null }));
 vi.mock("../src/MobileShellActions", () => ({
   MobileShellActions: () => null,
 }));

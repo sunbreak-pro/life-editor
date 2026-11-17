@@ -238,8 +238,8 @@ describe("which section gets which jump (#2393)", () => {
 });
 
 describe("the wiring inside the Schedule (#2393)", () => {
-  // Source text, like tourTrayRevealWiring.test: CalendarTab needs the Provider
-  // stack and real layout, and an optional prop dropped along the way compiles.
+  // Source text, because CalendarTab needs the Provider stack and real
+  // layout, and an optional prop dropped along the way compiles.
   const here = dirname(fileURLToPath(import.meta.url));
   const read = (rel: string) =>
     readFileSync(resolve(here, rel), "utf8").replace(/\r\n/g, "\n");

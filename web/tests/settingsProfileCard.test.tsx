@@ -47,7 +47,6 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
     useShortcutConfig: () => null,
     useStartupSectionPref: () => ({ pref: "last", setPref: vi.fn() }),
     useDayStartHourPref: () => ({ dayStartHour: 4, setDayStartHour: vi.fn() }),
-    useTourContext: () => ({ restart: vi.fn(), startSection: vi.fn() }),
     resetLocalPreferences: vi.fn(),
     getSession: state.getSession,
     updateDisplayName: state.updateDisplayName,

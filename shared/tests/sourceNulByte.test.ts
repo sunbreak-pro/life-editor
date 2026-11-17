@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 
 /*
- * #1877 — useTourProgress.ts held a RAW NUL byte inside `stepIds.join(...)`
+ * #1877 — useTourProgress.ts (removed with the tour in #2749) held a RAW NUL byte inside `stepIds.join(...)`
  * instead of the two-character escape. Nothing broke at runtime, which is
  * exactly why it survived: `file` reported the module as `data`, so grep and
  * rg classified it as binary and skipped it without a word. Every rename sweep

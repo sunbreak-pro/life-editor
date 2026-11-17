@@ -3,7 +3,6 @@ import type { KeyboardEvent, ReactNode } from "react";
 import { cn } from "./cn";
 import { stepSegmentFocus } from "./segmentedKeyNav";
 import { TAP_TARGET_TALL } from "./styleTokens";
-import { tourAnchor } from "./tour/anchor";
 
 export interface SegmentedOption {
   id: string;
@@ -15,14 +14,6 @@ export interface SegmentedOption {
    * wrapper here. Omit it and the segment is drawn as before.
    */
   icon?: ReactNode;
-  /**
-   * `data-tour-id` for the tutorial tour (#1124). Per-segment rather than
-   * derived from `id` for the same reason HeaderTabs takes one: the ids here
-   * are host-local ("todo" is a Schedule sidebar tab and an Analytics tab),
-   * and `resolveTourAnchor` takes the FIRST match in the document, so a
-   * derived id would be ambiguous the moment two tracks share a segment name.
-   */
-  tourId?: string;
 }
 
 /**
@@ -157,8 +148,8 @@ export interface SegmentedControlProps {
    * stopped looking like one control. #1207 aligned the broken labels; it did
    * not stop them breaking.
    *
-   * The answer is the one #1264 already reached for the tour footer: the text
-   * is nowrap and the ROW is what gives. CJK offers a break between any two
+   * The answer is the one #1264 reached for the since-removed tour footer: the
+   * text is nowrap and the ROW is what gives. CJK offers a break between any two
    * glyphs, so a squeezed flex row will always find one — refusing the break
    * has to come first, and something else then has to absorb the overrun.
    * Here that is flex-wrap on the track: at the panel's 240px minimum, or at
@@ -262,7 +253,6 @@ export function SegmentedControl({
             aria-selected={active}
             aria-disabled={disabled || undefined}
             tabIndex={active || (activeIndex === -1 && i === 0) ? 0 : -1}
-            {...(option.tourId ? tourAnchor(option.tourId) : {})}
             title={truncateLabels ? option.label : undefined}
             onClick={disabled ? undefined : () => onChange(option.id)}
             onKeyDown={(e) => handleKeyDown(e, i)}

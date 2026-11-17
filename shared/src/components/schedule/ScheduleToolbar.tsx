@@ -9,8 +9,6 @@ import {
 import { cn } from "../cn";
 import { SegmentedControl, type SegmentedOption } from "../SegmentedControl";
 import { FOCUS_RING_ON_ACCENT } from "../styleTokens";
-import { tourAnchor } from "../tour/anchor";
-import { TOUR_ANCHORS } from "../tour/anchors";
 
 /*
  * ScheduleToolbar (W8 target-IA) — the Calendar-tab toolbar: Today / ◀▶ /
@@ -323,10 +321,6 @@ export function ScheduleToolbar({
         <button
           type="button"
           onClick={onAddEvent}
-          // #1124 tour anchor. The narrow layout's <AddPill> carries the same
-          // id — only one of the two layouts is ever mounted, so the tour
-          // finds whichever create control this width actually shows.
-          {...tourAnchor(TOUR_ANCHORS.scheduleAddEvent)}
           // The name lives on aria-label so the icon-only fold (#1469) keeps
           // it; title gives the hover tip the text used to be.
           aria-label={addEventLabel}

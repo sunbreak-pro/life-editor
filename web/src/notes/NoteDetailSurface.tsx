@@ -1,10 +1,6 @@
 import type { MouseEvent, ReactNode } from "react";
 import type { Editor } from "@tiptap/core";
-import {
-  NoteDetailPanel,
-  LockedBodyGate,
-  tourAnchor,
-} from "@life-editor/shared";
+import { NoteDetailPanel, LockedBodyGate } from "@life-editor/shared";
 import type { NoteNode } from "@life-editor/shared";
 import { TagPicker } from "../wikitag";
 import { FormatBubbleMenu, type FormatToolbarLabels } from "./FormatToolbar";
@@ -185,18 +181,9 @@ export function NoteDetailSurface({
         // the "+ Tag" affordance already say what the row is. The badge stays
         // where it still earns its place: the todo detail and the tag editor's
         // item list, where the row IS about which kind of thing is tagged.
-        // #1125: the tour points at the tag row through a wrapper, so
-        // TagPicker stays generic — it is mounted by the todo detail and
-        // the schedule editor too, and only the Notes one is this step.
-        // `inline-flex`, not `contents`: the spotlight reads this
-        // element's rect, and a display:contents box measures 0×0.
-        // TagPicker's own root is inline-flex, so the row is unchanged.
         // #2291: below the breakpoint the chips stay on one sideways-scrolling
         // line (`singleRow`), so the wrapper may shrink under its content.
-        <span
-          {...tourAnchor("materials-note-tag")}
-          className="inline-flex max-md:min-w-0"
-        >
+        <span className="inline-flex max-md:min-w-0">
           <TagPicker
             itemId={note.id}
             size="sm"

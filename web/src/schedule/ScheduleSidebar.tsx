@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ChevronLeft, ChevronRight, ListFilter } from "lucide-react";
 import {
   useTranslation,
@@ -13,10 +13,6 @@ import {
   TodoFocusCard,
   type TodoFilterPanelTag,
   type TodoFocusCardTodo,
-  tourAnchor,
-  useTourAction,
-  TOUR_ACTIONS,
-  TOUR_ANCHORS,
   type AgendaItem,
   type RepeatListRow,
   type ScheduleSidebarTab,
@@ -71,17 +67,14 @@ const HEADING_PILL_TAP =
 function HeadingAddButton({
   label,
   onClick,
-  tourId,
 }: {
   label: string;
   onClick: () => void;
-  tourId?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      {...(tourId ? tourAnchor(tourId) : {})}
       className={cn(
         "inline-flex shrink-0 items-center rounded-lumen-md px-1.5 py-0.5 text-xs font-medium text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
@@ -289,23 +282,6 @@ export function ScheduleSidebar({
   const { t } = useTranslation();
   const active = tab;
 
-  /*
-   * #1124: tell the tour the todos are on screen. This component only exists
-   * while the detail panel is showing it — RightSidebarPortal renders nothing
-   * when the panel is closed — so "the todo tab is active here" is the same
-   * fact the retired Kanban board reported on mount, and it covers every route
-   * in (the switcher, the `nav:tasks` intent, the palette) without any of them
-   * knowing about the tour.
-   *
-   * Reported from the sidebar rather than from CalendarTab on purpose: the tab
-   * id is host state that survives the panel being closed, so a host-side
-   * effect would announce a tray nobody can see and advance the step early.
-   */
-  const reportTourAction = useTourAction();
-  useEffect(() => {
-    if (active === "todo") reportTourAction(TOUR_ACTIONS.scheduleTodoTabOpened);
-  }, [active, reportTourAction]);
-
   const flowBody = (
     <div className="flex flex-col gap-3">
       {/* No heading on either layout: the switcher above already reads
@@ -316,13 +292,7 @@ export function ScheduleSidebar({
           one: the day caption and the way to add to that day belong together,
           and the row is outside the scroller below — which is the whole of
           #1034's argument for a pill over a floating FAB, carried across from
-          the day list that used to host it.
-
-          #1124: the pill therefore carries the narrow half of the
-          `scheduleAddEvent` tour anchor — it moved here with the create route
-          itself. It cannot collide with the wide half on ScheduleToolbar: the
-          pill renders only when `onAdd` is passed, which CalendarTab does only
-          on narrow. */}
+          the day list that used to host it. */}
       <div className="flex shrink-0 items-center justify-between gap-2">
         {/* #1440: the day alone. The "{done}/{total}" that followed it counted
             `completed` on events, which #1373 took away from events entirely
@@ -336,7 +306,6 @@ export function ScheduleSidebar({
           <AddPill
             onClick={flow.onAdd}
             label={flow.addLabel}
-            tourId={TOUR_ANCHORS.scheduleAddEvent}
             // #1832: the pill paints at 35px, which is a mouse size. The
             // floor is narrow-only and per call site (rules/frontend.md
             // §Gotchas) — AddPill's own recipe feeds Notes too.
@@ -467,16 +436,7 @@ export function ScheduleSidebar({
   });
 
   const todoBody = (
-    // #1124: the tour's "finish one of them" step points at the whole tray
-    // rather than at one control, because completing has three routes (the row
-    // checkbox, the detail's toggle, the detail's status row) and singling one
-    // out would teach the other two as wrong. It pointed at the Kanban board
-    // until #1153 retired it; this is the same argument on the surface that
-    // replaced it.
-    <div
-      {...tourAnchor(TOUR_ANCHORS.scheduleTodoBoard)}
-      className="flex flex-col gap-2"
-    >
+    <div className="flex flex-col gap-2">
       {todo.focus && (
         <TodoFocusCard
           todo={todo.focus.todo}
@@ -546,8 +506,7 @@ export function ScheduleSidebar({
        * It used to share that row with the create pill — but #1640 moved the
        * single pill into the two list headings, one per list, so there is no
        * longer a pill up here to sit opposite. Putting one back would give the
-       * tab two controls that do the same thing, and two DOM nodes carrying
-       * the same tour anchor.
+       * tab two controls that do the same thing.
        *
        * The count on it is the number of things narrowing the list (a chosen
        * list counts as one, plus one per ticked tag) — the same reading the
@@ -674,9 +633,8 @@ export function ScheduleSidebar({
         /*
          * #1640: an add action per heading, so each list is added to from
          * where it is read. The one over "その他" makes a todo with no day (what
-         * the single pill above the tray did until now, tour anchor included —
-         * the tour's create step still points at the control that MAKES one);
-         * the one over "今日の Todo" makes it on today.
+         * the single pill above the tray did until now); the one over
+         * "今日の Todo" makes it on today.
          */
         headingActions={{
           placed: (
@@ -693,7 +651,6 @@ export function ScheduleSidebar({
             <HeadingAddButton
               onClick={todo.onAdd}
               label={t("scheduleScreen.todoAddLink")}
-              tourId={TOUR_ANCHORS.scheduleTodoAdd}
             />
           ),
         }}

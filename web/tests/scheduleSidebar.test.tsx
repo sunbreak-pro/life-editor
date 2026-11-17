@@ -600,16 +600,11 @@ describe("ScheduleSidebar — the todo tray after the board (#1153)", () => {
    * #1641 x #1640. The filter row used to carry a create pill of its own,
    * back when the tab had one row with the single pill in it. #1640 moved
    * that pill into the two list headings, so a pill left in the filter row
-   * would be a second control doing the same thing — and a second DOM node
-   * carrying the tour anchor, which `resolveTourAnchor` resolves by taking
-   * the first match. The tour would silently point at the wrong button.
+   * would be a second control doing the same thing.
    */
   it("keeps the filter row free of a create pill", () => {
     render(<ScheduleSidebar {...withTray()} />);
     expect(screen.getAllByText("scheduleScreen.todoAddLink")).toHaveLength(1);
-    expect(
-      document.querySelectorAll("[data-tour-id='schedule-todo-add']"),
-    ).toHaveLength(1);
     // The pill that IS there heads the "その他" list, not the filter row.
     const pill = screen.getByText("scheduleScreen.todoAddLink");
     expect(pill.closest("[data-todo-filter-row]")).toBeNull();
@@ -957,11 +952,6 @@ describe("ScheduleSidebar — the Todo tab's prototype shape (#2568)", () => {
       expect(cls).not.toContain("bg-lumen-accent");
       expect(cls.split(/\s+/)).not.toContain("border");
     }
-    expect(
-      screen
-        .getByRole("button", { name: "scheduleScreen.todoAddLink" })
-        .getAttribute("data-tour-id"),
-    ).toBe("schedule-todo-add");
   });
 
   it("gives the 'other' rows the tag line too", () => {

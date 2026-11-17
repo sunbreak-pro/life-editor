@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
 import { cn } from "./cn";
-import { tourAnchor } from "./tour/anchor";
 
 export interface HeaderTab {
   id: string;
@@ -24,14 +23,6 @@ export interface HeaderTab {
    * is drawn as before.
    */
   icon?: ReactNode;
-  /**
-   * `data-tour-id` for the tutorial tour (#1124). Per-tab rather than derived
-   * from `id`: the ids here are section-local ("todo" exists under Schedule
-   * and used to under Materials), and `resolveTourAnchor` takes the FIRST
-   * match in the document, so a derived id would be ambiguous the moment two
-   * bands share a tab name.
-   */
-  tourId?: string;
 }
 
 export interface HeaderTabsProps {
@@ -155,7 +146,6 @@ export function HeaderTabs({
               role="tab"
               aria-selected={active}
               tabIndex={active || (activeIndex === -1 && i === 0) ? 0 : -1}
-              {...(tab.tourId ? tourAnchor(tab.tourId) : {})}
               onClick={() => onSelect(tab.id)}
               onKeyDown={(e) => handleKeyDown(e, i)}
               className={cn(

@@ -56,10 +56,6 @@ import { useTodoLinking } from "./useTodoLinking";
 import { selectNarrowDay } from "./narrowDayTap";
 import { useScheduleWriteErrors } from "./useScheduleWriteErrors";
 import { useDuplicateTagCopy } from "./useDuplicateTagCopy";
-import {
-  useEventTourReporting,
-  useTodoTourReporting,
-} from "./useScheduleTourReporting";
 import { useScheduleShellIntents } from "./useScheduleShellIntents";
 import { useScheduleLinkFocus } from "./useScheduleLinkFocus";
 import type { ScheduleLinkTarget } from "../hooks/useShellNavigation";
@@ -90,8 +86,8 @@ import { useTodoAddDialog } from "./useTodoAddDialog";
  * themselves — which of the two failure surfaces is right (#296), where the
  * sidebar portal and the single shared overlay set are mounted, and which
  * layout renders at all. #1642 P2 took the last pieces of CONTENT out (the
- * failure toasts, the tour reporting, the shell intents, the todo create
- * dialog, the todo tab's tag list and the repeat panel's pending jumps): a new
+ * failure toasts, the shell intents, the todo create dialog, the todo tab's
+ * tag list and the repeat panel's pending jumps): a new
  * feature should land in the hook that owns its part, not here.
  */
 
@@ -206,20 +202,6 @@ export function CalendarTab({
     softDelete: softDeleteTodo,
     refetch: refetchTodos,
   } = useTodoTreeContext();
-
-  /*
-   * Tutorial tour reporting (#1124), the todo half. Wrapped at the SOURCE,
-   * before anything is handed either writer, and it has to sit HERE: the
-   * tray's own completion route goes through useScheduleTodoChips a few lines
-   * down, and a wrapper made after that call would arrive too late for it.
-   * The event half follows the mutation layer (see useScheduleTourReporting).
-   */
-  const { setTodoStatusReported, toggleTodoStatusReported, reportTodoCreated } =
-    useTodoTourReporting({
-      todoNodes,
-      setTodoStatus,
-      toggleTodoStatus,
-    });
 
   // #468 / #1173: saved tag groups as a filter lens. A group is a named set
   // of life tags, so the grid needs both halves — the groups (which exist, and
@@ -409,7 +391,7 @@ export function CalendarTab({
   } = useScheduleTodoChips({
     todoNodes,
     updateNode,
-    setTodoStatus: setTodoStatusReported,
+    setTodoStatus,
     softDeleteTodo,
     today,
     rangeStart,
@@ -659,13 +641,6 @@ export function CalendarTab({
     copySuffix: t("scheduleScreen.copySuffix"),
   });
 
-  // Tutorial tour reporting (#1124), the event half — the two writers the
-  // mutation layer just returned, wrapped before anything is handed them.
-  const { handleCreateReported, handleUpdateReported } = useEventTourReporting({
-    handleCreate,
-    handleUpdate,
-  });
-
   // #2406: the three halves of copying an existing event from the create panel.
   const createCopyEvent = useMemo(
     () => ({
@@ -701,7 +676,7 @@ export function CalendarTab({
     isWide,
     setSelectedId,
     setOverlayOpen,
-    handleCreate: handleCreateReported,
+    handleCreate,
     addNode,
     updateNode,
     attachNote,
@@ -848,7 +823,6 @@ export function CalendarTab({
     // #2281: the first list's pill adds to the day that list is showing.
     trayDay,
     setTodoDetailId,
-    onCreated: reportTodoCreated,
   });
 
   const editorItem: EventEditorItem | null = toEditorItem(selected);
@@ -1072,7 +1046,7 @@ export function CalendarTab({
         // rather than callbacks: the pane holds them in its draft until the
         // button.
         handlers: {
-          onSave: handleUpdateReported,
+          onSave: handleUpdate,
           onDismiss: handleDismiss,
           onDelete: handleDelete,
         },
@@ -1108,8 +1082,8 @@ export function CalendarTab({
         },
         writes: {
           updateNode,
-          toggleStatus: toggleTodoStatusReported,
-          setStatus: setTodoStatusReported,
+          toggleStatus: toggleTodoStatus,
+          setStatus: setTodoStatus,
           onDelete: handleTodoDetailDelete,
         },
         onConvertToEvent: handleConvertToEvent,
@@ -1132,11 +1106,8 @@ export function CalendarTab({
         itemActions: {
           // #1664 / #2222: the bubble's in-place edit goes through the same
           // handler the detail panel's save uses — scope dialog on a repeat,
-          // undo entry, optimistic patch, all of it. #1747: *Reported*,
-          // because the tour's 3/10 step waits on a time change and the bubble
-          // is the shortest way to make one — calling the bare handleUpdate
-          // left the step stuck.
-          onQuickEdit: handleUpdateReported,
+          // undo entry, optimistic patch, all of it.
+          onQuickEdit: handleUpdate,
           onDuplicate: handleDuplicate,
           onConvertToTodo: handleConvertToTodo,
           onDelete: handleDelete,

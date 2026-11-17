@@ -5,10 +5,8 @@ import {
   MonthMorePanel,
   ScheduleBodyFold,
   ScheduleToolbar,
-  TOUR_ANCHORS,
   WeekTimeGrid,
   monthCellFold,
-  tourAnchor,
   useTranslation,
   type CalendarLensRowProps,
   type DesktopCalendarView,
@@ -392,15 +390,7 @@ export function CalendarDesktopLayout({
   );
 
   return (
-    // #1124 tour anchor on the pane rather than on a grid cell: the step it
-    // serves ("open what you just made and change its time") has to point at
-    // something already on screen when it starts, and the created row is not
-    // addressable by a fixed id. The narrow layout marks its month grid with
-    // the same id — one of the two is mounted, never both.
-    <div
-      {...tourAnchor(TOUR_ANCHORS.scheduleCalendar)}
-      className="flex min-h-0 flex-1 flex-col gap-3 px-lumen-gutter pb-4 pt-3 md:px-lumen-gutter-wide"
-    >
+    <div className="flex min-h-0 flex-1 flex-col gap-3 px-lumen-gutter pb-4 pt-3 md:px-lumen-gutter-wide">
       <ScheduleToolbar
         className="shrink-0 flex-wrap gap-y-2"
         periodLabel={toolbar.periodLabel}

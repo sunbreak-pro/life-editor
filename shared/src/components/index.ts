@@ -293,12 +293,6 @@ export {
   DeleteAccountDialog,
   type DeleteAccountDialogProps,
 } from "./DeleteAccountDialog";
-// Tutorial re-run card (#1123). The only way back to the tour once it has been
-// finished or skipped — the host wires the button to TourContext's `restart`.
-export {
-  SettingsTutorial,
-  type SettingsTutorialProps,
-} from "./SettingsTutorial";
 // Policy + terms card (#1251) — the signed-in door to the documents #1198
 // shipped. Links only; the reader they open lives in the web host.
 export { SettingsLegal, type SettingsLegalProps } from "./SettingsLegal";
@@ -309,7 +303,7 @@ export {
   type SettingsDataExportProps,
 } from "./SettingsDataExport";
 // Help and contact (#1989): the Settings card that opens the help dialog, and
-// the dialog's body (tutorial door, FAQ, contact links) shared with the
+// the dialog's body (FAQ, contact links) shared with the
 // sign-in screen. The contacts themselves come from the web host's operator.ts.
 export { SettingsHelp, type SettingsHelpProps } from "./SettingsHelp";
 export {
@@ -489,8 +483,3 @@ export * from "./materials";
 // Notes (life-tags unification S1) — pure tag-heading grouping (buildTagGroups)
 // for the Notes side list. UI-free: the interactive list + DnD stay host-side.
 export * from "./notes";
-// Tutorial tour (#1122) — the step vocabulary + registry, the data-tour-id
-// anchor helpers, and the spotlight/bubble primitive. Pure presentation: the
-// overlay takes every piece of state and all copy as props (§6.4); the
-// Provider that owns the position lives in ../context/TourContext.
-export * from "./tour";

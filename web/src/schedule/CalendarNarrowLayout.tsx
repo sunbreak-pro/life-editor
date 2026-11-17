@@ -4,9 +4,7 @@ import {
   HORIZONTAL_SWIPE_TOUCH_CLASS,
   MonthGrid,
   ScheduleBodyFold,
-  TOUR_ANCHORS,
   cn,
-  tourAnchor,
   useHorizontalSwipe,
   useTranslation,
   type MonthGridItem,
@@ -291,10 +289,7 @@ export function CalendarNarrowLayout({
            * the titles say what a day holds and the day underneath stays the
            * tap target. Opening one is the drawer's job.
            */}
-          {/* #1124: the narrow half of the `scheduleCalendar` anchor — the
-              grid is where a created event is found again on this width. */}
           <div
-            {...tourAnchor(TOUR_ANCHORS.scheduleCalendar)}
             {...swipe}
             className={cn(
               "min-h-0 flex-1 overflow-y-auto pb-3 pt-3",

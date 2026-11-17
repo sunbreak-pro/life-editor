@@ -1,20 +1,13 @@
-import { useCallback } from "react";
 import type { ComponentProps, ReactNode } from "react";
 import {
   isNativeMobile,
-  useMediaQuery,
-  useRightSidebarOptional,
   useTranslation,
   ItemPanelProvider,
   RightSidebarProvider,
   ShortcutConfigProvider,
   SyncProvider,
   ToastProvider,
-  TourProvider,
-  TOUR_REVEALS,
-  WIDE_QUERY,
   type DataService,
-  type SectionId,
 } from "@life-editor/shared";
 import { DailyMergeNotice } from "./components/DailyMergeNotice";
 import { GlobalShortcuts } from "./GlobalShortcuts";
@@ -38,21 +31,13 @@ import { UndoRedoHost } from "./UndoRedoHost";
  * ORDER IS A DEPENDENCY GRAPH, not a preference (rules/frontend.md §Provider
  * 順序 — outer may not read inner):
  *
- *   Toast → Sync → UndoRedo → ShortcutConfig → RightSidebar → Tour
- *     → ItemPanel
+ *   Toast → Sync → UndoRedo → ShortcutConfig → RightSidebar → ItemPanel
  *
  * - Sync is above everything that reads `useSyncDomains`, and is mounted once
  *   rather than per-section: a per-section mount would tear down and rebuild
  *   the Supabase Realtime channel on every navigation.
- * - RightSidebar is innermost so the shell AND the palette/tag-editor
- *   siblings the host renders as `children` all sit inside it.
- * - Tour (#1122) sits inside RightSidebar, i.e. innermost of all: nothing
- *   reads it, it reads the section switch the host passes down, and its
- *   overlay is a shell-level sibling of the palette. It is GLOBAL rather than
- *   section-layer because a tour crosses sections — a section-layer Provider
- *   is unmounted by the very navigation the tour asks for. It is also above
- *   the sections themselves, which is what lets Settings' Tutorial card
- *   (#1123) reach `restart` from inside the section switch.
+ * - RightSidebar wraps the shell AND the shell-level siblings the host
+ *   renders as `children`, so all of them sit inside it.
  * - ItemPanel (#2218) is innermost: the screens that open the Schedule's
  *   editor from outside it (Briefing, Connect) are inside the section switch,
  *   and its host draws that editor with the Toast / Sync / UndoRedo it reads.
@@ -78,26 +63,9 @@ export interface AppProvidersProps {
   onMaterialsCounts: ComponentProps<typeof MaterialsCountsBridge>["onCounts"];
   /** Forwarded verbatim to the headless global shortcut executor. */
   shortcuts: ComponentProps<typeof GlobalShortcuts>;
-  /** The section on screen right now — the tour needs it to know whether its
-   *  next step is reachable from here (#1122). */
-  currentSection: SectionId;
-  /** Section switch, handed to the tour so it can walk across sections.
-   *  Shared must not import web's navigation, so it arrives as a prop. */
-  onNavigateToSection: (section: SectionId) => void;
-  /**
-   * Put the Schedule detail panel on its todo tab (#1773) — the shell's
-   * `nav:tasks` intent, raised without a navigation.
-   *
-   * A SECOND callback rather than more work inside the reveal handler below,
-   * because the tab is not this component's state to set: it lives in
-   * CalendarTab, and the shell has only ever asked for it. Optional so a host
-   * that does not mount the Schedule section (appProvidersOrder.test.tsx)
-   * needs no stand-in — an unhonoured reveal is already a supported answer.
-   */
-  onRevealTodoTray?: () => void;
   /** Signed-in account id, handed to the UndoRedo host (#1727). */
   userId: string;
-  /** The shell and its shell-level siblings (palette, tag editor). */
+  /** The shell and its shell-level siblings. */
   children: ReactNode;
 }
 
@@ -105,12 +73,9 @@ export function AppProviders({
   dataService,
   onMaterialsCounts,
   shortcuts,
-  currentSection,
-  onNavigateToSection,
-  onRevealTodoTray,
   userId,
   children,
-}: AppProvidersProps) {
+}: AppProvidersProps): React.JSX.Element {
   const { t } = useTranslation();
 
   return (
@@ -127,16 +92,10 @@ export function AppProviders({
           <ShortcutConfigHost>
             <GlobalShortcuts {...shortcuts} />
             <RightSidebarProvider>
-              <TourRevealHost
-                currentSection={currentSection}
-                onNavigateToSection={onNavigateToSection}
-                onRevealTodoTray={onRevealTodoTray}
-              >
-                <ItemPanelProvider>
-                  {children}
-                  <ItemPanelHost dataService={dataService} />
-                </ItemPanelProvider>
-              </TourRevealHost>
+              <ItemPanelProvider>
+                {children}
+                <ItemPanelHost dataService={dataService} />
+              </ItemPanelProvider>
             </RightSidebarProvider>
           </ShortcutConfigHost>
         </UndoRedoHost>
@@ -159,88 +118,4 @@ export function AppProviders({
 function ShortcutConfigHost({ children }: { children: ReactNode }) {
   if (isNativeMobile()) return <>{children}</>;
   return <ShortcutConfigProvider>{children}</ShortcutConfigProvider>;
-}
-
-/*
- * The tour's Provider, plus the one thing it cannot do for itself (#1748).
- *
- * A step may declare a container that has to be open before its anchor can
- * exist (`TourStep.reveal`). Shared names the container; opening it is the
- * host's, because the state belongs to the host — the same split
- * `onNavigateToSection` has always had. A separate component rather than more
- * lines in AppProviders because the sidebar hook has to be called INSIDE
- * RightSidebarProvider, which AppProviders is the one rendering.
- *
- * The OPTIONAL hook, the same one RightSidebarPortal uses: a render that
- * stands the Provider in for a marker (appProvidersOrder.test.tsx) must get a
- * chain it can walk, not a throw. No panel to open is just another reveal this
- * host cannot honour, and declining is already a supported answer.
- *
- * WHY THIS DECLINES ON NARROW. The detail panel is a push-in `<aside>` when
- * wide and a MobileDrawer when not, and the drawer paints at z-50 over the
- * tour bubble's z-45 (see TourOverlay). Opening it there would trade a skipped
- * step for a stuck one: the anchor is found, the tour waits for the deed, and
- * the instructions are underneath the drawer the whole time. Skipping is the
- * behaviour those steps already had on a phone, so declining changes nothing
- * there and fixes the width where the panel covers nothing.
- *
- * `useMediaQuery(WIDE_QUERY, true)` — the same call and the same default every
- * other wide↔narrow fold in this app uses (rules/frontend.md).
- */
-function TourRevealHost({
-  currentSection,
-  onNavigateToSection,
-  onRevealTodoTray,
-  children,
-}: {
-  currentSection: SectionId;
-  onNavigateToSection: (section: SectionId) => void;
-  onRevealTodoTray?: () => void;
-  children: ReactNode;
-}) {
-  const open = useRightSidebarOptional()?.open;
-  const isWide = useMediaQuery(WIDE_QUERY, true);
-
-  /*
-   * #1773: the tray needs BOTH halves. `scheduleTodoTray` names the panel
-   * standing on its todo tab, and the two are separate pieces of state here —
-   * the panel is RightSidebarContext's, the tab is CalendarTab's. The intent
-   * consumer opens the panel as well, so `open()` is belt-and-braces rather
-   * than the load-bearing half; it is called anyway so the reveal still does
-   * something useful on a host that has no Schedule section to consume the
-   * intent.
-   *
-   * The narrow stand-down covers this name too, for the reason it covers the
-   * other: opening the drawer is what buries the bubble, and which tab is
-   * underneath it does not change that.
-   */
-  const handleReveal = useCallback(
-    (reveal: string) => {
-      if (!isWide) return;
-      if (reveal === TOUR_REVEALS.detailPanel) {
-        open?.();
-        return;
-      }
-      if (reveal === TOUR_REVEALS.scheduleTodoTray) {
-        open?.();
-        onRevealTodoTray?.();
-      }
-    },
-    [isWide, onRevealTodoTray, open],
-  );
-
-  return (
-    <TourProvider
-      currentSection={currentSection}
-      onNavigateToSection={onNavigateToSection}
-      onRevealStep={handleReveal}
-      // #1123: the tour offers itself on first run. "First run" is the
-      // Provider's own persisted state — it stays quiet once the tour has been
-      // finished or skipped, and Settings' Tutorial card is what brings it
-      // back after that.
-      autoStart
-    >
-      {children}
-    </TourProvider>
-  );
 }

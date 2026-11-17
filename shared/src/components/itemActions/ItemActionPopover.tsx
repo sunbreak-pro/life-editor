@@ -121,8 +121,8 @@ export interface ItemActionPopoverProps {
   width?: number;
   /**
    * How the three blocks are arranged (#1625). "stack" (default) puts summary,
-   * actions and the edit-detail button in one column — what the tour and every
-   * other caller keep. "columns" puts the summary on the left and the actions
+   * actions and the edit-detail button in one column — what every other
+   * caller keeps. "columns" puts the summary on the left and the actions
    * on the right, with the edit-detail button across both underneath (#2564),
    * so a wide panel spends its width instead of its height. A prop rather
    * than a className override because
@@ -494,7 +494,7 @@ export function ItemActionPopover({
   // Hidden while the inline input is up, so Enter has exactly one meaning.
   // #2564: in columns it is the outlined full-width row under both columns,
   // as the Claude Design proposal draws the schedule bubble. The stacked
-  // panel keeps the filled accent button the tour and the other callers use.
+  // panel keeps the filled accent button the other callers use.
   const editDetailBlock =
     onEditDetail && !inlineBlock && !inlineTimeBlock && !editing ? (
       <div

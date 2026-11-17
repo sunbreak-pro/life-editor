@@ -141,7 +141,7 @@ describe("ItemActionPopover unified panel (#551)", () => {
 
 /*
  * #1625 — the two-column arrangement Schedule opts into. The stacked default
- * above is what the tour and every other caller keep, so these cases pin the
+ * above is what every other caller keeps, so these cases pin the
  * split itself: the item on the left with its detail hand-off, the actions on
  * the right, and the rename swap staying inside the actions column.
  */

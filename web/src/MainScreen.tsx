@@ -28,7 +28,6 @@ import { SECTION_DESCRIPTORS, type TabBandId } from "./sectionDescriptors";
 import { useClaudeLauncher } from "./hooks/useClaudeLauncher";
 import { prefetchLazySections } from "./lazySections";
 import { useShellNavigation } from "./hooks/useShellNavigation";
-import { TourHost } from "./TourHost";
 import { useShellChrome } from "./hooks/useShellChrome";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import { SignOutFailureNotice } from "./components/SignOutFailureNotice";
@@ -386,13 +385,6 @@ export function MainScreen({ session }: { session: Session }) {
         onOpenSettings: () => setSection("settings"),
         onNewTodo: nav.handleNewTodo,
       }}
-      currentSection={section}
-      onNavigateToSection={setSection}
-      // #1773: the tour's tray steps need the Schedule panel standing on its
-      // todo tab, which is the same `nav:tasks` intent the shortcut raises —
-      // minus the navigation, since the tour only asks once it is already
-      // there.
-      onRevealTodoTray={nav.requestTodoTray}
     >
       {/*
        * W5 app shell — responsive single shell (wide sidebar ↔ narrow bottom
@@ -490,14 +482,6 @@ export function MainScreen({ session }: { session: Session }) {
         </PageContainer>
       </AppShell>
 
-      {/*
-       * Tutorial tour overlay (#1122), mounted at the shell level outside the
-       * section switch: it has to be able to open over any section, and the
-       * tour walks between them. Renders nothing until a step's anchor resolves, which is
-       * why it is safe to mount before the sections carry their data-tour-id
-       * attributes.
-       */}
-      <TourHost />
       {/* This component sits above the ToastProvider, so its child shows the notice. */}
       <SignOutFailureNotice />
       {/* #2334: pinned notes open offline even if the Notes tab never opened here. */}
