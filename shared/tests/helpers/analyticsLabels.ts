@@ -1,5 +1,4 @@
 import type { AnalyticsLabels } from "../../src/components/Analytics/labels";
-import { makeRecordsLabels } from "./recordsLabels";
 
 /*
  * A complete `AnalyticsLabels` fixture (#860).
@@ -33,7 +32,6 @@ export function makeAnalyticsLabels(
       todos: "Todos",
       schedule: "Schedule",
       work: "Work",
-      records: "Records",
     },
     datePreset: {
       label: "Date range",
@@ -143,7 +141,6 @@ export function makeAnalyticsLabels(
       routineTitle: "Routine Rate",
       top3: "Top 3",
     },
-    records: makeRecordsLabels(),
     schedule: {
       totalEvents: "Total Events",
       completedEvents: "Completed",

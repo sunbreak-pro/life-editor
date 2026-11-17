@@ -299,16 +299,6 @@ describe("SettingsScreen — the preference selects", () => {
     fireEvent.click(connect);
     for (const name of SINKS) expect(sink(name)).not.toHaveBeenCalled();
   });
-
-  it("launcher → lists Apps (#2165) as not pressable, since it has no steps", () => {
-    render(<SettingsScreen />);
-
-    const dialog = openPicker();
-    const apps = within(dialog).getByRole("button", { name: /section\.apps/ });
-
-    expect(apps.textContent).toContain("tour.launcher.comingSoon");
-    expect((apps as HTMLButtonElement).disabled).toBe(true);
-  });
 });
 
 describe("SettingsScreen — what changes nothing", () => {

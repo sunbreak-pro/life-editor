@@ -58,15 +58,9 @@ export const SYNC_DOMAINS = [
   // Read only by the Settings editor (#2119) and the Desktop launcher (#2120);
   // nothing else in the app reads them, so they share no counter.
   "aiCustomization",
-  // #2162: extension-app records (0039) and the extension-app ledger, one
-  // domain each (1 table = 1 domain). Records are append-heavy — every number
-  // an app sends is a row — while the ledger changes when the owner edits the
-  // Apps list. Sharing a counter would re-pull the ledger on every record.
-  "appRecords",
-  "extensionApps",
-  // #2260: how each kind of record is shown (0041). Its own counter: it moves
-  // only when the owner picks a view, and must not re-pull the records.
-  "recordViews",
+  // (#2720 removed the extension-app domains `appRecords`, `extensionApps` and
+  // `recordViews` with their screens. Their tables stay in the DB and in the
+  // publication but are no longer subscribed — see REALTIME_TABLES.)
 ] as const;
 
 export type SyncDomain = (typeof SYNC_DOMAINS)[number];
@@ -140,11 +134,6 @@ export const TABLE_DOMAIN: Readonly<Record<string, SyncDomain>> = {
   ai_skills: "aiCustomization",
   // #2094 (0040)
   tables_payload: "notes",
-  // #2162 (0039)
-  app_records: "appRecords",
-  extension_apps: "extensionApps",
-  // #2260 (0041)
-  record_views: "recordViews",
 };
 
 /** The `role` column as Realtime delivers it, if the payload carries one. */

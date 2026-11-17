@@ -28,7 +28,6 @@ import {
   periodsOfDates,
   readGoalPeriods,
 } from "./goalHandlers.js";
-import { summarizeRecords } from "./recordHandlers.js";
 
 /*
  * Briefing handlers (briefing-loop Step 2 / Issue #256).
@@ -38,9 +37,6 @@ import { summarizeRecords } from "./recordHandlers.js";
  *     dailies (the 夕刊 material) and the state of today's daily.
  *   get_week_context — the same day-shaped material for 7 days at once, for
  *     the weekly review (#782 ③).
- *   Both also carry `records` (#2163): per kind, how many numbers were
- *     recorded in the window, their sum and average, and the newest one's
- *     value (#2261; recordHandlers.ts).
  *   Both also carry `goals` (#2104): the year / month / week goals of the
  *     day (or of the window's first day), judged the way list_goals does.
  *   write_briefing — two writes since #1048 / #1097: the focus goes into
@@ -295,7 +291,6 @@ export async function getTodayContext(args: { date?: string }) {
     recentDailyPayloads,
     todayDailyPayloads,
     goals,
-    records,
   ] = await Promise.all([
     client
       .from("events_payload")
@@ -326,7 +321,6 @@ export async function getTodayContext(args: { date?: string }) {
     fetchDailies(addDays(date, -3), addDays(date, -1)),
     fetchDailies(date, date),
     readGoalPeriods(periodsOfDate(date)),
-    summarizeRecords(startIso, endIso),
   ]);
   if (eErr) throw new Error(`events_payload: ${eErr.message}`);
   if (sErr) throw new Error(`scheduled todos: ${sErr.message}`);
@@ -373,7 +367,6 @@ export async function getTodayContext(args: { date?: string }) {
       text: dailyText(todayDaily),
     },
     goals,
-    records,
   };
 }
 
@@ -409,7 +402,6 @@ export async function getWeekContext(args: { start_date?: string }) {
     { data: carryoverRows, error: cErr },
     dailyPayloads,
     goals,
-    records,
   ] = await Promise.all([
     client
       .from("events_payload")
@@ -445,7 +437,6 @@ export async function getWeekContext(args: { start_date?: string }) {
         Array.from({ length: 7 }, (_, offset) => addDays(startDate, offset)),
       ),
     ),
-    summarizeRecords(startIso, endIso),
   ]);
   if (eErr) throw new Error(`events_payload: ${eErr.message}`);
   if (sErr) throw new Error(`scheduled todos: ${sErr.message}`);
@@ -502,7 +493,6 @@ export async function getWeekContext(args: { start_date?: string }) {
       .filter((t) => titleById.has(t.item_id))
       .map((t) => formatOpenTodo(t, titleById, startIso)),
     goals,
-    records,
   };
 }
 

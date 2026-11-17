@@ -20,7 +20,7 @@
 
 ## 2. Platform
 
-- Desktop（macOS / Windows / Linux）= 全機能。Mobile（iOS / Android）= Consumption + Quick capture。**MCP の入口は 3 本で、stdio は Desktop 専用のまま**（入口ごとの役割 → §5）。アプリ内 Terminal は退役し、MCP Server は存続（→ §8）
+- Desktop（macOS / Windows / Linux）= 全機能。Mobile（iOS / Android）= Consumption + Quick capture。**MCP の入口は 2 本で、stdio は Desktop 専用のまま**（入口ごとの役割 → §5）。アプリ内 Terminal は退役し、MCP Server は存続（→ §8）
 - **画面別 Mobile スコープの元になる文書 = [`docs/requirements/mobile-scope.md`](./docs/requirements/mobile-scope.md)**（[置き場の決定](./decisions/D-20260723-main-1.md)）: 各セクション内機能の Full / Consumption / Quick capture / 省略 と Phase 1/2 の段取り。§2 は大方針のみを持ち、画面別の取捨は同文書が正（数値の非複製原則）
 - **Mobile 省略ガード**: `mobile/` は `web/dist` を包む Capacitor 殻で独自 Provider 構成を持たず、web ホストが `isNativeMobile()` で native mobile 時に ShortcutConfig Provider を省略する（ScreenLock / FileExplorer / CalendarTags / Audio / Timer は Provider ごと撤去済みで対象外）。ネストの元 = `web/src/AppProviders.tsx`・規約は [`rules/frontend.md`](./rules/frontend.md) §Provider 順序
 - **スマホからの主導線 = 公開 Web URL**（[主導線の決定](./decisions/D-20260807-main-1.md)）: モバイル UI は画面幅（`useMediaQuery`）で出るため、ブラウザで開けば Capacitor 殻と同じ画面になる。ネイティブ殻は併存。PWA の採用範囲・配布経路 → 移行 SSOT §8 / §9
@@ -38,7 +38,7 @@
 - **特化 vs 汎用 DB の判断**: 特化 UI（DnD / カレンダー / ルーチン生成 / リマインダー）が必要 → 特化テーブル。型付きフィールド + フィルタ + 集計で済む → 汎用 Database
 - **ID 不変式**: TodoNode `<type>-<timestamp+counter>`（`<type>` は `items_meta.role` の値。Todo は `task` のまま据え置き = #831） / DailyNode `daily-<YYYY-MM-DD>` / 他 `generateId(prefix)`。全 String。`id` は role を跨いで一意
 - **items_meta + composite FK**: 各 role（task / event / routine / note / daily / goal / table。一覧の正 = `items_meta_role_check` = 最新は `supabase/migrations/0040_note_table_items.sql`）は `items_meta(id, role)` が SSOT、payload テーブルは `(id, role)` 複合 FK で参照。WikiTag / Link 系は role 区別なしで `items_meta.id` を参照。**目標 ↔ Todo は専用の `goal_todo_links`**（`(goal_id, 'goal')` / `(todo_id, 'task')` の複合 FK で種類の取り違えを DB が拒否）で、アイテム間リンクの表には入れない（#2101・規約 → db-conventions §15）。**`table` はノート本文の中の表**で、タグを初めて付けたときだけアイテムになる。セルの元は本文のままで、本文の表ノードが `tableId` 属性でアイテムを指す（#2094・規約 → db-conventions §16）
-- **`items_meta` の外の独立テーブル**: 拡張アプリの数値の記録 `app_records` と、拡張アプリの台帳 `extension_apps`（0039）と、記録の種類ごとの見せ方 `record_views`（0041・[記録の見せ方の決定](./decisions/D-20261017-main-1.md)）は、timer 系（0018）と同じく自分の `updated_at` を持つ独立テーブルで、ゴミ箱にも出さない（[拡張アプリとの役割分担の決定](./decisions/D-20261008-main-1.md)・規約 → db-conventions §17）。記録の id の接頭辞 `record-` は `items_meta.role` の値ではない
+- **拡張アプリの表は残してある**: 拡張アプリの機能は #2720 で消したが、`app_records`・`extension_apps`（0039）・`record_views`（0041）と `items_meta` の作成元の列 `origin_app` など（0038）は、DDL を打たずにわざと DB に残した。読むのはデータの書き出し（`shared/src/services/userDataExport.ts`）だけ（規約 → db-conventions §17）
 - **Routine**: Event の生成テンプレート。Routine 専用 Tag/Link UI は持たない（必要なら生成された Event 側に付与）。UI 上は「単一アイテム型（Event）+ 繰り返し設定」として提示し、Routine は実装詳細（[Routine を実装詳細に隠す決定](./decisions/D-20260711-main-1.md)）
 - **ソフトデリート**: `is_deleted` + `deleted_at` → TrashView 復元。対象の正 = `shared/src/components/TrashView.tsx::TrashCategory`（5 カテゴリ・Events 含む）
 - 汎用 Database は凍結（[凍結の決定](./decisions/D-20260704-main-1.md)）・現行スタックに実装なし。旧 PropertyType 5 種は退役スタック側の記録（requirements 参照）
@@ -46,9 +46,9 @@
 ## 5. AI Integration
 
 - MCP Server = 独立 Node.js プロセス。Claude Code が stdio 接続し同一 DB を直接操作（ツール一覧はコードが正）
-- **入口は 3 本・ハンドラは 1 本**（[スマホから MCP を使う決定](./decisions/D-20260909-mcp-mobile-1.md)・[拡張アプリの窓口を別の Worker に立てる決定](./decisions/D-20261007-main-3.md)）: `mcp-server/src/index.ts` = stdio（Desktop）、`mcp-server/src/worker.ts` = Cloudflare Workers 上の Remote MCP（スマホの Claude アプリのカスタムコネクタ）、**3 本目 = 拡張アプリ用の専用 Worker**（`mcp-server/src/gatewayWorker.ts`。拡張アプリ向けの入口で、スマホ用の Worker とは鍵・CORS・取り消しを分け、ハンドラと検査は共有する）。3 本目の段取りは計画書 [`2026-10-07-extension-app-gateway.md`](./docs/vision/plans/2026-10-07-extension-app-gateway.md)。**拡張アプリは窓口を迂回して Supabase に直接書かない**: `bumpMeta` と payload 作成失敗時の meta 削除は窓口のハンドラが持つため（[窓口を迂回しない決定](./decisions/D-20261010-mcp-tools-1.md)）。**ツール集合の元は `src/remoteTools.ts`**（どこでも動くドメイン）で、`src/tools.ts` はそれ + verification harness（`node:fs` の台帳を持つため local 専用）。新ドメインは remoteTools 側に足す — 逆にすると Worker 側だけ無言で欠ける
-- **Worker の前提**: スマホ用の Worker（`worker.ts`）の認証は URL パスの共有シークレット 1 本（不一致は 404。per-user OAuth は配布ユーザーに開く時の課題）。拡張アプリ用の Worker は鍵を `Authorization: Bearer` の header で受け、パスには載せない（仕様は `gatewayWorker.ts` の冒頭コメント）／どちらの Worker も `vars.LIFE_EDITOR_TZ` 必須（Workers の isolate は UTC 固定で、未設定なら日付ツールが前日を返すため、`worker.ts` と `gatewayWorker.ts` が例外にする）
-- **道具の失敗は `mcp-server/src/errorCodes.ts` の code を付けて投げる**: 引数の誤りは `invalidArguments()`、見つからないは `notFoundError()`、許可されないは `CodedError("forbidden", …)`。素の `Error` は code が `failed` になり、拡張アプリ側のループが文面を読んで分岐するしかなくなる。code は `structuredContent.code` に載り、文面は変わらない。窓口の道具や引数を足したら `cd mcp-server && npm run gateway-spec` で仕様ファイルを作り直し、壊れる変更では `EXTENSION_GATEWAY_VERSION` の major を上げる。
+- **入口は 2 本・ハンドラは 1 本**（[スマホから MCP を使う決定](./decisions/D-20260909-mcp-mobile-1.md)）: `mcp-server/src/index.ts` = stdio（Desktop）、`mcp-server/src/worker.ts` = Cloudflare Workers 上の Remote MCP（スマホの Claude アプリのカスタムコネクタ）。拡張アプリ用の 3 本目の Worker は #2720 で消した。**ツール集合の元は `src/remoteTools.ts`**（どこでも動くドメイン）で、`src/tools.ts` はそれ + verification harness（`node:fs` の台帳を持つため local 専用）。新ドメインは remoteTools 側に足す — 逆にすると Worker 側だけ無言で欠ける
+- **Worker の前提**: スマホ用の Worker（`worker.ts`）の認証は URL パスの共有シークレット 1 本（不一致は 404。per-user OAuth は配布ユーザーに開く時の課題）／`vars.LIFE_EDITOR_TZ` 必須（Workers の isolate は UTC 固定で、未設定なら日付ツールが前日を返すため、`worker.ts` が例外にする）
+- **道具の失敗は `mcp-server/src/errorCodes.ts` の code を付けて投げる**: 引数の誤りは `invalidArguments()`、見つからないは `notFoundError()`、許可されないは `CodedError("forbidden", …)`。素の `Error` は code が `failed` になり、呼び手が文面を読んで分岐するしかなくなる。code は `structuredContent.code` に載り、文面は変わらない。
 - **ツールを足したら `cd mcp-server && npm run catalog` を回す**: Settings の AI 連携カードはビルド時生成の `shared/src/generated/mcpToolCatalog.json` を読む。shared から registry を直 import すると handler 経由で Supabase クライアントがフロントのバンドルに混入するため、パッケージ境界をデータで跨ぐ。再生成漏れは `mcp-server/tests/toolCatalogFreshness.test.ts` が落ちて気付ける
 - `claude`（Claude Code）起動で MCP 自動接続（起動導線だったアプリ内ターミナルは退役 → §8）。**常設の起動導線は Desktop 殻にある**: サイドバー下部の常設行と Settings の AI 連携カードのどちらからでも、Settings のパス欄で指定したフォルダを起動ディレクトリにして素の `claude` を立てる（プロンプトは渡さない。根拠 = [起動導線の置き場・起動形態・起動フォルダの決定](./decisions/D-20260831-settings-1.md)）
 
@@ -133,8 +133,8 @@
 ## 8. Feature Tier Map（詳細 → `docs/requirements/`）
 
 - **Tier 1 コア**: [`tier-1-core.md`](./docs/requirements/tier-1-core.md) — Briefing / Todos / Schedule / Notes / Daily / MCP Server / Cloud Sync。Briefing は目標と Todo をつなぐ朝刊・夕刊。退役した Terminal と凍結した汎用 Database は、本文を履歴として残す
-- **Tier 2 補助**: [`tier-2-supporting.md`](./docs/requirements/tier-2-supporting.md) — WikiTags / Templates / UndoRedo / Theme / i18n / Shortcuts / Toast / Connect（Tag hub）/ Apps / Trash。Trash の入口は Settings の中で、nav の独立セクションではない。タグの編集所は Connect で、Connect の力学グラフは復活させない（検索・タグ・リンク一覧と役割が重なったため）。File Explorer と、Work 画面とともに外した Audio / Playlist / Pomodoro は退役し、本文を履歴として残す
-- **Tier 3 実験 / 凍結**: [`tier-3-experimental.md`](./docs/requirements/tier-3-experimental.md) — Paper Boards / Analytics / NotebookLM / Google Calendar / Google Drive / Cognitive Architecture。Analytics は「記録」タブの分だけ凍結を解き、ほかのタブは凍結のまま
+- **Tier 2 補助**: [`tier-2-supporting.md`](./docs/requirements/tier-2-supporting.md) — WikiTags / Templates / UndoRedo / Theme / i18n / Shortcuts / Toast / Connect（Tag hub）/ Trash。Trash の入口は Settings の中で、nav の独立セクションではない。タグの編集所は Connect で、Connect の力学グラフは復活させない（検索・タグ・リンク一覧と役割が重なったため）。File Explorer と、Work 画面とともに外した Audio / Playlist / Pomodoro と、#2720 で外した拡張アプリの Apps は退役し、本文を履歴として残す
+- **Tier 3 実験 / 凍結**: [`tier-3-experimental.md`](./docs/requirements/tier-3-experimental.md) — Paper Boards / Analytics / NotebookLM / Google Calendar / Google Drive / Cognitive Architecture。Analytics は凍結のままで、凍結を解いていた「記録」タブは #2720 で外した
 - 退役・移設・凍結の経緯と決定の記録のパスは、各 tier のファイルの機能の節にある
 - 次の段階の計画は移行の計画書が元になる文書（残す知見の置き場 = [`archive/SUMMARY.md`](./archive/SUMMARY.md)）
 

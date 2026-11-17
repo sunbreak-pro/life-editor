@@ -434,13 +434,14 @@ TodoTree を SSOT として、日次実行対象（Schedule）と長期構造（
 
 ### Purpose
 
-Claude Code に対し life-editor データを CRUD させるための MCP インターフェース（入口は stdio と Remote MCP、拡張アプリ用の窓口が加わる予定 — 下記 Boundary / CLAUDE.md §5）。Claude Code Max サブスクのラッピングにより追加コスト $0 で「自然言語で全生活データを操作できる」を成立させる（§1 V1）。⚠️ 起動導線だったアプリ内ターミナルは 2026-07-05 に退役決定（→ §Terminal / CLAUDE.md §5）で、退役後の常設起動導線は生成デザイン確定後に再設計中。MCP Server 自体は存続。
+Claude Code に対し life-editor データを CRUD させるための MCP インターフェース（入口は stdio と Remote MCP の 2 本 — 下記 Boundary / CLAUDE.md §5。拡張アプリ用の窓口は 2026-11-16 #2720 で削除）。Claude Code Max サブスクのラッピングにより追加コスト $0 で「自然言語で全生活データを操作できる」を成立させる（§1 V1）。⚠️ 起動導線だったアプリ内ターミナルは 2026-07-05 に退役決定（→ §Terminal / CLAUDE.md §5）で、退役後の常設起動導線は生成デザイン確定後に再設計中。MCP Server 自体は存続。
 
 ### Boundary
 
 - やる:
   - Todos / Daily / Notes / Note context / Schedule / Wiki Tags / Item links / Content / Search / Trash の各ドメインツール（内訳・総数はコード `mcp-server/src/tools.ts` が正）
   - 稼働時間（`timer_sessions`）を読む道具 `list_work_sessions` は #2717 で外した。表は残っている
+  - 拡張アプリの記録の道具（`create_record` / `list_records` / `delete_record` / `list_extension_apps`）と、`get_today_context` / `get_week_context` が返していた記録の要約は、2026-11-16 #2720 で外した。表 `app_records` / `extension_apps` / `record_views` は DB に残っている（db-conventions §17）
   - Supabase Postgres へ owner 資格（env のメール + パスワード）でサインインし、統合スキーマ（`items_meta` + `<role>_payload`）に RLS 越しでアクセス（web クライアントと同じ権限モデル）
   - stdio JSON-RPC 通信（Claude Code の `claude` コマンドが自動接続）。同じハンドラを Remote MCP（Cloudflare Workers 上の Streamable HTTP・スマホの Claude アプリのカスタムコネクタ用・D-20260909-mcp-mobile-1）でも出す。ツール集合の正本は `mcp-server/src/remoteTools.ts`、`tools.ts` はそれに verification harness（`node:fs` の台帳）を足したもの
   - 引数スキーマの型安全性（各 handler で zod / JSON Schema 検証）
@@ -450,7 +451,7 @@ Claude Code に対し life-editor データを CRUD させるための MCP イ�
   - 破壊的操作のうち Notes / Daily(Memo) の削除（UI 限定、§Notes / §Daily (Memo) Boundary 参照）
   - **ファイル操作**（`list_files` / `read_file` / `write_file` / `create_directory` / `rename_file` / `delete_file` / `search_files` は 2026-07-26 #362 で退役）: File Explorer の UI 退役と運命共同体という整理。Claude Code 自身がファイル操作手段を持つため MCP 側に二重に持たない
   - 外部 HTTP（Supabase 以外への外向きの通信は持たない）。ツール呼び出しの受け口は、stdio（Desktop 専用）と Remote MCP（Cloudflare Workers・共有シークレットの URL 認証）の 2 本で、verification harness は `node:fs` が要るので stdio だけに出す
-  - 拡張アプリ（別リポジトリ）の受け口を、スマホ用の Remote MCP に相乗りさせること: 専用の Worker を 3 本目の入口として別に立てる（D-20261007-main-3 = A・実装中 — 計画書 `docs/vision/plans/2026-10-07-extension-app-gateway.md`）。道具集合は remoteTools の部分集合で、鍵と範囲はアプリごとに絞る。拡張アプリは窓口を迂回して Supabase に直接書かない（D-20261010-mcp-tools-1）
+  - 拡張アプリ（別リポジトリ）の受け口: ~~専用の Worker を 3 本目の入口として別に立てる（D-20261007-main-3 = A）~~ → **退役（2026-11-16 #2720）**。拡張アプリを使わないと決めたため（2026-11-12 こうだいさんの決定・A 案）、窓口の Worker（`gatewayWorker.ts` など）・重複防止のキー・外部の参照 id の道具をまとめて消した。経緯は計画書 [`2026-10-07-extension-app-gateway.md`](../../archive/2026-10-07-extension-app-gateway.md)（archive 済み）。Cloudflare に立てた窓口の Worker の停止は、こうだいさんの作業
   - Event 本文への構造化コンテンツ書き込み（`generate_content` / `format_content` の `schedule` ターゲットは #360 で退役 — 統合スキーマの `events_payload` に content 列が無いため。Event のテキストは `update_schedule_item` の `memo`）
   - タグ付与元の区別（legacy の `source` 列は統合スキーマに無く、#360 で出力から削除）
 

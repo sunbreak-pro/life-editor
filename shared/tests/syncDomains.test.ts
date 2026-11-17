@@ -104,17 +104,12 @@ describe("syncDomains — payload tables", () => {
     expect(domainsForChange("tables_payload")).toEqual(["notes"]);
   });
 
-  it("routes the extension-app tables to one domain each (#2162)", () => {
-    // Records arrive often (every number an app sends); the ledger moves only
-    // when the owner edits the Apps list. Neither may wake the other's readers.
-    expect(domainsForChange("app_records")).toEqual(["appRecords"]);
-    expect(domainsForChange("extension_apps")).toEqual(["extensionApps"]);
-  });
-
-  it("routes the record views to their own domain (#2260)", () => {
-    // Picking a view must not re-pull the records, and a new record must not
-    // re-pull the views.
-    expect(domainsForChange("record_views")).toEqual(["recordViews"]);
+  it("routes the unsubscribed extension-app tables nowhere (#2720)", () => {
+    // The screens that read them are gone; the tables stay in the DB but are
+    // no longer subscribed, so a stray event for them wakes no reader.
+    for (const table of ["app_records", "extension_apps", "record_views"]) {
+      expect(domainsForChange(table)).toEqual([]);
+    }
   });
 
   it("returns nothing for a table it does not know", () => {

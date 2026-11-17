@@ -1,4 +1,4 @@
-import { useCallback, useContext, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   AnalyticsView,
   useTranslation,
@@ -14,16 +14,6 @@ import {
   type RoutineNode,
   type WikiTagUnified,
   type WikiTagAssignmentUnified,
-  type AppRecord,
-  type ExtensionApp,
-  type RecordView,
-  type RecordViewChart,
-  type RecordViewChoice,
-  type RecordViewMetric,
-  RECORD_VIEW_DEFAULT,
-  ThemeContext,
-  useMediaQuery,
-  replaceRecordView,
   formatDateKey,
   todayCalendarKey,
   useDomainLoad,
@@ -32,7 +22,6 @@ import {
   type TranslationKey,
 } from "@life-editor/shared";
 import { makeAxisFormat } from "./axisFormat";
-import { recordsWindow } from "./recordsRange";
 
 /*
  * Analytics host shell (W4 · lean). Mirrors the Work/Trash host pattern: the
@@ -76,23 +65,7 @@ interface AnalyticsScreenProps {
    */
   preset: DatePreset;
   onPresetChange: (preset: DatePreset) => void;
-  /**
-   * An app slug the shell wants the Records tab filtered to (the Apps section's
-   * "show records", #2165), and the call that clears it once the tab took it.
-   * Optional: a host that never raises the intent leaves them out.
-   */
-  pendingRecordsSource?: string | null;
-  onRecordsSourceConsumed?: () => void;
 }
-
-/** The records read and the ledger read beside it (#2164). */
-interface RecordsData {
-  records: AppRecord[];
-  apps: ExtensionApp[];
-}
-
-const NO_RECORDS: RecordsData = { records: [], apps: [] };
-const NO_PENDING_CONSUMER = (): void => {};
 
 /*
  * The nine independent reads behind the dashboard (#1524), named so a failure
@@ -174,8 +147,6 @@ export function AnalyticsScreen({
   onTabChange,
   preset,
   onPresetChange,
-  pendingRecordsSource = null,
-  onRecordsSourceConsumed = NO_PENDING_CONSUMER,
 }: AnalyticsScreenProps): React.JSX.Element {
   const { t, i18n } = useTranslation();
   // Everything this screen reads, declared (rules/frontend.md §Sync). Missing
@@ -339,132 +310,6 @@ export function AnalyticsScreen({
   // load that has not started — not one that finished empty.
   const scheduleLoading = rangeLoading || scheduleRange === null;
 
-  /*
-   * Extension-app records (#2164) — the same per-range shape as the schedule
-   * read above, on its own counter for the same reason: a record landing from
-   * Claude bumps `appRecords`, which must not put the other tabs' skeletons
-   * back. `extensionApps` rides along because the tab names an app by its
-   * ledger row. The window is the range widened to the last seven days (see
-   * recordsRange.ts); the tab narrows it by the preset again.
-   *
-   * The records read is the one that matters: if it throws, the load fails
-   * and the tab says so. The ledger only supplies names, so losing it falls
-   * back to showing slugs rather than failing the tab.
-   */
-  const recordsSyncVersion = useSyncDomains("appRecords", "extensionApps");
-  const [recordsData, setRecordsData] = useState<RecordsData>(NO_RECORDS);
-  const { isLoading: recordsRangeLoading, error: recordsError } =
-    useDomainLoad<RecordsData>({
-      domain: "Analytics records",
-      dataService: ds,
-      version: recordsSyncVersion,
-      anchor: rangeFrom === null ? undefined : `${rangeFrom}:${rangeTo}`,
-      load: async (service) => {
-        if (rangeFrom === null || rangeTo === null) return NO_RECORDS;
-        const [records, apps] = await Promise.allSettled([
-          service.listAppRecords(recordsWindow(rangeFrom, rangeTo)),
-          service.listExtensionApps(),
-        ]);
-        if (records.status === "rejected") throw records.reason;
-        if (apps.status === "rejected") {
-          logServiceError("Analytics", "load extension apps", apps.reason);
-        }
-        return {
-          records: records.value,
-          apps: apps.status === "fulfilled" ? apps.value : [],
-        };
-      },
-      apply: setRecordsData,
-      fallbackMessage: "Failed to load the records",
-    });
-  const recordsLoading = recordsRangeLoading || scheduleRange === null;
-
-  /*
-   * Which number leads each kind of record (#2263, `record_views`). Its own
-   * counter: a pick echoes back through Realtime and must not re-read the
-   * records. A failed read is logged by the hook and every kind falls back to
-   * the sum — the records themselves are still right, only their headline is
-   * the default one.
-   *
-   * A pick is drawn at once and saved behind it. If the save fails, the row
-   * that was there before goes back and the tab says the pick was not kept.
-   * The number and the chart shape (#2264) are two halves of one row, so a
-   * pick of one keeps whatever the other already was.
-   */
-  const recordViewsSyncVersion = useSyncDomains("recordViews");
-  const [recordViews, setRecordViews] = useState<RecordView[]>([]);
-  const [recordViewSaveFailed, setRecordViewSaveFailed] = useState(false);
-  useDomainLoad<RecordView[]>({
-    domain: "Analytics record views",
-    dataService: ds,
-    version: recordViewsSyncVersion,
-    load: (service) => service.listRecordViews(),
-    apply: setRecordViews,
-    fallbackMessage: "Failed to load the record views",
-  });
-  const saveRecordViewChoice = useCallback(
-    (kind: string, unit: string | null, pick: Partial<RecordViewChoice>) => {
-      const before =
-        recordViews.find((v) => v.kind === kind && v.unit === unit) ?? null;
-      const now = new Date().toISOString();
-      const choice: RecordViewChoice = {
-        metric: before?.metric ?? RECORD_VIEW_DEFAULT.metric,
-        chart: before?.chart ?? RECORD_VIEW_DEFAULT.chart,
-        ...pick,
-      };
-      setRecordViewSaveFailed(false);
-      setRecordViews((views) =>
-        replaceRecordView(views, kind, unit, {
-          kind,
-          unit,
-          ...choice,
-          createdAt: before?.createdAt ?? now,
-          updatedAt: now,
-        }),
-      );
-      ds.saveRecordView(kind, unit, choice).then(
-        (saved) =>
-          setRecordViews((views) =>
-            replaceRecordView(views, kind, unit, saved),
-          ),
-        (e: unknown) => {
-          logServiceError("Analytics", "save record view", e);
-          setRecordViews((views) =>
-            replaceRecordView(views, kind, unit, before),
-          );
-          setRecordViewSaveFailed(true);
-        },
-      );
-    },
-    [ds, recordViews],
-  );
-  const handleChooseRecordMetric = useCallback(
-    (kind: string, unit: string | null, metric: RecordViewMetric) =>
-      saveRecordViewChoice(kind, unit, { metric }),
-    [saveRecordViewChoice],
-  );
-  const handleChooseRecordChart = useCallback(
-    (kind: string, unit: string | null, chart: RecordViewChart) =>
-      saveRecordViewChoice(kind, unit, { chart }),
-    [saveRecordViewChoice],
-  );
-
-  /*
-   * Less motion for the Records chart (#2264): the app's own setting wins, and
-   * "system" defers to the OS — the same three states tokens.css reads from
-   * `data-reduce-motion`. recharts animates in JS, which that CSS rule cannot
-   * still, so the answer is handed to the chart. No ThemeProvider (a test
-   * mount) reads as "system".
-   */
-  const reduceMotionChoice = useContext(ThemeContext)?.reduceMotion ?? "system";
-  const osReducesMotion = useMediaQuery(
-    "(prefers-reduced-motion: reduce)",
-    false,
-  );
-  const reduceMotion =
-    reduceMotionChoice === "reduce" ||
-    (reduceMotionChoice === "system" && osReducesMotion);
-
   // The range anchor drives `rangeLoading` on its own now, so this only has to
   // record what the user picked.
   const handleScheduleRangeChange = useCallback((range: DateRange) => {
@@ -492,23 +337,6 @@ export function AnalyticsScreen({
     return t("analytics.loadFailed.message", { sources });
   }, [data.failedSources, t]);
 
-  /*
-   * A record's value is whatever the app sent (450 yen, 62.4 kg), so it gets a
-   * plain grouped number rather than the duration format the work tabs use.
-   * Same two-way locale split as axisFormat.ts.
-   */
-  const recordFormats = useMemo(() => {
-    const locale = i18n.language.startsWith("ja") ? "ja-JP" : "en-US";
-    return {
-      locale,
-      number: new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }),
-      dateTime: new Intl.DateTimeFormat(locale, {
-        dateStyle: "medium",
-        timeStyle: "short",
-      }),
-    };
-  }, [i18n.language]);
-
   const labels = useMemo<AnalyticsLabels>(
     () => ({
       title: t("analytics.title"),
@@ -529,7 +357,6 @@ export function AnalyticsScreen({
         todos: t("analytics.tabs.todos"),
         schedule: t("analytics.tabs.schedule"),
         work: t("analytics.tabs.work"),
-        records: t("analytics.tabs.records"),
       },
       datePreset: {
         label: t("analytics.datePreset.label"),
@@ -556,102 +383,6 @@ export function AnalyticsScreen({
       emptyTagUsage: {
         title: t("analytics.empty.tagUsage.title"),
         description: t("analytics.empty.tagUsage.description"),
-      },
-      records: {
-        filtersLabel: t("analytics.records.filtersLabel"),
-        app: {
-          label: t("analytics.records.app.label"),
-          all: t("analytics.records.app.all"),
-        },
-        kind: {
-          label: t("analytics.records.kind.label"),
-          all: t("analytics.records.kind.all"),
-        },
-        claudeSource: t("analytics.records.claudeSource"),
-        stats: {
-          count: t("analytics.records.stats.count"),
-          sum: t("analytics.records.stats.sum"),
-          avg: t("analytics.records.stats.avg"),
-          latest: t("analytics.records.stats.latest"),
-          needOneKind: t("analytics.records.stats.needOneKind"),
-          headline: t("analytics.records.stats.headline"),
-        },
-        chart: {
-          sumTitle: t("analytics.records.chart.sumTitle"),
-          countTitle: t("analytics.records.chart.countTitle"),
-          avgTitle: t("analytics.records.chart.avgTitle"),
-          latestTitle: t("analytics.records.chart.latestTitle"),
-          sumSeries: t("analytics.records.chart.sumSeries"),
-          countSeries: t("analytics.records.chart.countSeries"),
-          avgSeries: t("analytics.records.chart.avgSeries"),
-          latestSeries: t("analytics.records.chart.latestSeries"),
-        },
-        list: {
-          title: t("analytics.records.list.title"),
-          showMore: t("analytics.records.list.showMore"),
-          shown: (shown: number, total: number) =>
-            t("analytics.records.list.shown", { shown, total }),
-        },
-        empty: {
-          title: t("analytics.records.empty.title"),
-          description: t("analytics.records.empty.description"),
-        },
-        emptyFiltered: {
-          title: t("analytics.records.emptyFiltered.title"),
-          description: t("analytics.records.emptyFiltered.description"),
-        },
-        views: {
-          title: t("analytics.records.views.title"),
-          description: t("analytics.records.views.description"),
-          selectLabel: (kind: string) =>
-            t("analytics.records.views.selectLabel", { kind }),
-          metrics: {
-            sum: t("analytics.records.views.metrics.sum"),
-            avg: t("analytics.records.views.metrics.avg"),
-            latest: t("analytics.records.views.metrics.latest"),
-            count: t("analytics.records.views.metrics.count"),
-          },
-          chartSelectLabel: (kind: string) =>
-            t("analytics.records.views.chartSelectLabel", { kind }),
-          charts: {
-            bar: t("analytics.records.views.charts.bar"),
-            line: t("analytics.records.views.charts.line"),
-          },
-          saveFailed: t("analytics.records.views.saveFailed"),
-        },
-        loadFailed: t("analytics.records.loadFailed"),
-        formatValue: (value: number, unit: string | null) => {
-          const number = recordFormats.number.format(value);
-          return unit ? `${number} ${unit}` : number;
-        },
-        formatNumber: (value: number, fractionDigits?: number) => {
-          if (fractionDigits === undefined) {
-            return recordFormats.number.format(value);
-          }
-          // Intl throws a RangeError past 20 digits; no real step is that fine.
-          const digits = Math.min(fractionDigits, 20);
-          return new Intl.NumberFormat(recordFormats.locale, {
-            minimumFractionDigits: digits,
-            maximumFractionDigits: digits,
-          }).format(value);
-        },
-        formatDateTime: (iso: string) => {
-          const at = new Date(iso);
-          return Number.isNaN(at.getTime())
-            ? iso
-            : recordFormats.dateTime.format(at);
-        },
-        mobile: {
-          title: t("analytics.records.mobile.title"),
-          range: t("analytics.records.mobile.range"),
-          empty: t("analytics.records.mobile.empty"),
-          formatCount: (count: number) =>
-            t("analytics.records.mobile.count", { count }),
-          formatFilteredTo: (app: string) =>
-            t("analytics.records.mobile.filteredTo", { app }),
-          clearFilter: t("analytics.records.mobile.clearFilter"),
-          emptyFiltered: t("analytics.records.mobile.emptyFiltered"),
-        },
       },
       mobile: {
         weekTitle: t("analytics.mobile.weekTitle"),
@@ -793,7 +524,7 @@ export function AnalyticsScreen({
         },
       },
     }),
-    [t, i18n.language, recordFormats],
+    [t, i18n.language],
   );
 
   return (
@@ -817,17 +548,6 @@ export function AnalyticsScreen({
       onTabChange={onTabChange}
       initialPreset={preset}
       onPresetChange={onPresetChange}
-      records={recordsData.records}
-      recordApps={recordsData.apps}
-      recordsLoading={recordsLoading}
-      recordsError={recordsError}
-      pendingRecordsSource={pendingRecordsSource}
-      onRecordsSourceConsumed={onRecordsSourceConsumed}
-      recordViews={recordViews}
-      onChooseRecordMetric={handleChooseRecordMetric}
-      onChooseRecordChart={handleChooseRecordChart}
-      recordViewSaveFailed={recordViewSaveFailed}
-      reduceMotion={reduceMotion}
       labels={labels}
     />
   );

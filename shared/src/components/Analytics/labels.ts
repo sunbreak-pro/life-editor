@@ -1,4 +1,3 @@
-import type { RecordViewChart, RecordViewMetric } from "../../types/recordView";
 import type { StagnationBucketId } from "../../utils/analyticsAggregation";
 import type { DatePreset } from "./AnalyticsFilterContext";
 import type { ChartAxisFormat } from "./chartTheme";
@@ -13,93 +12,6 @@ import type { ChartAxisFormat } from "./chartTheme";
  * readable. Interpolated copy (e.g. "{hours}h {minutes}m") is passed as a
  * formatter function so the host owns the interpolation.
  */
-
-/*
- * Copy for the extension-app records tab and the narrow records block (#2164).
- * Kept beside the rest of the Analytics labels so the host builds one object.
- */
-export interface RecordsLabels {
-  /** Accessible name of the filter row. */
-  filtersLabel: string;
-  app: { label: string; all: string };
-  kind: { label: string; all: string };
-  /** What `source_app = "claude"` is called on screen. */
-  claudeSource: string;
-  stats: {
-    count: string;
-    sum: string;
-    avg: string;
-    /** The newest record's value (#2262). */
-    latest: string;
-    /** Why the total, average and latest read "-" while kinds are mixed. */
-    needOneKind: string;
-    /** Under the card of the number chosen to lead the kind (#2263). */
-    headline: string;
-  };
-  chart: {
-    sumTitle: string;
-    countTitle: string;
-    /** Bars of each period's average / newest value (#2263). */
-    avgTitle: string;
-    latestTitle: string;
-    /** Tooltip series name for a bar that adds the values up. */
-    sumSeries: string;
-    /** Tooltip series name for a bar that counts rows. */
-    countSeries: string;
-    avgSeries: string;
-    latestSeries: string;
-  };
-  /** The per-kind "which number leads" card (#2263). */
-  views: {
-    title: string;
-    /** Says the phone's block shows the same choice. */
-    description: string;
-    /** Accessible name of one kind's select: "How to show weight". */
-    selectLabel: (kind: string) => string;
-    /** Option text for each metric, in RECORD_VIEW_METRICS order. */
-    metrics: Record<RecordViewMetric, string>;
-    /** Accessible name of one kind's chart select: "Chart for weight". */
-    chartSelectLabel: (kind: string) => string;
-    /** Option text for each chart shape, in RECORD_VIEW_CHARTS order. */
-    charts: Record<RecordViewChart, string>;
-    /** A choice that could not be saved (it is put back on screen). */
-    saveFailed: string;
-  };
-  list: {
-    title: string;
-    showMore: string;
-    /** "Showing {shown} of {total}" — host interpolates. */
-    shown: (shown: number, total: number) => string;
-  };
-  /** Nothing in the range at all. */
-  empty: { title: string; description: string };
-  /** Records exist in the range, but the filters hide every one. */
-  emptyFiltered: { title: string; description: string };
-  loadFailed: string;
-  /** A number with its unit ("450 JPY"), grouped for the host's language. */
-  formatValue: (value: number, unit: string | null) => string;
-  /**
-   * A bare number for an axis tick. With `fractionDigits`, exactly that many
-   * decimals (67.0, not 67, beside 67.5) so a line's ticks line up (#2513).
-   */
-  formatNumber: (value: number, fractionDigits?: number) => string;
-  /** A record's instant, date and time. */
-  formatDateTime: (iso: string) => string;
-  mobile: {
-    title: string;
-    /** "Last 7 days". */
-    range: string;
-    empty: string;
-    /** "{count} records" — host interpolates. */
-    formatCount: (count: number) => string;
-    /** "Only {app}" — the block narrowed by the Apps section (#2312). */
-    formatFilteredTo: (app: string) => string;
-    /** The button that drops that narrowing again. */
-    clearFilter: string;
-    /** The narrowed app sent nothing in the last 7 days. */
-    emptyFiltered: string;
-  };
-}
 
 export interface AnalyticsLabels {
   title: string;
@@ -120,7 +32,6 @@ export interface AnalyticsLabels {
     todos: string;
     schedule: string;
     work: string;
-    records: string;
   };
 
   /** Header date-range preset pills (7d / 30d / thisMonth / 3m / all). */
@@ -264,9 +175,6 @@ export interface AnalyticsLabels {
     /** "Top {shown} of {total} tags" — host interpolates (#1866). */
     topOf: (shown: number, total: number) => string;
   };
-
-  /** Extension-app records (#2164): the wide tab and the narrow block. */
-  records: RecordsLabels;
 
   /** Mobile-only single-scroll labels. */
   mobile: {

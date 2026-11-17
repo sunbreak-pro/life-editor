@@ -16,7 +16,6 @@ import {
 } from "../utils/items.js";
 import { deleteRoutine, detachRoutineFrom } from "./routineHandlers.js";
 import { invalidArguments, notFoundError } from "../errorCodes.js";
-import { createOnce, type OriginKey } from "../utils/originKey.js";
 
 /*
  * Schedule handlers — Supabase edition (briefing-loop Step 2 / Issue #256).
@@ -259,8 +258,6 @@ export async function createScheduleItem(args: {
   end_time?: string;
   is_all_day?: boolean;
   memo?: string;
-  /** Gateway only (originKey.ts): a retry returns the first call's item. */
-  idempotency_key?: string;
 }) {
   // #702 ②: the write path checked none of its own formats, so a typo in
   // `date` or a "9:00" instead of "09:00" surfaced as a raw Postgres parse
@@ -280,21 +277,13 @@ export async function createScheduleItem(args: {
     assertTimeOfDay(args.end_time, "end_time");
   }
 
-  return createOnce({
-    tool: "create_schedule_item",
-    role: "event",
-    input: args,
-    create: (origin) => insertScheduleItem(args, origin),
-    load: async (id) => {
-      const { meta, payload } = await getEvent(id);
-      return formatItem(meta, payload);
-    },
-  });
+  const id = await insertScheduleItem(args);
+  const { meta, payload } = await getEvent(id);
+  return formatItem(meta, payload);
 }
 
 async function insertScheduleItem(
   args: Parameters<typeof createScheduleItem>[0],
-  origin: OriginKey | undefined,
 ): Promise<string> {
   const id = `si-${randomUUID()}`;
 
@@ -316,7 +305,6 @@ async function insertScheduleItem(
       routine_item_id: null,
       source_date: null,
     },
-    origin,
   });
   return id;
 }

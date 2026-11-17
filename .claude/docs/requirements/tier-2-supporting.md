@@ -3,7 +3,7 @@
 > 補助機能 / Tier 1 の補完。Phase B-2 で各機能の要件を記入する。
 > テンプレ・記入手順は [README.md](./README.md) 参照。Tier 2 は AC を 3-5 件に簡略化可。
 
-**Tier 2 機能一覧**: 本文の Feature 見出しが正（うち File Explorer は退役 = 移行 SSOT Phase 5-A 決定、Audio Mixer / Playlist / Pomodoro Timer は 2026-11 #2717 で退役。本文は履歴として保持）
+**Tier 2 機能一覧**: 本文の Feature 見出しが正（うち File Explorer は退役 = 移行 SSOT Phase 5-A 決定、Audio Mixer / Playlist / Pomodoro Timer は 2026-11 #2717 で退役、Apps は 2026-11-16 #2720 で退役。本文は履歴として保持）
 
 > ⚠️ **退役スタック注記 (2026-07-04 doc-sync)**: 本ファイルの一部 Owner 記述は退役スタック（旧 Tauri `src-tauri/` / `portable-pty` / Cloudflare D1）を指す。`cloud/` は #110 で退役済・`frontend/` + `src-tauri/` は 2026-07-11 削除済み（#197・復元 = git tag `pre-tauri-removal`）・現行本流は `shared/` + `web/`。Owner 行の全面改訂は Phase 5。
 
@@ -560,9 +560,9 @@ Life Editor の全 UI を en / ja で切替可能にする。Settings からい�
 ## Feature: Apps（拡張アプリの台帳）
 
 **Tier**: 2
-**Status**: ◎稼働中（2026-10 新設 = #2165）
-**Owner Provider/Module**: `shared/src/components/Apps/` + `web/src/apps/AppsScreen.tsx`（データは `shared/src/services/SupabaseAppRecordsService.ts`）
-**MCP Coverage**: `list_extension_apps`（台帳の行に最後の記録と 30 日の件数を添える）と、記録の `create_record` / `list_records` / `delete_record`。`list_records` の集計と `get_today_context` / `get_week_context` の記録の要約は、合計・件数のほかに平均（`avg`）と最新（`latest`）を返す（#2261）
+**Status**: ✗RETIRED（2026-11-16 #2720 で削除。拡張アプリを使わないと決めたため（2026-11-12 こうだいさんの決定・A 案）。Apps セクション・Analytics の記録タブ・記録の道具・窓口の Worker をまとめて消した。DB の表 `app_records` / `extension_apps` / `record_views` は残し、読むのはデータの書き出しだけ。以下の本文は履歴として保持 → CLAUDE.md §8）
+**Owner Provider/Module**: `shared/src/components/Apps/` + `web/src/apps/AppsScreen.tsx`（データは `shared/src/services/SupabaseAppRecordsService.ts`）。いずれも #2720 で削除済み
+**MCP Coverage**: —（旧 `list_extension_apps` と、記録の `create_record` / `list_records` / `delete_record` は #2720 で削除。`get_today_context` / `get_week_context` の記録の要約も外した）
 **Supports Value Prop**: 補助（Briefing ループの「分析」の材料を太くする拡張アプリの入口 = [`D-20261008-main-1`](../../decisions/D-20261008-main-1.md)）
 **Platform**: Web ホスト共通（Desktop / Mobile）。登録 / 編集 / 削除は wide だけ（mobile-scope.md の Apps の行）
 
@@ -590,5 +590,5 @@ Life Editor の全 UI を en / ja で切替可能にする。Settings からい�
 
 ### Dependencies
 
-- 他機能: Analytics の記録タブ（tier-3 の Analytics 節）/ MCP Server の record 系の道具 / 拡張アプリ用の窓口（`docs/vision/plans/2026-10-07-extension-app-gateway.md`）
-- 計画書: `docs/vision/plans/2026-10-08-extension-app-records-and-apps-section.md`
+- 他機能: Analytics の記録タブ（tier-3 の Analytics 節）/ MCP Server の record 系の道具 / 拡張アプリ用の窓口（[`2026-10-07-extension-app-gateway.md`](../../archive/2026-10-07-extension-app-gateway.md)）。いずれも #2720 で削除済み
+- 計画書: [`2026-10-08-extension-app-records-and-apps-section.md`](../../archive/2026-10-08-extension-app-records-and-apps-section.md)（SUPERSEDED・archive 済み）

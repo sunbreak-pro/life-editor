@@ -75,7 +75,8 @@ const OUTBOX_SEND_REQUEST_DELAY_MS = 1000;
  * 0026_drop_calendars.sql removes — a table missing from EITHER side means
  * that domain will not follow cross-tab edits. Do not drop the wiki_tag_*
  * rows. The lockstep test (syncRealtimeTables.test.ts) replays those
- * migrations in order and enforces the match.
+ * migrations in order and enforces the match, minus the tables it lists as
+ * published but deliberately unsubscribed (the extension-app tables, #2720).
  *
  * W3-B note: 0018 publishes all six timer/sound tables to supabase_realtime,
  * so the lockstep invariant requires subscribing to all six here. Their
@@ -129,11 +130,11 @@ export const REALTIME_TABLES = [
   "ai_skills",
   // Note tables as items (0040 / #2094)
   "tables_payload",
-  // Extension-app records and ledger (0039 / #2162)
-  "app_records",
-  "extension_apps",
-  // How each kind of record is shown (0041 / #2260)
-  "record_views",
+  // (#2720 removed the extension-app screens, so `app_records`,
+  // `extension_apps` and `record_views` are no longer subscribed. The tables
+  // stay in the DB and in the publication — no DDL — and the data export still
+  // reads them; syncRealtimeTables.test.ts lists them as published but
+  // deliberately unsubscribed.)
 ] as const;
 
 const DEBOUNCE_MS = 300;

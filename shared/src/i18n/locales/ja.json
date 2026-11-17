@@ -941,69 +941,7 @@
       "overview": "概要",
       "todos": "Todo",
       "schedule": "スケジュール",
-      "work": "作業",
-      "records": "記録"
-    },
-    "records": {
-      "filtersLabel": "記録の絞り込み",
-      "app": { "label": "アプリ", "all": "すべてのアプリ" },
-      "kind": { "label": "種類", "all": "すべての種類" },
-      "claudeSource": "Claude",
-      "stats": {
-        "count": "件数",
-        "sum": "合計",
-        "avg": "平均",
-        "latest": "最新",
-        "needOneKind": "種類を 1 つに絞ると、合計・平均・最新が出ます。",
-        "headline": "この種類で最初に出す値です"
-      },
-      "chart": {
-        "sumTitle": "期間ごとの合計",
-        "countTitle": "期間ごとの件数",
-        "sumSeries": "合計",
-        "countSeries": "件数",
-        "avgTitle": "期間ごとの平均",
-        "latestTitle": "期間ごとの最新",
-        "avgSeries": "平均",
-        "latestSeries": "最新"
-      },
-      "views": {
-        "title": "種類ごとの値の出し方",
-        "description": "種類ごとに、最初に出す値とグラフの形を選べます。スマホの記録ブロックにも同じものが出ます。",
-        "selectLabel": "{{kind}} の値の出し方",
-        "metrics": {
-          "sum": "合計",
-          "avg": "平均",
-          "latest": "最新",
-          "count": "件数"
-        },
-        "chartSelectLabel": "{{kind}} のグラフの形",
-        "charts": { "bar": "棒", "line": "折れ線" },
-        "saveFailed": "選んだ内容を保存できませんでした。しばらくしてからもう一度お試しください。"
-      },
-      "list": {
-        "title": "記録の一覧",
-        "showMore": "さらに表示",
-        "shown": "{{total}} 件中 {{shown}} 件を表示"
-      },
-      "empty": {
-        "title": "この期間の記録はありません",
-        "description": "スマホの Claude に「コーヒー 450 円」と言うと、最初の記録が入ります。"
-      },
-      "emptyFiltered": {
-        "title": "この条件に合う記録はありません",
-        "description": "アプリや種類を変えるか、期間を広げてください。"
-      },
-      "loadFailed": "記録を読み込めませんでした。しばらくしてからもう一度お試しください。",
-      "mobile": {
-        "title": "記録",
-        "range": "直近 7 日",
-        "empty": "直近 7 日の記録はありません。",
-        "count_other": "{{count}} 件",
-        "filteredTo": "{{app}} の記録だけを表示中",
-        "clearFilter": "すべてのアプリ",
-        "emptyFiltered": "このアプリの直近 7 日の記録はありません。"
-      }
+      "work": "作業"
     },
     "workTime": "作業時間",
     "todoWorkTime": "Todo 別作業時間",
@@ -1190,57 +1128,6 @@
     "retry": "再試行",
     "unsavedCloseConfirm": "保存していない変更があります。破棄して閉じますか？"
   },
-  "apps": {
-    "heading": "登録したアプリ",
-    "register": "アプリを登録",
-    "emptyIntro": "拡張アプリは、家計簿・体重の記録・睡眠の記録のように、数値を life-editor へ送る自分用の小さなアプリです。ここで登録すると、名前とリンクを付けられます。最後に記録が届いた日を確かめたり、そのアプリの記録を分析で開いたりもできます。",
-    "keyGuide": "アプリは窓口の鍵を使って記録を送ります。鍵は作者本人が手元の mcp-server で `npm run gateway-key -- issue --app <slug>` を実行して発行します。slug はここで登録するものと同じにします。手順の全体は `mcp-server/scripts/gateway-key.mjs` の冒頭にあります。",
-    "unregisteredHeading": "記録だけ届いているアプリ",
-    "unregisteredIntro": "記録には届いているのに、まだ登録していない名前です。登録すると名前とリンクを付けられます。",
-    "registerSource": "登録",
-    "loadFailed": "アプリを読み込めませんでした。接続を確かめてから、このセクションを開き直してください。",
-    "deleteConfirm": "{{name}} を一覧から外しますか？記録は残り、「記録だけ届いているアプリ」に戻ります。",
-    "deleteConfirmLabel": "外す",
-    "deleteCancelLabel": "キャンセル",
-    "deleteFailed": "アプリを外せませんでした。もう一度試してください。",
-    "card": {
-      "lastRecordToday": "最後の記録: 今日",
-      "lastRecord_other": "最後の記録: {{count}} 日前",
-      "recordsLast30Days_other": "30 日で {{count}} 件",
-      "noRecords": "まだ記録がありません",
-      "showRecords": "記録を見る",
-      "edit": "編集",
-      "delete": "外す",
-      "openUrl": "{{name}} を開く"
-    },
-    "dialog": {
-      "registerTitle": "アプリを登録",
-      "editTitle": "アプリを編集",
-      "slug": "slug（識別名）",
-      "slugHint": "英小文字・数字・ハイフンで、先頭は英字にします。アプリの記録と鍵がこの名前を指すため、登録後は変えられません。",
-      "name": "名前",
-      "url": "URL",
-      "urlPlaceholder": "https://",
-      "description": "説明",
-      "iconLabel": "アイコン",
-      "iconClear": "既定のアイコン",
-      "iconSearch": "アイコンを検索",
-      "iconNoMatch": "一致するアイコンがありません。",
-      "iconMore": "もっと表示する",
-      "iconCount": "{count} 件",
-      "iconClose": "アイコンの一覧を閉じる",
-      "save": "保存",
-      "cancel": "キャンセル",
-      "saving": "保存中…",
-      "saveFailed": "アプリを保存できませんでした。もう一度試してください。",
-      "problems": {
-        "empty": "名前を入力してください。",
-        "badSlug": "英小文字・数字・ハイフンを 2〜32 文字で、先頭は英字にしてください。",
-        "badUrl": "http:// か https:// で始まる完全なアドレスを入力してください。",
-        "taken": "この slug のアプリはすでに登録されています。"
-      }
-    }
-  },
   "section": {
     "todos": "Todo",
     "daily": "デイリー",
@@ -1250,8 +1137,7 @@
     "schedule": "予定",
     "analytics": "分析",
     "settings": "設定",
-    "briefing": "朝刊",
-    "apps": "アプリ"
+    "briefing": "朝刊"
   },
   "nav": {
     "collapse": "サイドバーを折りたたむ",
@@ -1773,7 +1659,6 @@
         "materials": "ノートとデイリー。書いて、あとから読み返すものの置き場です。",
         "connect": "話題の軸です。タグを 1 つ選ぶと、それが付いたものをまとめて読めます。",
         "analytics": "1 週間・1 か月の記録を集計して、積み上がりを振り返ります。",
-        "apps": "記録を送ってくる小さなアプリを登録して、最後に届いた日を確かめる場所です。",
         "settings": "見た目・言語・ショートカットなど、アプリ自体の設定です。"
       }
     },

@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { makeRecordsLabels } from "./helpers/recordsLabels";
 import { render, screen } from "@testing-library/react";
 import { TodayDashboard } from "../src/components/Analytics/TodayDashboard";
 import { WeeklySummary } from "../src/components/Analytics/WeeklySummary";
@@ -88,7 +87,6 @@ function makeMobileLabels(): AnalyticsLabels {
       todos: "Todos",
       schedule: "Schedule",
       work: "Work",
-      records: "Records",
     },
     datePreset: {
       label: "Date range",
@@ -194,7 +192,6 @@ function makeMobileLabels(): AnalyticsLabels {
       routineTitle: "Routines",
       top3: "Top 3",
     },
-    records: makeRecordsLabels(),
     schedule: {
       totalEvents: "Events",
       completedEvents: "Completed",

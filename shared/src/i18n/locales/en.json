@@ -948,70 +948,7 @@
       "overview": "Overview",
       "todos": "Todos",
       "schedule": "Schedule",
-      "work": "Work",
-      "records": "Records"
-    },
-    "records": {
-      "filtersLabel": "Filter records",
-      "app": { "label": "App", "all": "All apps" },
-      "kind": { "label": "Kind", "all": "All kinds" },
-      "claudeSource": "Claude",
-      "stats": {
-        "count": "Records",
-        "sum": "Total",
-        "avg": "Average",
-        "latest": "Latest",
-        "needOneKind": "Pick one kind to see the total, average and latest.",
-        "headline": "Shown first for this kind"
-      },
-      "chart": {
-        "sumTitle": "Total over time",
-        "countTitle": "Records over time",
-        "sumSeries": "Total",
-        "countSeries": "Records",
-        "avgTitle": "Average over time",
-        "latestTitle": "Latest in each period",
-        "avgSeries": "Average",
-        "latestSeries": "Latest"
-      },
-      "views": {
-        "title": "How each kind is shown",
-        "description": "Pick the number and the chart each kind is shown with. The Records block on your phone shows the same.",
-        "selectLabel": "How to show {{kind}}",
-        "metrics": {
-          "sum": "Total",
-          "avg": "Average",
-          "latest": "Latest",
-          "count": "Count"
-        },
-        "chartSelectLabel": "Chart for {{kind}}",
-        "charts": { "bar": "Bars", "line": "Line" },
-        "saveFailed": "That choice could not be saved. Try again in a moment."
-      },
-      "list": {
-        "title": "Records",
-        "showMore": "Show more",
-        "shown": "Showing {{shown}} of {{total}}"
-      },
-      "empty": {
-        "title": "No records in this range",
-        "description": "Tell Claude on your phone “coffee, 450 yen” and the first record lands here."
-      },
-      "emptyFiltered": {
-        "title": "No records match these filters",
-        "description": "Change the app or kind, or widen the date range."
-      },
-      "loadFailed": "Records could not be loaded. Try again in a moment.",
-      "mobile": {
-        "title": "Records",
-        "range": "Last 7 days",
-        "empty": "No records in the last 7 days.",
-        "count_one": "{{count}} record",
-        "count_other": "{{count}} records",
-        "filteredTo": "Only {{app}}",
-        "clearFilter": "Show all apps",
-        "emptyFiltered": "This app sent no records in the last 7 days."
-      }
+      "work": "Work"
     },
     "workTime": "Work Time",
     "todoWorkTime": "Work Time by Todo",
@@ -1199,59 +1136,6 @@
     "retry": "Retry",
     "unsavedCloseConfirm": "You have unsaved changes. Discard them and close?"
   },
-  "apps": {
-    "heading": "Registered apps",
-    "register": "Register an app",
-    "emptyIntro": "Extension apps are small apps of your own — a household ledger, a weight log, a sleep tracker — that send numbers into life-editor. Register one here to give it a name and a link, see when it last sent a record, and open its records in Analytics.",
-    "keyGuide": "An app sends records with a gateway key. The author issues it on their own machine by running `npm run gateway-key -- issue --app <slug>` in mcp-server, with the same slug you register here. The full steps are at the top of `mcp-server/scripts/gateway-key.mjs`.",
-    "unregisteredHeading": "Apps that only sent records",
-    "unregisteredIntro": "These names arrived on records but are not registered yet. Register one to give it a name and a link.",
-    "registerSource": "Register",
-    "loadFailed": "The apps could not be loaded. Check your connection and open this section again.",
-    "deleteConfirm": "Remove {{name}} from the list? Its records stay, and it moves back to “Apps that only sent records”.",
-    "deleteConfirmLabel": "Remove",
-    "deleteCancelLabel": "Cancel",
-    "deleteFailed": "The app could not be removed. Try again.",
-    "card": {
-      "lastRecordToday": "Last record: today",
-      "lastRecord_one": "Last record: {{count}} day ago",
-      "lastRecord_other": "Last record: {{count}} days ago",
-      "recordsLast30Days_one": "{{count}} in the last 30 days",
-      "recordsLast30Days_other": "{{count}} in the last 30 days",
-      "noRecords": "No records yet",
-      "showRecords": "Show records",
-      "edit": "Edit",
-      "delete": "Remove",
-      "openUrl": "Open {{name}}"
-    },
-    "dialog": {
-      "registerTitle": "Register an app",
-      "editTitle": "Edit app",
-      "slug": "Slug",
-      "slugHint": "Lowercase letters, digits and hyphens, starting with a letter. It cannot be changed later, because the app's records and key point at it.",
-      "name": "Name",
-      "url": "URL",
-      "urlPlaceholder": "https://",
-      "description": "Description",
-      "iconLabel": "Icon",
-      "iconClear": "Default icon",
-      "iconSearch": "Search icons",
-      "iconNoMatch": "No icon matches.",
-      "iconMore": "Show more",
-      "iconCount": "{count} icons",
-      "iconClose": "Close the icon list",
-      "save": "Save",
-      "cancel": "Cancel",
-      "saving": "Saving…",
-      "saveFailed": "The app could not be saved. Try again.",
-      "problems": {
-        "empty": "Enter a name.",
-        "badSlug": "Use 2 to 32 lowercase letters, digits or hyphens, starting with a letter.",
-        "badUrl": "Enter a full address that starts with http:// or https://.",
-        "taken": "An app with this slug is already registered."
-      }
-    }
-  },
   "section": {
     "todos": "Todos",
     "daily": "Daily",
@@ -1261,8 +1145,7 @@
     "schedule": "Schedule",
     "analytics": "Analytics",
     "settings": "Settings",
-    "briefing": "Briefing",
-    "apps": "Apps"
+    "briefing": "Briefing"
   },
   "nav": {
     "collapse": "Collapse sidebar",
@@ -1799,7 +1682,6 @@
         "materials": "Notes and daily entries — the things you write and come back to.",
         "connect": "The topic axis: pick a tag and read everything filed under it.",
         "analytics": "What your records add up to over a week or a month.",
-        "apps": "The small apps that send you records: register them, and see when each last sent one.",
         "settings": "Appearance, language, shortcuts — the knobs for the app itself."
       }
     },

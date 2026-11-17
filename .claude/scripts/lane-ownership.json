@@ -90,14 +90,9 @@
     "analytics-refine": {
       "paths": [
         "shared/src/components/Analytics/**",
-        "shared/src/components/Apps/**",
         "web/src/analytics/**",
-        "web/src/apps/**",
         "web/tests/analytics*",
-        "web/tests/apps*",
-        "shared/tests/analytics*",
-        "shared/tests/apps*",
-        "shared/tests/appRecord*"
+        "shared/tests/analytics*"
       ]
     },
     "settings": {
@@ -180,11 +175,9 @@
     {
       "kind": "generated",
       "paths": [
-        "shared/src/generated/mcpToolCatalog.json",
-        "mcp-server/spec/extension-gateway.json",
-        "mcp-server/mocks/extension-gateway-fake.mjs"
+        "shared/src/generated/mcpToolCatalog.json"
       ],
-      "how": "手で合流させず、merge 後に cd mcp-server && npm run catalog（窓口の仕様は npm run gateway-spec）で作り直す。"
+      "how": "手で合流させず、merge 後に cd mcp-server && npm run catalog で作り直す。"
     },
     {
       "kind": "owner-only",

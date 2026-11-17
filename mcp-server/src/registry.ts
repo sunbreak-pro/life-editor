@@ -29,23 +29,7 @@ export interface ToolRegistry {
   ): Promise<{ content: Array<{ type: "text"; text: string }> }>;
 }
 
-export interface RegistryOptions {
-  /**
-   * Runs after the arguments validate and before the handler. Throwing refuses
-   * the call. The extension-app gateway uses it for its scope and ownership
-   * checks (gatewayGuard.ts, #2146); the stdio server and the phone's Worker
-   * pass nothing.
-   */
-  beforeRun?: (
-    def: ToolDefinition,
-    args: Record<string, unknown>,
-  ) => Promise<void> | void;
-}
-
-export function buildRegistry(
-  definitions: ToolDefinition[],
-  options: RegistryOptions = {},
-): ToolRegistry {
+export function buildRegistry(definitions: ToolDefinition[]): ToolRegistry {
   const tools: Tool[] = definitions.map((def) => ({
     name: def.name,
     description: def.description,
@@ -65,7 +49,6 @@ export function buildRegistry(
       // write.
       validateToolArgs(name, def.inputSchema, args);
       const ignored = unknownArgNames(def.inputSchema, args);
-      await options.beforeRun?.(def, args);
       const result = await def.run(args);
 
       const content: Array<{ type: "text"; text: string }> = [

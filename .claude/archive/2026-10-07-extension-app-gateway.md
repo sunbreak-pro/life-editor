@@ -1,5 +1,5 @@
 ---
-Status: Draft
+Status: SUPERSEDED — 2026-11-16 に #2720 で窓口の Worker ごと消しました。拡張アプリを使わないと決めたためです（2026-11-12 こうだいさんの決定・A 案）。MCP の入口は stdio と Remote MCP の 2 本に戻り、DB の表と列は残してあります。本文は履歴です
 Created: 2026-10-07
 Branch: docs/extension-gateway-plan-2127
 Owner-chat: main

@@ -1,16 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Flame, Trophy, BarChart3 } from "lucide-react";
 import type { TimerSession } from "../../types/timer";
 import type { TodoNode } from "../../types/todoTree";
 import type { ScheduleItem } from "../../types/schedule";
 import type { NoteNode } from "../../types/note";
 import type { RoutineNode } from "../../types/routine";
-import {
-  APP_RECORD_SOURCE_CLAUDE,
-  type AppRecord,
-} from "../../types/appRecord";
-import type { ExtensionApp } from "../../types/extensionApp";
-import type { RecordView } from "../../types/recordView";
 import {
   dateKeyOfInstant,
   formatDateKey,
@@ -29,23 +23,12 @@ import { WEEK_STARTS_ON } from "../../utils/scheduleGridLayout";
 import { NoticePanel } from "../NoticePanel";
 import { AnalyticsEmptyState } from "./AnalyticsEmptyState";
 import type { AnalyticsLabels } from "./labels";
-import { RecordSparkline } from "./RecordSparkline";
-import {
-  formatRecordMetric,
-  indexRecordViews,
-  recentKindSeries,
-  recentKindTotals,
-  recordChartFor,
-  recordMetricFor,
-  recordViewKey,
-  withDateKeys,
-} from "./recordsModel";
 
 /*
  * Mobile (<768px) Analytics — a single Consumption scroll (design 1l–1o). No
  * tabs, no heatmap/timeline, no period switch: the range is a fixed last-30-day
  * window (the host's default preset). Order: 今日 → ストリーク → 今週 → stat 2×2
- * → ルーチン上位3 → 記録 (#2164, last 7 days per kind). Pure presentation: copy arrives already-translated (§6.4),
+ * → ルーチン上位3. Pure presentation: copy arrives already-translated (§6.4),
  * lumen-* tokens only (§5).
  */
 interface MobileAnalyticsViewProps {
@@ -64,37 +47,8 @@ interface MobileAnalyticsViewProps {
    * yet" is exactly the wrong thing to say then.
    */
   warning?: string | null;
-  /**
-   * Extension-app records (#2164). The block reads the last seven days out of
-   * whatever the host loaded, so the host's window must reach that far.
-   */
-  records?: AppRecord[];
-  /**
-   * The records read is still in flight (#2214): the block draws a skeleton
-   * instead of "none", which would be a claim about records not yet read.
-   */
-  recordsLoading?: boolean;
-  /** The records read failed: the block says so instead of "none". */
-  recordsError?: string | null;
-  /**
-   * Which number leads each kind (#2263) — the same saved rows the wide
-   * Records tab picks. A kind with none leads with the sum.
-   */
-  recordViews?: readonly RecordView[];
-  /** The ledger, for the narrowed app's display name (#2312). */
-  recordApps?: readonly Pick<ExtensionApp, "slug" | "name">[];
-  /**
-   * An app slug the Apps section's "show records" asks the block to narrow
-   * to (#2312), consumed once — the wide Records tab's `pendingSource` twin.
-   * The narrowing then lives as long as this view does.
-   */
-  pendingRecordsSource?: string | null;
-  onRecordsSourceConsumed?: () => void;
   labels: AnalyticsLabels;
 }
-
-/** The records block covers this many calendar days, today included. */
-const RECORDS_WINDOW_DAYS = 7;
 
 const DOW_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 
@@ -105,10 +59,7 @@ function isEmpty(p: MobileAnalyticsViewProps): boolean {
     p.routines.length === 0 &&
     p.notes.length === 0 &&
     p.scheduleItems.length === 0 &&
-    p.todayItems.length === 0 &&
-    // Records still being read are not "no records" (#2214).
-    !p.recordsLoading &&
-    (p.records?.length ?? 0) === 0
+    p.todayItems.length === 0
   );
 }
 
@@ -123,62 +74,8 @@ export function MobileAnalyticsView(
     notes,
     routines,
     warning,
-    records,
-    recordsLoading,
-    recordsError,
-    recordViews,
-    recordApps,
-    pendingRecordsSource = null,
-    onRecordsSourceConsumed,
     labels,
   } = props;
-
-  /*
-   * The app the block is narrowed to (#2312), or null for every app. Taken
-   * from the pending request while rendering, the RecordsTab way: the first
-   * paint is already narrowed, and `taken` lets the same slug asked for again
-   * later still land.
-   */
-  const [source, setSource] = useState<string | null>(pendingRecordsSource);
-  const [taken, setTaken] = useState<string | null>(pendingRecordsSource);
-  if (pendingRecordsSource !== null && pendingRecordsSource !== taken) {
-    setTaken(pendingRecordsSource);
-    setSource(pendingRecordsSource);
-  } else if (pendingRecordsSource === null && taken !== null) {
-    setTaken(null);
-  }
-  useEffect(() => {
-    if (pendingRecordsSource !== null) onRecordsSourceConsumed?.();
-  }, [pendingRecordsSource, onRecordsSourceConsumed]);
-
-  const shownRecords = useMemo(
-    () =>
-      source === null
-        ? (records ?? [])
-        : (records ?? []).filter((r) => r.sourceApp === source),
-    [records, source],
-  );
-  const sourceName = useMemo(() => {
-    if (source === null) return null;
-    if (source === APP_RECORD_SOURCE_CLAUDE) return labels.records.claudeSource;
-    return recordApps?.find((app) => app.slug === source)?.name ?? source;
-  }, [source, recordApps, labels.records.claudeSource]);
-
-  const viewIndex = useMemo(
-    () => indexRecordViews(recordViews ?? []),
-    [recordViews],
-  );
-  // Each kind's seven days in its chosen number, for the small chart (#2264).
-  const recordSeries = useMemo(
-    () =>
-      recentKindSeries(
-        withDateKeys(shownRecords),
-        todayCalendarKey(),
-        RECORDS_WINDOW_DAYS,
-        viewIndex,
-      ),
-    [shownRecords, viewIndex],
-  );
 
   const model = useMemo(() => {
     // Calendar day (#356) — the desktop TodayDashboard's twin. Analytics buckets
@@ -262,15 +159,7 @@ export function MobileAnalyticsView(
       .sort((a, b) => b.rate - a.rate)
       .slice(0, 3);
 
-    // Last 7 calendar days per kind, through the shared aggregation (#2162).
-    const recordTotals = recentKindTotals(
-      withDateKeys(shownRecords),
-      todayStr,
-      RECORDS_WINDOW_DAYS,
-    );
-
     return {
-      recordTotals,
       todayWorkMinutes,
       pomodoroCount,
       completedToday,
@@ -288,15 +177,7 @@ export function MobileAnalyticsView(
       routineRate,
       topRoutines,
     };
-  }, [
-    sessions,
-    nodes,
-    todayItems,
-    scheduleItems,
-    notes,
-    routines,
-    shownRecords,
-  ]);
+  }, [sessions, nodes, todayItems, scheduleItems, notes, routines]);
 
   if (props.loading) {
     return <MobileSkeleton title={labels.title} />;
@@ -500,99 +381,6 @@ export function MobileAnalyticsView(
             </div>
           </div>
         )}
-
-        {/*
-         * Records (#2164): the last 7 days, one entry per kind, led by the
-         * number the owner chose for that kind on the wide Records tab (#2263)
-         * — the latest for a weight, the sum for spending. A kind with no
-         * choice saved leads with the sum (plan 案 C). Beside it, the same
-         * number day by day in the chart shape chosen there (#2264), bars
-         * when nothing is saved.
-         */}
-        <div className="flex flex-col gap-3 rounded-lumen-lg border border-lumen-border bg-lumen-bg-secondary p-4">
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="text-sm font-semibold text-lumen-text">
-              {labels.records.mobile.title}
-            </span>
-            <span className="text-xs text-lumen-text-tertiary">
-              {labels.records.mobile.range}
-            </span>
-          </div>
-          {/* Narrowed by the Apps section's "show records" (#2312): say to
-              which app, and give the way back to every app.
-              The sentence wraps instead of truncating (#2511): at 390px the
-              button took ~119px and cut "Only <app>" down to "Only <ap…", so
-              a long app name hid the very fact that the block is narrowed.
-              The row wraps too, and the button drops below the sentence when
-              the two no longer fit side by side (`ml-auto` keeps it on the
-              right there); its 44px hit box is unchanged. */}
-          {sourceName !== null ? (
-            <div className="flex flex-wrap items-center justify-between gap-x-2">
-              <span className="min-w-0 break-words text-xs text-lumen-text-secondary">
-                {labels.records.mobile.formatFilteredTo(sourceName)}
-              </span>
-              <button
-                type="button"
-                onClick={() => setSource(null)}
-                className="ml-auto min-h-11 flex-shrink-0 rounded-lumen-md px-2 text-xs font-medium text-lumen-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-              >
-                {labels.records.mobile.clearFilter}
-              </button>
-            </div>
-          ) : null}
-          {recordsLoading ? (
-            <RecordsBlockSkeleton />
-          ) : recordsError ? (
-            <p className="text-xs text-lumen-text-secondary">
-              {labels.records.loadFailed}
-            </p>
-          ) : model.recordTotals.length === 0 ? (
-            <p className="text-xs text-lumen-text-secondary">
-              {sourceName !== null
-                ? labels.records.mobile.emptyFiltered
-                : labels.records.mobile.empty}
-            </p>
-          ) : (
-            <ul className="flex flex-col gap-2.5">
-              {model.recordTotals.map((total) => {
-                const metric = recordMetricFor(
-                  viewIndex,
-                  total.kind,
-                  total.unit,
-                );
-                const key = recordViewKey(total.kind, total.unit);
-                return (
-                  <li key={key} className="flex items-center gap-3">
-                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span className="min-w-0 truncate text-xs text-lumen-text">
-                        {total.kind}
-                        <span className="text-lumen-text-tertiary">
-                          {" · "}
-                          {labels.records.mobile.formatCount(total.count)}
-                        </span>
-                      </span>
-                      <dl className="flex flex-wrap items-baseline gap-x-4 gap-y-0.5">
-                        <RecordFigure
-                          label={labels.records.views.metrics[metric]}
-                          value={formatRecordMetric(
-                            labels.records,
-                            total,
-                            total.unit,
-                            metric,
-                          )}
-                        />
-                      </dl>
-                    </div>
-                    <RecordSparkline
-                      values={recordSeries.get(key) ?? []}
-                      chart={recordChartFor(viewIndex, total.kind, total.unit)}
-                    />
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
       </div>
     </div>
   );
@@ -639,42 +427,6 @@ function StatBox({
       {subtitle && (
         <span className="text-xs text-lumen-text-tertiary">{subtitle}</span>
       )}
-    </div>
-  );
-}
-
-/** The labelled number on a records line (#2263): "Latest 62.4 kg". */
-function RecordFigure({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}): React.JSX.Element {
-  return (
-    <div className="flex items-baseline gap-1">
-      <dt className="text-xs text-lumen-text-tertiary">{label}</dt>
-      <dd className="text-sm font-semibold tabular-nums text-lumen-text">
-        {value}
-      </dd>
-    </div>
-  );
-}
-
-/**
- * The records block's body while the read is in flight (#2214) — the Records
- * tab's skeleton in miniature: blank lines where the per-kind rows will land.
- * The pulse stops under reduced motion through the app-wide rule in tokens.css.
- */
-function RecordsBlockSkeleton(): React.JSX.Element {
-  return (
-    <div className="flex flex-col gap-2.5" aria-busy="true">
-      {Array.from({ length: 2 }).map((_, i) => (
-        <div
-          key={i}
-          className="h-4 animate-pulse rounded-lumen-sm bg-lumen-surface-sunken"
-        />
-      ))}
     </div>
   );
 }

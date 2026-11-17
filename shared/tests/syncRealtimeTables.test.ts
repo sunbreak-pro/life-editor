@@ -83,6 +83,20 @@ function droppedTables(sql: string): string[] {
   return names;
 }
 
+/*
+ * Published by the migrations but deliberately NOT subscribed (#2720). The
+ * extension-app screens were removed while their tables stayed in the DB and
+ * in the publication (no DDL), and the data export still reads them. Nothing
+ * in the app shows these rows any more, so a Realtime event for them would
+ * only bump a counter nobody reads. Listed explicitly so the exact comparison
+ * below still catches every other drift.
+ */
+const PUBLISHED_BUT_UNSUBSCRIBED = [
+  "app_records",
+  "extension_apps",
+  "record_views",
+] as const;
+
 function publishedTables(): string[] {
   const live = new Set<string>();
   for (const { file, kind } of PUBLICATION_MIGRATIONS) {
@@ -97,10 +111,24 @@ function publishedTables(): string[] {
 }
 
 describe("Realtime: publication ↔ SyncContext table set", () => {
-  it("REALTIME_TABLES matches the replayed publication (0017 + 0018 − 0026 + 0034 + 0037 + 0039 + 0040 + 0041) exactly", () => {
-    const fromMigration = publishedTables().sort();
+  it("REALTIME_TABLES matches the replayed publication (0017 + 0018 − 0026 + 0034 + 0037 + 0039 + 0040 + 0041) minus the deliberately unsubscribed tables exactly", () => {
+    const unsubscribed: readonly string[] = PUBLISHED_BUT_UNSUBSCRIBED;
+    const fromMigration = publishedTables()
+      .filter((t) => !unsubscribed.includes(t))
+      .sort();
     const fromCode = [...REALTIME_TABLES].sort();
     expect(fromCode).toEqual(fromMigration);
+  });
+
+  it("the deliberately unsubscribed tables are still published and not subscribed (#2720)", () => {
+    // A name here that the publication no longer carries (or that crept back
+    // into REALTIME_TABLES) would make the exclusion above hide a real drift.
+    const published = publishedTables();
+    const subscribed: readonly string[] = REALTIME_TABLES;
+    for (const t of PUBLISHED_BUT_UNSUBSCRIBED) {
+      expect(published).toContain(t);
+      expect(subscribed).not.toContain(t);
+    }
   });
 
   it("REALTIME_TABLES has no duplicate entries", () => {
@@ -116,7 +144,7 @@ describe("Realtime: publication ↔ SyncContext table set", () => {
     expect(publishedTables()).not.toContain("calendars");
   });
 
-  it("covers all 28 owned tables", () => {
+  it("covers the 25 subscribed owned tables", () => {
     // 0008 unified (items_meta + 5 payloads + routine_groups +
     // routine_group_assignments + 4 wiki_tag*) = 13, plus the 6 W3
     // timer/audio tables (0018) = 19. `calendars` (0006) made it 20 until
@@ -124,9 +152,11 @@ describe("Realtime: publication ↔ SyncContext table set", () => {
     // goals_payload + goal_todo_links (#2101) = 21, and 0037 the three
     // Claude customization tables (#2118) = 24, and 0040 tables_payload
     // (#2094) = 25, and 0039 app_records + extension_apps (#2162) = 27, and
-    // 0041 record_views (#2260) = 28. A hard count so an accidental
+    // 0041 record_views (#2260) = 28. #2720 removed the extension-app screens
+    // and stopped subscribing to those three tables (still published, see
+    // PUBLISHED_BUT_UNSUBSCRIBED) = 25. A hard count so an accidental
     // truncation is caught even if BOTH lists were truncated identically
     // (which the equality test above would otherwise pass).
-    expect(REALTIME_TABLES.length).toBe(28);
+    expect(REALTIME_TABLES.length).toBe(25);
   });
 });

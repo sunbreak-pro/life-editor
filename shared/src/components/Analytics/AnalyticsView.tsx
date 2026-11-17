@@ -6,13 +6,6 @@ import type { ScheduleItem } from "../../types/schedule";
 import type { NoteNode } from "../../types/note";
 import type { RoutineNode } from "../../types/routine";
 import type { WikiTag, WikiTagAssignment } from "../../types/wikiTagUnified";
-import type { AppRecord } from "../../types/appRecord";
-import type {
-  RecordView,
-  RecordViewChart,
-  RecordViewMetric,
-} from "../../types/recordView";
-import type { ExtensionApp } from "../../types/extensionApp";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { HeaderTabs, type HeaderTab } from "../HeaderTabs";
 import { NoticePanel } from "../NoticePanel";
@@ -27,7 +20,6 @@ import { OverviewTab } from "./OverviewTab";
 import { TodosTab } from "./TodosTab";
 import { TimeTab } from "./TimeTab";
 import { ScheduleTab } from "./ScheduleTab";
-import { RecordsTab } from "./RecordsTab";
 import { MobileAnalyticsView } from "./MobileAnalyticsView";
 import { ANALYTICS_TAB_ORDER, type AnalyticsTab } from "./tabs";
 import type { AnalyticsLabels } from "./labels";
@@ -127,56 +119,8 @@ export interface AnalyticsViewProps {
    */
   initialPreset?: DatePreset;
   onPresetChange?: (preset: DatePreset) => void;
-  /**
-   * Extension-app records (#2164, host: `listAppRecords`). The host reads a
-   * window at least as wide as the selected date range — and at least the last
-   * seven days, which the narrow block needs whatever the preset is — and the
-   * tab narrows it by the preset itself. Optional so hosts that have no
-   * records keep compiling: the tab then shows its empty state.
-   */
-  records?: AppRecord[];
-  /** The ledger, for display names (host: `listExtensionApps`). */
-  recordApps?: ExtensionApp[];
-  /** True while the records read for the range is in flight. */
-  recordsLoading?: boolean;
-  /** Message of a failed records read, or null. */
-  recordsError?: string | null;
-  /**
-   * An app slug the shell wants the Records tab filtered to (the Apps
-   * section's "show records", #2165), consumed once by the tab through
-   * `onRecordsSourceConsumed` — the shell's pending-intent shape.
-   */
-  pendingRecordsSource?: string | null;
-  onRecordsSourceConsumed?: () => void;
-  /**
-   * Which number leads each kind of record (#2263, host: `listRecordViews`),
-   * shared by the Records tab and the narrow block, and the call that saves a
-   * pick (`saveRecordView`). Omit both and every kind leads with the sum and
-   * the tab's selects do nothing. The chart shape (#2264) rides the same row.
-   */
-  recordViews?: RecordView[];
-  onChooseRecordMetric?: (
-    kind: string,
-    unit: string | null,
-    metric: RecordViewMetric,
-  ) => void;
-  onChooseRecordChart?: (
-    kind: string,
-    unit: string | null,
-    chart: RecordViewChart,
-  ) => void;
-  /** True after a pick could not be saved. */
-  recordViewSaveFailed?: boolean;
-  /** Still the Records tab's chart (#2264): the owner asked for less motion. */
-  reduceMotion?: boolean;
   labels: AnalyticsLabels;
 }
-
-// Stable identities for the optional record props: the tab keys memos on them.
-const NO_RECORDS: AppRecord[] = [];
-const NO_APPS: ExtensionApp[] = [];
-const NO_VIEWS: RecordView[] = [];
-const IGNORE: () => void = () => {};
 
 export function AnalyticsView(props: AnalyticsViewProps): React.JSX.Element {
   const isWide = useMediaQuery(WIDE_QUERY);
@@ -199,13 +143,6 @@ export function AnalyticsView(props: AnalyticsViewProps): React.JSX.Element {
           routines={props.routines}
           loading={props.initialLoading ?? false}
           warning={props.loadWarning ?? null}
-          records={props.records ?? NO_RECORDS}
-          recordsLoading={props.recordsLoading ?? false}
-          recordsError={props.recordsError ?? null}
-          recordViews={props.recordViews ?? NO_VIEWS}
-          recordApps={props.recordApps ?? NO_APPS}
-          pendingRecordsSource={props.pendingRecordsSource ?? null}
-          onRecordsSourceConsumed={props.onRecordsSourceConsumed ?? IGNORE}
           labels={props.labels}
         />
       )}
@@ -230,17 +167,6 @@ function DesktopAnalytics({
   targetPerDay,
   activeTab: controlledTab,
   onTabChange,
-  records,
-  recordApps,
-  recordsLoading,
-  recordsError,
-  pendingRecordsSource,
-  onRecordsSourceConsumed,
-  recordViews,
-  onChooseRecordMetric,
-  onChooseRecordChart,
-  recordViewSaveFailed,
-  reduceMotion,
   labels,
 }: AnalyticsViewProps): React.JSX.Element {
   const { dateRange, preset, applyPreset } = useAnalyticsFilter();
@@ -448,24 +374,6 @@ function DesktopAnalytics({
                     timeDistribution: labels.schedule.timeDistribution,
                     routineCompletion: labels.schedule.routineCompletion,
                   }}
-                />
-              )}
-
-              {activeTab === "records" && (
-                <RecordsTab
-                  records={records ?? NO_RECORDS}
-                  apps={recordApps ?? NO_APPS}
-                  loading={recordsLoading ?? false}
-                  error={recordsError ?? null}
-                  pendingSource={pendingRecordsSource ?? null}
-                  onPendingSourceConsumed={onRecordsSourceConsumed ?? IGNORE}
-                  views={recordViews ?? NO_VIEWS}
-                  onChooseMetric={onChooseRecordMetric ?? IGNORE}
-                  onChooseChart={onChooseRecordChart ?? IGNORE}
-                  viewSaveFailed={recordViewSaveFailed ?? false}
-                  reduceMotion={reduceMotion ?? false}
-                  labels={labels.records}
-                  axis={labels.axis}
                 />
               )}
             </>

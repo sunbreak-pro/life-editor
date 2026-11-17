@@ -60,14 +60,6 @@ import {
   SupabaseAiCustomizationService,
   PHASE2_AI_CUSTOMIZATION_METHODS,
 } from "./SupabaseAiCustomizationService";
-import {
-  SupabaseAppRecordsService,
-  PHASE2_APP_RECORDS_METHODS,
-} from "./SupabaseAppRecordsService";
-import {
-  SupabaseRecordViewsService,
-  PHASE2_RECORD_VIEWS_METHODS,
-} from "./SupabaseRecordViewsService";
 /*
  * Phase 2 S1 Supabase implementation.
  *
@@ -145,10 +137,6 @@ export function createSupabaseDataService(): DataService {
   const noteTablesService = new SupabaseNoteTablesService(client);
   // #2118: rules / memories / Claude skills (0037).
   const aiCustomizationService = new SupabaseAiCustomizationService(client);
-  // #2162: extension-app records (read-only) + the extension-app ledger (0039).
-  const appRecordsService = new SupabaseAppRecordsService(client);
-  // #2260: how each kind of record is shown (0041).
-  const recordViewsService = new SupabaseRecordViewsService(client);
   // #625: Event <-> Todo. Its own class rather than a method on either domain
   // service, because it writes BOTH payload tables plus items_meta — hanging
   // it off Todos or Schedule would make one of them the silent owner of the
@@ -184,8 +172,6 @@ export function createSupabaseDataService(): DataService {
     if (PHASE2_NOTE_TABLES_METHODS.has(prop)) return noteTablesService;
     if (PHASE2_AI_CUSTOMIZATION_METHODS.has(prop))
       return aiCustomizationService;
-    if (PHASE2_APP_RECORDS_METHODS.has(prop)) return appRecordsService;
-    if (PHASE2_RECORD_VIEWS_METHODS.has(prop)) return recordViewsService;
     return null;
   };
 
