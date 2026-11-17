@@ -31,7 +31,6 @@ import {
   writeNoteContent,
 } from "../utils/noteContentWrite.js";
 import { notFoundError } from "../errorCodes.js";
-import { createOnce, type OriginKey } from "../utils/originKey.js";
 
 /*
  * Note handlers — Supabase edition (#360).
@@ -284,25 +283,16 @@ export async function getNote(args: { id: string }) {
 export async function createNote(args: {
   title: string;
   content?: string;
-  /** Gateway only (originKey.ts): a retry returns the first call's note. */
-  idempotency_key?: string;
 }) {
-  return createOnce({
-    tool: "create_note",
-    role: "note",
-    input: args,
-    create: (origin) => insertNote(args, origin),
-    load: async (id) => {
-      const { meta, payload } = await getNoteRows(id);
-      return formatNote(meta, payload);
-    },
-  });
+  const id = await insertNote(args);
+  const { meta, payload } = await getNoteRows(id);
+  return formatNote(meta, payload);
 }
 
-async function insertNote(
-  args: { title: string; content?: string },
-  origin: OriginKey | undefined,
-): Promise<string> {
+async function insertNote(args: {
+  title: string;
+  content?: string;
+}): Promise<string> {
   const id = `note-${randomUUID()}`;
 
   await insertItem({
@@ -318,7 +308,6 @@ async function insertNote(
       is_pinned: false,
       is_edit_locked: false,
     },
-    origin,
   });
   return id;
 }

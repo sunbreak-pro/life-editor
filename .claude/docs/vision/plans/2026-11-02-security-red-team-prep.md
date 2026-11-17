@@ -34,7 +34,7 @@ Owner-chat: main
 | 全ユーザー共通の一意キー | `items_meta.id` と `dailies_payload.date` は、ユーザーをまたいで一意です。他人に先に取られると、こうだいさんの保存が止まります。 | `0008_data_unification_schema.sql:76,494` |
 | ノートと Daily のパスワード | ハッシュにせず、平文のまま保存されています。 | known-issues 027 |
 | Desktop の CSP | `app://` の応答には CSP（読み込んでよい場所の制限）が付いていません。 | `desktop/src/main/index.ts:363` |
-| 拡張アプリ用の窓口 | 書けるのは自分が作ったアイテムだけです。読むほうはロック中のノートを除いて全域です（D-20261007-main-4 = B）。`create_note` と `update_note` も持っています。 | `mcp-server/src/extensionGateway.ts:59-88` |
+| 拡張アプリ用の窓口 | 2026-11-16 に #2720 でコードから消しました。Cloudflare に立てた窓口の Worker を止めるのは、こうだいさんの作業です。止まるまでは、配った鍵で読み書きできます。 | Issue #2720 |
 | スマホ用の Worker | URL のパスに入れた共有シークレット 1 本で、全ツールを使えます。`add_ai_memory` と `create_ai_skill` も含みます。 | `mcp-server/src/remoteTools.ts:17`、`worker.ts:136-144` |
 | AI の記憶とスキルの行き先 | DB にある記憶とスキルは、Desktop から Claude Code を起動するたびに `claude-workspace/.claude/` へファイルとして書き出されます。そこを `--add-dir` で読み込ませます。 | `desktop/src/main/claudeLauncher.ts:260-275, 498-502` |
 | 無人の定期ルーチン | 昼に headless の Claude が、公開リポジトリの Issue と PR の一覧を読みます。permissions は読み取り中心です。 | `.claude/automation/routine-night-safe.md:20-21`、`settings-unattended-readonly.json` |
@@ -47,8 +47,8 @@ Owner-chat: main
 | 記号 | 攻撃者 | 持っているもの |
 | --- | --- | --- |
 | T1 | 通りすがりの第三者 | 公開 Web URL、公開リポジトリ、メールアドレス 1 つ（サインアップが開いているため、アカウントも作れます） |
-| T2 | 乗っ取られた、または悪意のある拡張アプリ | 窓口の鍵 1 本（読み取りは全域、書き込みは自作のアイテムだけ） |
-| T3 | AI に読ませる文章を書ける人 | 拡張アプリ経由のノート、貼り付けた Web の文章、GitHub の Issue とコメント、メールの本文 |
+| T2 | 乗っ取られた、または悪意のある拡張アプリ | 窓口の鍵 1 本。窓口は #2720 で消したので、Cloudflare の窓口の Worker が止まったあとは対象から外します |
+| T3 | AI に読ませる文章を書ける人 | 貼り付けた Web の文章、GitHub の Issue とコメント、メールの本文 |
 | T4 | AI を道具に使う攻撃者 | 公開リポジトリを AI で丸読みして弱点を探す速さ、AI が作った自然なフィッシング文 |
 | T5 | スマホ用 Worker のトークンを手に入れた人 | こうだいさんのアカウントの全データの読み書き（ロック中のノート本文を除く） |
 
@@ -79,7 +79,7 @@ scripts/security/**                      # 攻撃の再現スクリプトとシ�
 mcp-server/.dev.vars                     # 検証用の環境変数（gitignore 済み・commit しない）
 ```
 
-対策のコード変更（RLS・窓口・Desktop・ルーチンの permissions など）は、この計画の Scope に入れません。Phase 4 で候補を Issue にして、それぞれ別の計画と PR で行います（1 Issue = 1 ブランチ = 1 PR）。
+対策のコード変更（RLS・Worker・Desktop・ルーチンの permissions など）は、この計画の Scope に入れません。Phase 4 で候補を Issue にして、それぞれ別の計画と PR で行います（1 Issue = 1 ブランチ = 1 PR）。
 
 ---
 
@@ -92,7 +92,7 @@ mcp-server/.dev.vars                     # 検証用の環境変数（gitignore 
 | 0-1 | Supabase に検証用のプロジェクトを 1 つ作り、URL と anon key を控える | 🛑 人手 | ダッシュボードにプロジェクトがあり、本番と ref が違う |
 | 0-2 | 検証用のプロジェクトへ、全 migration を `supabase db push` で反映する（`--db-url` で検証用を指す） | 🛑 人手 | `supabase migration list` で 0045 まで反映済み |
 | 0-3 | 検証用のプロジェクトにアカウントを 2 つ作る（owner 役と attacker 役）。サインアップはこの検証用だけで開いておく | 🛑 人手 | 2 アカウントでログインできる |
-| 0-4 | `wrangler dev` でスマホ用の Worker と窓口の Worker をローカルに立て、検証用のプロジェクトに向ける（`.dev.vars`）。窓口には検証用の拡張アプリを 2 つ（A と B）登録する | 🤖 自律 | `curl` で `/mcp/<検証用トークン>` が 200、誤ったトークンが 404 |
+| 0-4 | `wrangler dev` でスマホ用の Worker をローカルに立て、検証用のプロジェクトに向ける（`.dev.vars`）。拡張アプリ用の窓口の Worker は #2720 で消したので立てません | 🤖 自律 | `curl` で `/mcp/<検証用トークン>` が 200、誤ったトークンが 404 |
 | 0-5 | 目印の偽データ（カナリア）を owner 役に入れる。`CANARY-NOTE-<乱数>` を含むノート、ロック中のノート、AI の記憶 1 件を作る | 🤖 自律 | `scripts/security/seed-canary.mjs` が exit 0、件数を表示する |
 | 0-6 | 無料の道具を揃える: gitleaks、osv-scanner、semgrep、electronegativity、OWASP ZAP、promptfoo | 🤖 自律 | 各道具の `--version` が通る |
 | 0-7 | Supabase と Cloudflare の利用規約で、自分のプロジェクトへの検証が許されている範囲を読み、手順書に書く | 👀 目視 | `.claude/docs/security/rules-of-engagement.md` に、許可されている範囲と禁止事項がある |

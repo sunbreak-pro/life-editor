@@ -1,6 +1,4 @@
 import { getSupabase } from "../supabase.js";
-import { currentCaller } from "../callerContext.js";
-import { DuplicateOriginKeyError, type OriginKey } from "./originKey.js";
 import { notFoundError } from "../errorCodes.js";
 
 /*
@@ -102,17 +100,8 @@ export async function insertItem(args: {
   title: string;
   payloadTable: string;
   payload: Record<string, unknown>;
-  /** The retry key of a gateway create (originKey.ts). Needs a caller. */
-  origin?: OriginKey;
 }): Promise<void> {
   const { client, userId } = await getSupabase();
-
-  // An extension app's create is stamped with its name (0038, #2146) in the
-  // SAME insert, so there is no moment an app's item exists without its mark.
-  // Outside the gateway there is no caller and the column is left out of the
-  // statement altogether — the stdio server and the phone's Worker keep working
-  // on a database that has not had 0038 pushed yet.
-  const originApp = currentCaller()?.app;
 
   const { error: mErr } = await client.from("items_meta").insert({
     id: args.id,
@@ -121,26 +110,8 @@ export async function insertItem(args: {
     title: args.title,
     is_deleted: false,
     deleted_at: null,
-    ...(originApp ? { origin_app: originApp } : {}),
-    // The key and its request hash ride in the same insert as the app name,
-    // so an item never exists with a key but no way to tell a replay from a
-    // reuse (0038's CHECK refuses the half-written row as well).
-    ...(originApp && args.origin
-      ? {
-          origin_key: args.origin.key,
-          origin_request_hash: args.origin.hash,
-        }
-      : {}),
   });
-  if (mErr) {
-    // 23505 is a unique violation. With a key on the row the only unique index
-    // it can be is (user, app, key) — ids are fresh UUIDs — so a twin of this
-    // request got there first.
-    if ((mErr as { code?: string }).code === "23505" && args.origin) {
-      throw new DuplicateOriginKeyError();
-    }
-    throw new Error(`create items_meta: ${mErr.message}`);
-  }
+  if (mErr) throw new Error(`create items_meta: ${mErr.message}`);
 
   try {
     const { error: pErr } = await client

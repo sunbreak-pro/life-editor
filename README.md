@@ -12,7 +12,7 @@ Life Editor は、作者が自分の生活を回すために作っている個�
 - **予定**: カレンダーで予定を組みます。繰り返しの予定と Todo の一覧もこのセクションにあります。
 - **素材**: ノートとデイリーを書く場所です。本文は TipTap のエディタで書き、ノートには添付ファイルとテンプレートを使えます。
 - **つながり**: タグを入口にノート・Todo・予定・デイリーを種類別に読めます。「目標と Todo」のタブでは、目標の木の下に Todo をぶら下げて見られます。
-- **アプリと分析**: 別リポジトリで作った小さな拡張アプリ（家計簿や体重の記録など）を「アプリ」に登録します。拡張アプリが送った数値は「分析」の記録タブで見られます。
+- **分析**: Todo や予定の記録を集計し、グラフで見られます。
 - **設定**: Claude に渡すルール・メモリー・スキルの編集、ゴミ箱からの復元、データの書き出し、ショートカット、テーマ、日本語と英語の切り替えがあります。
 - **Claude Code の起動**: Desktop 版では、サイドバーと設定の画面から、指定したフォルダで `claude` を起動できます。
 
@@ -33,19 +33,17 @@ Life Editor は、作者が自分の生活を回すために作っている個�
 
 ### MCP の設計
 
-MCP のツールの処理（ハンドラ）は 1 つで、それを 3 つの入口が共有します。どの入口もツールの定義・引数の検査・Supabase への書き込みに同じコードを使い、入口ごとに違うのは見せるツールの範囲と認証だけです。
+MCP のツールの処理（ハンドラ）は 1 つで、それを 2 つの入口が共有します。どちらの入口もツールの定義・引数の検査・Supabase への書き込みに同じコードを使い、入口ごとに違うのは見せるツールの範囲と認証だけです。
 
-| 入口                                        | 使う側                                                  | コード                            | ツール数 |
-| ------------------------------------------- | ------------------------------------------------------- | --------------------------------- | -------- |
-| stdio                                       | 手元の Claude Code                                      | `mcp-server/src/index.ts`         | 61       |
-| Remote MCP（Cloudflare Workers）            | スマホと Web の Claude アプリ（カスタムコネクタで接続） | `mcp-server/src/worker.ts`        | 58       |
-| 拡張アプリ用の Worker（Cloudflare Workers） | 別リポジトリの拡張アプリ                                | `mcp-server/src/gatewayWorker.ts` | 28       |
+| 入口                             | 使う側                                                  | コード                     | ツール数 |
+| -------------------------------- | ------------------------------------------------------- | -------------------------- | -------- |
+| stdio                            | 手元の Claude Code                                      | `mcp-server/src/index.ts`  | 56       |
+| Remote MCP（Cloudflare Workers） | スマホと Web の Claude アプリ（カスタムコネクタで接続） | `mcp-server/src/worker.ts` | 53       |
 
 - どこでも動くツールの一覧の元は `mcp-server/src/remoteTools.ts` で、Remote MCP はこの一覧をそのまま出します。
 - stdio はこの一覧に、手元のファイルを使う検証用のツール 3 本を足します（`mcp-server/src/tools.ts`）。
-- 拡張アプリ用の Worker は、一覧から選んだツールに、アプリが自分で付けた ID で更新・削除するツール 2 本を足します。鍵・CORS・取り消しはスマホ用と分けていて、仕様は `mcp-server/spec/extension-gateway.json` にあります。
 
-ツール数は 2026-10-22 に `mcp-server/src/tools/` の定義を数えた値です。最新の一覧はコードを見てください。
+ツール数は 2026-11-16 に `mcp-server/src/tools/` の定義を数えた値です。最新の一覧はコードを見てください。
 
 ## 開発のしかた
 
@@ -69,8 +67,8 @@ cd ../web && npm install && npm run dev
 | `shared/` / `web/` | `npm run build` / `npm run lint` / `npm run test` / `npm run typecheck:tests` | 型検査とビルド、lint、テスト、テストコードの型検査をします。                             |
 | `desktop/`         | `npm run dev` / `npm run build` / `npm run dist`                              | Electron 版を開発モードで起動し、ビルドし、配布用にまとめます。                          |
 | `mobile/`          | `npm run build:web` / `npm run sync` / `npm run open:ios`                     | `web/` をビルドして Capacitor に同期し、Xcode で開きます（Android は `open:android`）。  |
-| `mcp-server/`      | `npm run build` / `npm run test` / `npm run catalog` / `npm run gateway-spec` | MCP サーバーをビルド・テストし、設定画面用のツール一覧と拡張アプリ用の仕様を作り直します。 |
-| `mcp-server/`      | `npm run deploy` / `npm run deploy:gateway`                                   | Remote MCP と拡張アプリ用の Worker を Cloudflare Workers に配ります。                    |
+| `mcp-server/`      | `npm run build` / `npm run test` / `npm run catalog`                          | MCP サーバーをビルド・テストし、設定画面用のツール一覧を作り直します。                   |
+| `mcp-server/`      | `npm run deploy`                                                              | Remote MCP を Cloudflare Workers に配ります。                                            |
 | `supabase/`        | `npm run db:check-rls` / `npm run db:push`                                    | RLS の設定を検査し、マイグレーションをデータベースに反映します。                         |
 
 stdio の MCP サーバーは、環境変数 `LIFE_EDITOR_SUPABASE_URL`・`LIFE_EDITOR_SUPABASE_ANON_KEY`・`LIFE_EDITOR_SUPABASE_EMAIL`・`LIFE_EDITOR_SUPABASE_PASSWORD` で Supabase に本人としてログインします。`.mcp.json` のサーバーの起動パスは、環境変数 `LIFE_EDITOR_MCP_ENTRY` で上書きできます。

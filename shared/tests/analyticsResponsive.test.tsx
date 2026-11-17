@@ -1,5 +1,4 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { makeRecordsLabels } from "./helpers/recordsLabels";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { AnalyticsView } from "../src/components/Analytics/AnalyticsView";
 import type { AnalyticsViewProps } from "../src/components/Analytics/AnalyticsView";
@@ -42,7 +41,6 @@ function makeLabels(): AnalyticsLabels {
       todos: "Todos",
       schedule: "Schedule",
       work: "Work",
-      records: "Records",
     },
     datePreset: {
       label: "Date range",
@@ -144,7 +142,6 @@ function makeLabels(): AnalyticsLabels {
       routineTitle: "Routine Rate",
       top3: "Top 3",
     },
-    records: makeRecordsLabels(),
     schedule: {
       totalEvents: "Total Events",
       completedEvents: "Completed",
@@ -202,16 +199,15 @@ afterEach(() => {
 });
 
 describe("AnalyticsView responsive branch", () => {
-  it("Desktop (wide) renders the 5 header tabs + the date-range preset group", () => {
+  it("Desktop (wide) renders the 4 header tabs + the date-range preset group", () => {
     render(<AnalyticsView {...baseProps()} />);
     const tabs = screen.getAllByRole("tab");
-    expect(tabs).toHaveLength(5);
+    expect(tabs).toHaveLength(4);
     expect(tabs.map((t) => t.textContent)).toEqual([
       "Overview",
       "Todos",
       "Work",
       "Schedule",
-      "Records",
     ]);
     expect(
       screen.getByRole("radiogroup", { name: "Date range" }),

@@ -28,7 +28,6 @@ describe("section registry", () => {
       "materials",
       "connect",
       "analytics",
-      "apps",
       "settings",
     ]);
   });
@@ -50,6 +49,12 @@ describe("section registry", () => {
     expect(SECTION_IDS).not.toContain("work");
   });
 
+  it("no longer carries the Apps section (#2720)", () => {
+    // The extension-app ledger was removed with the records it listed; a
+    // stored "apps" falls back through useStartupSection's registry check.
+    expect(SECTION_IDS).not.toContain("apps");
+  });
+
   it("splits mainline vs. utility groups", () => {
     expect(MAIN_SECTIONS.map((s) => s.id)).toEqual([
       "briefing",
@@ -57,34 +62,25 @@ describe("section registry", () => {
       "materials",
       "connect",
       "analytics",
-      "apps",
     ]);
     expect(UTILITY_SECTIONS.map((s) => s.id)).toEqual(["settings"]);
   });
 
   it("orders the mobile bottom bar as fixed-4 + More overflow", () => {
     // Fixed 4 = briefing/schedule/materials/analytics;
-    // More = connect/apps/settings. Analytics moved up into the fourth slot
+    // More = connect/settings. Analytics moved up into the fourth slot
     // when Work left it (#2717). Adding Connect (#1171) moved nothing on the
     // bar itself — it took the More slot the retired Connect had. #1293
     // dropped Trash off the end of More for the same reason it left the
-    // sidebar. Apps (#2165) joined More after Connect, and Settings stayed
-    // last.
+    // sidebar, and #2720 dropped Apps from More; Settings stays last.
     expect(MOBILE_SECTIONS.map((s) => s.id)).toEqual([
       "briefing",
       "schedule",
       "materials",
       "analytics",
       "connect",
-      "apps",
       "settings",
     ]);
-  });
-
-  it("puts Apps in the More sheet, not the fixed four (#2165)", () => {
-    const apps = SECTIONS.find((s) => s.id === "apps");
-    expect(apps?.mobileOrder).toBeGreaterThan(3);
-    expect(MOBILE_SECTIONS.slice(0, 4).map((s) => s.id)).not.toContain("apps");
   });
 
   it("gives every section an icon and a section.* label key", () => {

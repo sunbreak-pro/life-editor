@@ -17,55 +17,6 @@ export type {
   AiSkillInput,
 } from "./types/aiCustomization";
 export { AiCustomizationValidationError } from "./services/aiCustomizationLimits";
-// Extension-app records and ledger (#2162 data layer / #2164 / #2165 screens).
-export type { AppRecordsDataService } from "./services/DataService";
-export { APP_RECORD_SOURCE_CLAUDE } from "./types/appRecord";
-export type {
-  AppRecord,
-  AppRecordDimValue,
-  AppRecordFilters,
-  AppRecordRange,
-  AppRecordSource,
-} from "./types/appRecord";
-export type {
-  ExtensionApp,
-  ExtensionAppField,
-  ExtensionAppInput,
-  ExtensionAppIssue,
-  ExtensionAppUpdates,
-} from "./types/extensionApp";
-export {
-  EXTENSION_APP_SLUG_PATTERN,
-  ExtensionAppValidationError,
-  extensionAppProblems,
-} from "./services/appRecordMapper";
-// How each kind of record is shown (#2260 data layer / #2263 screen).
-export type { RecordViewsDataService } from "./services/DataService";
-export {
-  RECORD_VIEW_CHARTS,
-  RECORD_VIEW_DEFAULT,
-  RECORD_VIEW_METRICS,
-} from "./types/recordView";
-export type {
-  RecordView,
-  RecordViewChart,
-  RecordViewChoice,
-  RecordViewMetric,
-} from "./types/recordView";
-export {
-  aggregateAppRecords,
-  appRecordPeriodKey,
-  appRecordSample,
-  appRecordsToPoints,
-  summarizeAppRecordValues,
-} from "./utils/appRecordAggregation";
-export type {
-  AppRecordBucket,
-  AppRecordGroupBy,
-  AppRecordPoint,
-  AppRecordSample,
-  AppRecordStats,
-} from "./utils/appRecordAggregation";
 // #1988 — the whole-account export: its file shape, name and row count. The
 // read is `DataService.exportUserData()`; the download is the host's.
 export {

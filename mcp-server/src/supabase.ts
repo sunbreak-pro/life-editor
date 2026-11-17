@@ -1,5 +1,4 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { currentCaller, type GatewayAccount } from "./callerContext.js";
 
 /*
  * Supabase connection for the MCP server (briefing-loop Step 2).
@@ -22,14 +21,6 @@ import { currentCaller, type GatewayAccount } from "./callerContext.js";
  * arrive as an `env` argument on each request — so credentials can also be
  * pushed in with `configureSupabase()`. Env reading stays the default rather
  * than becoming one more thing every stdio caller has to remember.
- *
- * TWO ACCOUNTS (#2146, plan R8). The extension-app gateway can bind an app to
- * the confirmation-only "review" account, so what that app writes never shows
- * in the owner's data. The two accounts keep separate sessions, and a call
- * picks its own by the caller context (callerContext.ts) — read per call, not
- * set globally, because a Worker isolate serves overlapping requests and a
- * global switch would hand one request the other's account. Outside the gateway
- * there is no caller and the account is the owner's, exactly as before.
  */
 
 export interface SupabaseSession {
@@ -45,17 +36,9 @@ export interface SupabaseCredentials {
   password: string;
 }
 
-/** One account's sign-in state. */
-interface Slot {
-  cached: SupabaseSession | null;
-  pending: Promise<SupabaseSession> | null;
-  configured: SupabaseCredentials | null;
-}
-
-const slots: Record<GatewayAccount, Slot> = {
-  owner: { cached: null, pending: null, configured: null },
-  review: { cached: null, pending: null, configured: null },
-};
+let cached: SupabaseSession | null = null;
+let pending: Promise<SupabaseSession> | null = null;
+let configured: SupabaseCredentials | null = null;
 
 /**
  * Supply credentials directly instead of through the process env.
@@ -65,22 +48,18 @@ const slots: Record<GatewayAccount, Slot> = {
  * would add a Supabase round trip to each tool call. Different values do drop
  * the cached session, which is what makes the seam usable from a test.
  */
-export function configureSupabase(
-  credentials: SupabaseCredentials,
-  account: GatewayAccount = "owner",
-): void {
-  const slot = slots[account];
+export function configureSupabase(credentials: SupabaseCredentials): void {
   const unchanged =
-    slot.configured !== null &&
-    slot.configured.url === credentials.url &&
-    slot.configured.anonKey === credentials.anonKey &&
-    slot.configured.email === credentials.email &&
-    slot.configured.password === credentials.password;
+    configured !== null &&
+    configured.url === credentials.url &&
+    configured.anonKey === credentials.anonKey &&
+    configured.email === credentials.email &&
+    configured.password === credentials.password;
   if (unchanged) return;
 
-  slot.configured = credentials;
-  slot.cached = null;
-  slot.pending = null;
+  configured = credentials;
+  cached = null;
+  pending = null;
 }
 
 function envCredentials(): SupabaseCredentials {
@@ -106,26 +85,11 @@ function envCredentials(): SupabaseCredentials {
 }
 
 export async function getSupabase(): Promise<SupabaseSession> {
-  const account = currentCaller()?.account ?? "owner";
-  const slot = slots[account];
+  if (cached) return cached;
+  if (pending) return pending;
 
-  if (slot.cached) return slot.cached;
-  if (slot.pending) return slot.pending;
-
-  slot.pending = (async () => {
-    // The env fallback is the owner's. The review account has no env form: it
-    // exists only behind the gateway, which pushes it in, and silently using
-    // the owner's login for it would put review data in the owner's account.
-    const credentials =
-      slot.configured ??
-      (account === "owner"
-        ? envCredentials()
-        : (() => {
-            throw new Error(
-              `Supabase credentials for the ${account} account are not configured.`,
-            );
-          })());
-    const { url, anonKey, email, password } = credentials;
+  pending = (async () => {
+    const { url, anonKey, email, password } = configured ?? envCredentials();
 
     const client = createClient(url, anonKey, {
       auth: {
@@ -146,22 +110,20 @@ export async function getSupabase(): Promise<SupabaseSession> {
       );
     }
 
-    slot.cached = { client, userId: data.user.id };
-    return slot.cached;
+    cached = { client, userId: data.user.id };
+    return cached;
   })();
 
   try {
-    return await slot.pending;
+    return await pending;
   } finally {
-    slot.pending = null;
+    pending = null;
   }
 }
 
-/** Test seam — drop every account's cached session and pushed credentials. */
+/** Test seam — drop the cached session and any pushed credentials. */
 export function resetSupabaseForTests(): void {
-  for (const slot of Object.values(slots)) {
-    slot.cached = null;
-    slot.pending = null;
-    slot.configured = null;
-  }
+  cached = null;
+  pending = null;
+  configured = null;
 }

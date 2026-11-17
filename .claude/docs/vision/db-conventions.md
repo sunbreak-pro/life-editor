@@ -211,7 +211,9 @@ Briefing の作り直し（計画書 = `archive/2026-10-03-briefing-goals-redesi
 
 ## 17. 拡張アプリの記録と台帳の独立テーブル（0039・#2161）
 
-拡張アプリが送る数値の記録 `app_records` と、拡張アプリの台帳 `extension_apps` の規約です（計画書 = `docs/vision/plans/2026-10-08-extension-app-records-and-apps-section.md`・[`D-20261008-main-1`](../../decisions/D-20261008-main-1.md)）。
+拡張アプリが送る数値の記録 `app_records` と、拡張アプリの台帳 `extension_apps` の規約です（計画書 = [`2026-10-08-extension-app-records-and-apps-section.md`](../../archive/2026-10-08-extension-app-records-and-apps-section.md)・[`D-20261008-main-1`](../../decisions/D-20261008-main-1.md)）。
+
+> 2026-11-16（#2720）: 拡張アプリの機能（Apps セクション・Analytics の「記録」タブ・記録の道具・窓口の Worker）を消しました。`app_records`・`extension_apps`・`record_views` の 3 表と、`items_meta` の作成元の列（`origin_app`・`origin_key`・`origin_request_hash`、0038）は、DDL を打たずにわざと残しています。#2720 のあと、これらを読むコードはデータの書き出し（`shared/src/services/userDataExport.ts`）だけで、書くコードはありません。Realtime の購読と同期のドメインも外しました。下の規約は、表を使い直すときと、表を消す DDL を書くときのために残します。
 
 - **`items_meta` の外に置く**: 2 表とも 0018 の timer 系や 0037 の `ai_*` と同じ独立テーブルで、各表が自分の `updated_at` を持ちます。§10 の 2 行分割と複合 FK は当てません。記録は Todo やノートのような項目ではなく、階層もタグもゴミ箱も持たないためです。件数が多い記録を `items_meta` に混ぜると、項目の一覧と同期の cursor（CLAUDE.md §3.3）に記録の行が入り込みます
 - **記録の id は `record-<timestamp+counter>`**: `record-` は `items_meta.role` の値ではありません。「`id` は role を跨いで一意」は `items_meta` の中の不変式なので、独立テーブルの id は抵触しません
@@ -222,4 +224,4 @@ Briefing の作り直し（計画書 = `archive/2026-10-03-briefing-goals-redesi
 - **`value` の `numeric` は 15 桁までを扱う**: mapper は `numeric` を JS の `number` に写します（`appRecordMapper.ts`）。金額（円の整数）や体重（小数 1 桁）の範囲では落ちませんが、15 桁を超える値は精度が落ちるので扱いません
 - **台帳の引き当てのキーは `(user_id, slug)` の UNIQUE で、主キーは乱数の `id`**（0042・#2271）: slug は登録後に変えません。`app_records.source_app` と窓口の鍵が指すアプリの id が、この slug だからです。画面と MCP は `id` を読まず、更新と削除も slug で絞ります。`id` を主キーにしたのは、Realtime が行の削除の通知を RLS で絞らずに主キーの列を付けて全購読者へ送るためで、主キーが `(user_id, slug)` のままだと、消した人の uuid と slug が他人に届きます（0037 の `ai_rules`・0041 の `record_views` と同じ理由）。「最後の記録」と「30 日の件数」は保存せず、`app_records` から数えます
 - **記録の見せ方は `record_views`（0041・#2260）**: 記録の種類ごとに、値の出し方（合計 / 平均 / 最新 / 件数）とグラフの形（棒 / 折れ線）を 1 行ずつ持ちます。`(user_id, kind, unit)` は UNIQUE で、`unit` なしは空文字です（null を入れると「null 同士は別物」になり、同じ種類の行が何本でも入るため）。主キーは乱数の `id` で、Realtime が削除の通知に主キーの列を付けて全購読者へ送るため、uuid と種類が他人に届かないようにしています（D-20261017-main-2。`ai_rules`・`extension_apps` と同じ理由）。選んだ内容を端末の `localStorage` ではなく DB に置くのは、公開 Web URL が主導線で、Desktop と Mobile で選択が揃わないと「選んだのに戻っている」と見えるためです（D-20261017-main-1）。行が無い種類は初期値（合計・棒）で出し、DB に空行を作りません
-- owner-only の RLS（`(select auth.uid())` の INITPLAN 形の 4 ポリシー）と `supabase_realtime` への加入、`delete_my_account` への 2 表の追加は 0039 の中で済ませています。同期のドメインは表ごとに `appRecords` と `extensionApps` です（`shared/src/context/syncDomains.ts`）。データの書き出しの表の一覧にも 2 表が入っています（`shared/src/services/userDataExport.ts`）
+- owner-only の RLS（`(select auth.uid())` の INITPLAN 形の 4 ポリシー）と `supabase_realtime` への加入、`delete_my_account` への 2 表の追加は 0039 の中で済ませています。同期のドメイン `appRecords` と `extensionApps` は #2720 で外しました（`supabase_realtime` への加入は DB に残っています）。データの書き出しの表の一覧にも 2 表が入っています（`shared/src/services/userDataExport.ts`）

@@ -1,10 +1,10 @@
 ---
-Status: IN PROGRESS
+Status: SUPERSEDED — 2026-11-16 に #2720 で Apps セクション・Analytics の「記録」タブ・記録の道具を消しました。拡張アプリを使わないと決めたためです（2026-11-12 こうだいさんの決定・A 案）。`app_records`・`extension_apps`・`record_views` の表は DB に残し、読むのはデータの書き出しだけです。本文は履歴です
 Created: 2026-10-08
-Updated: 2026-10-12
+Updated: 2026-11-16
 Branch: docs/extension-records-apps-plan
 Owner-chat: main
-Parent: .claude/docs/vision/plans/2026-10-07-extension-app-gateway.md
+Parent: .claude/archive/2026-10-07-extension-app-gateway.md
 ---
 
 # Plan: 拡張アプリの記録と一覧 — 数値の記録テーブル・Analytics の「記録」タブ・Apps セクション
@@ -16,7 +16,7 @@ Parent: .claude/docs/vision/plans/2026-10-07-extension-app-gateway.md
 
 ## Context
 
-- **動機**: life-editor は「出来事を貯め、読み、次の Todo に変える」ループ（[`2026-07-15-briefing-loop.md`](./2026-07-15-briefing-loop.md)）を軸にしています。いま Claude が `get_today_context` で読める材料は、Daily の文章・Todo・予定・作業時間だけです。文章は日によってばらつくので、傾向を見つけるには数値のほうが向いています。家計簿や体重のような数値を拡張アプリで集め、life-editor に貯めて、分析の材料にします（D-20261008-main-1 Q1）。
+- **動機**: life-editor は「出来事を貯め、読み、次の Todo に変える」ループ（[`2026-07-15-briefing-loop.md`](../docs/vision/plans/2026-07-15-briefing-loop.md)）を軸にしています。いま Claude が `get_today_context` で読める材料は、Daily の文章・Todo・予定・作業時間だけです。文章は日によってばらつくので、傾向を見つけるには数値のほうが向いています。家計簿や体重のような数値を拡張アプリで集め、life-editor に貯めて、分析の材料にします（D-20261008-main-1 Q1）。
 - **役割分担**: life-editor は、帳簿を読んで明日の方針を決める本社です。拡張アプリは、現場で記録を上げるだけの支店です。支店は判断を持ちません。支店ごとに報告書の書式が違うと本社は読めないので、書式に当たる「共通の記録テーブル」を life-editor 側に 1 つ決めます（D-20261008-main-1 Q2）。
 - **Briefing ループとの関係**: 同書 §2 の判定基準は「機能を足すときは 5 つの動詞のどれかに仕えるか」です。記録は「分析」（Claude が `get_week_context` で読む）に仕えます。Goals（role `goal`・#2101〜#2110）が「分析の結果を次の Todo につなぐ」配線で、この計画書は「分析の材料を太くする」配線です。
 - **制約**:

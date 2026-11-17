@@ -6,15 +6,12 @@ import type { ToolRegistry } from "./registry.js";
 import { errorResult } from "./errorCodes.js";
 
 /*
- * The HTTP and JSON-RPC pieces both Workers share (#2146).
+ * The HTTP and JSON-RPC pieces of the Worker (#2146).
  *
- * `worker.ts` (the phone's connector) and `gatewayWorker.ts` (the extension
- * apps' gateway) speak the same stateless MCP over one POST per message. They
- * differ in who they let in and which registry they serve, and in nothing else,
- * so the parsing, the method switch and the 404 / 405 shapes live here once.
- * Keeping them in one place is what lets the gateway's stand-in
- * (mocks/extension-gateway-fake.mjs) be checked against the gateway's Worker
- * and trusted for the shapes it shares with the phone's.
+ * `worker.ts` (the phone's connector) speaks stateless MCP over one POST per
+ * message. The parsing, the method switch and the 404 / 405 shapes live here,
+ * apart from the Worker's own authentication, so they can be read and tested
+ * without it.
  *
  * Moved out of worker.ts unchanged; tests/worker.test.ts is the proof.
  */
@@ -87,11 +84,7 @@ export function methodNotAllowed(): Response {
  * rather than one winning, so a client that sends an unrelated Authorization
  * header is not locked out of a path that is perfectly correct.
  */
-export function presentedTokens(
-  url: URL,
-  request: Request,
-  { allowPath = true }: { allowPath?: boolean } = {},
-): string[] {
+export function presentedTokens(url: URL, request: Request): string[] {
   const tokens: string[] = [];
 
   const auth = request.headers.get("authorization");
@@ -99,7 +92,7 @@ export function presentedTokens(
     tokens.push(auth.slice("Bearer ".length).trim());
   }
 
-  const match = allowPath ? /^\/mcp\/(.+)$/.exec(url.pathname) : null;
+  const match = /^\/mcp\/(.+)$/.exec(url.pathname);
   if (match) tokens.push(decodeURIComponent(match[1]));
 
   return tokens;

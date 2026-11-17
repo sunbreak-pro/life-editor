@@ -14,7 +14,6 @@ import { ITEM_LINK_TOOLS } from "./tools/itemLink.js";
 import { TRASH_TOOLS } from "./tools/trash.js";
 import { GOAL_TOOLS } from "./tools/goal.js";
 import { AI_CUSTOMIZATION_TOOLS } from "./tools/aiCustomization.js";
-import { RECORD_TOOLS } from "./tools/record.js";
 
 /*
  * The tool set that runs ANYWHERE — the everyday domains, with nothing that
@@ -53,7 +52,6 @@ export const REMOTE_TOOL_DEFINITIONS: ToolDefinition[] = [
   ...TRASH_TOOLS,
   ...GOAL_TOOLS,
   ...AI_CUSTOMIZATION_TOOLS,
-  ...RECORD_TOOLS,
 ];
 
 /** The registry the Worker serves (ListTools + dispatch). */

@@ -32,7 +32,6 @@ import {
   Library,
   Tags,
   BarChart3,
-  Blocks,
   Settings,
 } from "lucide-react";
 
@@ -130,22 +129,6 @@ export const SECTIONS = [
     mobileOrder: 4,
   },
   /*
-   * Apps (#2165) — the extension-app ledger: register the small apps that send
-   * records (a household ledger, a weight log), see when each last sent one,
-   * and jump to Analytics' Records tab filtered to it. Straight after
-   * Analytics because it is the other end of the same records.
-   *
-   * `mobileOrder: 6` puts it in the More sheet after Analytics and Connect;
-   * the fixed four do not move. Settings moved 6 → 7 to stay last.
-   */
-  {
-    id: "apps",
-    group: "main",
-    icon: Blocks,
-    labelKey: "section.apps",
-    mobileOrder: 6,
-  },
-  /*
    * Settings is the only utility row left. Trash was the other one until
    * #1293 moved it INSIDE Settings — it is a place you visit to undo
    * something, not a place the app is for, and it was spending a permanent
@@ -158,7 +141,7 @@ export const SECTIONS = [
     group: "utility",
     icon: Settings,
     labelKey: "section.settings",
-    mobileOrder: 7,
+    mobileOrder: 6,
   },
 ] as const satisfies readonly SectionDef[];
 

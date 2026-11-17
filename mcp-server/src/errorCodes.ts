@@ -2,27 +2,28 @@
  * Machine-readable failure codes for tool calls (#2148, plan R7).
  *
  * A failing call has always been `{ content: [{ text: "Error: <message>" }],
- * isError: true }`. That is enough for a person, and not for the unattended
- * loop that builds an extension app: it cannot tell "I sent the wrong
- * arguments" from "that item is not there" without parsing English. The code is
- * the part a program may branch on. The message stays what it was, word for
- * word, so nothing that reads the text is disturbed.
+ * isError: true }`. That is enough for a person, and not for a program: it
+ * cannot tell "I sent the wrong arguments" from "that item is not there"
+ * without parsing English. The code is the part a program may branch on. The
+ * message stays what it was, word for word, so nothing that reads the text is
+ * disturbed.
  *
- * THE SET IS SMALL ON PURPOSE. Each code is a promise to another repository, so
- * a new one is a gateway version bump.
+ * THE SET IS SMALL ON PURPOSE: a client may branch on every code, so a new one
+ * is a contract change rather than a detail.
  *
  *   invalid_arguments       the call itself is wrong: a missing or mistyped
  *                           argument, a malformed date or time, a conditional
  *                           rule (is_all_day) broken.
- *   forbidden               the key is known but may not do this: a tool outside
- *                           its scopes, an item another app (or the owner) made.
- *                           An HTTP-level failure to authenticate at all is not
- *                           a tool result: it is the Worker's bare 404.
+ *   forbidden               the call is understood but not allowed. An
+ *                           HTTP-level failure to authenticate at all is not a
+ *                           tool result: it is the Worker's bare 404.
  *   not_found               no such tool, or no such live item.
- *   idempotency_key_reused  the same idempotency_key arrived with different
- *                           content (D-20261007-main-6 = A).
- *   already_deleted         the key belongs to an item that was since deleted,
- *                           so it was not created again (same decision).
+ *   idempotency_key_reused  a retry key arrived again with different content
+ *                           (D-20261007-main-6 = A). No tool throws it since
+ *                           #2720 removed the retry keys; it stays so a
+ *                           client's switch over the set still compiles.
+ *   already_deleted         a retry key belongs to an item that was since
+ *                           deleted (same decision, same status as above).
  *   failed                  anything else — a handler's own refusal, a database
  *                           error. The message says which.
  */
@@ -64,8 +65,8 @@ export function codeOf(error: unknown): ErrorCode {
 
 /**
  * The tools/call result for a failure: the text a person reads, `isError`, and
- * the code in `structuredContent` for a program. Both Workers and the stdio
- * server answer with it, so the fields cannot differ between doors.
+ * the code in `structuredContent` for a program. The Worker and the stdio
+ * server both answer with it, so the fields cannot differ between doors.
  */
 export function errorResult(error: unknown): {
   content: Array<{ type: "text"; text: string }>;

@@ -212,7 +212,6 @@ life-editor/
 | --- | --- | --- |
 | Web（公開 URL） | `cd web && npm run deploy`（`scripts/deploy-web.mjs`。ビルドの前に `npm ci` もするなら `npm run deploy -- --install`、配布の手前で止めるなら `-- --dry-run`） | `npx wrangler@4 login` と、`VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`（環境変数か `web/.env.production.local`） |
 | Remote MCP（スマホ用） | `cd mcp-server && npm run deploy` | `npx wrangler@4 login`。シークレットは `npx wrangler@4 secret put <NAME>` で Cloudflare 側に入っている |
-| 拡張アプリ用の窓口 | `cd mcp-server && npm run deploy:gateway` | 同上 |
 | デスクトップ版 | Windows で `cd desktop && npm run build:win`、Mac で `npm run build:mac` を打ち、できたインストーラを `gh release create desktop-v<版> --draft <ファイル>` で上げる | `shared` と `web` の `npm ci`、ビルド時の Supabase の値（Web と同じ） |
 
 Web の配布は、ビルドのあとに `web/dist` の中身（`index.html`・PWA のファイル・アイコン・`sw.js` が全チャンクを載せているか）を確かめ、欠けていれば配布せずに止まります。この確認は `scripts/deploy-web.mjs` の 1 か所にだけ書いてあり、`deploy-web.yml` も同じスクリプトを呼びます。

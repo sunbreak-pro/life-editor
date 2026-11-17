@@ -10,7 +10,6 @@ import {
   updatePayload,
   type ItemsMetaRow,
 } from "../utils/items.js";
-import { createOnce, type OriginKey } from "../utils/originKey.js";
 import { localDayUtcRange } from "../utils/localDate.js";
 import { contentPlainText, contentPreview } from "../utils/content.js";
 import {
@@ -387,30 +386,20 @@ export async function createTodo(args: {
   is_all_day?: boolean;
   content?: string;
   status?: string;
-  /** Gateway only (originKey.ts): a retry returns the first call's todo. */
-  idempotency_key?: string;
 }) {
   // #702 ③: create_todo took neither body nor status, so creating a todo
   // with anything in it always cost two calls (create → update). The write
   // vocabulary is update_todo's, unchanged: Markdown in, TipTap JSON stored.
   const status =
     args.status === undefined ? "NOT_STARTED" : toDbStatus(args.status);
-  return createOnce({
-    tool: "create_todo",
-    role: "task",
-    input: args,
-    create: (origin) => insertTodo(args, status, origin),
-    load: async (id) => {
-      const { meta, payload } = await getTodoRows(id);
-      return formatTodo(meta, payload);
-    },
-  });
+  const id = await insertTodo(args, status);
+  const { meta, payload } = await getTodoRows(id);
+  return formatTodo(meta, payload);
 }
 
 async function insertTodo(
   args: Parameters<typeof createTodo>[0],
   status: string,
-  origin: OriginKey | undefined,
 ): Promise<string> {
   const { client } = await getSupabase();
   const id = `task-${randomUUID()}`;
@@ -450,7 +439,6 @@ async function insertTodo(
       reminder_enabled: false,
       sort_order: maxOrder + 1,
     },
-    origin,
   });
   return id;
 }
