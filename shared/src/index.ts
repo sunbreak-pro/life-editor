@@ -917,16 +917,12 @@ export {
   type MergeHunk,
 } from "./utils/blockMerge";
 export { stampsEqual } from "./utils/updatedAtStamp";
-// #1375: reading a timer_sessions log — which item a session names, and how
-// much WORK was logged against one of them.
+// #1375: reading a timer_sessions log — which item a session names.
 export {
   sessionTargetId,
-  totalWorkMinutesForItem,
-  // #2407: time typed into an event's editor.
+  // #2407: the hand-entered rows the retired logged-time field wrote (#2718).
   MANUAL_SESSION_LABEL,
   isManualSession,
-  eventWorkBreakdown,
-  type EventWorkAnchor,
   // #1666: the day the Work sidebar's history tab reads back.
   pickWorkHistoryDay,
   // #2054: the two days (today, yesterday) the Mobile drawer reads back.

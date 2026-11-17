@@ -11,12 +11,6 @@ import { useDetailFrameBody } from "../ResponsiveDetailFrame";
 import { TimeRangeField } from "../TimeRangeField";
 import { AllDaySwitch } from "./AllDaySwitch";
 import {
-  WorkTimeField,
-  hasHandEnteredTime,
-  readWorkTimeDraft,
-  type WorkTimeModel,
-} from "./WorkTimeField";
-import {
   FrequencyEditor,
   type FrequencyEditorValue,
   type FrequencyEditorLabels,
@@ -24,7 +18,6 @@ import {
 import { timedSpanForAllDayOff } from "../../utils/scheduleAllDay";
 import { seedFrequencyPatch } from "../../utils/routineFrequency";
 import { isImeComposing } from "../../utils/imeGuard";
-import type { EventWorkAnchor } from "../../utils/timerSessions";
 import {
   DISABLED_FILLED_BTN,
   FIELD,
@@ -227,13 +220,6 @@ export interface EventEditorReminder {
   options: Array<{ value: number | null; label: string }>;
 }
 
-/**
- * Logged work time for this occurrence (#1375, editable since #2407). The field
- * and its draft rules moved to WorkTimeField when the todo panel took the same
- * field (#2553); the name stays for the hosts and suites that use it.
- */
-export type EventEditorWorkTime = WorkTimeModel;
-
 export interface EventEditorRepeat {
   /**
    * The routine's frequency for a routine occurrence, or null for a manual
@@ -344,8 +330,6 @@ export interface EventEditorPaneProps {
   repeat?: EventEditorRepeat;
   /** Reminder field (#1374). Omit to render none. */
   reminder?: EventEditorReminder;
-  /** Logged work time (#1375). Omit to render none. */
-  workTime?: EventEditorWorkTime;
   /** Event → Todo entry (#998). Omit to render no conversion action. */
   convert?: EventEditorConvert;
   /** Duplicate entries (#2031). Omit to render none. */
@@ -553,7 +537,6 @@ function EventEditorFields({
   options,
   repeat,
   reminder,
-  workTime,
   convert,
   duplicate,
   cancel,
@@ -587,18 +570,8 @@ function EventEditorFields({
         : { ...(liveRepeat ?? BLANK_REPEAT), ...repeatEdits };
   const repeatDirty =
     repeatEdits !== undefined && !sameRepeat(repeatDraft, liveRepeat);
-  // The logged time (#2407), a draft like the rest. Kept apart from `edits`
-  // because it goes to the log, not into the row's patch.
-  const [workTimeEdit, setWorkTimeEdit] = useState<string | undefined>(
-    undefined,
-  );
-  const workTimeDraft = workTime
-    ? readWorkTimeDraft(workTime, workTimeEdit)
-    : null;
-  const workTimeProblem = workTimeDraft?.problem ?? null;
   const tagsDirty = tagDraft?.dirty === true;
-  const dirty =
-    fieldsDirty || repeatDirty || workTimeDraft?.dirty === true || tagsDirty;
+  const dirty = fieldsDirty || repeatDirty || tagsDirty;
 
   // Tell the host about the pending draft so its close affordances can confirm
   // first. The ref keeps the unmount report from pinning a stale callback (and
@@ -657,7 +630,7 @@ function EventEditorFields({
   ) : null;
 
   const save = () => {
-    if (!dirty || workTimeProblem !== null) return;
+    if (!dirty) return;
     // The repeat goes first: it edits the SERIES — a different row, through the
     // host's own in-flight guard (#407 / #434) — and sending it ahead keeps the
     // order this pane had before #712, when a frequency click wrote on the
@@ -670,33 +643,9 @@ function EventEditorFields({
       // item a moment later.
       else if (repeatEdits) repeat?.onChange(repeatEdits, patch);
     }
-    /*
-     * #2407: before the field patch, which can stop on the scope dialog (#279).
-     * The time belongs to this one occurrence, so this/future/all all leave it
-     * right. Known limit: cancelling that dialog keeps this write too, so a row
-     * moved here stays on the new day until the next save re-anchors it.
-     *
-     * A press that only moves the event still writes, or the hand-entered row
-     * would go on counting toward the day the event left.
-     */
-    if (workTime && workTimeDraft) {
-      const anchor: EventWorkAnchor = {
-        date: draft.date || item.date,
-        startTime: draft.startTime,
-        isAllDay: draft.isAllDay,
-      };
-      const moved =
-        patch.date !== undefined ||
-        patch.startTime !== undefined ||
-        patch.isAllDay !== undefined;
-      if (workTimeDraft.dirty || (moved && hasHandEnteredTime(workTime))) {
-        workTime.onSave(workTimeDraft.totalMinutes, anchor);
-      }
-      setWorkTimeEdit(undefined);
-    }
-    // #2447: the staged tags, before the field patch for the same reason the
-    // logged time goes first — the scope dialog (#279) is about the row's
-    // fields, and tags are written against their own target.
+    // #2447: the staged tags, before the field patch, which can stop on the
+    // scope dialog (#279) — that dialog is about the row's fields, and tags are
+    // written against their own target.
     if (tagsDirty) tagDraft?.onSave();
     // Last, and skipped when only the repeat moved: an empty patch would still
     // raise the this/future/all scope dialog (#279) on a routine occurrence,
@@ -756,7 +705,7 @@ function EventEditorFields({
    * #1664: the fields in two columns on Desktop.
    *
    * WHAT the row is (title, when, how often) on the left; what is ATTACHED to
-   * it (tags, memo, reminder, the logged time) on the right. The panel was one
+   * it (tags, memo, reminder) on the right. The panel was one
    * tall column of eleven blocks, so the repeat settings and the memo could
    * not be seen at once and the save button sat below a scroll.
    *
@@ -941,17 +890,6 @@ function EventEditorFields({
           </select>
         </label>
       )}
-
-      {/* Logged work time (#1375), typed since #2407 — the shared field
-          (#2553), so the todo panel's reads and refuses the same values. */}
-      {workTime && workTimeDraft && (
-        <WorkTimeField
-          workTime={workTime}
-          draft={workTimeDraft}
-          onEdit={setWorkTimeEdit}
-          onKeyDown={saveOnEnter}
-        />
-      )}
     </>
   );
 
@@ -1088,7 +1026,7 @@ function EventEditorFields({
         <button
           type="button"
           onClick={save}
-          disabled={!dirty || workTimeProblem !== null}
+          disabled={!dirty}
           className={SAVE_BTN}
         >
           {labels.save}

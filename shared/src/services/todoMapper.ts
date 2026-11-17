@@ -75,6 +75,11 @@ export interface TasksPayloadRow {
   status: TodoStatus | "IN_PROGRESS" | null;
   is_expanded: boolean;
   content: string | null;
+  /**
+   * Legacy column, retired with Todo work time (#2718). The column stays in the
+   * table and in the SELECT, but nothing reads it and no write carries it, so
+   * values written before #2718 are left where they are.
+   */
   work_duration_minutes: number | null;
   color: string | null;
   icon: string | null;
@@ -97,12 +102,18 @@ export interface TasksPayloadRow {
  * not runtime check). DU-B-3 callers should not be able to even type
  * the field.
  */
-export type TasksPayloadWriteRow = Omit<TasksPayloadRow, "parent_item_role">;
+export type TasksPayloadWriteRow = Omit<
+  TasksPayloadRow,
+  "parent_item_role" | "work_duration_minutes"
+>;
 
 /** UPDATE patch for tasks_payload. `item_id` / `user_id` /
  * `parent_item_role` are never patched. */
 export type TasksPayloadUpdatePatch = Partial<
-  Omit<TasksPayloadRow, "item_id" | "user_id" | "parent_item_role">
+  Omit<
+    TasksPayloadRow,
+    "item_id" | "user_id" | "parent_item_role" | "work_duration_minutes"
+  >
 >;
 
 // ---------------------------------------------------------------------------
@@ -225,7 +236,7 @@ export function toPriority(value: number | null): 1 | 2 | 3 | 4 | null {
  *   payload.scheduled_at     <- scheduledAt
  *   payload.scheduled_end_at <- scheduledEndAt
  *   payload.completed_at     <- completedAt
- *   payload.work_duration_minutes <- workDurationMinutes
+ *   payload.work_duration_minutes — ignored on read (#2718)
  *   payload.time_memo        <- timeMemo
  *   payload.{content,color,icon,priority,status} pass-through
  *   payload.{start_at,due_at}  — NOT YET surfaced (no TodoNode field;
@@ -260,8 +271,6 @@ export function rowsToTodoNode(
     node.scheduledEndAt = payload.scheduled_end_at;
   node.isAllDay = payload.is_all_day;
   if (payload.content !== null) node.content = payload.content;
-  if (payload.work_duration_minutes !== null)
-    node.workDurationMinutes = payload.work_duration_minutes;
   if (payload.color !== null) node.color = payload.color;
   if (payload.icon !== null) node.icon = payload.icon;
   if (payload.time_memo !== null) node.timeMemo = payload.time_memo;
@@ -319,7 +328,6 @@ export function todoNodeToRows(
     status: node.status ?? null,
     is_expanded: node.isExpanded ?? false,
     content: node.content ?? null,
-    work_duration_minutes: node.workDurationMinutes ?? null,
     color: node.color ?? null,
     icon: node.icon ?? null,
     time_memo: node.timeMemo ?? null,
@@ -401,8 +409,6 @@ export function todoUpdatesToPatches(
   if ("isAllDay" in updates)
     payloadPatch.is_all_day = updates.isAllDay ?? false;
   if ("content" in updates) payloadPatch.content = updates.content ?? null;
-  if ("workDurationMinutes" in updates)
-    payloadPatch.work_duration_minutes = updates.workDurationMinutes ?? null;
   if ("color" in updates) payloadPatch.color = updates.color ?? null;
   if ("icon" in updates) payloadPatch.icon = updates.icon ?? null;
   if ("timeMemo" in updates) payloadPatch.time_memo = updates.timeMemo ?? null;

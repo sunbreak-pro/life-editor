@@ -264,7 +264,6 @@ describe("todoRestorePatch (#997)", () => {
       "scheduledEndAt",
       "status",
       "timeMemo",
-      "workDurationMinutes",
     ]);
   });
 

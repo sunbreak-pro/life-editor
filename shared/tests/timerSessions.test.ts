@@ -3,18 +3,14 @@ import { describe, it, expect } from "vitest";
 import type { TimerSession } from "../src/types/timer";
 import {
   ABANDONED_SESSION_SECONDS,
-  eventWorkBreakdown,
   freeSessionSlot,
   isCountedSession,
   isManualSession,
   isPomodoroSession,
   MANUAL_SESSION_LABEL,
-  manualSessionStart,
   pickWorkHistoryDay,
   pickWorkHistoryDays,
-  planManualSession,
   sessionTargetId,
-  totalWorkMinutesForItem,
 } from "../src/utils/timerSessions";
 
 /*
@@ -74,69 +70,6 @@ describe("sessionTargetId", () => {
   });
 });
 
-describe("totalWorkMinutesForItem", () => {
-  it("sums WORK minutes logged against one item", () => {
-    const minutes = totalWorkMinutesForItem(
-      [
-        session({ id: 1, eventId: "event-1", duration: 1500 }), // 25 min
-        session({ id: 2, eventId: "event-1", duration: 900 }), // 15 min
-      ],
-      "event-1",
-    );
-    expect(minutes).toBeCloseTo(40);
-  });
-
-  it("ignores sessions belonging to another item", () => {
-    const minutes = totalWorkMinutesForItem(
-      [
-        session({ id: 1, eventId: "event-1", duration: 1500 }),
-        session({ id: 2, eventId: "event-2", duration: 1500 }),
-        session({ id: 3, todoId: "task-1", duration: 1500 }),
-      ],
-      "event-1",
-    );
-    expect(minutes).toBeCloseTo(25);
-  });
-
-  // A break taken during an event is not time spent ON the event, and a
-  // session still running has no duration to add yet.
-  it("ignores breaks and still-open sessions", () => {
-    const minutes = totalWorkMinutesForItem(
-      [
-        session({
-          id: 1,
-          eventId: "event-1",
-          duration: 600,
-          sessionType: "BREAK",
-        }),
-        session({
-          id: 2,
-          eventId: "event-1",
-          duration: null,
-          completed: false,
-        }),
-        session({ id: 3, eventId: "event-1", duration: 600 }),
-      ],
-      "event-1",
-    );
-    expect(minutes).toBeCloseTo(10);
-  });
-
-  it("returns 0 when nothing was ever logged against the item", () => {
-    expect(totalWorkMinutesForItem([], "event-1")).toBe(0);
-  });
-
-  // Fractions survive: the caller rounds for display, and rounding per session
-  // would make a list of items add up to less than the total actually logged.
-  it("keeps fractional minutes", () => {
-    const minutes = totalWorkMinutesForItem(
-      [session({ eventId: "event-1", duration: 90 })],
-      "event-1",
-    );
-    expect(minutes).toBeCloseTo(1.5);
-  });
-});
-
 /*
  * #1475 — start → pause → reset leaves a seconds-long unfinished row behind
  * (pause closes it; reset has nothing left to withdraw). Two of those showed up
@@ -184,17 +117,6 @@ describe("isCountedSession", () => {
   it("drops a row with no duration yet and a row closed at zero", () => {
     expect(isCountedSession(session({ duration: null }))).toBe(false);
     expect(isCountedSession(session({ duration: 0 }))).toBe(false);
-  });
-
-  it("keeps the scrap out of an item's logged minutes", () => {
-    const minutes = totalWorkMinutesForItem(
-      [
-        session({ id: 1, todoId: "task-1", duration: 600 }),
-        session({ id: 2, todoId: "task-1", duration: 12, completed: false }),
-      ],
-      "task-1",
-    );
-    expect(minutes).toBeCloseTo(10);
   });
 });
 
@@ -373,8 +295,8 @@ describe("freeSessionSlot", () => {
 });
 
 /*
- * #2407 — time typed into an event's editor. One closed row per event, and the
- * timer's rows are read for the floor but never written.
+ * #2407 — rows the retired logged-time field wrote (#2718). Analytics still
+ * meets them in the log and has to tell them from the timer's own rows.
  */
 describe("hand-entered time (#2407)", () => {
   const timerRow = (id: number, seconds: number) =>
@@ -401,125 +323,7 @@ describe("hand-entered time (#2407)", () => {
   });
 
   // completed is what keeps a row under a minute from reading as a scrap.
-  it("counts a hand-entered row under a minute toward the total", () => {
+  it("counts a hand-entered row under a minute", () => {
     expect(isCountedSession(manualRow(1, 36))).toBe(true);
-    expect(totalWorkMinutesForItem([manualRow(1, 36)], "event-1")).toBeCloseTo(
-      0.6,
-    );
-  });
-
-  it("splits the total into the timer's share and the rest", () => {
-    expect(
-      eventWorkBreakdown([timerRow(1, 1800), manualRow(2, 900)], "event-1"),
-    ).toEqual({ totalMinutes: 45, timerMinutes: 30, timerSeconds: 1800 });
-  });
-
-  it("starts the row on the event's own day and time", () => {
-    const start = manualSessionStart({
-      date: "2026-08-20",
-      startTime: "10:30",
-      isAllDay: false,
-    });
-    expect([start.getFullYear(), start.getMonth(), start.getDate()]).toEqual([
-      2026, 7, 20,
-    ]);
-    expect([start.getHours(), start.getMinutes()]).toEqual([10, 30]);
-  });
-
-  it.each([
-    { startTime: "10:30", isAllDay: true },
-    { startTime: "", isAllDay: false },
-  ])("starts an event with no clock time at noon: %o", (over) => {
-    const start = manualSessionStart({ date: "2026-08-20", ...over });
-    expect(start.getDate()).toBe(20);
-    expect(start.getHours()).toBe(12);
-  });
-
-  describe("planManualSession", () => {
-    it("inserts when there is no row yet", () => {
-      expect(
-        planManualSession([timerRow(1, 1800)], "event-1", 45),
-      ).toEqual({ kind: "write", keepId: null, seconds: 900, deleteIds: [] });
-    });
-
-    it("updates the row that exists", () => {
-      expect(
-        planManualSession(
-          [timerRow(1, 1800), manualRow(2, 60)],
-          "event-1",
-          45,
-        ),
-      ).toEqual({ kind: "write", keepId: 2, seconds: 900, deleteIds: [] });
-    });
-
-    it("deletes the row when the field is emptied", () => {
-      expect(
-        planManualSession(
-          [timerRow(1, 1800), manualRow(2, 60)],
-          "event-1",
-          null,
-        ),
-      ).toEqual({ kind: "write", keepId: null, seconds: 0, deleteIds: [2] });
-    });
-
-    it("deletes the row when the total comes back to the timer's", () => {
-      expect(
-        planManualSession(
-          [timerRow(1, 1800), manualRow(2, 60)],
-          "event-1",
-          30,
-        ),
-      ).toEqual({ kind: "write", keepId: null, seconds: 0, deleteIds: [2] });
-    });
-
-    it("deletes the row on a total of 0 with no timer rows", () => {
-      expect(planManualSession([manualRow(2, 60)], "event-1", 0)).toEqual({
-        kind: "write",
-        keepId: null,
-        seconds: 0,
-        deleteIds: [2],
-      });
-    });
-
-    it("refuses a total below the timer's minutes", () => {
-      expect(planManualSession([timerRow(1, 1800)], "event-1", 29)).toEqual({
-        kind: "refused",
-        timerMinutes: 30,
-      });
-    });
-
-    // The floor is the number the screen shows, so 45.4 min accepts 45.
-    it("floors on the rounded minutes and writes no row for them", () => {
-      expect(planManualSession([timerRow(1, 2724)], "event-1", 45)).toEqual({
-        kind: "write",
-        keepId: null,
-        seconds: 0,
-        deleteIds: [],
-      });
-    });
-
-    it("clears a second row, which would otherwise stay in the sum", () => {
-      expect(
-        planManualSession(
-          [manualRow(2, 60), manualRow(3, 60)],
-          "event-1",
-          10,
-        ),
-      ).toEqual({ kind: "write", keepId: 2, seconds: 600, deleteIds: [3] });
-    });
-
-    it("ignores another event's rows", () => {
-      const other = session({
-        id: 9,
-        eventId: "event-2",
-        label: MANUAL_SESSION_LABEL,
-      });
-      expect(planManualSession([other], "event-1", 10)).toEqual({
-        kind: "write",
-        keepId: null,
-        seconds: 600,
-        deleteIds: [],
-      });
-    });
   });
 });

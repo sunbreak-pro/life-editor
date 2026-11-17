@@ -37,7 +37,6 @@ export interface TodoNode {
   scheduledEndAt?: string;
   isAllDay?: boolean;
   content?: string;
-  workDurationMinutes?: number;
   color?: string;
   icon?: string;
   timeMemo?: string;

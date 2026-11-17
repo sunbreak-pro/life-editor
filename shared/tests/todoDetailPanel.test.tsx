@@ -16,7 +16,6 @@ import { uniformDomainVersions } from "../src/context/syncDomains";
 import type { DataService } from "../src/services/DataService";
 import { stubDataService } from "./helpers/dataServiceStub";
 import type { TodoNode } from "../src/types/todoTree";
-import type { WorkTimeModel } from "../src/components/schedule/WorkTimeField";
 
 /*
  * W7 — Todos detail. Two concerns, both new in W7:
@@ -962,9 +961,10 @@ describe("TodoDetailPanel — the design's order and footer (#2401)", () => {
 });
 
 /*
- * #2553 — the event editor's layout and logged-time field, on the todo.
+ * #2553 — the event editor's layout, on the todo. The logged-time field it
+ * also brought was removed again by #2718.
  */
-describe("TodoDetailPanel — two columns and logged time (#2553)", () => {
+describe("TodoDetailPanel — two columns (#2553)", () => {
   const SCHEDULE_LABELS = {
     caption: "Date and time",
     date: "Date",
@@ -972,20 +972,6 @@ describe("TodoDetailPanel — two columns and logged time (#2553)", () => {
     start: "Start",
     end: "End",
   };
-
-  function workTimeModel(over: Partial<WorkTimeModel> = {}): WorkTimeModel {
-    return {
-      label: "Logged time",
-      placeholder: "e.g. 45",
-      unit: "min",
-      totalMinutes: 30,
-      timerMinutes: 30,
-      belowTimerMessage: "At least 30 min",
-      notWholeMessage: "Whole minutes only",
-      onSave: vi.fn(),
-      ...over,
-    };
-  }
 
   function renderFull(props: Partial<Parameters<typeof TodoDetailPanel>[0]>) {
     const onSave = vi.fn();
@@ -1018,7 +1004,7 @@ describe("TodoDetailPanel — two columns and logged time (#2553)", () => {
   }
 
   it("puts name and when on the left, the rest on the right, actions under both", () => {
-    renderFull({ twoColumn: true, workTime: workTimeModel() });
+    renderFull({ twoColumn: true });
     const left = document.querySelector('[data-editor-column="identity"]');
     const right = document.querySelector('[data-editor-column="attachments"]');
     expect(left).not.toBeNull();
@@ -1031,7 +1017,6 @@ describe("TodoDetailPanel — two columns and logged time (#2553)", () => {
       screen.getByText("memo"),
       screen.getByText("Connected goals"),
       screen.getByText("status choices"),
-      screen.getByLabelText("Logged time"),
     ];
     for (const el of rightOrder) expect(right!.contains(el)).toBe(true);
     for (let i = 1; i < rightOrder.length; i += 1) {
@@ -1050,7 +1035,7 @@ describe("TodoDetailPanel — two columns and logged time (#2553)", () => {
   });
 
   it("keeps one column, in the #2401 order, unless asked for two", () => {
-    renderFull({ workTime: workTimeModel() });
+    renderFull({});
     expect(document.querySelector("[data-editor-column]")).toBeNull();
     const order = [
       screen.getByLabelText("Todo title"),
@@ -1059,7 +1044,6 @@ describe("TodoDetailPanel — two columns and logged time (#2553)", () => {
       screen.getByText("Connected goals"),
       screen.getByText("tag chips"),
       screen.getByText("memo"),
-      screen.getByLabelText("Logged time"),
       screen.getByRole("button", { name: "Convert to event" }),
       saveButton(),
     ];
@@ -1069,54 +1053,6 @@ describe("TodoDetailPanel — two columns and logged time (#2553)", () => {
           Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy();
     }
-  });
-
-  it("saves a typed total on the press, anchored on the todo's day and start", () => {
-    const workTime = workTimeModel();
-    const { onSave } = renderFull({ twoColumn: true, workTime });
-    expect(saveButton()).toBeDisabled();
-    fireEvent.change(screen.getByLabelText("Logged time"), {
-      target: { value: "４５" },
-    });
-    expect(saveButton()).toBeEnabled();
-    expect(workTime.onSave).not.toHaveBeenCalled();
-    fireEvent.click(saveButton());
-    expect(workTime.onSave).toHaveBeenCalledExactlyOnceWith(45, {
-      date: "2026-11-03",
-      startTime: "10:00",
-      isAllDay: false,
-    });
-    expect(onSave).toHaveBeenCalledWith("task-a", {});
-  });
-
-  it("refuses a total below the timer, and anything but whole minutes", () => {
-    renderFull({ workTime: workTimeModel() });
-    const field = screen.getByLabelText("Logged time");
-    fireEvent.change(field, { target: { value: "20" } });
-    expect(screen.getByRole("alert")).toHaveTextContent("At least 30 min");
-    expect(saveButton()).toBeDisabled();
-    fireEvent.change(field, { target: { value: "1.5" } });
-    expect(screen.getByRole("alert")).toHaveTextContent("Whole minutes only");
-    expect(saveButton()).toBeDisabled();
-  });
-
-  it("moves the hand-entered time with the todo when only the day changes", () => {
-    const workTime = workTimeModel({ totalMinutes: 50, timerMinutes: 30 });
-    renderFull({ workTime });
-    fireEvent.change(screen.getByLabelText("Date"), {
-      target: { value: "2026-11-05" },
-    });
-    fireEvent.click(saveButton());
-    expect(workTime.onSave).toHaveBeenCalledExactlyOnceWith(50, {
-      date: "2026-11-05",
-      startTime: "10:00",
-      isAllDay: false,
-    });
-  });
-
-  it("locks the field until the host has read the log", () => {
-    renderFull({ workTime: workTimeModel({ totalMinutes: null }) });
-    expect(screen.getByLabelText("Logged time")).toBeDisabled();
   });
 
   it("rings the Save button in accent only while there is something to save", () => {
