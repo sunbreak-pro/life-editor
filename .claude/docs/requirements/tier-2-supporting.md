@@ -130,7 +130,7 @@ Audio Mixer のサウンド（プリセット / カスタム）を任意の順�
   - WORK 完了時: 完了音 + デスクトップ通知 + `SessionCompletionModal`
   - `autoStartBreaks: true` で休憩自動開始
   - タスク紐付け（`startForTask(id, title)`）で `timer_sessions.task_id` 記録
-  - 予定の編集パネルで手入力した実績時間は、`event_id` 付きの閉じた WORK 行 1 本（`label` = `MANUAL_SESSION_LABEL`）で持つ。作業時間の合計には入れ、ポモドーロ数とセッション数には数えない（#2407）
+  - 予定の編集パネルで手入力した実績時間は、`event_id` 付きの閉じた WORK 行 1 本（`label` = `MANUAL_SESSION_LABEL`）で持つ。作業時間の合計には入れ、ポモドーロ数とセッション数には数えない（#2407）。入力欄は 2026-11 #2718 で Todo と予定の両方から消した。書き込み済みの行は残り、Analytics は `MANUAL_SESSION_LABEL` で見分け続ける
   - サイドバー / TodoTree 行 / Work 画面の残り時間が一致表示
   - Mobile（iOS）でもタイマー自体は動作（§2 Mobile 対応）
 - やらない:

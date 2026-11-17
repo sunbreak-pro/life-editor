@@ -266,7 +266,6 @@ export function todoRestorePatch(before: TodoNode): Partial<TodoNode> {
     color: before.color,
     icon: before.icon,
     timeMemo: before.timeMemo,
-    workDurationMinutes: before.workDurationMinutes,
     reminderEnabled: before.reminderEnabled,
     reminderOffset: before.reminderOffset,
     scheduledAt: before.scheduledAt,

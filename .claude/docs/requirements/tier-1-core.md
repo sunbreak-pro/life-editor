@@ -102,7 +102,8 @@ TodoTree を SSOT として、日次実行対象（Schedule）と長期構造（
   - 2 値ステータス（`NOT_STARTED` / `DONE`）+ DONE 時の紙吹雪演出 + `completedAt` 記録（3 段階の中間値 `IN_PROGRESS` は 2026-08-16 #873 で退役 = D-20260815-materials-1 = B。DB の CHECK は旧値を許したままなので、#873 以前に書かれた行は読み出し時に `NOT_STARTED` へ畳まれる）
   - DnD による並び替え（同一階層内のみ）+ 無限ループ検出と拒否通知。~~中央ドロップ → 階層移動~~ → **Retired (2026-07-27 #418)**
   - ~~`folderType='complete'` による DONE タスク自動集約フォルダ~~ → **Retired (2026-07-11 #225)**: status=DONE の沈み込み並べ替えが後継
-  - `scheduledAt` / `scheduledEndAt` / `isAllDay` / `priority` / `reminder*` / `workDurationMinutes` / `timeMemo` / `color` / `icon` / `content` を保持
+  - `scheduledAt` / `scheduledEndAt` / `isAllDay` / `priority` / `reminder*` / `timeMemo` / `color` / `icon` / `content` を保持
+  - ~~実働時間（`workDurationMinutes`）と、編集面で手入力する実績時間~~ → **Retired (2026-11 #2718)**: Todo と予定の両方から消した。`tasks_payload.work_duration_minutes` 列は残し、読み書きだけをやめている
   - ソフトデリート（`is_deleted` + `deleted_at`）+ ゴミ箱からの復元 / 完全削除
   - UndoRedo（`useTodoTreeHistory` 経由、Cmd+Z / Cmd+Shift+Z）
   - MCP 6 ツールによる Claude からの CRUD + ツリー取得

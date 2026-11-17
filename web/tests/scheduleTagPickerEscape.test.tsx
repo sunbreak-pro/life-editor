@@ -38,13 +38,6 @@ import {
  * Provider, and only the editor and the work-time read are stubbed.
  */
 
-vi.mock("@life-editor/shared", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@life-editor/shared")>()),
-  // The event editor's work-time read (#1375). The real factory throws when
-  // the app has no Supabase config.
-  getDataService: () => ({ fetchSessionsByEventId: async () => [] }),
-}));
-
 vi.mock("../src/notes/LazyRichTextEditor", () => ({
   LazyRichTextEditor: () => <div data-testid="editor" />,
 }));

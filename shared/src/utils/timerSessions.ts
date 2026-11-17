@@ -8,9 +8,9 @@ import { formatDateKey } from "./dateKey";
  * `event_id` (0029) — and every caller that asks "what was this time spent on"
  * has to unfold that pair the same way. Before this module the answer was
  * inlined in `aggregateWorkTimeByTag` alone, which was fine while Todo was the
- * only possible answer; the Event editor now asks the same question from a
- * different screen, and two hand-rolled copies of "todoId ?? eventId" would
- * drift the moment a third target appears.
+ * only possible answer; once a session could name an Event as well, two
+ * hand-rolled copies of "todoId ?? eventId" would drift the moment a third
+ * target appears.
  *
  * Pure and dependency-free so both the shared tree and the hosts can use it.
  */
@@ -67,37 +67,13 @@ export function isCountedSession(
   return true;
 }
 
-/**
- * Minutes of real WORK logged against one item.
- *
- * WORK only, and only rows that count (`isCountedSession`): a BREAK is not time
- * spent on the item, an in-flight session has no `duration` yet, and an aborted
- * start is not work. Fractional minutes are kept (the caller formats), for the
- * same reason the ring keeps them: rounding here would make a list of items add
- * up to less than the total logged.
- */
-export function totalWorkMinutesForItem(
-  sessions: readonly TimerSession[],
-  itemId: string,
-): number {
-  let minutes = 0;
-  for (const s of sessions) {
-    if (s.sessionType !== "WORK") continue;
-    if (!isCountedSession(s)) continue;
-    if (sessionTargetId(s) !== itemId) continue;
-    minutes += s.duration / 60;
-  }
-  return minutes;
-}
-
 /*
- * Time typed into an event's editor (#2407).
+ * Hand-entered rows (#2407).
  *
- * It lives in this log rather than in a column on the event, for the reason
- * 0029 gave: a total stored on the event is a second copy that drifts, and
- * every reader already sums sessions. One closed WORK row per event carries the
- * hand-entered part, and `MANUAL_SESSION_LABEL` is what tells it from a row the
- * timer measured.
+ * The event and todo editors used to write one closed WORK row per item that
+ * carried a typed-in total, marked with `MANUAL_SESSION_LABEL`. The field is
+ * gone (#2718), but rows written before that are still in the log, and
+ * Analytics has to keep telling them from rows the timer measured.
  *
  * The label is an identifier, not copy: it is stored, never translated and
  * never drawn. A reader that prints `label` has to go through `isManualSession`
@@ -122,107 +98,6 @@ export function isPomodoroSession(session: TimerSession): boolean {
   );
 }
 
-/** How one event's logged time splits. Whole minutes, as the editor shows it. */
-export interface EventWorkBreakdown {
-  /** The timer's rows plus the hand-entered one. */
-  totalMinutes: number;
-  /** The timer's rows alone — what a hand-entered total cannot go below. */
-  timerMinutes: number;
-  /** The timer's rows alone, unrounded. */
-  timerSeconds: number;
-}
-
-export function eventWorkBreakdown(
-  sessions: readonly TimerSession[],
-  eventId: string,
-): EventWorkBreakdown {
-  const timerSeconds =
-    totalWorkMinutesForItem(
-      sessions.filter((s) => !isManualSession(s)),
-      eventId,
-    ) * 60;
-  return {
-    totalMinutes: Math.round(totalWorkMinutesForItem(sessions, eventId)),
-    timerMinutes: Math.round(timerSeconds / 60),
-    timerSeconds,
-  };
-}
-
-/** The event fields a hand-entered row takes its place on the calendar from. */
-export interface EventWorkAnchor {
-  /** `YYYY-MM-DD`. */
-  date: string;
-  /** `HH:MM`, or "" when the event has no clock time. */
-  startTime: string;
-  isAllDay: boolean;
-}
-
-/**
- * When a hand-entered row starts: the event's own day and start time, so it
- * lands on that day in Analytics. An all-day event has no clock time, and takes
- * noon rather than midnight: the evening paper's day can start after midnight
- * (`getDayStartHour`), which would file 00:00 under the day before.
- */
-export function manualSessionStart(anchor: EventWorkAnchor): Date {
-  const [y, m, d] = anchor.date.split("-").map(Number);
-  const timed = !anchor.isAllDay && /^\d{2}:\d{2}$/.test(anchor.startTime);
-  const [hour, minute] = timed
-    ? anchor.startTime.split(":").map(Number)
-    : [12, 0];
-  return new Date(y, m - 1, d, hour, minute);
-}
-
-/** What saving a total asks of the hand-entered row. */
-export type ManualSessionPlan =
-  | { kind: "refused"; timerMinutes: number }
-  | {
-      kind: "write";
-      /** The row to update, or null to insert one. */
-      keepId: number | null;
-      /** Seconds the row should hold. 0 means no row at all. */
-      seconds: number;
-      /** Hand-entered rows that have to go. */
-      deleteIds: number[];
-    };
-
-/**
- * Turn a total for the event into a write on its hand-entered row. `totalMinutes`
- * is null when the field was emptied, which takes the hand-entered part away.
- *
- * Timer rows are read and never touched, so a total below them is refused rather
- * than clamped: saving a number the screen then does not show would be a lie.
- * A total that only matches the timer's rounded minutes needs no row either.
- *
- * Nothing in the schema stops two devices inserting at once, so a second
- * hand-entered row is possible. It would stay in the sum for good if it were
- * left alone, which is why every extra one is deleted here.
- */
-export function planManualSession(
-  sessions: readonly TimerSession[],
-  itemId: string,
-  totalMinutes: number | null,
-): ManualSessionPlan {
-  // An event's or, since #2553, a todo's: `sessionTargetId` reads either
-  // column, and ids are unique across roles (CLAUDE.md §4).
-  const { timerMinutes, timerSeconds } = eventWorkBreakdown(sessions, itemId);
-  if (totalMinutes !== null && totalMinutes < timerMinutes) {
-    return { kind: "refused", timerMinutes };
-  }
-  const rows = sessions.filter(
-    (s) => isManualSession(s) && sessionTargetId(s) === itemId,
-  );
-  const ids = rows.map((s) => s.id);
-  if (totalMinutes === null || totalMinutes === timerMinutes) {
-    return { kind: "write", keepId: null, seconds: 0, deleteIds: ids };
-  }
-  return {
-    kind: "write",
-    keepId: ids[0] ?? null,
-    seconds: Math.round(totalMinutes * 60 - timerSeconds),
-    deleteIds: ids.slice(1),
-  };
-}
-
 /** One day of the Work sidebar's history tab (#1666). */
 export interface WorkHistoryDay {
   /** Local-calendar `YYYY-MM-DD` the rows below started on. */
@@ -236,9 +111,8 @@ export interface WorkHistoryDay {
  * today, otherwise the most recent day that has work on it — an empty "today"
  * at 9am would otherwise hide yesterday's log, which is what the tab is for.
  *
- * WORK rows that count only (`isCountedSession`), for the reason
- * `totalWorkMinutesForItem` gives: a break is not work and a seconds-long
- * aborted start is not a row anyone wants to read back. Days are LOCAL calendar
+ * WORK rows that count only (`isCountedSession`): a break is not work and a
+ * seconds-long aborted start is not a row anyone wants to read back. Days are LOCAL calendar
  * days of `startedAt`, so a session that crosses midnight stays on the day it
  * began. Returns null when nothing has ever been worked.
  */

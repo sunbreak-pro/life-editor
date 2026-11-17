@@ -384,7 +384,6 @@ const SHAPES_BY_VERSION: Record<number, Record<string, string[]>> = {
       "title",
       "type",
       "updatedAt",
-      "workDurationMinutes",
     ],
     routines: [
       "createdAt",

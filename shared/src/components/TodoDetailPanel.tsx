@@ -8,19 +8,12 @@ import {
 import { Trash2 } from "lucide-react";
 import type { TodoStatus } from "../types/todoTree";
 import { AllDayCheck } from "./schedule/AllDayCheck";
-import {
-  WorkTimeField,
-  hasHandEnteredTime,
-  readWorkTimeDraft,
-  type WorkTimeModel,
-} from "./schedule/WorkTimeField";
 import { TimeRangeField } from "./TimeRangeField";
 import { TodoStatusCheckbox } from "./TodoStatusCheckbox";
 import type { StatusLabelSet } from "./todoStatusVisuals";
 import { isImeComposing } from "../utils/imeGuard";
 import { timedSpanForAllDayOff } from "../utils/scheduleAllDay";
 import type { TodoScheduleSlot } from "../utils/todoCalendarChips";
-import type { EventWorkAnchor } from "../utils/timerSessions";
 import { cn } from "./cn";
 import { useDetailFrameBody } from "./ResponsiveDetailFrame";
 import {
@@ -93,10 +86,9 @@ import {
  * #2553: the same two columns as the event editor on Desktop (#1664), so a
  * todo and an event opened from the same day put the same things in the same
  * places — what the todo IS (name, day and time) on the left, what is attached
- * to it (tags, colour, memo, goals, status, logged time) on the right. The
- * convert / open actions and the footer run full width under both. The status
- * takes the two-choice row on both widths, and the todo gains the event's
- * logged-time field (`workTime`), written to the same timer log.
+ * to it (tags, colour, memo, goals, status) on the right. The convert / open
+ * actions and the footer run full width under both. The status takes the
+ * two-choice row on both widths.
  */
 
 /** What one press of the save button changes (#713). */
@@ -257,12 +249,6 @@ export interface TodoDetailPanelProps {
    */
   twoColumn?: boolean;
   /**
-   * Logged work time (#2553) — the event editor's field, against the todo.
-   * Omitted, no field. The anchor handed to `onSave` carries an empty date
-   * for a todo with no day; the host decides which day the row sits on then.
-   */
-  workTime?: WorkTimeModel;
-  /**
    * Full-width actions between the fields and the footer (#2553) — 「予定に変換」
    * and 「予定の画面で開く」. Inside the panel so they sit above the footer's rule,
    * where the event editor keeps its convert.
@@ -365,7 +351,6 @@ function TodoDetailFields({
   goalsDirty = false,
   stickyFooter,
   twoColumn = false,
-  workTime,
   actions,
   framed,
 }: Omit<TodoDetailPanelProps, "className"> & {
@@ -387,20 +372,10 @@ function TodoDetailFields({
   const draftSchedule = scheduleEdit ?? savedSchedule;
   const scheduleDirty =
     scheduleEdit !== undefined && !sameSchedule(scheduleEdit, savedSchedule);
-  // The logged time (#2553), a draft like the rest. Kept apart from the patch
-  // because it goes to the timer log, not to the todo's row.
-  const [workTimeEdit, setWorkTimeEdit] = useState<string | undefined>(
-    undefined,
-  );
-  const workTimeDraft = workTime
-    ? readWorkTimeDraft(workTime, workTimeEdit)
-    : null;
-  const workTimeDirty = workTimeDraft?.dirty === true;
-  const dirty =
-    titleDirty || contentDirty || goalsDirty || scheduleDirty || workTimeDirty;
+  const dirty = titleDirty || contentDirty || goalsDirty || scheduleDirty;
   // Still dirty, so the guard asks; only the press is held back.
   const nameEmpty = draftTitle.trim() === "";
-  const canSave = dirty && !nameEmpty && !workTimeDraft?.problem;
+  const canSave = dirty && !nameEmpty;
   const resolvedStatus = status ?? "NOT_STARTED";
 
   // Same ref dance as EventEditorPane: the unmount report must not pin a stale
@@ -422,23 +397,6 @@ function TodoDetailFields({
     const patch: TodoDetailPatch = {};
     if (titleDirty) patch.title = draftTitle;
     if (scheduleDirty) patch.schedule = draftSchedule.date ? draftSchedule : null;
-    // #2553: before the patch, as on the event editor (#2407). A press that
-    // only moves the todo still writes, or the hand-entered row would go on
-    // counting toward the day the todo left.
-    if (workTime && workTimeDraft) {
-      if (
-        workTimeDraft.dirty ||
-        (scheduleDirty && hasHandEnteredTime(workTime))
-      ) {
-        const anchor: EventWorkAnchor = {
-          date: draftSchedule.date,
-          startTime: draftSchedule.isAllDay ? "" : draftSchedule.startTime,
-          isAllDay: draftSchedule.isAllDay,
-        };
-        workTime.onSave(workTimeDraft.totalMinutes, anchor);
-      }
-      setWorkTimeEdit(undefined);
-    }
     onSave(todoId, patch);
     // Back to following the live todo, which the write has just moved.
     setScheduleEdit(undefined);
@@ -636,20 +594,12 @@ function TodoDetailFields({
       )}
     </>
   );
-  const workTimeRow = workTime && workTimeDraft && (
-    <WorkTimeField
-      workTime={workTime}
-      draft={workTimeDraft}
-      onEdit={setWorkTimeEdit}
-      onKeyDown={saveOnEnter}
-    />
-  );
 
   /*
    * #2553: on Desktop, the event editor's two columns (#1664) — what the todo
    * IS on the left, what is attached to it on the right, with the goals kept
    * just above the status as the Issue placed them. On the sheet, the #2401
-   * order, with the logged time after the memo.
+   * order.
    */
   return (
     <>
@@ -672,7 +622,6 @@ function TodoDetailFields({
             {memoRow}
             {goalsRow}
             {statusRow}
-            {workTimeRow}
           </div>
         </div>
       ) : (
@@ -683,7 +632,6 @@ function TodoDetailFields({
           {goalsRow}
           {tagRows}
           {memoRow}
-          {workTimeRow}
         </>
       )}
 

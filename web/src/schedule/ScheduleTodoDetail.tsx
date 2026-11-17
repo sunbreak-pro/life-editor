@@ -25,11 +25,8 @@ import {
   todayDateKey,
   todoScheduleSlot,
   useGoalLinkSnapshot,
-  useToastOptional,
   useTranslation,
   type ConfirmRequest,
-  type EventEditorWorkTime,
-  type EventWorkAnchor,
   type GoalLinkLoader,
   type GoalLinkSnapshot,
   type GoalPickerChipLabels,
@@ -49,7 +46,6 @@ import { TodoBodyDraft } from "./TodoBodyDraft";
 import { OpenInScheduleButton } from "./OpenInScheduleButton";
 import { type useTodoLinking } from "./useTodoLinking";
 import { useNoteAttachLabels, type ScheduleNoteAttach } from "./noteAttach";
-import { useItemWorkTime } from "./useEventWorkTime";
 
 /*
  * #626 / #761 / #889 — the Schedule section's own todo detail surface.
@@ -274,13 +270,6 @@ export function ScheduleTodoDetail({
     todos: todoNodes,
   });
   const goalLabels = useMemo(() => goalPickerLabels((k) => t(k)), [t]);
-  // #2553: the event editor's logged time, read and written against the todo.
-  // Before any branch on `todo` — the hook treats null as "nothing to read".
-  const toast = useToastOptional();
-  const { read: workRead, save: saveWorkTotal } = useItemWorkTime(
-    todo ? { kind: "todo", id: todo.id } : null,
-    () => toast?.showToast("danger", t("scheduleScreen.workTimeSaveFailed")),
-  );
   // The period by its kind (「週・…」), not 「今週」: a chip can be an old link
   // from a week that has passed.
   const goalChips = useMemo<GoalPickerChipLabels>(
@@ -317,52 +306,6 @@ export function ScheduleTodoDetail({
     },
     [askConfirm, t],
   );
-
-  /*
-   * #2553: the field the event editor has (#2407), with the same copy and the
-   * same rule that a loading or failed read locks it — the hand-entered row is
-   * the total minus the timer's share, so it cannot be written blind.
-   *
-   * A todo with no day still needs a place for the row: today, at noon
-   * (manualSessionStart's all-day hour), so the time lands on the day it was
-   * typed in.
-   */
-  const workAnchor = (a: EventWorkAnchor): EventWorkAnchor =>
-    a.date ? a : { date: todayDateKey(), startTime: "", isAllDay: true };
-  const workReady = workRead.status === "ready";
-  const timerMinutes = workReady ? workRead.timerMinutes : 0;
-  const workTime: EventEditorWorkTime | undefined = todo
-    ? {
-        label: t("scheduleScreen.workTime"),
-        placeholder:
-          workRead.status === "loading"
-            ? t("common.loading")
-            : t("scheduleScreen.workTimePlaceholder"),
-        unit: t("scheduleScreen.workTimeUnit"),
-        totalMinutes: workReady ? workRead.totalMinutes : null,
-        timerMinutes,
-        belowTimerMessage: t("scheduleScreen.workTimeBelowTimer", {
-          n: timerMinutes,
-        }),
-        notWholeMessage: t("scheduleScreen.workTimeNotWhole"),
-        loadFailedMessage:
-          workRead.status === "failed"
-            ? t("scheduleScreen.workTimeLoadFailed")
-            : undefined,
-        onSave: (totalMinutes, anchor) => {
-          const slot = todoScheduleSlot(todo);
-          saveWorkTotal(
-            totalMinutes,
-            workAnchor(anchor),
-            workAnchor({
-              date: slot?.date ?? "",
-              startTime: slot && !slot.isAllDay ? slot.startTime : "",
-              isAllDay: slot?.isAllDay ?? true,
-            }),
-          );
-        },
-      }
-    : undefined;
 
   const body = todo && (
     <div className="flex flex-col gap-3">
@@ -404,7 +347,6 @@ export function ScheduleTodoDetail({
                 // #2553: the event editor's two columns on Desktop; the sheet
                 // is too narrow for a second one.
                 twoColumn={isWide}
-                workTime={workTime}
                 todoId={todo.id}
                 title={todo.title}
                 status={todo.status}

@@ -7,7 +7,6 @@ import type {
   SessionType,
   PomodoroPreset,
 } from "../types/timer";
-import type { EventWorkAnchor } from "../utils/timerSessions";
 import type { SoundSettings } from "../types/sound";
 import type { DailyNode } from "../types/daily";
 import type {
@@ -176,28 +175,6 @@ export interface TimerDataService {
     duration: number,
   ): Promise<TimerSession | null>;
   fetchTimerSessions(): Promise<TimerSession[]>;
-  fetchSessionsByTodoId(todoId: string): Promise<TimerSession[]>;
-  /** Sessions measured against one Event (#1375) — the event's logged time. */
-  fetchSessionsByEventId(eventId: string): Promise<TimerSession[]>;
-  /**
-   * Make an Event's logged time add up to `totalMinutes` by writing its one
-   * hand-entered row (#2407). Null removes that row. Timer rows are never
-   * touched, so a total below them rejects.
-   */
-  saveEventWorkTotal(input: {
-    eventId: string;
-    anchor: EventWorkAnchor;
-    totalMinutes: number | null;
-  }): Promise<void>;
-  /**
-   * The same for a Todo (#2553): its one hand-entered row carries `task_id`.
-   * `anchor` is the day and time the row is filed under.
-   */
-  saveTodoWorkTotal(input: {
-    todoId: string;
-    anchor: EventWorkAnchor;
-    totalMinutes: number | null;
-  }): Promise<void>;
 
   // Pomodoro Presets
   fetchPomodoroPresets(): Promise<PomodoroPreset[]>;

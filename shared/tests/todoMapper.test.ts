@@ -53,12 +53,13 @@ function reattachMetaServerCols(
 /**
  * Re-attach the generated `parent_item_role` column to a write-row, as
  * PG exposes it on SELECT (always 'task' for tasks_payload, 0009
- * generated stored).
+ * generated stored), plus `work_duration_minutes`, which no write carries
+ * since #2718 and which a fresh row therefore reads back as NULL.
  */
 function reattachPayloadGeneratedCols(
   writeRow: TasksPayloadWriteRow,
 ): TasksPayloadRow {
-  return { ...writeRow, parent_item_role: "task" };
+  return { ...writeRow, parent_item_role: "task", work_duration_minutes: null };
 }
 
 function roundtrip(node: TodoNode): TodoNode {
@@ -108,7 +109,6 @@ describe("rowsToTodoNode ∘ todoNodeToRows roundtrip — 5 shapes", () => {
       scheduledEndAt: "2026-05-24T10:00:00.000Z",
       isAllDay: false,
       content: "body text",
-      workDurationMinutes: 90,
       color: "#ff0000",
       icon: "star",
       timeMemo: "memo",
@@ -404,5 +404,53 @@ describe("order ↔ sort_order rename", () => {
       NOW,
     );
     expect(payloadPatch.sort_order).toBe(9);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// #2718: work_duration_minutes is neither read nor written
+// ---------------------------------------------------------------------------
+
+describe("work_duration_minutes (retired by #2718)", () => {
+  const meta: ItemsMetaRow = {
+    id: "task-9",
+    user_id: TEST_USER_ID,
+    role: "task",
+    title: "legacy",
+    is_deleted: false,
+    deleted_at: null,
+    created_at: "2026-05-23T10:00:00.000Z",
+    updated_at: "2026-05-23T10:00:00.000Z",
+  };
+  const node: TodoNode = {
+    id: "task-9",
+    type: "task",
+    title: "legacy",
+    parentId: null,
+    order: 0,
+    createdAt: "2026-05-23T10:00:00.000Z",
+  };
+
+  it("ignores a value a row written before #2718 still carries", () => {
+    const { payload } = todoNodeToRows(node, TEST_USER_ID);
+    const read = rowsToTodoNode(meta, {
+      ...payload,
+      parent_item_role: "task",
+      work_duration_minutes: 90,
+    });
+    expect(read).not.toHaveProperty("workDurationMinutes");
+  });
+
+  // Leaving the column out of the row, rather than writing NULL, is what keeps
+  // an UPSERT from wiping the value an older row holds.
+  it("leaves the column out of the insert row and of every patch", () => {
+    const { payload } = todoNodeToRows(node, TEST_USER_ID);
+    expect(payload).not.toHaveProperty("work_duration_minutes");
+    const { payloadPatch } = todoUpdatesToPatches(
+      { title: "renamed", content: "body", order: 2 },
+      TEST_USER_ID,
+      NOW,
+    );
+    expect(payloadPatch).not.toHaveProperty("work_duration_minutes");
   });
 });

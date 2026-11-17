@@ -40,9 +40,6 @@ vi.mock("@life-editor/shared", async (importOriginal) => ({
   // #2109: the goal row's data. No goals here — its own suite
   // (scheduleTodoDetailGoals.test.tsx) drives it with a Sync provider.
   useGoalLinkSnapshot: () => ({ state: null, writeLinks: async () => {} }),
-  // #2553: the logged-time read follows the `sessions` Sync domain; no
-  // Provider here, and no write lands from this suite.
-  useSyncDomains: () => 0,
 }));
 
 /*

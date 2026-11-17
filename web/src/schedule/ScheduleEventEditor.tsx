@@ -11,12 +11,10 @@ import {
   type EventEditorOptions,
   type EventEditorReminder,
   type EventEditorRepeat,
-  type EventEditorWorkTime,
 } from "@life-editor/shared";
 import { TagPicker } from "../wikitag/TagPicker";
 import { useNoteAttachLabels, type ScheduleNoteAttach } from "./noteAttach";
 import { TagColorControls } from "../wikitag/TagColorControls";
-import { useEventWorkTime } from "./useEventWorkTime";
 import { useEventTagDraft } from "./useEventTagDraft";
 import type { DuplicateOptions } from "./useScheduleMutations";
 
@@ -135,15 +133,6 @@ export function ScheduleEventEditor({
     // pane drops its own draft on the same change (it is keyed by the id).
     tagDraft.reset();
   }
-  // Before the early return — hooks cannot be called conditionally, and the
-  // hook already treats a null id as "nothing to read".
-  const { read: workRead, save: saveWorkTotal } = useEventWorkTime(
-    item?.id ?? null,
-    // #2407: the press has moved on by the time the write fails, so a toast is
-    // the only place left to say it (the useScheduleWriteErrors reasoning).
-    () => toast?.showToast("danger", t("scheduleScreen.workTimeSaveFailed")),
-  );
-
   if (!item) return null;
 
   // The row the tags are written to. "この回のみ" is the occurrence itself,
@@ -183,41 +172,6 @@ export function ScheduleEventEditor({
     ],
   };
 
-  /*
-   * Logged work time (#1375, typed since #2407). The copy lives here for the
-   * §6.4 reason every other string on this screen does.
-   *
-   * `totalMinutes` is null until the read has landed. A loading or failed read
-   * must not offer the field: the hand-entered row is the total minus the
-   * timer's share, so a number saved without knowing that share would be wrong.
-   */
-  const workReady = workRead.status === "ready";
-  const timerMinutes = workReady ? workRead.timerMinutes : 0;
-  const workTime: EventEditorWorkTime = {
-    label: t("scheduleScreen.workTime"),
-    placeholder:
-      workRead.status === "loading"
-        ? t("common.loading")
-        : t("scheduleScreen.workTimePlaceholder"),
-    unit: t("scheduleScreen.workTimeUnit"),
-    totalMinutes: workReady ? workRead.totalMinutes : null,
-    timerMinutes,
-    belowTimerMessage: t("scheduleScreen.workTimeBelowTimer", {
-      n: timerMinutes,
-    }),
-    notWholeMessage: t("scheduleScreen.workTimeNotWhole"),
-    loadFailedMessage:
-      workRead.status === "failed"
-        ? t("scheduleScreen.workTimeLoadFailed")
-        : undefined,
-    onSave: (totalMinutes, anchor) =>
-      saveWorkTotal(totalMinutes, anchor, {
-        date: item.date,
-        startTime: item.startTime,
-        isAllDay: item.isAllDay,
-      }),
-  };
-
   return (
     <EventEditorPane
       item={item}
@@ -235,7 +189,6 @@ export function ScheduleEventEditor({
       options={options}
       repeat={repeat}
       reminder={reminder}
-      workTime={workTime}
       // #998 put this on the narrow sheet only, leaving Desktop to the
       // single-click bubble (#625). #1405 opens it on both widths: the Todo
       // side has had "convert to Event" INSIDE its edit panel all along

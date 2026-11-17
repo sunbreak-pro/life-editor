@@ -31,13 +31,6 @@ import {
  * so they cannot see where its writes go.
  */
 
-vi.mock("@life-editor/shared", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@life-editor/shared")>()),
-  // The event editor's work-time read (#1375). The real factory throws when
-  // the app has no Supabase config.
-  getDataService: () => ({ fetchSessionsByEventId: async () => [] }),
-}));
-
 const { wrapper: SyncWrapper } = createBumpableSync();
 
 const WORK = { id: "tag-work", name: "Work", color: "#1e3a8a", icon: null };
