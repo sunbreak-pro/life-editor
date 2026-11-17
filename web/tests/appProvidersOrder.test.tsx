@@ -32,7 +32,6 @@ vi.mock("@life-editor/shared", async (importOriginal) => ({
   SyncProvider: h.marker("Sync"),
   ShortcutConfigProvider: h.marker("ShortcutConfig"),
   RightSidebarProvider: h.marker("RightSidebar"),
-  TourProvider: h.marker("Tour"),
   ItemPanelProvider: h.marker("ItemPanel"),
 }));
 vi.mock("../src/schedule/ItemPanelHost", () => ({
@@ -69,8 +68,6 @@ function renderChain() {
         onOpenSettings: vi.fn(),
         onNewTodo: vi.fn(),
       }}
-      currentSection="briefing"
-      onNavigateToSection={vi.fn()}
       userId="user-1"
     >
       <span data-testid="leaf" />
@@ -96,17 +93,14 @@ describe("AppProviders", () => {
   it("nests the global chain outer→inner in dependency order", () => {
     renderChain();
 
-    // RightSidebar innermost is what lets the shell and its palette/tag-editor siblings all portal into the panel,
-    // and Tour inside THAT (#1122) is what puts the tour overlay in the same
-    // shell-level band as the palette — it reads the section switch from
-    // props, and nothing reads it, so it is the one that can go last.
+    // RightSidebar wraps the shell and its shell-level siblings so they can
+    // all portal into the panel; ItemPanel sits inside it (#2218).
     expect(providersAround(screen.getByTestId("leaf"))).toEqual([
       "Toast",
       "Sync",
       "UndoRedo",
       "ShortcutConfig",
       "RightSidebar",
-      "Tour",
       "ItemPanel",
     ]);
   });
@@ -148,15 +142,11 @@ describe("AppProviders", () => {
 
     const chain = providersAround(screen.getByTestId("leaf"));
     expect(chain).not.toContain("ShortcutConfig");
-    // Tour is not gated (#1122): it is not on the mobile omission roster, and a step
-    // whose control is absent on a phone is handled by the anchor fallback
-    // rather than by tearing the Provider out.
     expect(chain).toEqual([
       "Toast",
       "Sync",
       "UndoRedo",
       "RightSidebar",
-      "Tour",
       "ItemPanel",
     ]);
     // The executor still mounts; it goes inert via the optional hook rather

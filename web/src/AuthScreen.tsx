@@ -377,8 +377,7 @@ export function AuthScreen({
       {/*
        * #1989 — under the card rather than inside it, so it shows on every
        * view: the "check your inbox" card and the recovery card are exactly
-       * where someone gets stuck. Same dialog as Settings, minus the tour,
-       * which has no app to walk yet.
+       * where someone gets stuck. Same dialog as Settings.
        */}
       <div className="flex w-full flex-col items-center gap-4">
         {card}

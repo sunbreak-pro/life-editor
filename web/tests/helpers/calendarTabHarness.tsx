@@ -13,7 +13,7 @@ import type { CalendarDesktopLayoutProps } from "../../src/schedule/CalendarDesk
  * rest of that package is real), `useScheduleMutations`' writers (spies), the
  * range fetch, and optionally each of the four children (a recorder of its
  * last props). Nothing reads a coordinate. Suites load the factories through
- * `vi.hoisted` (see scheduleTourHost.test.tsx); no runtime import from
+ * `vi.hoisted` (see scheduleNarrowHost.test.tsx); no runtime import from
  * `@life-editor/shared` here, as the factories run while it is being mocked.
  */
 
@@ -50,8 +50,6 @@ function makeHarness() {
   return {
     /** What `useMediaQuery` answers. */
     isWide: true,
-    /** The tour reporter the host gets from `useTourAction`. */
-    notify: vi.fn() as Fn,
     props: {
       sidebar: null,
       overlays: null,
@@ -110,7 +108,6 @@ export function mockShared<T extends object>(actual: T): T {
     useTranslation: () => translation,
     useMediaQuery: () => harness.isWide,
     useSyncDomains: () => 0,
-    useTourAction: () => harness.notify,
     useToast: () => toast,
     useScheduleItemsRoutineSync: () => routineSync,
     useScheduleItemsContext: () => harness.scheduleItems,

@@ -1,11 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import {
-  render,
-  screen,
-  fireEvent,
-  waitFor,
-  within,
-} from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import type { Mock } from "vitest";
 import { SettingsScreen } from "../src/settings/SettingsScreen";
@@ -42,8 +36,6 @@ const state = vi.hoisted(() => ({
   resetLocalPreferences: vi.fn(),
   updatePassword: vi.fn(),
   getSession: vi.fn(),
-  restartTour: vi.fn(),
-  startTourSection: vi.fn(),
 }));
 
 vi.mock("@life-editor/shared", async (importOriginal) => {
@@ -82,13 +74,6 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
       dayStartHour: 4,
       setDayStartHour: state.setDayStartHour,
     }),
-    // A REQUIRED Provider that is not mounted here — useTourContext throws
-    // outside it by design (#1122), so the card's one wire is stubbed like
-    // every other sink on this screen.
-    useTourContext: () => ({
-      restart: state.restartTour,
-      startSection: state.startTourSection,
-    }),
     resetLocalPreferences: state.resetLocalPreferences,
     getSession: state.getSession,
     updatePassword: state.updatePassword,
@@ -109,8 +94,6 @@ const SINKS = [
   "setDayStartHour",
   "resetLocalPreferences",
   "updatePassword",
-  "restartTour",
-  "startTourSection",
 ] as const;
 
 const sink = (name: (typeof SINKS)[number]): Mock => state[name];
@@ -122,20 +105,6 @@ function expectOnlySink(name: (typeof SINKS)[number], args: unknown[]) {
     if (other === name) continue;
     expect(sink(other)).not.toHaveBeenCalled();
   }
-}
-
-/**
- * Card → launcher → picker, the two presses every #1194 test starts with.
- * Returns the dialog, because every query inside it has to be SCOPED: the
- * Settings category nav labels its rows with the same `section.*` keys the
- * picker rows carry, so `screen.getByRole("button", …)` would match both.
- */
-function openPicker(): HTMLElement {
-  fireEvent.click(
-    screen.getByRole("button", { name: "settings.tutorial.button" }),
-  );
-  fireEvent.click(screen.getByRole("button", { name: "tour.launcher.next" }));
-  return screen.getByRole("dialog", { name: "tour.launcher.pickerTitle" });
 }
 
 beforeEach(() => {
@@ -238,66 +207,6 @@ describe("SettingsScreen — the preference selects", () => {
     fireEvent.click(screen.getByRole("radio", { name: "settings.japanese" }));
 
     expectOnlySink("setLanguage", ["ja"]);
-  });
-
-  /*
-   * #1194 put a launcher between the card and the tour, so the card itself now
-   * fires NOTHING — the three tests below walk the door, the "everything from
-   * the top" choice, and a section pick separately. The card still sits
-   * directly above Reset and takes the same heading + one-button shape, so the
-   * crossed wire #1123 worried about (wiping the device's preferences instead
-   * of replaying the tour) is still what `expectOnlySink` is watching for.
-   */
-  it("tutorial card → opens the launcher and starts nothing yet", () => {
-    render(<SettingsScreen />);
-
-    fireEvent.click(
-      screen.getByRole("button", { name: "settings.tutorial.button" }),
-    );
-
-    // The overview page is up...
-    screen.getByRole("dialog", { name: "tour.launcher.title" });
-    // ...and pressing the card decided nothing on its own.
-    for (const name of SINKS) expect(sink(name)).not.toHaveBeenCalled();
-  });
-
-  it("launcher → walk it all → the tour's restart, and nothing else", () => {
-    render(<SettingsScreen />);
-
-    const dialog = openPicker();
-    fireEvent.click(
-      within(dialog).getByRole("button", { name: /tour\.launcher\.full/ }),
-    );
-
-    expectOnlySink("restartTour", []);
-  });
-
-  it("launcher → a section → startSection(that section), and nothing else", () => {
-    render(<SettingsScreen />);
-
-    const dialog = openPicker();
-    // Materials has steps in the shipping registry, so its row is pressable.
-    fireEvent.click(
-      within(dialog).getByRole("button", { name: /section\.materials/ }),
-    );
-
-    expectOnlySink("startTourSection", ["materials"]);
-  });
-
-  it("launcher → a section with no steps is offered but not pressable", () => {
-    render(<SettingsScreen />);
-
-    const dialog = openPicker();
-    const connect = within(dialog).getByRole("button", {
-      name: /section\.connect/,
-    });
-
-    // Listed, so the menu keeps the same shape as the app...
-    expect(connect.textContent).toContain("tour.launcher.comingSoon");
-    // ...but pressing it must not open a section with nothing to show.
-    expect((connect as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.click(connect);
-    for (const name of SINKS) expect(sink(name)).not.toHaveBeenCalled();
   });
 });
 

@@ -14,7 +14,6 @@ import {
   MOBILE_SECTIONS,
   EMPTY_MATERIALS_COUNTS,
   ANALYTICS_TAB_ORDER,
-  TOUR_ANCHORS,
   type AppShellSection,
   type MaterialsCounts,
   type SectionDef,
@@ -127,13 +126,6 @@ export function useShellChrome() {
         id: "morning",
         label: t("briefing.tabs.morning"),
         icon: tabGlyph(BRIEFING_TAB_ICON.morning),
-        // The tour's Briefing step anchors here (#1201). On the tab and not
-        // inside the page because the band is drawn from the descriptor: it
-        // survives the loading skeleton and the 17:00 default to 夕刊, both of
-        // which take the page's own content away. One list feeds both
-        // controls, and only one of them is mounted, so this stays a single
-        // carrier at either width.
-        tourId: TOUR_ANCHORS.briefingMorningTab,
       },
       {
         id: "evening",

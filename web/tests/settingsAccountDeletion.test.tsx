@@ -67,7 +67,6 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
     useShortcutConfig: () => null,
     useStartupSectionPref: () => ({ pref: "last", setPref: vi.fn() }),
     useDayStartHourPref: () => ({ dayStartHour: 4, setDayStartHour: vi.fn() }),
-    useTourContext: () => ({ restart: vi.fn() }),
     getSession: state.getSession,
     signOut: state.signOut,
     getOutboxCounts: () => ({ pending: state.outboxPending, failed: 0 }),

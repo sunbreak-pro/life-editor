@@ -1,7 +1,5 @@
 import { useId } from "react";
 import { ExternalLink } from "lucide-react";
-import { Button } from "./Button";
-import { CARD_BTN_TAP } from "./styleTokens";
 
 export interface HelpFaqItem {
   question: string;
@@ -22,16 +20,8 @@ export interface HelpContactItem {
 export interface HelpPanelProps {
   faq: readonly HelpFaqItem[];
   contacts: readonly HelpContactItem[];
-  /**
-   * Opens the tutorial launcher. Omitted where there is no tour to open —
-   * the sign-in screen has no app behind it yet — and the section goes with it.
-   */
-  onOpenTutorial?: () => void;
   /** Already-translated copy (CLAUDE.md §6.4: no useTranslation here). */
   labels: {
-    tutorialHeading: string;
-    tutorialDescription: string;
-    tutorialButton: string;
     faqHeading: string;
     contactHeading: string;
     contactDescription: string;
@@ -49,7 +39,7 @@ const CONTACT_LINK_CLASS =
   "max-md:min-h-11";
 
 /*
- * Help body (#1989): how to use the app, the questions people actually get
+ * Help body (#1989): the questions people actually get
  * stuck on, and who to ask when those do not cover it. Shared by the Settings
  * dialog and the sign-in screen's dialog, so a person who cannot sign in reads
  * the same answers as one who can.
@@ -65,39 +55,14 @@ const CONTACT_LINK_CLASS =
 export function HelpPanel({
   faq,
   contacts,
-  onOpenTutorial,
   labels,
 }: HelpPanelProps) {
   // Heading ids for aria-labelledby, unique per mount.
   const id = useId();
-  const tutorialId = `${id}-tutorial`;
   const faqId = `${id}-faq`;
   const contactId = `${id}-contact`;
   return (
     <div className="flex flex-col gap-6" data-section-id="help">
-      {onOpenTutorial ? (
-        <section
-          className="flex flex-col gap-2"
-          aria-labelledby={tutorialId}
-        >
-          <h3 id={tutorialId} className={SECTION_HEADING}>
-            {labels.tutorialHeading}
-          </h3>
-          <p className="text-sm text-lumen-text-secondary">
-            {labels.tutorialDescription}
-          </p>
-          <div>
-            <Button
-              variant="secondary"
-              className={CARD_BTN_TAP}
-              onClick={() => onOpenTutorial()}
-            >
-              {labels.tutorialButton}
-            </Button>
-          </div>
-        </section>
-      ) : null}
-
       <section className="flex flex-col gap-2" aria-labelledby={faqId}>
         <h3 id={faqId} className={SECTION_HEADING}>
           {labels.faqHeading}

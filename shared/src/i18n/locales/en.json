@@ -129,11 +129,6 @@
         "error": "Could not delete the account. Nothing was removed — please wait a moment and try again."
       }
     },
-    "tutorial": {
-      "heading": "Tutorial",
-      "description": "A short guided walk through the app. It runs once the first time you open Life Editor — open it from here whenever you want a section shown to you again.",
-      "button": "Open the tutorial"
-    },
     "dataExport": {
       "heading": "Download your data",
       "description": "Save everything in this account — todos, schedule, routines, notes, dailies, tags, timer history and sound settings, including items in Trash — as one JSON file. Attached files are not included; their locations are kept inside the notes.",
@@ -1657,47 +1652,6 @@
       "openDailyLabel": "Open in Daily: {{date}}"
     }
   },
-  "tour": {
-    "dialogLabel": "Tutorial step",
-    "next": "Next",
-    "done": "Done",
-    "skip": "Skip",
-    "endTour": "End tour",
-    "progress": "{{current}} / {{total}}",
-    "waitingForAction": "Try it to continue",
-    "launcher": {
-      "title": "Welcome to Life Editor",
-      "intro": "Life Editor is one place to plan a day and to record it. Check what is coming up in the morning, look back on it at night.",
-      "sectionsHeading": "What each section is for",
-      "next": "Next: choose what to learn",
-      "pickerTitle": "What would you like to be shown?",
-      "pickerIntro": "Pick a section and the tutorial opens it and starts there. Sections the tutorial does not cover yet cannot be picked.",
-      "back": "Back",
-      "full": "Walk the whole tutorial from the start",
-      "fullDescription": "Every section in order, beginning at step one.",
-      "comingSoon": "Not ready yet",
-      "summary": {
-        "briefing": "The day on one page: what is coming up, and what you said you would do.",
-        "schedule": "Your calendar and your todos, side by side on the time axis.",
-        "materials": "Notes and daily entries — the things you write and come back to.",
-        "connect": "The topic axis: pick a tag and read everything filed under it.",
-        "analytics": "What your records add up to over a week or a month.",
-        "settings": "Appearance, language, shortcuts — the knobs for the app itself."
-      }
-    },
-    "steps": {
-      "briefingIntro": "This is the Briefing — your day on one page: last night's note to yourself, how far this week's goals have come, and today's schedule. Your own goals and plans fill it, so it is not empty on the web alone. On days Claude Code is connected through the desktop app's MCP link, a word on yesterday arrives here too.",
-      "scheduleCreateEvent": "Start here to put something on the calendar. Add one event — the tour waits until it exists, not until you press the button.",
-      "scheduleAdjustEvent": "Open the event you just made and change its time. Plans move; this is how you move them.",
-      "scheduleOpenTodos": "Todos live in the same section as the calendar. Open the Todo tab.",
-      "scheduleCreateTodo": "Add a todo — something you want done, without deciding when yet.",
-      "scheduleCompleteTodo": "Finish it. Tick it off in the tray, or open it and switch its status.",
-      "materialsCapture": "You can add a note from this button. Try making one.",
-      "materialsNoteBody": "Write a few words. The body saves as you type — there is no save button to remember.",
-      "materialsNoteTag": "Give it a tag. Tags are how a note joins everything else about the same thing.",
-      "materialsTagFollow": "Open the tag filter and pick a tag to see only what carries it — that is how you get back to related notes later."
-    }
-  },
   "errorBoundary": {
     "appTitle": "Something went wrong",
     "appDescription": "The app hit an unexpected error. Reloading the page usually clears it.",
@@ -1709,11 +1663,6 @@
   "help": {
     "title": "Help",
     "opensExternally": "(opens outside the app)",
-    "tutorial": {
-      "heading": "How to use",
-      "description": "A guided walk through the app — all of it, or one section you pick.",
-      "button": "Open the tutorial"
-    },
     "faq": {
       "heading": "Frequently asked questions",
       "confirmEmail": {

@@ -165,16 +165,6 @@ describe("useScheduleCopy", () => {
     expect(render({ isWide: false }).sidebarTabs.map((x) => x.id)).toEqual(ids);
   });
 
-  it("puts the tour's todo anchor on the todo tab and nowhere else (#1124)", () => {
-    // The anchor moved here when #1153 retired the section's own Todo tab.
-    // `resolveTourAnchor` takes the FIRST match in the document, so a second
-    // segment carrying it would decide the step's target by render order.
-    const withId = render().sidebarTabs.filter((x) => x.tourId);
-    expect(withId.map((x) => [x.id, x.tourId])).toEqual([
-      ["todo", "schedule-todo-tab"],
-    ]);
-  });
-
   it("offers the two desktop views in order (#1628 retired the day)", () => {
     expect(render().desktopViewOptions.map((o) => o.label)).toEqual([
       "Week",

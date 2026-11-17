@@ -10,7 +10,6 @@ import {
   SettingsReset,
   SettingsSchedule,
   SettingsTabsNav,
-  SettingsTutorial,
   TagHubView,
   TrashView,
   buildTagHubModel,
@@ -156,17 +155,9 @@ describe("#1562 — the general cards", () => {
     expect(submit).not.toHaveClass("max-md:min-h-11");
   });
 
-  it("floors the tutorial, legal and reset buttons", () => {
+  it("floors the legal and reset buttons", () => {
     render(
       <>
-        <SettingsTutorial
-          onOpen={() => {}}
-          labels={{
-            heading: "Tutorial",
-            description: "Take the tour.",
-            button: "Open the tutorial",
-          }}
-        />
         <SettingsLegal
           onOpenPrivacy={() => {}}
           onOpenTerms={() => {}}
@@ -189,7 +180,6 @@ describe("#1562 — the general cards", () => {
     );
 
     for (const name of [
-      "Open the tutorial",
       "Privacy policy",
       "Terms of use",
       "Reset preferences",

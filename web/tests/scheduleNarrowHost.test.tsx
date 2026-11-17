@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { AddPill, TOUR_ANCHORS } from "@life-editor/shared";
+import { AddPill } from "@life-editor/shared";
 import { CalendarTab } from "../src/schedule/CalendarTab";
 import { stubDataService } from "./helpers";
 import { harness, resetHarness } from "./helpers/calendarTabHarness";
@@ -91,9 +91,7 @@ describe("narrow Schedule add affordance (#1034)", () => {
   it("uses the shared pill with the new label, wired to the creation panel", () => {
     mountNarrow();
     const pill = screen.getByText(ADD_CTA).closest("button");
-    expect(pill?.getAttribute("data-tour-id")).toBe(
-      TOUR_ANCHORS.scheduleAddEvent,
-    );
+    expect(pill).not.toBeNull();
 
     // The host hands it the toolbar's add: pressing it opens the panel.
     expect(harness.props.overlays?.create.panel).toBeNull();
@@ -118,7 +116,6 @@ describe("narrow Schedule add affordance (#1034)", () => {
       <AddPill
         onClick={() => {}}
         label={ADD_CTA}
-        tourId={TOUR_ANCHORS.scheduleAddEvent}
         className="max-md:min-h-11"
       />,
     );

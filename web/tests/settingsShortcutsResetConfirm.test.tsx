@@ -60,7 +60,6 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
     }),
     useStartupSectionPref: () => ({ pref: "last", setPref: vi.fn() }),
     useDayStartHourPref: () => ({ dayStartHour: 4, setDayStartHour: vi.fn() }),
-    useTourContext: () => ({ restart: vi.fn(), startSection: vi.fn() }),
     getSession: state.getSession,
     RightSidebarPortal: ({ children }: { children: ReactNode }) => (
       <>{children}</>

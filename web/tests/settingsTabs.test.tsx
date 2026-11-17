@@ -81,7 +81,6 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
       initialView: "week",
       setInitialView: state.setInitialView,
     }),
-    useTourContext: () => ({ restart: vi.fn(), startSection: vi.fn() }),
     getSession: state.getSession,
     // #1293 — the Trash row renders TrashScreen off the singleton, and the
     // real getDataService() throws without Supabase credentials.

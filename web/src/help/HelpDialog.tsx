@@ -15,18 +15,17 @@ import { operatorContactLinks } from "../legal/operator";
  * The contacts come from `operatorContactLinks()`, i.e. from operator.ts, the
  * same record the policy and the terms quote. The FAQ is copy only; its
  * answers name the screens by the labels those screens use.
- *
- * `onOpenTutorial` is passed only from Settings. The sign-in screen has no
- * app behind it for a tour to walk, so that section is left out there.
  */
 
 interface HelpDialogProps {
   open: boolean;
   onClose: () => void;
-  onOpenTutorial?: () => void;
 }
 
-export function HelpDialog({ open, onClose, onOpenTutorial }: HelpDialogProps) {
+export function HelpDialog({
+  open,
+  onClose,
+}: HelpDialogProps): React.JSX.Element {
   const { t } = useTranslation();
 
   const faq: HelpFaqItem[] = [
@@ -83,11 +82,7 @@ export function HelpDialog({ open, onClose, onOpenTutorial }: HelpDialogProps) {
       <HelpPanel
         faq={faq}
         contacts={contacts}
-        onOpenTutorial={onOpenTutorial}
         labels={{
-          tutorialHeading: t("help.tutorial.heading"),
-          tutorialDescription: t("help.tutorial.description"),
-          tutorialButton: t("help.tutorial.button"),
           faqHeading: t("help.faq.heading"),
           contactHeading: t("help.contact.heading"),
           contactDescription: t("help.contact.description"),

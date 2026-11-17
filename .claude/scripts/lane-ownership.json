@@ -150,7 +150,7 @@
       "desktop/**",
       "mobile/**"
     ],
-    "note": "Everything under app code that no lane above claims (shell registration such as MainScreen.tsx, sectionDescriptors.tsx, lazySections.ts, sections.ts, context/index.ts; the todo tree; tour; trash; undo; utils). No worktree owns it: any lane may edit, one in-flight change per file."
+    "note": "Everything under app code that no lane above claims (shell registration such as MainScreen.tsx, sectionDescriptors.tsx, lazySections.ts, sections.ts, context/index.ts; the todo tree; trash; undo; utils). No worktree owns it: any lane may edit, one in-flight change per file."
   },
   "crossCutting": {
     "lanes": [

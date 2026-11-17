@@ -3,7 +3,6 @@ import {
   buildWeekdayLabels,
   dateFromKey,
   useTranslation,
-  TOUR_ANCHORS,
   type FrequencyEditorLabels,
   type FrequencyLabelCopy,
   type ItemCreatePanelLabels,
@@ -220,7 +219,7 @@ export interface ScheduleCopy {
     filterActive: string;
     view: string;
   };
-  sidebarTabs: { id: string; label: string; tourId?: string }[];
+  sidebarTabs: { id: string; label: string }[];
   repeatLabels: FrequencyEditorLabels;
   createPanelLabels: ItemCreatePanelLabels;
   /** #2406: the creation panel's repeat field — the editor's own copy. */
@@ -300,16 +299,7 @@ export function useScheduleCopy({
   const sidebarTabs = useMemo(
     () => [
       { id: "flow", label: t("scheduleScreen.todayFlow") },
-      {
-        id: "todo",
-        label: t("scheduleScreen.tabTodo"),
-        // #1124: the tour points here to open the todos. It used to point at
-        // the section's own Todo tab, which #1153 retired along with the board
-        // behind it — this switcher is the route now. Only this segment
-        // carries an id: the tour has no step on 今日の流れ or 繰り返し, and an
-        // anchor nothing asks for is a selector waiting to be misread.
-        tourId: TOUR_ANCHORS.scheduleTodoTab,
-      },
+      { id: "todo", label: t("scheduleScreen.tabTodo") },
       { id: "repeats", label: t("scheduleScreen.tabRepeats") },
     ],
     [t],

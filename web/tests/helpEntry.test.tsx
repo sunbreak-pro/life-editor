@@ -22,8 +22,6 @@ import { OPERATOR, operatorContactLinks } from "../src/legal/operator";
 
 const state = vi.hoisted(() => ({
   getSession: vi.fn(),
-  restart: vi.fn(),
-  startSection: vi.fn(),
 }));
 
 vi.mock("@life-editor/shared", async (importOriginal) => {
@@ -56,10 +54,6 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
     useScheduleInitialViewPref: () => ({
       initialView: "week",
       setInitialView: vi.fn(),
-    }),
-    useTourContext: () => ({
-      restart: state.restart,
-      startSection: state.startSection,
     }),
     getSession: state.getSession,
     RightSidebarPortal: ({ children }: { children: ReactNode }) => (
@@ -113,25 +107,6 @@ describe("Help from Settings (#1989)", () => {
     expect(link.getAttribute("target")).toBe("_blank");
     expect(link.getAttribute("rel")).toContain("noopener");
   });
-
-  it("hands over to the tutorial launcher from the How to use section", async () => {
-    await renderSettings();
-
-    fireEvent.click(
-      screen.getByRole("button", { name: "settings.help.button" }),
-    );
-    fireEvent.click(
-      within(screen.getByRole("dialog", { name: "help.title" })).getByRole(
-        "button",
-        { name: "help.tutorial.button" },
-      ),
-    );
-
-    expect(screen.queryByRole("dialog", { name: "help.title" })).toBeNull();
-    expect(
-      screen.getByRole("dialog", { name: "tour.launcher.title" }),
-    ).toBeTruthy();
-  });
 });
 
 describe("Help from the sign-in screen (#1989)", () => {
@@ -145,10 +120,6 @@ describe("Help from the sign-in screen (#1989)", () => {
       expect(within(dialog).getByText(key)).toBeTruthy();
     }
     expect(githubLink(dialog).getAttribute("href")).toBe(OPERATOR.contactUrl);
-    // No app behind this screen yet, so no tour to offer.
-    expect(
-      within(dialog).queryByRole("button", { name: "help.tutorial.button" }),
-    ).toBeNull();
   });
 
   it("keeps the line on the recovery card too, where a stuck user also lands", () => {

@@ -19,7 +19,6 @@ import {
   type NoteNode,
   type NoteTagGroup,
   FOCUS_RING,
-  tourAnchor,
   useTranslation,
 } from "@life-editor/shared";
 import { noteDraggableId, type NoteTagDnd } from "./useNoteTagDnd";
@@ -458,12 +457,7 @@ export function NotesSidebarList({
           that opens the tag panel in place, where it used to be a chip row
           drawn at all times; each option is still a heading to show. */}
       {showTagFilter && (
-        // #1125 anchors the tour's "follow a tag" step here. CONDITIONAL by
-        // nature: the filter only renders with more than one group to choose
-        // between, so a user with a single tag has no anchor and the tour
-        // skips that step rather than waiting on a control that will not
-        // appear (anchor.ts).
-        <div {...tourAnchor("materials-tag-filter")}>
+        <div>
           <NoteTagFilterPanel
             options={tagFilterOptions}
             value={tagFilters}

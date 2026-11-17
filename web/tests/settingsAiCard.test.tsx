@@ -70,7 +70,6 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
       initialView: "week",
       setInitialView: vi.fn(),
     }),
-    useTourContext: () => ({ restart: vi.fn(), startSection: vi.fn() }),
     // The Claude customization editor (#2119) follows a sync domain; no
     // SyncProvider is mounted here.
     useSyncDomains: () => 0,

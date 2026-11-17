@@ -234,8 +234,8 @@ export interface TodayTodoTrayProps {
    * A control to sit at the right end of a group's heading (#1640) — Schedule
    * puts its "+ Todo" pill in both, so each list can be added to from where it
    * is read. A slot rather than an `onAdd` pair: the button carries the host's
-   * copy and its tour anchor, and neither belongs in a part that takes both
-   * already translated (§6.4).
+   * copy, which belongs in the host because this part takes its text already
+   * translated (§6.4).
    *
    * `placed` heads the today list ("今日の Todo"), `addable` the other one.
    */

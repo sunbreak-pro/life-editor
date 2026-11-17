@@ -58,7 +58,6 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
       initialView: "week",
       setInitialView: vi.fn(),
     }),
-    useTourContext: () => ({ restart: vi.fn(), startSection: vi.fn() }),
     getSession: state.getSession,
     RightSidebarPortal: ({ children }: { children: ReactNode }) => (
       <>{children}</>

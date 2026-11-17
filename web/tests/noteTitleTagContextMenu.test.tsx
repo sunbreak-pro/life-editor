@@ -98,7 +98,6 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
       deleteTag: state.deleteTag,
     }),
     useRightSidebarContext: () => ({ open: vi.fn(), close: vi.fn() }),
-    useTourContextOptional: () => ({ notifyAction: vi.fn() }),
     RightSidebarPortal: ({ children }: { children: ReactNode }) => (
       <>{children}</>
     ),
