@@ -17,9 +17,9 @@ name: Release — desktop installers (unsigned)
 #                          Release は作らない（タグが無いので版が決まらない）
 #
 # 署名はしない（$0 原則 — 移行 SSOT §8）。未署名の代償は利用者側の初回起動
-# 操作で、手順は desktop/README.md に書いてある。electron-updater は
-# 有効化しない — 未署名バイナリへの自動更新は feed が乗っ取られた時点で任意
-# コードが流れ込むため、署名導入と同時にしか入れられない。
+# 操作で、手順は desktop/README.md に書いてある。自動更新は入れない（骨組みと
+# electron-updater は #2758 で消した）— 未署名バイナリへの自動更新は feed が
+# 乗っ取られた時点で任意コードが流れ込むため、署名導入と同時にしか入れられない。
 #
 # macOS 側は未署名の代償が Windows より重い: `identity: null` で作った `.app` は
 # Big Sur / Apple Silicon 以降だと「壊れているため開けません」と出る（壊れていない —
