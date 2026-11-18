@@ -13,7 +13,6 @@ import {
   readDisplayName,
   SettingsAiIntegration,
   SettingsAppearance,
-  SettingsLegal,
   SettingsLanguage,
   SettingsShortcuts,
   SettingsGeneral,
@@ -70,7 +69,6 @@ import { AiCustomizationHost } from "./AiCustomizationHost";
 import { TrashScreen } from "../trash/TrashScreen";
 import { AttachmentCleanupCard } from "../trash/AttachmentCleanupCard";
 import { DataExportCard } from "./DataExportCard";
-import { openLegalDocument } from "../legal/legalUrl";
 
 /*
  * Settings screen (W1, web host — redesigned; §216 lightweight prefs). This is
@@ -134,7 +132,7 @@ const TRASH_TAB_ID = "trash";
  * The AI-integration row. Its own category rather than a card inside General:
  * the MCP tool list, the connection's last activity and the launcher are three
  * cards' worth of one subject, and General had grown to eleven cards with this
- * sitting among the account and legal cards — none of which it has anything
+ * sitting among the account cards — none of which it has anything
  * to do with.
  */
 const CLAUDE_TAB_ID = "claude";
@@ -843,29 +841,6 @@ export function SettingsScreen({
               <DataExportCard dataService={dataService} />
             </div>
           )}
-
-          {/*
-           * #1251 — the documents shipped with #1198 but only the sign-in
-           * screen linked them, so they became unreachable the moment an
-           * account existed. The reader itself is mounted in App; this card
-           * only asks for it by URL, which is why it needs nothing passed
-           * down through MainScreen to get here.
-           */}
-          <div className={cardClass}>
-            <SettingsLegal
-              onOpenPrivacy={() => openLegalDocument("privacy")}
-              onOpenTerms={() => openLegalDocument("terms")}
-              labels={{
-                heading: t("settings.legal.heading"),
-                description: t("settings.legal.description"),
-                // The same two words the sign-in footer uses, kept as one
-                // string: the `auth.` prefix records where the key was first
-                // needed, not who owns the wording.
-                privacy: t("auth.legal.privacy"),
-                terms: t("auth.legal.terms"),
-              }}
-            />
-          </div>
 
           <div className={cardClass}>
             <SettingsReset

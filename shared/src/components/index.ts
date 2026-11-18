@@ -293,9 +293,6 @@ export {
   DeleteAccountDialog,
   type DeleteAccountDialogProps,
 } from "./DeleteAccountDialog";
-// Policy + terms card (#1251) — the signed-in door to the documents #1198
-// shipped. Links only; the reader they open lives in the web host.
-export { SettingsLegal, type SettingsLegalProps } from "./SettingsLegal";
 // Whole-account export card (#1988) — one button, one JSON file. The read is
 // DataService.exportUserData(); the download is the web host's.
 export {
