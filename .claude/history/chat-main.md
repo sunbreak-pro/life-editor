@@ -1,5 +1,24 @@
 # HISTORY (chat-main)
 
+### 2026-11-16〜11-18 - 削除の前半 8 件の実装と merge（計画書の手順 1・Issue #2714）
+
+#### 概要
+
+計画書 `docs/vision/plans/2026-11-16-completion-scope-and-schedule.md` の手順 1 を、issue-workflow の Workflow で 1 件ずつ実装し、merge-round で入れた。8 件とも merge 済みで、Issue は実ブラウザでの確認待ちのため open のまま。
+
+#### 変更点
+
+- **merge した PR**: #2765（#2758 自動更新の骨組み）・#2767（#2717 Work 画面と音）・#2768（#2719 コマンドパレット）・#2770（#2720 拡張アプリ）・#2772（#2749 ツアー）・#2773（#2718 予定の実績時間）・#2774（#2750 ヘルプ）・#2775（#2751 利用規約とプライバシーポリシー）
+- **承認待ち**: PR #2771。`.github/workflows/deploy-mcp.yml` をスマホ用の Worker だけを配る形にし、`release-desktop.yml` のコメントと `.claude/issue-workflow.md` の gateway の案内を直す
+- **Issue 本文**: 実装役と確認役は本文しか読まないので、8 件の本文に「実装の範囲の追記（2026-11-16 chat-main）」を足し、洗い出した Scope とコメントの決定を写した
+
+#### 実測・知見
+
+- 削除の Issue は i18n・barrel・SettingsScreen.tsx で必ず重なるので、scope-overlap で並べられたのは #2758 だけだった
+- エージェントの push の行に変数が 1 つでもあると merge-gate の hook が止め、PR が開かれずに終わる（#2719）。台本の写しの指示を「push の行は変数なしの単独の行」に直した
+- PR が承認の要る種類のファイル（`.claude/issue-workflow.md` など）を 1 つでも含むと、work-finishers は merge できない（#2720）。そのファイルの変更を戻して承認の要る分を別 PR に分けた
+- PC のスリープとセッションの終了で、全体確認の時間切れ（#2718）と実装役の途中停止（#2751）が 1 回ずつ起きた。worktree に残った変更から引き継がせて仕上げた
+
 ### 2026-11-16 - open の Issue 85 件の仕分け・マイルストーン 65 件・計画書（Issue #2714）
 
 #### 概要
