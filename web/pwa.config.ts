@@ -27,7 +27,7 @@ export const pwaOptions: Partial<VitePWAOptions> = {
     maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
     // Vite names these by content, so a revision query would only re-download.
     dontCacheBustURLsMatching: /^assets\//,
-    // Any navigation gets the app: `?legal=` is read by the page, and a redirect's
+    // Any navigation gets the app: a query is read by the page, and a redirect's
     // `#…` never reaches a Service Worker. The real URL stays in the address bar.
     navigateFallback: "index.html",
     // Same page either way, so old bundles do not pile up on the device.

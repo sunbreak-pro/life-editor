@@ -137,10 +137,6 @@
       "done": "Saved {{rows}} items to {{file}}.",
       "error": "Could not prepare the file. Nothing was changed — please wait a moment and try again."
     },
-    "legal": {
-      "heading": "Policy and terms",
-      "description": "What this app does with your data, and the terms you are using it under."
-    },
     "ai": {
       "heading": "AI integration",
       "description": "Claude Code connects straight to this app's database. Start it on your computer and it reaches the same todos, schedule, notes and dailies these screens show, through the MCP server. The app itself never calls an AI.",
@@ -1503,13 +1499,6 @@
       "sent": "Sent. Use the newest link — the earlier ones stop working.",
       "error": "Could not send the link. Please wait a moment and try again.",
       "back": "Back to sign in"
-    },
-    "legal": {
-      "consent": "By creating an account you agree to the following.",
-      "terms": "Terms of Service",
-      "privacy": "Privacy Policy",
-      "back": "Back",
-      "updated": "Last updated"
     },
     "errors": {
       "invalidCredentials": "Email or password is incorrect",

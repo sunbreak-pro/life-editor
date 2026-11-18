@@ -5,7 +5,6 @@ import {
   ColorPicker,
   PasswordUpdateForm,
   SettingsAccount,
-  SettingsLegal,
   SettingsProfile,
   SettingsReset,
   SettingsSchedule,
@@ -155,37 +154,22 @@ describe("#1562 — the general cards", () => {
     expect(submit).not.toHaveClass("max-md:min-h-11");
   });
 
-  it("floors the legal and reset buttons", () => {
+  it("floors the reset button", () => {
     render(
-      <>
-        <SettingsLegal
-          onOpenPrivacy={() => {}}
-          onOpenTerms={() => {}}
-          labels={{
-            heading: "Legal",
-            description: "The documents.",
-            privacy: "Privacy policy",
-            terms: "Terms of use",
-          }}
-        />
-        <SettingsReset
-          onReset={() => {}}
-          labels={{
-            heading: "Reset",
-            description: "Back to defaults.",
-            button: "Reset preferences",
-          }}
-        />
-      </>,
+      <SettingsReset
+        onReset={() => {}}
+        labels={{
+          heading: "Reset",
+          description: "Back to defaults.",
+          button: "Reset preferences",
+        }}
+      />,
     );
 
-    for (const name of [
-      "Privacy policy",
-      "Terms of use",
-      "Reset preferences",
-    ]) {
-      expectNarrowFloor(screen.getByRole("button", { name }), "h-9");
-    }
+    expectNarrowFloor(
+      screen.getByRole("button", { name: "Reset preferences" }),
+      "h-9",
+    );
   });
 });
 

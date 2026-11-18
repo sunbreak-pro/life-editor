@@ -100,7 +100,6 @@
       "paths": [
         "shared/src/components/Settings*.tsx",
         "web/src/settings/**",
-        "web/src/legal/**",
         "web/src/AuthScreen.tsx",
         "web/tests/settings*",
         "web/tests/authScreen*",

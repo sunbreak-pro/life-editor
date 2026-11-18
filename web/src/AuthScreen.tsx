@@ -15,7 +15,6 @@ import {
   type TranslationKey,
 } from "@life-editor/shared";
 import { usePasswordUpdate } from "./hooks/usePasswordUpdate";
-import { openLegalDocument } from "./legal/legalUrl";
 
 /*
  * Phase 1 auth entry (Email + Password), target-IA D8 (ClaudeDesign Auth
@@ -39,11 +38,6 @@ import { openLegalDocument } from "./legal/legalUrl";
  * App rather than from local state because the recovery link creates a REAL
  * session: without that gate the app would have swapped to MainScreen and the
  * user would never see a way to finish the reset.
- *
- * The policy / terms links in the footer open a reader this screen does not
- * own: #1251 moved it up to App, above the session gate, so the same
- * documents stay reachable after sign-in and a `?legal=` link works in both
- * states. All that is left here is the door.
  */
 
 export interface AuthScreenProps {
@@ -78,12 +72,6 @@ function errorKeyFor(raw: string): TranslationKey {
   }
   return "auth.errors.generic";
 }
-
-
-const LEGAL_LINK_CLASS =
-  "rounded-lumen-sm text-xs text-lumen-text-secondary underline " +
-  "underline-offset-2 transition-colors hover:text-lumen-text " +
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
 
 type View = "credentials" | "resetRequest" | "confirmPending";
 
@@ -239,41 +227,6 @@ export function AuthScreen({
     setView("resetRequest");
   };
 
-
-  /*
-   * Shown on the credentials card in both modes — the terms bind a reader as
-   * much as a signer-up — with the consent sentence added only where an
-   * account is actually being created (#1198).
-   */
-  const legalFooter = (
-    <div className="flex flex-col items-center gap-1.5">
-      {mode === "signUp" ? (
-        <p className="text-center text-xs text-lumen-text-tertiary">
-          {t("auth.legal.consent")}
-        </p>
-      ) : null}
-      <div className="flex flex-wrap items-center justify-center gap-x-2">
-        <button
-          type="button"
-          onClick={() => openLegalDocument("terms")}
-          className={LEGAL_LINK_CLASS}
-        >
-          {t("auth.legal.terms")}
-        </button>
-        <span aria-hidden className="text-xs text-lumen-text-tertiary">
-          ·
-        </span>
-        <button
-          type="button"
-          onClick={() => openLegalDocument("privacy")}
-          className={LEGAL_LINK_CLASS}
-        >
-          {t("auth.legal.privacy")}
-        </button>
-      </div>
-    </div>
-  );
-
   let card: React.JSX.Element;
   if (recovery) {
     card = (
@@ -362,7 +315,6 @@ export function AuthScreen({
         onSubmit={() => void submit()}
         onForgotPassword={openResetRequest}
         labels={labels}
-        legalFooter={legalFooter}
       />
     );
   }
