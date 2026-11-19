@@ -89,8 +89,8 @@ import { AttachmentCleanupCard } from "../trash/AttachmentCleanupCard";
  * #2757 removed the empty briefing / materials rows, which only said
  * "settings will land here", and the Tips dialog.
  *
- * The Shortcuts card stays Desktop-only (ShortcutConfig is a Mobile 省略
- * Provider — §2) and the Reset card still owns the destructive confirm +
+ * The Shortcuts card is hidden at narrow widths, where there is no keyboard
+ * to rebind, and the Reset card still owns the destructive confirm +
  * clear-and-reload (kept out of the pure primitive).
  */
 

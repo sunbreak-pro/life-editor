@@ -8,10 +8,9 @@ import { useLatestHistory } from "./useLatestHistory";
  *
  * Why here: the wide layout puts undo/redo in the header slot (see
  * HeaderUndoRedo), and AppShell renders `header` on its WIDE branch only, so
- * the narrow layout had no path to it. The keyboard route is no help —
- * GlobalShortcuts' ⌘Z needs the ShortcutConfig Provider, which native mobile
- * deliberately skips (CLAUDE.md §2). The "More" sheet is the only chrome every
- * narrow section shares, which is why these land there.
+ * the narrow layout had no path to it. The keyboard route is no help on a
+ * phone, which has no keyboard for GlobalShortcuts' ⌘Z. The "More" sheet is
+ * the only chrome every narrow section shares, which is why these land there.
  *
  * Undo / redo call the very same function the header buttons call
  * (`useLatestHistory` → `undoLatest`, #2141) — no per-surface fork.

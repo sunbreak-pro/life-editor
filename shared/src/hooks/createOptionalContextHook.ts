@@ -6,9 +6,9 @@ import { useContext, type Context } from "react";
  * `frontend/src/hooks/createOptionalContextHook.ts`.
  *
  * `createContextHook` THROWS when used outside its Provider (the Provider is
- * always mounted). Mobile 省略 Providers (roster = CLAUDE.md §2) are meant to
- * stay unmounted on iOS/Android, so shared components that may render there
- * must read the context through this variant and `if (!ctx) return null`
+ * always mounted). A Provider that a tree may legitimately lack — such as
+ * ShortcutConfig in a component rendered without AppProviders — is read
+ * through this variant, and the consumer does `if (!ctx) return null`
  * (vision/coding-principles.md §4).
  *
  * Also used for genuinely optional ambient contexts on every platform — e.g.

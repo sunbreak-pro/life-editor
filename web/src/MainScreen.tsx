@@ -39,7 +39,7 @@ import { signOutWithNotice } from "./hooks/signOutWithNotice";
  * One DataService is created once and handed to <AppProviders>, which injects
  * it into every global Provider (the shared hooks never reach a module
  * singleton — CLAUDE.md §6.4). The global chain itself — its order, the two
- * headless bridges inside it, and the Mobile 省略 gate — moved to
+ * headless bridges inside it — moved to
  * `AppProviders.tsx` in #676 (a); each section's own Provider nesting stays in
  * its descriptor row. Every domain reads `useSyncDomains` to know when the
  * data IT owns changed, so since #499 a note edit does not refetch the todo
@@ -355,8 +355,8 @@ export function MainScreen({ session }: { session: Session }) {
 
   return (
     /*
-     * The global Provider chain — order, the two headless bridges, and the
-     * Mobile 省略 gate all live in AppProviders (#676 (a)). What stays here is
+     * The global Provider chain — its order and the two headless bridges —
+     * lives in AppProviders (#676 (a)). What stays here is
      * the part that changes per render: the chrome above and the three
      * shell-level children below.
      *

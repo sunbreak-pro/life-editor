@@ -25,8 +25,8 @@ function getDefinition(id: ShortcutId): ShortcutDefinition | undefined {
 }
 
 /*
- * Shared ShortcutConfigProvider (W1). Mobile 省略 Provider (CLAUDE.md §2):
- * the host mounts it only on web/desktop. Overrides persist via
+ * Shared ShortcutConfigProvider (W1). AppProviders mounts it on every host
+ * (browser and Desktop). Overrides persist via
  * useLocalStorage (verbatim logic ported from the FROZEN
  * `frontend/src/context/ShortcutConfigContext.tsx`, minus the editor/term/
  * sidebar IDs that don't exist on web). Rebind / conflict-detect / reset

@@ -62,9 +62,9 @@ export {
   type Language,
 } from "./ThemeContextValue";
 
-// ShortcutConfig (W1): Pattern A + OPTIONAL hook. Mobile 省略 Provider
-// (CLAUDE.md §2) — mounted on web/desktop only; consumers use
-// useShortcutConfig (optional, null-safe). Sits inside Theme (§6.2).
+// ShortcutConfig (W1): Pattern A + OPTIONAL hook. AppProviders mounts it on
+// every host; the hook stays optional (null-safe) for trees rendered without
+// the Provider, such as isolated tests. Sits inside Theme (§6.2).
 export { ShortcutConfigProvider } from "./ShortcutConfigContext";
 export {
   ShortcutConfigContext,

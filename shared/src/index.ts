@@ -447,8 +447,8 @@ export {
 export { useFirstAppearance } from "./hooks/useFirstAppearance";
 
 // Shortcut domain (W1) — types + defaults + Pattern A Provider + OPTIONAL
-// context hook. Web-lean ID set (see types/shortcut.ts). Mobile 省略 Provider
-// (CLAUDE.md §2): mount on web/desktop only, consume via useShortcutConfig.
+// context hook. Web-lean ID set (see types/shortcut.ts). Mounted by
+// AppProviders on every host; consume via useShortcutConfig.
 export type {
   ShortcutId,
   ShortcutCategory,
