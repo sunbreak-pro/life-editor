@@ -3,12 +3,12 @@ import type { NoteNode } from "../types/note";
 import { ItemLockGate } from "./itemLockGate";
 
 /*
- * Password gate + edit lock side of SupabaseNotesUnifiedService (#587 split /
+ * Password gate side of SupabaseNotesUnifiedService (#587 split /
  * DU-G PR1, hardened for Issue #118). Not a dispatch target — the facade
  * delegates here. `getNote` is injected (every mutation round-trips through
  * getNoteUnified, which lives on the reads side).
  *
- * #674 / C7: the six methods were a line-for-line clone of the Dailies copy,
+ * #674 / C7: the methods were a line-for-line clone of the Dailies copy,
  * so the body now lives in the shared `ItemLockGate` and this class is the
  * Notes binding of it (role, payload table, error labels, re-read). The
  * rationale for the PBKDF2 storage format, the legacy-plaintext acceptance
@@ -40,7 +40,6 @@ export class SupabaseNotesUnifiedLock {
         removePassword: "removeNotePasswordUnified",
         verifyPassword: "verifyNotePasswordUnified",
         lazyRehash: "lazyRehashNotePassword",
-        toggleEditLock: "toggleNoteEditLockUnified",
       },
     });
   }
@@ -61,10 +60,5 @@ export class SupabaseNotesUnifiedLock {
   /** Verify `password` against the stored PBKDF2 hash (Issue #118). */
   verifyNotePasswordUnified(id: string, password: string): Promise<boolean> {
     return this.gate.verifyPassword(id, password);
-  }
-
-  /** Flip notes_payload.is_edit_locked (read-modify-write). */
-  toggleNoteEditLockUnified(id: string): Promise<NoteNode> {
-    return this.gate.toggleEditLock(id);
   }
 }

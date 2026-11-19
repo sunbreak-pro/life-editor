@@ -47,9 +47,9 @@ describe("requireSingleRow", () => {
     await expect(
       requireSingleRow(
         result(null, { message: "boom" }),
-        "createPlaylist failed",
+        "createGoal failed",
       ),
-    ).rejects.toThrow("createPlaylist failed: boom");
+    ).rejects.toThrow("createGoal failed: boom");
   });
 });
 
@@ -57,7 +57,7 @@ describe("fetchMaybeSingleRow", () => {
   it("returns the row when one matched", async () => {
     const row = await fetchMaybeSingleRow<{ sort_order: number }>(
       result({ sort_order: 4 }),
-      "addPlaylistItem read failed",
+      "createGoal sort_order read failed",
     );
     expect(row?.sort_order).toBe(4);
   });

@@ -47,16 +47,6 @@ export {
   mergeFocusSection,
   normalizeFocusText,
 } from "./focusSections";
-export {
-  GOALS_NOTE_ID,
-  GOAL_PERIODS,
-  adoptBareGoalHeadings,
-  extractGoals,
-  mergeGoalSection,
-  normalizeGoalText,
-  type ExtractedGoals,
-  type GoalPeriod,
-} from "./goalSections";
 // #2109: linking goals and Todos — the goal side (GoalTodoLinkScreen), the
 // todo side (GoalPickerField), the pure before/after preview, and the hook
 // that loads and writes the links. The goal types ride along so web hosts can
@@ -134,24 +124,12 @@ export {
   type GoalLinkSnapshot,
 } from "./useGoalLinkSnapshot";
 export {
-  currentNoteGoalLines,
-  noteGoalLegacyKey,
-  planNoteGoalMigration,
-  type ExistingGoal,
-  type NoteGoalCreate,
-  type NoteGoalPeriodPlan,
-} from "./goalNoteMigration";
-export {
   goalPeriodKeys,
   goalPeriodRanges,
   type GoalPeriodKeys,
   type GoalPeriodRanges,
 } from "./goalPeriods";
-export {
-  extractIntentionSection,
-  normalizeIntentionText,
-  type ExtractedIntentionSection,
-} from "./intentionSection";
+export { normalizeIntentionText } from "./intentionSection";
 export {
   EveningView,
   type EveningViewProps,

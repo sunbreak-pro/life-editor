@@ -595,17 +595,6 @@ describe("a day behind a password", () => {
     await rejectsAndHoldsNothing(ctx);
   });
 
-  it("is not held after the password was set in this page", async () => {
-    const ctx = setup({
-      upsertDailyByDateUnified: failing(),
-      setDailyPasswordUnified: vi
-        .fn()
-        .mockResolvedValue(node(body("base"), { hasPassword: true })),
-    });
-    await ctx.ds.setDailyPasswordUnified(ID, "pw");
-    await rejectsAndHoldsNothing(ctx);
-  });
-
   it("keeps the merged body out of the entry when a send finds one set", async () => {
     const ctx = setup({}, {
       content: body("protected"),

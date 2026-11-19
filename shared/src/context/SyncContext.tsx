@@ -68,18 +68,19 @@ const OUTBOX_SEND_REQUEST_DELAY_MS = 1000;
 
 /**
  * Every owned table whose changes should trigger a refetch. Mirrors the
- * 0008 unified schema (items_meta + 5 payloads + routine groups + the
- * wiki_tag graph) and the W3 timer/audio tables (0018). Kept in sync with the
+ * 0008 unified schema (items_meta + 5 payloads + the wiki_tag graph) and the
+ * W3 timer/audio tables (0018). Kept in sync with the
  * `supabase_realtime` publication as the migrations leave it —
  * 0017_realtime_publication.sql + 0018_timer_audio_tables.sql add,
  * 0026_drop_calendars.sql removes — a table missing from EITHER side means
  * that domain will not follow cross-tab edits. Do not drop the wiki_tag_*
  * rows. The lockstep test (syncRealtimeTables.test.ts) replays those
  * migrations in order and enforces the match, minus the tables it lists as
- * published but deliberately unsubscribed (the extension-app tables, #2720).
+ * published but deliberately unsubscribed (the extension-app tables, #2720;
+ * the routine-group tables and the two 0018 sound-queue tables, #2757).
  *
- * W3-B note: 0018 publishes all six timer/sound tables to supabase_realtime,
- * so the lockstep invariant requires subscribing to all six here. Their
+ * W3-B note: 0018 publishes six timer/sound tables to supabase_realtime. Four
+ * are subscribed here; the two sound-queue tables are not (#2757). The four
  * consumers differ, which is why they do NOT share one domain:
  *  - `timer_settings` / `pomodoro_presets` are read by the TimerProvider,
  *    which refetches both on a `timer` bump.
@@ -89,9 +90,7 @@ const OUTBOX_SEND_REQUEST_DELAY_MS = 1000;
  *    domain. Sharing `timer` made every pomodoro transition re-run
  *    TimerProvider's settings + preset fetches — and fetching the settings
  *    MATERIALISES the row, so it was not even a free read.
- *  - of the three sound tables only `sound_settings` has a consumer so far
- *    (AudioContext's `audio` domain); `playlists` / `playlist_items` are
- *    subscribed for invariant parity and gain theirs with the Audio Mixer.
+ *  - `sound_settings` routes to the `audio` domain.
  */
 export const REALTIME_TABLES = [
   "items_meta",
@@ -100,27 +99,23 @@ export const REALTIME_TABLES = [
   "routines_payload",
   "notes_payload",
   "dailies_payload",
-  // #352 removed the RoutineGroup CODE but not the tables (DDL ゼロ), and
-  // they are still in the `supabase_realtime` publication — this list must
-  // stay in lockstep with it (see syncRealtimeTables.test.ts). Nothing
-  // writes to them anymore, so the subscription is simply silent.
-  "routine_groups",
-  "routine_group_assignments",
+  // (#352 removed the RoutineGroup code but not the tables, which are still
+  // published. Nothing reads or writes them, so #2757 stopped subscribing;
+  // syncRealtimeTables.test.ts lists them as published but unsubscribed.)
   "wiki_tags",
   "wiki_tag_groups",
   "wiki_tag_group_assignments",
   "wiki_tag_assignments",
   "wiki_tag_connections",
   // (#1173 retired the `calendars` CODE and #1277 dropped the table itself,
-  // so its subscription is gone from here — unlike the routine_groups pair
-  // above, whose tables still exist and are still published.)
+  // so its subscription is gone from here.)
   // W3 timer/audio (0018)
   "timer_settings",
   "pomodoro_presets",
   "timer_sessions",
   "sound_settings",
-  "playlists",
-  "playlist_items",
+  // (0018's two sound-queue tables are published too, but no screen ever
+  // used them; #2757 removed their code and stopped subscribing.)
   // Goals (0034 / #2101)
   "goals_payload",
   "goal_todo_links",
@@ -132,9 +127,9 @@ export const REALTIME_TABLES = [
   "tables_payload",
   // (#2720 removed the extension-app screens, so `app_records`,
   // `extension_apps` and `record_views` are no longer subscribed. The tables
-  // stay in the DB and in the publication — no DDL — and the data export still
-  // reads them; syncRealtimeTables.test.ts lists them as published but
-  // deliberately unsubscribed.)
+  // stay in the DB and in the publication — no DDL — and
+  // syncRealtimeTables.test.ts lists them as published but deliberately
+  // unsubscribed.)
 ] as const;
 
 const DEBOUNCE_MS = 300;

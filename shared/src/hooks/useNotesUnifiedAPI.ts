@@ -18,14 +18,10 @@ import { useNotesUnifiedTrash } from "./useNotesUnifiedTrash";
 import { useNotesUnifiedLock } from "./useNotesUnifiedLock";
 import {
   type NoteSortDirection,
-  loadExpandedIds,
-  saveExpandedIds,
   loadSortDirection,
   saveSortDirection,
   loadSortMode,
   saveSortMode,
-  buildChildrenByParent,
-  flattenVisibleNotes,
   filterAndSortNotes,
 } from "./notesUnifiedHelpers";
 import {
@@ -56,7 +52,7 @@ import { rememberNoteBody, syncPinnedNoteBodies } from "../state/noteBodyStore";
  * - useNoteHydrationLedger.ts the #301/#607 hydrated-body + own-write ledger
  * - useNotesUnifiedCRUD.ts    create / update / soft-delete / pin
  * - useNotesUnifiedTrash.ts   Trash load / restore / purge
- * - useNotesUnifiedLock.ts    password gate + edit lock
+ * - useNotesUnifiedLock.ts    password gate
  *
  * #2057 added the version-checked body save (`saveNoteBody`) and the per-note
  * server versions it is checked against (`serverStampOf`); the editor-side
@@ -104,7 +100,6 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
   const [sortMode, setSortModeState] = useState<NoteSortMode>(loadSortMode);
   const [sortDirection, setSortDirectionState] =
     useState<NoteSortDirection>(loadSortDirection);
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(loadExpandedIds);
   const notesRef = useRef(notes);
   const selectedNoteIdRef = useRef(selectedNoteId);
   useEffect(() => {
@@ -390,35 +385,6 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
     searchQuery,
   );
 
-  // Tree derivations — pure functions of their inputs (notesUnifiedHelpers),
-  // memoized here.
-  const childrenByParent = useMemo(() => buildChildrenByParent(notes), [notes]);
-
-  const getChildren = useCallback(
-    (parentId: string | null): NoteNode[] => {
-      return childrenByParent.get(parentId) ?? [];
-    },
-    [childrenByParent],
-  );
-
-  const toggleExpanded = useCallback((id: string) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      saveExpandedIds(next);
-      return next;
-    });
-  }, []);
-
-  const flattenedNotes = useMemo(
-    () => flattenVisibleNotes(notes, expandedIds),
-    [notes, expandedIds],
-  );
-
   const sortedFilteredNotes = useMemo(
     () =>
       filterAndSortNotes(
@@ -514,7 +480,6 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
     setNotePassword,
     removeNotePassword,
     verifyNotePassword,
-    toggleEditLock,
   } = useNotesUnifiedLock({ ds, setNotes, unlockNoteBody, relockNote });
 
   /*
@@ -710,10 +675,6 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       sortDirection,
       setSortDirection,
       sortedFilteredNotes,
-      flattenedNotes,
-      expandedIds,
-      toggleExpanded,
-      getChildren,
       createNote,
       updateNote,
       softDeleteNote,
@@ -725,7 +686,6 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       setNotePassword,
       removeNotePassword,
       verifyNotePassword,
-      toggleEditLock,
       saveNoteBody,
       fetchNoteBodySnapshot,
       replaceNoteBody,
@@ -750,10 +710,6 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       sortDirection,
       setSortDirection,
       sortedFilteredNotes,
-      flattenedNotes,
-      expandedIds,
-      toggleExpanded,
-      getChildren,
       createNote,
       updateNote,
       softDeleteNote,
@@ -765,7 +721,6 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       setNotePassword,
       removeNotePassword,
       verifyNotePassword,
-      toggleEditLock,
       saveNoteBody,
       fetchNoteBodySnapshot,
       replaceNoteBody,

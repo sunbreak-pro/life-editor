@@ -360,16 +360,6 @@ export function createOfflineDailyOverrides(
         if (!isOfflineFailure(error)) throw error;
       }
     },
-
-    async setDailyPasswordUnified(id, password) {
-      return remember(await inner.setDailyPasswordUnified(id, password));
-    },
-
-    async removeDailyPasswordUnified(id, currentPassword) {
-      return remember(
-        await inner.removeDailyPasswordUnified(id, currentPassword),
-      );
-    },
   };
 }
 

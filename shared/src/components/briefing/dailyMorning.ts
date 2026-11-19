@@ -1,21 +1,18 @@
 /*
  * The day's morning record (D-20261007-briefing-1) — what Claude said about
- * the day and what the user declared for it, read for the blocks that show
- * them OUTSIDE the Daily body (the morning paper's「昨日へのひとこと」now, the
- * Daily screen's own blocks with #2123).
+ * the day, read for the blocks that show it OUTSIDE the Daily body (the
+ * morning paper's「昨日へのひとこと」).
  *
- * Neither is written into the body any more: MCP `write_briefing` puts the
- * comment in `dailies_payload.morning_comment` (0035), and nothing writes a
- * 宣言 once the paper's field is gone (#2106). Older days still carry both as
- * heading sections of the body, and those are never rewritten, so each half
- * is read from where it can be:
+ * The comment is not written into the body any more: MCP `write_briefing`
+ * puts it in `dailies_payload.morning_comment` (0035). Older days still carry
+ * it as a 朝刊 heading section of the body, never rewritten, so it is read
+ * from the column when that holds a paragraph, else from the body's 朝刊
+ * section (extractBriefing).
  *
- *   comment   — the column when it holds a paragraph, else the body's 朝刊
- *               section (extractBriefing).
- *   intention — the body's 宣言 section (extractIntentionSection). There is
- *               no column for it.
+ * The record also carried the body's 宣言 section until #2757. Nothing writes
+ * a 宣言 since #2106 and no screen showed it, so it is no longer read.
  *
- * Both sections run [heading, next heading) — the same range readDailyText
+ * The section runs [heading, next heading) — the same range readDailyText
  * leaves out of the day's one text (dailyText.ts) — so heading-less text a
  * user wrote after those lines comes back here instead of being lost from
  * every screen. On an old day where write_briefing put 朝刊 above the old
@@ -31,13 +28,10 @@
  */
 
 import { extractBriefing, normalizeMorningComment } from "./extractBriefing";
-import { extractIntentionSection } from "./intentionSection";
 
 export interface MorningRecord {
   /** Claude's comment paragraphs, trimmed; [] when there is none. */
   comment: string[];
-  /** The 宣言 section's lines joined by "\n"; "" when there is none. */
-  intention: string;
 }
 
 /**
@@ -58,6 +52,5 @@ export function readMorningRecord(
   return {
     comment:
       column.length > 0 ? column : (extractBriefing(content)?.paragraphs ?? []),
-    intention: extractIntentionSection(content).text ?? "",
   };
 }

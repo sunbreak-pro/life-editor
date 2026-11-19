@@ -15,7 +15,6 @@ import {
 } from "../src/components/briefing/dailySections";
 import { extractBriefing } from "../src/components/briefing/extractBriefing";
 import { extractEveningSection } from "../src/components/briefing/eveningSection";
-import { extractIntentionSection } from "../src/components/briefing/intentionSection";
 import { jsonDocEquals } from "../src/utils/jsonDocEquals";
 
 /*
@@ -167,9 +166,6 @@ describe.each(DAYS)("the one text — $name", ({ content, text }) => {
       );
       expect(moodNode(written)).toEqual(moodNode(content));
       expect(extractBriefing(written)).toEqual(extractBriefing(content));
-      expect(extractIntentionSection(written)).toEqual(
-        extractIntentionSection(content),
-      );
       expect(extractEveningSection(written).mood).toBe(
         extractEveningSection(content).mood,
       );

@@ -519,54 +519,6 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
     [push, toggleDailyPinByDate],
   );
 
-  const setDailyPassword = useCallback(
-    async (date: string, password: string) => {
-      const updated = await ds.setDailyPasswordUnified(
-        `daily-${date}`,
-        password,
-      );
-      setDailies((prev) =>
-        prev.map((m) => (m.date === date ? { ...m, hasPassword: true } : m)),
-      );
-      return updated;
-    },
-    [ds],
-  );
-
-  const removeDailyPassword = useCallback(
-    async (date: string, currentPassword: string) => {
-      const updated = await ds.removeDailyPasswordUnified(
-        `daily-${date}`,
-        currentPassword,
-      );
-      setDailies((prev) =>
-        prev.map((m) => (m.date === date ? { ...m, hasPassword: false } : m)),
-      );
-      return updated;
-    },
-    [ds],
-  );
-
-  const verifyDailyPassword = useCallback(
-    (date: string, password: string): Promise<boolean> => {
-      return ds.verifyDailyPasswordUnified(`daily-${date}`, password);
-    },
-    [ds],
-  );
-
-  const toggleEditLock = useCallback(
-    async (date: string) => {
-      const updated = await ds.toggleDailyEditLockUnified(`daily-${date}`);
-      setDailies((prev) =>
-        prev.map((m) =>
-          m.date === date ? { ...m, isEditLocked: updated.isEditLocked } : m,
-        ),
-      );
-      return updated;
-    },
-    [ds],
-  );
-
   const selectedDaily = useMemo(
     () => dailies.find((m) => m.date === selectedDate),
     [dailies, selectedDate],
@@ -593,10 +545,6 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
       restoreDaily,
       permanentDeleteDaily,
       getDailyForDate,
-      setDailyPassword,
-      removeDailyPassword,
-      verifyDailyPassword,
-      toggleEditLock,
     }),
     [
       dailies,
@@ -614,10 +562,6 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
       restoreDaily,
       permanentDeleteDaily,
       getDailyForDate,
-      setDailyPassword,
-      removeDailyPassword,
-      verifyDailyPassword,
-      toggleEditLock,
     ],
   );
 }

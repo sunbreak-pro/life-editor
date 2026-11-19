@@ -3,7 +3,8 @@ import type { NoteNode } from "../types/note";
 import type { DataService } from "../services/DataService";
 
 /**
- * Password gate + edit lock surface of useNotesUnifiedAPI (#587 split).
+ * Password gate surface of useNotesUnifiedAPI (#587 split). The edit-lock
+ * toggle went in #2757: no screen ever offered it.
  * Service-first (no optimistic write): the row flag flips only after the
  * service call resolved, exactly as before the split.
  *
@@ -71,23 +72,9 @@ export function useNotesUnifiedLock(params: UseNotesUnifiedLockParams) {
     [ds, unlockNoteBody],
   );
 
-  const toggleEditLock = useCallback(
-    async (id: string) => {
-      const updated = await ds.toggleNoteEditLockUnified(id);
-      setNotes((prev) =>
-        prev.map((n) =>
-          n.id === id ? { ...n, isEditLocked: updated.isEditLocked } : n,
-        ),
-      );
-      return updated;
-    },
-    [ds, setNotes],
-  );
-
   return {
     setNotePassword,
     removeNotePassword,
     verifyNotePassword,
-    toggleEditLock,
   };
 }

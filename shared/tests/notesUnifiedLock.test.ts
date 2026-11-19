@@ -7,8 +7,9 @@ import type { NoteNode } from "../src/types/note";
 import { makeNote } from "./helpers/nodeFixtures";
 
 /**
- * #587 DoD 4 — direct tests for the password / edit-lock surface carved out of
- * useNotesUnifiedAPI.
+ * #587 DoD 4 — direct tests for the password surface carved out of
+ * useNotesUnifiedAPI. (The edit-lock toggle went in #2757: no screen offered
+ * it.)
  *
  * The one rule worth pinning here is that this module is SERVICE-FIRST: unlike
  * every other write path in Notes it does NOT flip the local flag optimistically.
@@ -35,9 +36,6 @@ function makeHarness(initialNotes: NoteNode[]) {
     verifyNotePasswordUnified: vi.fn<
       (id: string, password: string) => Promise<boolean>
     >(async () => true),
-    toggleNoteEditLockUnified: vi.fn<(id: string) => Promise<NoteNode>>(
-      async (id) => makeNote(id, { isEditLocked: true }),
-    ),
   };
 
   // #1763: the ledger callbacks that move the BODY. Stubbed as spies here —
@@ -146,37 +144,5 @@ describe("verifyNotePassword", () => {
     await expect(h.lock.verifyNotePassword("n1", "hunter2")).resolves.toBe(
       false,
     );
-  });
-});
-
-describe("toggleEditLock", () => {
-  it("adopts the flag the service reports rather than negating locally", async () => {
-    const h = makeHarness([makeNote("n1")]);
-    await h.lock.toggleEditLock("n1");
-    expect(h.notes()[0]?.isEditLocked).toBe(true);
-
-    // The service is the authority: if it reports the lock stayed off, the
-    // local row must follow it and not the "toggle" in the method name.
-    h.ds.toggleNoteEditLockUnified.mockResolvedValueOnce(
-      makeNote("n1", { isEditLocked: false }),
-    );
-    await h.lock.toggleEditLock("n1");
-    expect(h.notes()[0]?.isEditLocked).toBe(false);
-  });
-
-  it("only touches the targeted note", async () => {
-    const h = makeHarness([makeNote("n1"), makeNote("n2")]);
-    await h.lock.toggleEditLock("n2");
-
-    expect(h.notes()[0]?.isEditLocked).toBeUndefined();
-    expect(h.notes()[1]?.isEditLocked).toBe(true);
-  });
-
-  it("leaves the local row alone when the service rejects", async () => {
-    const h = makeHarness([makeNote("n1", { isEditLocked: true })]);
-    h.ds.toggleNoteEditLockUnified.mockRejectedValueOnce(new Error("offline"));
-
-    await expect(h.lock.toggleEditLock("n1")).rejects.toThrow("offline");
-    expect(h.notes()[0]?.isEditLocked).toBe(true);
   });
 });

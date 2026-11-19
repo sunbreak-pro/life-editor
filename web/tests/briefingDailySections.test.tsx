@@ -1,11 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { useState } from "react";
 import { renderHook, act, waitFor } from "@testing-library/react";
-import {
-  extractEveningSection,
-  extractIntentionSection,
-  type DataService,
-} from "@life-editor/shared";
+import { extractEveningSection, type DataService } from "@life-editor/shared";
 import { stubDataService } from "./helpers";
 import { mockOf } from "./helpers/briefingHarness";
 import { useDailySections } from "../src/briefing/hooks/useDailySections";
@@ -51,6 +47,21 @@ const doc = (...nodes: TipTapNodeLike[]): string =>
   JSON.stringify({ type: "doc", content: nodes });
 
 const MORNING = doc(heading("朝刊"), para("Today is wide open."));
+
+/**
+ * The text of the block right after the 宣言 heading. #2757 removed the
+ * shared reader along with the screens that never showed it, so the suite
+ * reads the stored JSON itself.
+ */
+function intentionLine(content: string | null): string | undefined {
+  const nodes: TipTapNodeLike[] =
+    (JSON.parse(content ?? "{}") as { content?: TipTapNodeLike[] }).content ??
+    [];
+  const at = nodes.findIndex(
+    (n) => n.type === "heading" && n.content?.[0]?.text === "宣言",
+  );
+  return at < 0 ? undefined : nodes[at + 1]?.content?.[0]?.text;
+}
 
 /**
  * A DataService whose daily actually remembers what was written to it — the
@@ -139,9 +150,7 @@ describe("useDailySections — 夕刊 saves (#892)", () => {
       expect(mockOf(ds, "upsertDailyByDateUnified")).toHaveBeenCalled(),
     );
 
-    expect(extractIntentionSection(store.content).text).toBe(
-      "Ship the migration.",
-    );
+    expect(intentionLine(store.content)).toBe("Ship the migration.");
     expect(extractEveningSection(store.content).bodyDocJson).toContain(
       "Long day.",
     );

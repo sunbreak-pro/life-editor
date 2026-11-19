@@ -14,9 +14,8 @@ import { SettingsScreen } from "../src/settings/SettingsScreen";
  *   - a category row swaps the BODY. Every card that used to be on screen at
  *     once now depends on `tab`, so a row that fails to switch (or a body that
  *     forgets to hide) reads as "the setting disappeared".
- *   - the Tips row is NOT a category. It raises a centred dialog and must
- *     leave the body it was pressed from exactly where it was — the one row in
- *     the list whose press means something different from all the others.
+ *   - every row has a body. #2757 removed the empty briefing / materials rows
+ *     and the Tips dialog, so no row may fall through to a blank column.
  *
  * `RightSidebarPortal` is stubbed to render inline, the way the other Settings
  * suites do: without a RightSidebarProvider the real one renders nothing, and
@@ -102,12 +101,9 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
 const ROWS = [
   "settings.tabs.profile",
   "settings.tabs.general",
-  "section.briefing",
   "section.schedule",
-  "section.materials",
   "settings.tabs.claude",
   "settings.tabs.trash",
-  "settings.tabs.tips",
 ];
 
 const nav = () =>
@@ -142,7 +138,7 @@ beforeEach(() => {
 });
 
 describe("SettingsScreen — the category list (#1174)", () => {
-  it("lists the rows in order, with Trash then Tips last", async () => {
+  it("lists the rows in order, with Trash last", async () => {
     await renderSettings();
 
     expect(rowLabels()).toEqual(ROWS);
@@ -171,13 +167,18 @@ describe("SettingsScreen — the category list (#1174)", () => {
     expect(generalOnScreen()).toBe(false);
   });
 
-  it("gives a category with no settings yet a reason rather than a blank column", async () => {
+  // #2757: the briefing / materials rows only ever said "settings will land
+  // here", and Tips was a dialog of sample text. None of them may come back.
+  it("offers no empty category and no Tips row", async () => {
     await renderSettings();
 
-    pressRow("section.materials");
-
-    screen.getByText("settings.placeholder.message");
-    expect(generalOnScreen()).toBe(false);
+    for (const gone of [
+      "section.briefing",
+      "section.materials",
+      "settings.tabs.tips",
+    ]) {
+      expect(screen.queryByRole("button", { name: gone })).toBeNull();
+    }
   });
 
   /*
@@ -201,7 +202,7 @@ describe("SettingsScreen — the category list (#1174)", () => {
   it("comes back to General", async () => {
     await renderSettings();
 
-    pressRow("section.materials");
+    pressRow("section.schedule");
     pressRow("settings.tabs.general");
 
     expect(generalOnScreen()).toBe(true);
@@ -211,7 +212,7 @@ describe("SettingsScreen — the category list (#1174)", () => {
    * The AI card moved out of General into a row of its own. Both halves are
    * worth pinning: it is no longer on General (where four other suites used to
    * find it by rendering the screen and looking), and the new row shows the
-   * card rather than the empty-category placeholder.
+   * card.
    */
   it("shows the AI card under Claude and no longer under General", async () => {
     await renderSettings();
@@ -221,7 +222,6 @@ describe("SettingsScreen — the category list (#1174)", () => {
     pressRow("settings.tabs.claude");
 
     screen.getByText("settings.ai.heading");
-    expect(screen.queryByText("settings.placeholder.message")).toBeNull();
     expect(generalOnScreen()).toBe(false);
   });
 });
@@ -232,11 +232,10 @@ describe("SettingsScreen — the category list (#1174)", () => {
  * The row is not a preference card: it opens a PLACE, and it opens it inside a
  * screen that used to render nothing but pure primitives. Three things have to
  * hold for the move to be a move rather than a loss — the row exists, pressing
- * it brings the actual trash view up (not the "nothing here yet" placeholder
- * every other empty category gets), and General goes away while it is up.
+ * it brings the actual trash view up, and General goes away while it is up.
  */
 describe("SettingsScreen — the Trash category (#1293)", () => {
-  it("shows the trash view, not the empty-category placeholder", async () => {
+  it("shows the trash view", async () => {
     await renderSettings();
 
     pressRow("settings.tabs.trash");
@@ -245,7 +244,6 @@ describe("SettingsScreen — the Trash category (#1293)", () => {
     screen.getByText("settings.trash.heading");
     // TrashView's own global empty state — proof the real view mounted.
     screen.getByText("trash.empty");
-    expect(screen.queryByText("settings.placeholder.message")).toBeNull();
     expect(generalOnScreen()).toBe(false);
   });
 
@@ -285,45 +283,6 @@ describe("SettingsScreen — the Schedule category (#1174)", () => {
   });
 });
 
-describe("SettingsScreen — the Tips row (#1174)", () => {
-  it("raises a centred dialog instead of swapping the body", async () => {
-    await renderSettings();
-
-    expect(screen.queryByRole("dialog")).toBe(null);
-    pressRow("settings.tabs.tips");
-
-    screen.getByRole("dialog", { name: "settings.tabs.tips" });
-    // The category underneath is untouched — Tips is not a category.
-    expect(generalOnScreen()).toBe(true);
-    expect(
-      screen
-        .getByRole("button", { name: "settings.tabs.general" })
-        .getAttribute("aria-current"),
-    ).toBe("page");
-  });
-
-  // #2719 removed the command palette, so its tip would point at nothing.
-  it("no longer advertises the command palette", async () => {
-    await renderSettings();
-    pressRow("settings.tabs.tips");
-
-    const dialog = screen.getByRole("dialog", { name: "settings.tabs.tips" });
-    const text = dialog.textContent ?? "";
-    expect(text.includes("settings.detail.tips.palette")).toBe(false);
-    expect(text.includes("settings.detail.tips.immediate.title")).toBe(true);
-  });
-
-  it("closes again, leaving the body it was opened over", async () => {
-    await renderSettings();
-
-    pressRow("settings.tabs.tips");
-    fireEvent.click(screen.getByRole("button", { name: "common.close" }));
-
-    expect(screen.queryByRole("dialog")).toBe(null);
-    expect(generalOnScreen()).toBe(true);
-  });
-});
-
 /*
  * #1525 — the list gets out of the way on narrow.
  *
@@ -336,8 +295,6 @@ describe("SettingsScreen — the Tips row (#1174)", () => {
  * The width is the whole condition, so both directions are pinned here: a
  * narrow press closes the panel, a wide press must NOT (closing a pinned
  * column would take the navigation away from a screen whose navigation it is).
- * Tips is the third case — a modal, not a pane — and it leaves the list up so
- * dismissing it hands the reader back to where they pressed from.
  */
 describe("SettingsScreen — the narrow drawer (#1525)", () => {
   it("closes the drawer when a category is chosen on narrow", async () => {
@@ -390,14 +347,6 @@ describe("SettingsScreen — the narrow drawer (#1525)", () => {
     expect(state.rightSidebar.close).not.toHaveBeenCalled();
   });
 
-  it("leaves the drawer up for Tips, which is a modal rather than a pane", async () => {
-    state.isWide = false;
-    await renderSettings();
-
-    pressRow("settings.tabs.tips");
-
-    expect(state.rightSidebar.close).not.toHaveBeenCalled();
-  });
 });
 
 /*

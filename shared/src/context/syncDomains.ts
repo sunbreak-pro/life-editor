@@ -107,8 +107,6 @@ export const TABLE_DOMAIN: Readonly<Record<string, SyncDomain>> = {
   dailies_payload: "dailies",
   events_payload: "schedule",
   routines_payload: "schedule",
-  routine_groups: "schedule",
-  routine_group_assignments: "schedule",
   // (`calendars` sat here until #1277 dropped the table — #1173 had already
   // removed the code, leaving a silent subscription that routed to `schedule`.
   // Both lists lost it together; the lockstep test would fail if either had
@@ -123,8 +121,6 @@ export const TABLE_DOMAIN: Readonly<Record<string, SyncDomain>> = {
   // #993: its own domain — see SYNC_DOMAINS.
   timer_sessions: "sessions",
   sound_settings: "audio",
-  playlists: "audio",
-  playlist_items: "audio",
   // #2101 (0034)
   goals_payload: "goals",
   goal_todo_links: "goals",

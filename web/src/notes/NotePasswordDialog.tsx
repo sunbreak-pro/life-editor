@@ -9,10 +9,9 @@ import {
 } from "@life-editor/shared";
 
 /*
- * Note password / edit-lock dialog (S3, required incl. UI). Wires the
- * shared DataService-backed actions exposed on `useNotesUnifiedContext`:
- *   - setNotePassword / removeNotePassword / verifyNotePassword
- *   - toggleEditLock
+ * Note password dialog (S3, required incl. UI). Wires the shared
+ * DataService-backed actions exposed on `useNotesUnifiedContext`:
+ * setNotePassword / removeNotePassword / verifyNotePassword.
  *
  * Accessibility (CLAUDE.md §6 / coding-principles):
  *   - role="dialog" + aria-modal + labelled by the heading

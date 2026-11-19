@@ -1,6 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
-  Lightbulb,
   PanelRightOpen,
   SlidersHorizontal,
   Terminal,
@@ -20,9 +19,7 @@ import {
   SettingsDayStart,
   SettingsReset,
   SettingsTabsNav,
-  SettingsDetailPanel,
   EmptyState,
-  Modal,
   Button,
   getSession,
   RightSidebarPortal,
@@ -76,14 +73,11 @@ import { AttachmentCleanupCard } from "../trash/AttachmentCleanupCard";
  * Standard v2, #209); width + gutter + scroll are owned by the PageContainer
  * wrapper in MainScreen.
  *
- * #1174 turned the screen into CATEGORIES. The rightSidebar face used to hold
- * an appearance preview + tips; it now holds the category list, and the body
- * below shows one category at a time:
+ * #1174 turned the screen into CATEGORIES. The rightSidebar face holds the
+ * category list, and the body below shows one category at a time:
  *
  *   General — every preference that was already here, in the order it was in
  *   Schedule — the initial calendar view (the first per-section preference)
- *   briefing / materials — receptacles, so the list is the
- *     whole map of what Settings will cover rather than only what exists today
  *   Claude — the MCP connection, its tool catalog and the Claude Code
  *     launcher. App-wide like General, so it sits after the per-section rows
  *     rather than under one of them.
@@ -91,9 +85,9 @@ import { AttachmentCleanupCard } from "../trash/AttachmentCleanupCard";
  *     sidebar section of its own, which spent a permanent nav row (and a
  *     mobile More slot) on somewhere you visit to undo something. The view is
  *     unchanged — the same <TrashScreen> renders under this row.
- *   Tips — not a category at all: the last row raises the old preview + tips
- *     panel in the CENTRE of the screen, which is where something you read
- *     belongs (it was competing with the controls for the same 320px column).
+ *
+ * #2757 removed the empty briefing / materials rows, which only said
+ * "settings will land here", and the Tips dialog.
  *
  * The Shortcuts card stays Desktop-only (ShortcutConfig is a Mobile 省略
  * Provider — §2) and the Reset card still owns the destructive confirm +
@@ -101,7 +95,7 @@ import { AttachmentCleanupCard } from "../trash/AttachmentCleanupCard";
  */
 
 /** Category ids, in the order the rightSidebar lists them (#1174). */
-const SECTION_TAB_IDS = ["briefing", "schedule", "materials"] as const;
+const SECTION_TAB_IDS = ["schedule"] as const;
 
 type SettingsTabId =
   "profile" | "general" | "trash" | "claude" | (typeof SECTION_TAB_IDS)[number];
@@ -112,9 +106,6 @@ type SettingsTabId =
  * app behaves, and it is where the sidebar's account row lands.
  */
 const PROFILE_TAB_ID = "profile";
-
-/** The one row that opens a dialog instead of swapping the body. */
-const TIPS_ROW_ID = "tips";
 
 /** The row that shows the Trash view rather than a set of preferences (#1293). */
 const TRASH_TAB_ID = "trash";
@@ -144,7 +135,6 @@ export function SettingsScreen({
 }: SettingsScreenProps = {}) {
   const { t } = useTranslation();
   const {
-    theme,
     themeMode,
     fontSize,
     fontFamily,
@@ -217,7 +207,6 @@ export function SettingsScreen({
       if (el.scrollTop !== 0) el.scrollTop = 0;
     }
   }, [tab]);
-  const [tipsOpen, setTipsOpen] = useState(false);
 
   /*
    * #1174: the detail panel is this screen's NAVIGATION now, not a decoration
@@ -257,16 +246,6 @@ export function SettingsScreen({
     step: fontSize,
     max: 10,
   });
-  // Detail-summary theme label reflects the CHOICE (system shows "System",
-  // otherwise the resolved light/dark). `theme` (resolved) still drives the
-  // preview surface itself.
-  const themeLabel =
-    themeMode === "system"
-      ? t("settings.themeSystem")
-      : theme === "light"
-        ? t("settings.light")
-        : t("settings.dark");
-
   // Startup options: the "resume" entry first, then the mainline content
   // sections only (MAIN_SECTIONS — utility sections trash/settings are not
   // sensible landing screens). All resolved to translated copy here (§6.4).
@@ -282,11 +261,11 @@ export function SettingsScreen({
   );
 
   /*
-   * The category list. The five per-section rows take their icon AND their
+   * The category list. The per-section rows take their icon AND their
    * label key from the section registry (sections.ts SSOT) rather than a
    * second literal list here, so a settings category cannot end up wearing a
-   * different glyph or name than the sidebar row it belongs to. General and
-   * Tips are this screen's own, so they bring their own.
+   * different glyph or name than the sidebar row it belongs to. General is
+   * this screen's own, so it brings its own.
    */
   const tabs: SettingsTabItem[] = useMemo(() => {
     const sectionRows = SECTION_TAB_IDS.map((id) => {
@@ -296,7 +275,7 @@ export function SettingsScreen({
         id,
         // No defaultValue: `labelKey` is typed as the catalog's key union
         // (#726), so a section whose label was never translated is a compile
-        // error rather than a row that quietly says "materials".
+        // error rather than a row that quietly says "schedule".
         label: def ? t(def.labelKey) : id,
         icon: Icon ? <Icon size={16} /> : null,
       };
@@ -315,26 +294,18 @@ export function SettingsScreen({
       ...sectionRows,
       // Claude closes the "what this app does" half of the list: app-wide like
       // General, but a subject of its own rather than a preference, so it goes
-      // after the per-section rows and before the two ways out below.
+      // after the per-section rows and before the way out below.
       {
         id: CLAUDE_TAB_ID,
         label: t("settings.tabs.claude"),
         icon: <Terminal size={16} />,
       },
-      // Trash sits after the per-section rows and before Tips: it is the one
-      // row that opens a place rather than a set of preferences, and Tips is
-      // the one row that opens a dialog. Both belong at the end, in that
-      // order — the list stays "settings, then the ways out of it".
+      // Trash sits last: it is the one row that opens a place rather than a
+      // set of preferences — the list stays "settings, then the way out of it".
       {
         id: TRASH_TAB_ID,
         label: t("settings.tabs.trash"),
         icon: <Trash2 size={16} />,
-      },
-      {
-        id: TIPS_ROW_ID,
-        label: t("settings.tabs.tips"),
-        icon: <Lightbulb size={16} />,
-        opensPanel: true,
       },
     ];
   }, [t]);
@@ -536,23 +507,6 @@ export function SettingsScreen({
   );
   const passwordForm = usePasswordUpdate(passwordMessages);
 
-  const detailTodos = [
-    { label: t("settings.detail.todos.shopping"), done: false },
-    { label: t("settings.detail.todos.coffee"), done: true },
-    { label: t("settings.detail.todos.dinner"), done: false },
-  ];
-
-  const detailTips = [
-    {
-      title: t("settings.detail.tips.immediate.title"),
-      body: t("settings.detail.tips.immediate.body"),
-    },
-    {
-      title: t("settings.detail.tips.fontSize.title"),
-      body: t("settings.detail.tips.fontSize.body"),
-    },
-  ];
-
   /*
    * The DataService for the Trash body (#1293) and the export card (#1988). Settings is a HOST, so calling
    * the singleton here is allowed (§6.4) — but `getDataService()` THROWS
@@ -573,17 +527,6 @@ export function SettingsScreen({
 
   const cardClass =
     "rounded-lumen-lg border border-lumen-border bg-lumen-bg p-5 shadow-lumen-sm md:px-6";
-
-  // A category with nothing in it yet still gets a card, not a blank column:
-  // the row is reachable from the list, so it has to say WHY it is empty.
-  const placeholder = (
-    <div className={cardClass}>
-      <EmptyState
-        icon={<SlidersHorizontal />}
-        message={t("settings.placeholder.message")}
-      />
-    </div>
-  );
 
   return (
     <div ref={bodyRef} className="flex flex-col gap-6 pb-12">
@@ -936,29 +879,12 @@ export function SettingsScreen({
         </>
       )}
 
-      {tab !== PROFILE_TAB_ID &&
-        tab !== "general" &&
-        tab !== "schedule" &&
-        tab !== TRASH_TAB_ID &&
-        tab !== CLAUDE_TAB_ID &&
-        placeholder}
-
       <RightSidebarPortal>
         <SettingsTabsNav
           className="p-3"
           tabs={tabs}
           value={tab}
           onSelect={(id) => {
-            if (id === TIPS_ROW_ID) {
-              /*
-               * Tips is a modal, not a pane, so the drawer stays where it is:
-               * the modal covers it anyway, and dismissing the modal should
-               * hand the list back rather than drop the reader into whatever
-               * pane happened to be selected before.
-               */
-              setTipsOpen(true);
-              return;
-            }
             setTab(id as SettingsTabId);
             setAiEditorOpen(false);
             /*
@@ -974,40 +900,6 @@ export function SettingsScreen({
           label={t("settings.tabs.navLabel")}
         />
       </RightSidebarPortal>
-
-      {/*
-       * Tips, centred (#1174). The same panel the rightSidebar used to hold —
-       * its live appearance preview reads the SAME `fontSize` / `themeMode`
-       * the cards above write, so opening it after a change shows the change.
-       */}
-      <Modal
-        open={tipsOpen}
-        onClose={() => setTipsOpen(false)}
-        title={t("settings.tabs.tips")}
-        size="lg"
-        padded={false}
-      >
-        <SettingsDetailPanel
-          fontPx={px}
-          todos={detailTodos}
-          tips={detailTips}
-          labels={{
-            previewHeading: t("settings.detail.previewHeading"),
-            windowTitle: t("settings.detail.windowTitle"),
-            previewTitle: t("settings.detail.previewTitle"),
-            appearanceSummary: t("settings.detail.appearanceSummary", {
-              theme: themeLabel,
-              fontValue: fontSizeValue,
-            }),
-            tipsHeading: t("settings.detail.tipsHeading"),
-          }}
-        />
-        <div className="flex justify-end px-5 pb-5">
-          <Button variant="secondary" onClick={() => setTipsOpen(false)}>
-            {t("common.close")}
-          </Button>
-        </div>
-      </Modal>
 
       {confirmRequest && (
         <ConfirmDialog

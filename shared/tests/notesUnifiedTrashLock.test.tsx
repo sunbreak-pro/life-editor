@@ -10,7 +10,7 @@ import type { NoteNode } from "../src/types/note";
 
 /*
  * #587 split guard: these paths (soft-delete cascade, Trash trio, pin,
- * password gate, edit lock) had no hook-level pin before the
+ * password gate) had no hook-level pin before the
  * useNotesUnifiedAPI split — only the service beneath them is covered by
  * SupabaseNotesUnifiedService.test.ts. Written against the pre-split hook so
  * the extraction has a green baseline to preserve.
@@ -196,7 +196,7 @@ describe("togglePin", () => {
   });
 });
 
-describe("password gate and edit lock", () => {
+describe("password gate", () => {
   it("setNotePassword / removeNotePassword flip hasPassword on the row", async () => {
     const setNotePasswordUnified = vi.fn(async (id: string) =>
       makeNote(id, { hasPassword: true }),
@@ -240,22 +240,5 @@ describe("password gate and edit lock", () => {
     expect(ok).toBe(true);
     expect(verifyNotePasswordUnified).toHaveBeenCalledWith("note-1", "pw");
     expect(getNoteBodyUnified).toHaveBeenCalledWith("note-1");
-  });
-
-  it("toggleEditLock adopts the lock state the service returns", async () => {
-    const toggleNoteEditLockUnified = vi.fn(async (id: string) =>
-      makeNote(id, { isEditLocked: true }),
-    );
-    const ds = makeDS({
-      listNotesUnified: async () => [makeNote("note-1")],
-      toggleNoteEditLockUnified,
-    });
-    const hook = await renderLoaded(ds);
-
-    await act(async () => {
-      await hook.result.current.toggleEditLock("note-1");
-    });
-    expect(hook.result.current.notes[0]?.isEditLocked).toBe(true);
-    expect(toggleNoteEditLockUnified).toHaveBeenCalledWith("note-1");
   });
 });
