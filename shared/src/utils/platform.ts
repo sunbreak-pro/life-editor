@@ -11,35 +11,6 @@ const ua =
 export const isMac = /Mac|iPhone|iPad/.test(ua);
 
 /*
- * Native-mobile detection (Phase 4 — Capacitor wrapper).
- *
- * The SAME `web/` Vite bundle is shipped to the browser, Electron, and the
- * Capacitor iOS/Android shells (Capacitor wraps `web/dist`). To let the host
- * gate the Mobile 省略 Providers (roster = CLAUDE.md §2) only on the native
- * shells, the host needs a runtime check bundled into the shared web build.
- *
- * Wired (#320): `web/src/AppProviders.tsx` (ShortcutConfigHost) gates the
- * ShortcutConfigProvider on this.
- *
- * Deliberately reads the `window.Capacitor` runtime global instead of
- * `import { Capacitor } from "@capacitor/core"`: shared/ MUST stay free of any
- * `@capacitor/*` import so the cross-platform invariant holds (a mobile-only
- * dependency must never leak into the browser/Electron dependency graph).
- * Capacitor injects `window.Capacitor` only inside the native WebView, so this
- * returns false everywhere else (browser, Electron, SSR / test runs — `window`
- * is guarded).
- */
-interface CapacitorGlobal {
-  isNativePlatform?: () => boolean;
-}
-
-export function isNativeMobile(): boolean {
-  if (typeof window === "undefined") return false;
-  const cap = (window as unknown as { Capacitor?: CapacitorGlobal }).Capacitor;
-  return cap?.isNativePlatform?.() ?? false;
-}
-
-/*
  * macOS desktop-shell detection (#1590).
  *
  * The narrow question `isMac` cannot answer. `isMac` reads the userAgent, which

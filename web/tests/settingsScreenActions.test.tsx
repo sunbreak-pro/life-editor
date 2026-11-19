@@ -63,8 +63,8 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
       setReduceMotion: state.setReduceMotion,
       setLanguage: state.setLanguage,
     }),
-    // Null is the honest value on the native mobile shells, where the Provider
-    // is skipped (#320) — and it keeps the shortcut table out of these renders.
+    // Null is what the hook returns outside ShortcutConfigProvider, and it
+    // keeps the shortcut table out of these renders.
     useShortcutConfig: () => null,
     useStartupSectionPref: () => ({
       pref: "last",

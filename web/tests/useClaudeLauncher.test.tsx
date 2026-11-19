@@ -51,8 +51,8 @@ afterEach(() => {
 
 describe("useClaudeLauncher", () => {
   it("reports unavailable without the desktop bridge", async () => {
-    // The browser and the Capacitor shells. `available` is what withholds the
-    // sidebar row and the Settings field on both.
+    // The browser. `available` is what withholds the sidebar row and the
+    // Settings field there.
     delete (window as unknown as { desktop?: unknown }).desktop;
     const { result } = renderHook(() => useClaudeLauncher());
 

@@ -90,5 +90,4 @@
 
 ## 6. 別枠メモ（本スコープ表の対象外・別 Issue で処理）
 
-- Mobile 省略ガードは #320 で配線済み: web ホストが `isNativeMobile()` で ShortcutConfig Provider を native 省略する。Audio と Timer の Provider は #2717 で Work セクションごと削除した。規約 = `.claude/rules/frontend.md` §Provider 順序・大方針 = CLAUDE.md §2。
-- **ただし native 省略ガードが発火するのは Capacitor 殻だけ**（2026-08-10 実測 #589）: `shared/src/utils/platform.ts:38-41` は `window.Capacitor` を見るので、スマホのブラウザでは常に false。CLAUDE.md §2 / #600 で**主導線は公開 Web URL**と確定しているため、主経路で実際に機能を隠しているのは幅分岐のほう（Shortcuts カード = `SettingsScreen.tsx:294` の `isWide &&`、Ambient mixer = `WorkScreen.tsx:321` の narrow 早期 return）。native ガードは副経路の二重装備という位置づけで読むこと。
+- スマホで機能を隠すのは画面幅の分岐だけです（Shortcuts カードは `SettingsScreen.tsx` の `isWide &&`）。iOS / Android の殻（`mobile/`）で ShortcutConfig Provider を省く分岐（#320）は、殻とともに #2760 で消しました。スマホからは公開 Web URL をブラウザで開いて使います（CLAUDE.md §2 / #600）。Audio と Timer の Provider は #2717 で Work セクションごと削除しました。規約 = `.claude/rules/frontend.md` §Provider 順序・大方針 = CLAUDE.md §2。

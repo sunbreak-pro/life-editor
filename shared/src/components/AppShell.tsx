@@ -44,8 +44,7 @@ export interface AppShellLabels {
   /**
    * "Launch Claude Code" sidebar footer row (#1211) — wide layout only, and
    * only on the desktop shell. There is no narrow counterpart on purpose: the
-   * launcher starts a CLI on the machine, which the Capacitor shells and the
-   * browser do not have.
+   * launcher starts a CLI on the machine, which the browser does not have.
    */
   launchClaude?: string;
   /**
@@ -256,7 +255,7 @@ export function AppShell({
      * children and the existing header rows keep every click they had. The
      * shell's own y offset centers the buttons in it (see main/index.ts).
      *
-     * Non-mac hosts (browser, Windows / Linux shells, Capacitor) render the
+     * Non-mac hosts (browser, Windows / Linux shells) render the
      * same tree as before: `body` is a fragment, so the wrapper below is the
      * only difference and it does not exist for them.
      *

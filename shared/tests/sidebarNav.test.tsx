@@ -50,8 +50,8 @@ function renderSidebar(props?: Partial<Parameters<typeof SidebarNav>[0]>) {
 
 describe("SidebarNav Claude launcher row (#1211)", () => {
   it("stays out of the sidebar without a handler", () => {
-    // Withholding the handler is how the browser and the Capacitor shells opt
-    // out — there is no CLI on those devices to launch.
+    // Withholding the handler is how the browser opts out — there is no CLI
+    // behind a browser tab to launch.
     renderSidebar({ labels: { ...LABELS, launchClaude: "Start Claude Code" } });
     expect(
       screen.queryByRole("button", { name: "Start Claude Code" }),

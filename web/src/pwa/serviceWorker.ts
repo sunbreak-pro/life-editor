@@ -1,5 +1,3 @@
-import { isNativeMobile } from "@life-editor/shared";
-
 /*
  * Registers the Service Worker on the public web build (#2334 — plan P1c step
  * 2) and offers a new version when one is waiting.
@@ -58,14 +56,13 @@ export function applyAppUpdate(): void {
 }
 
 /**
- * Web only: not the iOS shell, not Desktop, and only over http(s), which also
- * rules out `file://` and `capacitor://`. A dev server is left alone as well:
+ * Web only: not Desktop, and only over http(s), which also rules out the
+ * packaged Desktop's `file://`. A dev server is left alone as well:
  * the plugin writes no worker there, and its 404 would only fail noisily.
  */
 export function shouldRegisterServiceWorker(isProduction: boolean): boolean {
   if (!isProduction) return false;
   if (!("serviceWorker" in navigator)) return false;
-  if (isNativeMobile()) return false;
   if ("desktop" in window || /\bElectron\b/.test(navigator.userAgent))
     return false;
   const { protocol } = window.location;

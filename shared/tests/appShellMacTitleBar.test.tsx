@@ -10,7 +10,7 @@ import { AppShell, type AppShellSection } from "../src/components";
  * own; the same strip is what the window is dragged by, a frameless window
  * having nothing else to grab. Both halves are asserted here: that the band
  * appears for the macOS shell, and — the part that protects Web / Windows /
- * Capacitor — that it appears for nobody else.
+ * Linux — that it appears for nobody else.
  *
  * jsdom has no layout, so its 28px is not observable here (the band's height is
  * pinned against the shell's own offset in desktop/tests/macTitleBar.test.ts).
@@ -119,7 +119,7 @@ describe("AppShell macOS title-bar band (#1590)", () => {
 
   it("does not reach the narrow layout", () => {
     // The desktop window's minWidth is 800 (main/index.ts), so the narrow
-    // branch is a phone / Capacitor concern where there are no traffic lights.
+    // branch is a phone browser concern where there are no traffic lights.
     mockMatchMedia(false);
     win.desktop = { platform: "darwin" };
     renderShell();

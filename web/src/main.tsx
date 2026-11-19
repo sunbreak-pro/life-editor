@@ -17,8 +17,8 @@ import { registerAppServiceWorker } from "./pwa/serviceWorker";
 // every later start is a no-op.
 migrateLegacyPreferenceKeys();
 
-// #2334: public web only. The check is inside, as the same bundle runs in the
-// iOS shell and in Desktop. Waits for nothing, so it costs the first frame nothing.
+// #2334: public web only. The check is inside, as the same bundle runs in
+// Desktop. Waits for nothing, so it costs the first frame nothing.
 registerAppServiceWorker();
 
 // I18nProvider wraps the app so every screen can call useTranslation against

@@ -8,10 +8,10 @@ import type {
 
 /*
  * ShortcutConfig context value (W1). Ported from the FROZEN
- * `frontend/src/context/ShortcutConfigContextValue.ts`. This is a Mobile
- * 省略 Provider (CLAUDE.md §2) — consumers read it through the OPTIONAL hook
- * (`useShortcutConfig`) and tolerate a null result when the Provider is not
- * mounted (iOS/Android). The context default is therefore `null`.
+ * `frontend/src/context/ShortcutConfigContextValue.ts`. Consumers read it
+ * through the OPTIONAL hook (`useShortcutConfig`) and tolerate a null result
+ * when the Provider is not mounted (trees rendered without AppProviders, such
+ * as isolated tests). The context default is therefore `null`.
  */
 export interface ShortcutConfigContextValue {
   /** Effective binding (override ?? default). */

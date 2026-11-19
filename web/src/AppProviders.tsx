@@ -1,6 +1,5 @@
 import type { ComponentProps, ReactNode } from "react";
 import {
-  isNativeMobile,
   useTranslation,
   ItemPanelProvider,
   RightSidebarProvider,
@@ -89,7 +88,7 @@ export function AppProviders({
         />
         <ScheduleReminderBridge dataService={dataService} />
         <UndoRedoHost userId={userId}>
-          <ShortcutConfigHost>
+          <ShortcutConfigProvider>
             <GlobalShortcuts {...shortcuts} />
             <RightSidebarProvider>
               <ItemPanelProvider>
@@ -97,25 +96,9 @@ export function AppProviders({
                 <ItemPanelHost dataService={dataService} />
               </ItemPanelProvider>
             </RightSidebarProvider>
-          </ShortcutConfigHost>
+          </ShortcutConfigProvider>
         </UndoRedoHost>
       </SyncProvider>
     </ToastProvider>
   );
-}
-
-/*
- * Mobile 省略 Provider gate (#320 — CLAUDE.md §2). The SAME web bundle ships
- * to browser / Electron / Capacitor, so the omission is a runtime decision:
- * on the native mobile shells (`isNativeMobile()` — window.Capacitor present)
- * this renders children WITHOUT the Provider. Consumers stay safe because the
- * context exposes an OPTIONAL hook (useShortcutConfig → null outside a
- * Provider, coding-principles §4): the shortcut executor goes inert and
- * Settings hides the Shortcuts card. `isNativeMobile()` reads a runtime global
- * that never changes within a page load, so evaluating it during render is
- * stable (no reactivity needed).
- */
-function ShortcutConfigHost({ children }: { children: ReactNode }) {
-  if (isNativeMobile()) return <>{children}</>;
-  return <ShortcutConfigProvider>{children}</ShortcutConfigProvider>;
 }

@@ -12,8 +12,8 @@ import { SettingsScreen } from "../src/settings/SettingsScreen";
  * pins the same three things for the shortcut card — the press opens the
  * question and moves nothing, No leaves it that way, Yes resets once.
  *
- * The other Settings suites stub useShortcutConfig to null (the native mobile
- * value), which hides the card entirely; this one hands it a live stub.
+ * The other Settings suites stub useShortcutConfig to null (the value outside
+ * the Provider), which hides the card entirely; this one hands it a live stub.
  *
  * No jest-dom in web/ — presence comes from getBy* throwing, absence from
  * queryBy* being null.

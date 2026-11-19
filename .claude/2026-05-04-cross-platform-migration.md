@@ -1,8 +1,8 @@
 ---
-Status: ACTIVE — Phase 2 完了（2026-06-05 / PR #43・#44 + tracker commit 5b3021c。S0-S7 / perf / RLS 達成）。Phase 2↔3 間 Data Unification レーンは完了（DU-G G1-G4 = PR #29/#30/#31/#36 全 merge・計画書は archive 済）。**Phase 3（Electron 包装 #79）= 完了**（Windows 実機 golden path #530・2026-08-13 / macOS 実機受け入れ #1301・2026-09-07。Linux AppImage の実ビルドだけ未実測）。Phase 4（Capacitor 包装 #88）は scaffold merged（`desktop/` `mobile/` 実在）。Web URL は公開済み（#600・2026-08-09・Cloudflare Workers）。デスクトップ配布のパッケージングは #1300 / #1301 + `docs/vision/plans/2026-08-30-desktop-app-packaging.md` へ。最新 Phase 状況は `memory/INDEX.md`（per-chat）+ 各 Phase 計画書 + git 履歴が正本（旧 MEMORY.md は 2026-05-23 凍結）。本ファイルは commit 60f5f63 で誤削除→2026-05-17 git 履歴から復元。**Phase 5 完了判定は 2026-09-23 に書き換え済み（D-20260923-main-1）**: 自動更新を条件から外して「完成後の判断」へ移し、MCP の条件を Desktop 殻の起動導線 + Remote MCP に置き換え、Phase 4（Capacitor ネイティブ殻）は完成条件から外した
+Status: ACTIVE — Phase 2 完了（2026-06-05 / PR #43・#44 + tracker commit 5b3021c。S0-S7 / perf / RLS 達成）。Phase 2↔3 間 Data Unification レーンは完了（DU-G G1-G4 = PR #29/#30/#31/#36 全 merge・計画書は archive 済）。**Phase 3（Electron 包装 #79）= 完了**（Windows 実機 golden path #530・2026-08-13 / macOS 実機受け入れ #1301・2026-09-07。Linux AppImage の実ビルドだけ未実測）。Phase 4（Capacitor 包装 #88）は取りやめ、scaffold の `mobile/` は #2760 で削除した（2026-11-19）。Web URL は公開済み（#600・2026-08-09・Cloudflare Workers）。デスクトップ配布のパッケージングは #1300 / #1301 + `docs/vision/plans/2026-08-30-desktop-app-packaging.md` へ。最新 Phase 状況は `memory/INDEX.md`（per-chat）+ 各 Phase 計画書 + git 履歴が正本（旧 MEMORY.md は 2026-05-23 凍結）。本ファイルは commit 60f5f63 で誤削除→2026-05-17 git 履歴から復元。**Phase 5 完了判定は 2026-09-23 に書き換え済み（D-20260923-main-1）**: 自動更新を条件から外して「完成後の判断」へ移し、MCP の条件を Desktop 殻の起動導線 + Remote MCP に置き換え、Phase 4（Capacitor ネイティブ殻）は完成条件から外した
 Created: 2026-05-04
-Updated: 2026-09-23
-Task: クロスプラットフォーム移行 — Tauri / Cloudflare 構成 → Vite + React + TS + Supabase + Electron + Capacitor
+Updated: 2026-11-19
+Task: クロスプラットフォーム移行 — Tauri / Cloudflare 構成 → Vite + React + TS + Supabase + Electron（Capacitor は #2760 で取りやめ）
 Project path: マシンごとに異なる（Mac / Windows でクローン位置が違うため固定パスは書かない）
 Branch: main（2026-05〜集約済み。旧 refactor/web-first-v2 は PR #3-9 merge 済で廃止 — CLAUDE.md ヘッダ参照）
 Supersedes:
@@ -16,7 +16,7 @@ Related:
   - `2026-04-26-windows-android-port.md`（削除済・逐語は git 履歴参照）— Tauri ベースの Windows/Android 配布計画。本プランで完全に置換される
 ---
 
-# Plan: クロスプラットフォーム移行（Electron / Capacitor / Web）
+# Plan: クロスプラットフォーム移行（Electron / Web）
 
 ## 0. 2026-05-14 方針更新（最重要）
 
@@ -32,11 +32,11 @@ Related:
 | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **やりながら学ぶ**     | 学習スパイクは廃止。`life-editor` リポジトリ本体で `shared/` を立てて、本物のデータで動かしながら理解する。詰まったら都度 AI に質問・調査                                                                                        |
 | **学習ログを書かない** | `.claude/learning/` への Day ごと Markdown 蓄積は廃止。必要な知識は実装失敗やコードレビューを通じて身に付ける                                                                                                                    |
-| **完成まで $0 厳守**   | Phase 5 完了 = 「完成」と定義。それまで Supabase 無料枠 / Cloudflare 無料 / GitHub 無料 / Electron 未署名配布 / 無料 Apple ID 7 日署名 のみ使用。Apple Developer Program / Supabase Pro / Windows 署名証明書は **完成後** に判断 |
+| **完成まで $0 厳守**   | Phase 5 完了 = 「完成」と定義。それまで Supabase 無料枠 / Cloudflare 無料 / GitHub 無料 / Electron 未署名配布 のみ使用。Apple Developer Program / Supabase Pro / Windows 署名証明書は **完成後** に判断 |
 
 旧 Phase 0（学習スパイク 2.5 週）は本改訂で削除。Phase 番号は繰り上げない（旧 Phase 1 → 新 Phase 1）。
 
-**2026-06-07 追補（UI 集約方針 = W0 確定）**: Web/Desktop 機能差を埋める作業（計画書 `archive/2026-06-07-web-desktop-parity-roadmap.md`・#154 で完了 archive）で UI 共通化を **「2 層モデル」**＝部品層は `shared/src/components/` に完全共通集約・画面層は機能別に単一/分割、と確定（案 A）。デザインシステム + `lumen-*` トークン（#135 で `ink-*` から改名） + **i18n（en/ja catalog + i18next）** を `shared/` に集約し、3 配布形態（Electron/Capacitor/Web）が共用する。詳細原則は `docs/vision/coding-principles.md §6`。本書 Phase 2 の `frontend/src/i18n/ → shared/src/i18n/` は W0 で先行移植済（catalog を `frontend` から全量コピー、frontend は FROZEN のまま不変）。
+**2026-06-07 追補（UI 集約方針 = W0 確定）**: Web/Desktop 機能差を埋める作業（計画書 `archive/2026-06-07-web-desktop-parity-roadmap.md`・#154 で完了 archive）で UI 共通化を **「2 層モデル」**＝部品層は `shared/src/components/` に完全共通集約・画面層は機能別に単一/分割、と確定（案 A）。デザインシステム + `lumen-*` トークン（#135 で `ink-*` から改名） + **i18n（en/ja catalog + i18next）** を `shared/` に集約し、配布形態（当時は Electron/Capacitor/Web の 3 つ。Capacitor は #2760 で取りやめ、今は Electron/Web の 2 つ）が共用する。詳細原則は `docs/vision/coding-principles.md §6`。本書 Phase 2 の `frontend/src/i18n/ → shared/src/i18n/` は W0 で先行移植済（catalog を `frontend` から全量コピー、frontend は FROZEN のまま不変）。
 
 ---
 
@@ -48,14 +48,13 @@ Related:
 
 「自宅でも外でもメモ・タスク・スケジュールを読み書きし、AI に分析させる」という Vision の本質は、プラットフォーム多様性ではなく **どこからでもアクセスできるデータ層**。
 
-旧 Web First プランでは Web URL 単体配信を主軸に置いたが、ユーザー要件再確認（2026-05-04）の結果、**Desktop（macOS/Windows/Linux）が主、Mobile（iOS/Android）が従、Web URL も公開可能** という優先順位が確定。これに合わせて単一 React コードベースを Electron / Capacitor / Web の 3 包装で配布する構成に変更する。
+旧 Web First プランでは Web URL 単体配信を主軸に置いたが、ユーザー要件再確認（2026-05-04）の結果、**Desktop（macOS/Windows/Linux）が主、Mobile（iOS/Android）が従、Web URL も公開可能** という優先順位が確定。これに合わせて単一 React コードベースを Electron / Capacitor / Web の 3 包装で配布する構成に変更する。その後 2026-11-16 に iOS / Android のアプリの殻を作らないと決め、`mobile/` を #2760 で消した。スマホからは公開 Web URL をブラウザで開く（D-20260807-main-1）。
 
 ### 2. 採用アーキテクチャ
 
 ```
 [shared React 19 + TS + Tailwind バンドル]
    ├─ Electron で包む → macOS / Windows / Linux .app/.exe/AppImage  — Desktop 主
-   ├─ Capacitor で包む → iOS / Android                              — Mobile 従
    └─ Vite ビルド → Cloudflare Workers で Web URL 公開              — スマホ主導線(#600)
 
 [Supabase: Postgres + Auth + Realtime + Storage]
@@ -64,8 +63,8 @@ Related:
 
 #### 重要原則
 
-- `shared/` は React コードの本体。Electron / Capacitor 固有 API を一切書かない
-- プラットフォーム差は `Capacitor.isNativePlatform()` 等の小さなアダプタで吸収
+- `shared/` は React コードの本体。Electron 固有 API を一切書かない
+- プラットフォーム差は `window.desktop` の有無を見る小さなアダプタ（`shared/src/utils/platform.ts` など）で吸収する。iOS / Android の殻を見分けるアダプタは、殻とともに #2760 で消した
 - `desktop/` の main / preload は **可能な限り薄く保つ**。業務ロジック禁止
 - `desktop/preload/index.ts` の expose 関数は **10 個以下** を目安
 
@@ -73,10 +72,10 @@ Related:
 
 | 領域                   | 決定                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| プラットフォーム       | Web (PC ブラウザ) / Electron Desktop (macOS / Windows / Linux) / iOS Capacitor / Android Capacitor                                                                                                                                                                                                                                                                                                                                                |
-| 認証                   | Supabase Auth (Email + Password を Phase 1 から使用 / Apple Sign-in は**完成後・友達 iOS 配布開始時**)                                                                                                                                                                                                                                                                                                                                            |
-| **完成までのコスト**   | **$0 厳守**。Supabase 無料枠 / Cloudflare 無料 / GitHub 無料 / Electron 未署名配布 / 無料 Apple ID 7 日署名 のみ                                                                                                                                                                                                                                                                                                                                  |
-| **完成後のコスト判断** | Phase 5 完了後に必要性を再評価: Apple Developer Program $99/年 (iOS 友達配布)、Supabase Pro $25/月 (無料枠超過時)、Windows 署名証明書 $80-500/年 (SmartScreen 警告消すなら)                                                                                                                                                                                                                                                                       |
+| プラットフォーム       | Web（PC とスマホのブラウザ）/ Electron Desktop (macOS / Windows / Linux)。iOS / Android の殻は #2760 で取りやめ                                                                                                                                                                                                                                                                                                                                                |
+| 認証                   | Supabase Auth（Email + Password でサインインする。サインアップとメール確認の画面は #2752 で消したので、アカウントは作者の 1 つだけ。Apple Sign-in は iOS の殻とともに取りやめ）                                                                                                                                                                                                                                                                                                                                            |
+| **完成までのコスト**   | **$0 厳守**。Supabase 無料枠 / Cloudflare 無料 / GitHub 無料 / Electron 未署名配布 のみ                                                                                                                                                                                                                                                                                                                                  |
+| **完成後のコスト判断** | Phase 5 完了後に必要性を再評価: Supabase Pro $25/月 (無料枠超過時)、Windows 署名証明書 $80-500/年 (SmartScreen 警告消すなら)                                                                                                                                                                                                                                                                       |
 | オフライン             | **一部オフライン対応**（2026-10-21 に方針転換 = D-20261021-main-1。旧方針の常時オンライン前提と、Service Worker を使わない決定は SUPERSEDE）。取ったデータを IndexedDB に置き、Service Worker でアプリ本体を端末に置く。圏外では前回までのデータを見られ、Daily・Todo の追加・Note（オフラインで作ったものとピン留めしたものだけ）を書ける。段取りの正本 = [`docs/vision/plans/2026-10-21-offline-cache.md`](./docs/vision/plans/2026-10-21-offline-cache.md) |
 | AI 連携                | stdio MCP Server（Desktop）+ **Remote MCP = Cloudflare Workers（スマホの Claude アプリ用・2026-09-09 に採用へ転換 = D-20260909-mcp-mobile-1）**。旧記述「terminal-division から起動 / Remote MCP は採用しない」は SUPERSEDE（terminal は 2026-07-05 退役・起動導線は Desktop 殻へ）                                                                                                                                                               |
 | 既存資産               | 現状 React / TS コードの **65-70%** を流用。DataService 抽象化はそのまま維持                                                                                                                                                                                                                                                                                                                                                                      |
@@ -174,12 +173,6 @@ life-editor/
 │   ├── electron-builder.yml
 │   └── package.json
 │
-├── mobile/                   # ← Capacitor 包装
-│   ├── ios/                  # cap add ios 生成
-│   ├── android/              # cap add android 生成
-│   ├── capacitor.config.ts
-│   └── package.json
-│
 ├── web/                      # ← ブラウザ向け Vite ビルド
 │   ├── vite.config.ts
 │   └── package.json
@@ -199,9 +192,7 @@ life-editor/
 | macOS            | .dmg 手渡し         | **未署名**（右クリック→開く で警告解除、$0）  | 加入したくなれば $99/年で警告解消                                           |
 | Windows          | NSIS .exe 手渡し    | **未署名**（SmartScreen "詳細情報→実行"、$0） | 加入したくなれば $80-500/年で署名証明書                                     |
 | Linux            | AppImage            | 不要                                          | —                                                                           |
-| **iOS 自分用**   | Xcode 直接 Run      | **無料 Apple ID + 7 日署名**（$0）            | —                                                                           |
-| **iOS 友達配布** | TestFlight / Ad Hoc | **やらない**                                  | **加入の判断はここ**。$99/年で TestFlight or Ad Hoc 配布                    |
-| Android 友達配布 | 未署名 .apk 手渡し  | **未署名**（"提供元不明アプリ許可"、$0）      | —                                                                           |
+| iOS / Android    | —                   | **作らない**（殻の `mobile/` は #2760 で削除） | スマホは下の Web URL をブラウザで開く                                       |
 | Web URL          | Cloudflare Workers  | $0（#600・静的アセットは無料無制限）          | **公開済み = `https://life-editor.sunbreak-pro.workers.dev`**（2026-08-09） |
 
 #### 手元から配る手順（2026-11-06〜・#2664）
@@ -216,24 +207,21 @@ life-editor/
 
 Web の配布は、ビルドのあとに `web/dist` の中身（`index.html`・PWA のファイル・アイコン・`sw.js` が全チャンクを載せているか）を確かめ、欠けていれば配布せずに止まります。この確認は `scripts/deploy-web.mjs` の 1 か所にだけ書いてあり、`deploy-web.yml` も同じスクリプトを呼びます。
 
-#### Phase 1-5 中の iOS 運用ポリシー
+#### iOS / Android
 
-- 自分の iPhone のみ。**友達 iPhone への配布はやらない**
-- Xcode 直接 Run で動作検証、または無料 Apple ID + Capacitor + 7 日署名再ビルド
-- Apple Developer Program $99/年は **加入しない**
-- 完成後、友達配布の需要があれば加入を検討
+iOS / Android のアプリの殻（Capacitor の `mobile/`）は #2760 で消した。無料 Apple ID の 7 日署名で自分の iPhone に入れる運用も、これで終わった。スマホからは公開 Web URL をブラウザで開く（D-20260807-main-1）。
 
 ### 9. Non-goals(今回やらない)
 
 - すべての画面でのオフライン編集（2026-10-21 に範囲を狭めた = D-20261021-main-1。Daily・Todo の追加・Note の一部はオフラインで書けるようにする — §3 表「オフライン」行）
-- マルチテナント（組織・共有・権限管理）/ 大規模スケール — **サインアップ開放そのものは Non-goal ではない**（無料枠の安全圏 10〜20 人への配布 + サインアップ開放 = D-20260829-main-1。旧「認証ありの公開配布スケール」の表現は 2026-09-23 に改訂 = D-20260923-main-1）
+- マルチテナント（組織・共有・権限管理）/ 大規模スケール / 他人への配布とサインアップの開放（作者本人だけが使う個人の道具にする = D-20261022-main-1。サインアップとメール確認の画面は #2752 で消した。D-20260829-main-1 の「10〜20 人への配布 + サインアップ開放」はこの決定で SUPERSEDE）
 - Tauri / Rust / portable-pty / Cloud D1 / `sync_engine.rs` の維持
 - Database(汎用 DB)機能 — Postgres での動的テーブル生成は難度高、一旦凍結
 - Mac App Store / Microsoft Store 申請
 - Linux ARM ARM64 対応（x86_64 のみ）
 - **Service Worker / オフラインキャッシュ**（2026-08-07 に一部改訂 = #600・計画書 [`docs/vision/plans/2026-08-07-web-mobile-public-url.md`](./archive/2026-08-07-web-mobile-public-url.md)）: 旧「PWA インストール体験」のうち **ホーム画面アイコン + standalone 表示は採用**した（スマホからの主導線を公開 Web URL に置くため）。Service Worker とオフライン閲覧は、2026-10-21 に採用へ転換した（D-20261021-main-1 → §3 表「オフライン」行）。この項目は Non-goal ではなくなったが、経緯のため残す
 - **学習用 Markdown ログの作成**（旧 `.claude/learning/web-first/` は廃止）
-- **iOS 友達配布**（Phase 1-5 期間は自分用のみ）
+- **iOS / Android のアプリの殻**（#2760 で `mobile/` を削除。スマホは公開 Web URL）
 
 ---
 
@@ -243,7 +231,7 @@ Web の配布は、ビルドのあとに `web/dist` の中身（`index.html`・P
 
 ### Phase 1 — life-editor リポジトリでの新スタック土台構築
 
-ゴール: `shared/` `desktop/` `mobile/` `web/` `supabase/` の 5 ディレクトリ構造を設置し、`frontend/` (Tauri) と並立させる（当時の作業ブランチ `refactor/web-first-v2` は merge 済み・廃止 — 現行のブランチ / worktree 運用は CLAUDE.md §7.4）。動かしながら必要技術を体得していく。
+ゴール: `shared/` `desktop/` `mobile/` `web/` `supabase/` の 5 ディレクトリ構造を設置し（`mobile/` は #2760 で削除）、`frontend/` (Tauri) と並立させる（当時の作業ブランチ `refactor/web-first-v2` は merge 済み・廃止 — 現行のブランチ / worktree 運用は CLAUDE.md §7.4）。動かしながら必要技術を体得していく。
 
 #### 着手順序
 
@@ -252,7 +240,7 @@ Web の配布は、ビルドのあとに `web/dist` の中身（`index.html`・P
 3. **Supabase 無料プロジェクト作成**: `supabase.com` で 1 個。credentials を `.env.local` に格納（コミットしない）
 4. **最小スキーマ**: `supabase/migrations/0001_initial.sql` で `tasks` テーブル 1 個（id uuid / user_id uuid / title text / status text / created_at timestamptz）
 5. **`@supabase/supabase-js` 接続**: web/ から CRUD 動作確認
-6. **Supabase Auth (Email + Password)**: signUp / signIn / signOut フローを web/ に最小実装
+6. **Supabase Auth (Email + Password)**: signUp / signIn / signOut フローを web/ に最小実装（signUp とメール確認の画面は #2752 で消した。今はサインイン・サインアウト・パスワードの再設定と変更だけ）
 7. **RLS ポリシー**: `auth.uid() = user_id` で自分のデータのみアクセス可能に
 8. **shared/ 雛形**: `shared/src/services/DataService.ts` を `frontend/src/services/DataService.ts` からコピー
 9. **`shared/src/services/SupabaseDataService.ts`**: tasks 用最小実装
@@ -372,27 +360,14 @@ Web の配布は、ビルドのあとに `web/dist` の中身（`index.html`・P
 
 ---
 
-### Phase 4 — Capacitor 包装（iOS / Android シミュレータまで）
+### Phase 4 — Capacitor 包装（取りやめ・#2760）
 
-> **Phase 4 は「完成」の条件に含めない**（2026-09-23 = D-20260923-main-1）。スマホの主導線は公開 Web URL（D-20260807-main-1）で、モバイル単独起動は Non-Goal（CLAUDE.md §1）。ネイティブ殻は「完成後・任意」の作業とし、下の項目は着手したときの手順として残す。scaffold（`mobile/` + `capacitor.config.ts` + `ios/` `android/` の生成物）は #88 で merge 済み。
+> **Phase 4 はやらない**（2026-11-16 こうだいさんの決定・親 = #2716）。iOS / Android のアプリは今後も作らず、スマホからは公開 Web URL をブラウザで開く（D-20260807-main-1）。2026-09-23 に完成の条件から外していた（D-20260923-main-1）。
 
-ゴール: `shared/` を Capacitor で包んで iOS / Android シミュレータで起動できる状態に。**実機配布は完成後**。
-
-- [x] `mobile/` 新規作成、Capacitor 8 install + `npx cap init`（#88 scaffold）
-- [ ] iOS プロジェクト生成 + **シミュレータ**起動確認（`ios/` は生成済み・起動は未実測）
-- [ ] iOS 実機検証は **無料 Apple ID + 7 日署名**（自分の端末のみ）
-- [ ] Android プロジェクト生成 + Android Studio AVD 検証（`android/` は生成済み・起動は未実測）
-- [x] `capacitor.config.ts` 設定(bundle ID / app name / web dir)（#88）
-- [ ] iOS スプラッシュ / アイコン整備
-- [ ] Android safe-area inset 対応
-- [ ] **Apple Sign-in は実装しない**（Email + Password で代用、完成後に追加）
-
-#### Phase 4 完了判定（完成の条件ではない — 着手したときの受け入れ基準）
-
-- [ ] iOS シミュレータで `mobile/` アプリ起動 + 操作可能
-- [ ] Android AVD で同上
-- [ ] iOS 実機（自分の iPhone のみ）で 7 日署名運用が回る
-- [ ] Supabase に iOS / Android からも接続可能
+- #88 で入れた scaffold（`mobile/` と `capacitor.config.ts`・`ios/`・`android/`）は、シミュレータでの起動まで進まないまま #2760 で消した。
+- 画面の側で殻の中かどうかを見分けていた `isNativeMobile()` と、その分岐（ShortcutConfig Provider を省く分岐・Service Worker を登録しない分岐・サインインの情報を Capacitor の保存先に置く分岐）も同じ #2760 で消した。
+- 画面幅で出るモバイルの UI（`useMediaQuery`）と PWA の Service Worker は、スマホのブラウザで使うので残した。
+- もとの手順と完了判定のチェックリストは git の履歴にある。
 
 ---
 
@@ -446,7 +421,7 @@ Web の配布は、ビルドのあとに `web/dist` の中身（`index.html`・P
 - [ ] Electron ビルド時間 < 3 分（macOS aarch64 ローカル。計測記録なし — `release-desktop.yml` の CI 実測で代替可）
 - [ ] **ここまでの累計コスト = $0**（署名・Apple Developer・Supabase Pro を使っていないことの確認）
 
-除外した条件: electron-updater の自動更新（作らない。#2758 で雛形を削除）/ Phase 4 の Capacitor ネイティブ殻（完成後の判断表へ。スマホの主導線は Web URL）。
+除外した条件: electron-updater の自動更新（作らない。#2758 で雛形を削除）/ Phase 4 の Capacitor ネイティブ殻（取りやめ・#2760 で `mobile/` を削除。スマホの主導線は Web URL）。
 
 ---
 
@@ -456,13 +431,12 @@ Web の配布は、ビルドのあとに `web/dist` の中身（`index.html`・P
 
 | 判断項目                                       | 条件                                                                             | コスト                         |
 | ---------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------ |
-| iOS 友達配布                                   | 友達から要望が出たら加入                                                         | Apple Developer Program $99/年 |
 | Supabase Pro                                   | 無料枠（500MB DB / 月 5GB egress 等）を超えたら                                  | $25/月                         |
 | Windows コード署名                             | 友達が SmartScreen 警告で困ったら                                                | $80-500/年                     |
 | macOS 公証                                     | 友達が「壊れたアプリ」警告で困ったら                                             | Apple Developer Program $99/年 |
-| Capacitor ネイティブ殻（iOS / Android）        | 友達から要望が出て Apple Developer に加入したとき（Phase 4 の手順を再開）        | 上記 $99/年に含む              |
-| Apple Sign-in                                  | iOS 友達配布開始時に同時実装                                                     | 上記 $99/年に含む              |
 | Sentry / ログ吸い上げ                          | 友達からのバグ報告が増えてきたら                                                 | 無料枠 → 必要に応じて $26/月   |
+
+iOS 友達配布・Capacitor ネイティブ殻・Apple Sign-in の行は、iOS / Android の殻を作らないと決めたので消した（#2760）。
 
 ---
 
@@ -484,7 +458,7 @@ Web の配布は、ビルドのあとに `web/dist` の中身（`index.html`・P
 | 1. 新スタック土台                      | 2-3 週   | 2-3 週  |
 | 2. コア機能移植                        | 3-4 週   | 5-7 週  |
 | 3. Electron 包装(macOS)                | 1-2 週   | 6-9 週  |
-| 4. Capacitor 包装(シミュレータ)        | 1-2 週   | 7-11 週 |
+| 4. Capacitor 包装（取りやめ・#2760）   | —        | —       |
 | 5. 周辺機能 + terminal-division + 整理 | 2-3 週   | 9-14 週 |
 
 合計 **2.5-3.5 ヶ月** を目安に進める。週次のペースは無理せず、毎日少しずつでよい。
@@ -507,10 +481,11 @@ Web の配布は、ビルドのあとに `web/dist` の中身（`index.html`・P
 - **影響**: Phase 1 後半で詰まると先に進めない
 - **回避**: 詰まったら Supabase Discord / 公式 Examples / `auth.uid() = user_id` 系のテンプレートに頼る。最悪 RLS を一時的に無効化して先に画面を動かし、後で締める
 
-### Risk 3 (中): Capacitor で iOS native 機能が必要になる
+### Risk 3 (解消): Capacitor で iOS native 機能が必要になる
 
 - **影響**: 通知 / バックグラウンド / 共有シート等で Capacitor プラグイン不足
 - **回避**: 初期は通知のみに絞る。他機能は完成後に別 Plan で起票
+- **解消**: iOS / Android の殻を #2760 で消したので、このリスクは無くなった
 
 ### Risk 4 (中): Electron バンドルサイズで友達配布拒絶
 

@@ -69,7 +69,6 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   Reflect.deleteProperty(navigator, "serviceWorker");
-  Reflect.deleteProperty(window, "Capacitor");
   Reflect.deleteProperty(window, "desktop");
 });
 
@@ -86,13 +85,6 @@ describe("where the worker registers", () => {
     expect(container.register).not.toHaveBeenCalled();
   });
 
-  it("does not register in the iOS shell", async () => {
-    Object.assign(window, { Capacitor: { isNativePlatform: () => true } });
-    const { registerAppServiceWorker } = await load();
-    registerAppServiceWorker(true);
-    expect(container.register).not.toHaveBeenCalled();
-  });
-
   it("does not register in Desktop", async () => {
     Object.assign(window, { desktop: {} });
     const { registerAppServiceWorker } = await load();
@@ -100,7 +92,7 @@ describe("where the worker registers", () => {
     expect(container.register).not.toHaveBeenCalled();
   });
 
-  it("does not register from file:// or capacitor://", async () => {
+  it("does not register from file://", async () => {
     vi.stubGlobal("location", { ...window.location, protocol: "file:" });
     const { shouldRegisterServiceWorker } = await load();
     expect(shouldRegisterServiceWorker(true)).toBe(false);

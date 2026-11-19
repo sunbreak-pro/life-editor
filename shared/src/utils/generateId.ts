@@ -4,7 +4,7 @@ import type { TodoNodeType } from "../types/todoTree";
  * Prefixed UUID id (CLAUDE.md §4 — the `他 generateId(prefix)` arm of the ID
  * invariant). 1:1 port of frontend/src/utils/generateId.ts.
  * `crypto.randomUUID` is available in every host the shared package targets
- * (modern browser / Electron renderer / Capacitor WebView).
+ * (modern browser / Electron renderer).
  *
  * NOT for TodoNode ids — those carry their own form; use `generateTodoId`.
  */

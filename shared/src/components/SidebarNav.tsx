@@ -76,8 +76,8 @@ export interface SidebarNavProps {
    * other app-global entries rather than posing as a section.
    *
    * Desktop-only by construction: the host passes this only where the Electron
-   * bridge exists, which is what keeps the browser and the Capacitor shells
-   * from showing a button that has no CLI to start.
+   * bridge exists, which is what keeps the browser from showing a button that
+   * has no CLI to start.
    */
   onLaunchClaude?: () => void;
   userEmail: string;

@@ -13,9 +13,8 @@ import { RoutineContext } from "./RoutineContextValue";
  * singleton — CLAUDE.md §6). Must sit inside a Sync Provider (reads
  * `useSyncContext`) and is the SECOND link of the Schedule section chain
  * (TagGroup → Routine → ScheduleItems — rules/frontend.md §Provider 順序).
- * Routine is enabled on Mobile too, so no Optional variant is needed
- * (ShortcutConfig is the only Provider omitted on native mobile —
- * CLAUDE.md §2).
+ * Routine is enabled at every width and the Provider is always mounted, so
+ * no Optional variant is needed.
  *
  * Auto-connects to the ambient global UndoRedo stack (D-20260810-refactor-1):
  * `useRoutinesAPI` has pushed create/update/delete commands since the Tauri

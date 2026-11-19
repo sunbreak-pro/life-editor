@@ -16,9 +16,8 @@ import { ScheduleItemsContext } from "./ScheduleItemsContextValue";
  * rules/frontend.md §Provider 順序); the inner Provider may depend on the
  * outer one.
  *
- * ScheduleItems is enabled on Mobile too (Todos/Schedule are core,
- * CLAUDE.md §2), so no Optional variant is needed (ShortcutConfig is the
- * only Provider omitted on native mobile).
+ * ScheduleItems is enabled at every width (Todos/Schedule are core) and the
+ * Provider is always mounted, so no Optional variant is needed.
  *
  * #304 child-2: auto-connects to the ambient global UndoRedo stack when a
  * provider is mounted (useUndoRedoOptional), same pattern as

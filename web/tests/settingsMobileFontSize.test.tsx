@@ -50,7 +50,7 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
       setReduceMotion: vi.fn(),
       setLanguage: vi.fn(),
     }),
-    // Null is the honest value on the native mobile shells (#320).
+    // Null keeps the shortcut table out of these renders.
     useShortcutConfig: () => null,
     useStartupSectionPref: () => ({ pref: "last", setPref: vi.fn() }),
     useDayStartHourPref: () => ({ dayStartHour: 4, setDayStartHour: vi.fn() }),

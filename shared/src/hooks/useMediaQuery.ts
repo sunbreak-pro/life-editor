@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 /*
  * matchMedia wrapper (W5 app shell). Powers the AppShell's wide↔narrow
- * switch. Pure browser API (no SSR in the Web/Electron/Capacitor hosts),
+ * switch. Pure browser API (no SSR in the Web/Electron hosts),
  * but `window.matchMedia` is undefined under jsdom (vitest) — so the hook
  * falls back to `fallback` (default `true` = wide) when matchMedia is
  * unavailable, keeping the shell on its information-dense layout rather

@@ -89,8 +89,8 @@ import { AttachmentCleanupCard } from "../trash/AttachmentCleanupCard";
  * #2757 removed the empty briefing / materials rows, which only said
  * "settings will land here", and the Tips dialog.
  *
- * The Shortcuts card stays Desktop-only (ShortcutConfig is a Mobile 省略
- * Provider — §2) and the Reset card still owns the destructive confirm +
+ * The Shortcuts card is hidden at narrow widths, where there is no keyboard
+ * to rebind, and the Reset card still owns the destructive confirm +
  * clear-and-reload (kept out of the pure primitive).
  */
 
@@ -165,9 +165,9 @@ export function SettingsScreen({
   } = useReminderPrefs();
   const isWide = useMediaQuery(WIDE_QUERY);
 
-  // Optional (Mobile 省略 Provider): null on the native Capacitor shells,
-  // where ShortcutConfigHost skips the Provider (#320) — the Shortcuts card
-  // below renders only when the value is present.
+  // Optional: null when this screen renders outside ShortcutConfigProvider
+  // (tests mount it bare) — the Shortcuts card below renders only when the
+  // value is present.
   const shortcuts = useShortcutConfig();
 
   const [tab, setTab] = useState<SettingsTabId>("general");
@@ -796,8 +796,8 @@ export function SettingsScreen({
             tools={MCP_TOOL_CATALOG}
             lastActivity={aiLastActivity}
             /*
-             * Desktop-only (#1211). `available` is false in the browser and
-             * inside the Capacitor shells, and the card then shows the
+             * Desktop-only (#1211). `available` is false in the browser, and
+             * the card then shows the
              * "desktop app" sentence instead of a button with no CLI behind
              * it. The field's value is held out here rather than in the card
              * because it is seeded by an async read of the desktop bridge.

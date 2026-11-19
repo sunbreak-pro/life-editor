@@ -34,11 +34,6 @@ desktop/out/
 desktop/dist/
 desktop/release/
 
-# Mobile (Capacitor) — node deps only. The ios/ + android/ native projects are
-# committed; their build outputs / copied web assets / Pods are ignored by the
-# Capacitor-generated .gitignore files inside mobile/ios/ and mobile/android/.
-mobile/node_modules/
-
 # Remote MCP Server (Cloudflare Workers) — mcp-server/wrangler.jsonc
 # .dev.vars は wrangler dev がローカルで読むシークレット（Supabase の
 # email/password と接続トークンの平文）。commit すると流出そのものなので、

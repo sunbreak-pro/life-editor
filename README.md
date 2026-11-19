@@ -18,14 +18,13 @@ Life Editor は、作者が自分の生活を回すために作っている個�
 
 ## 構成
 
-画面は 1 つの React のコードベース（`shared/` と `web/`）で書き、Web・Desktop・Mobile の 3 つの形で動かします。データは Supabase（Postgres・認証・Realtime・Storage）に置きます。画面の部品はバックエンドを直接呼ばず、`getDataService()` を経由してデータを読み書きします。
+画面は 1 つの React のコードベース（`shared/` と `web/`）で書き、Web と Desktop の 2 つの形で動かします。スマホでは、公開 Web URL をブラウザで開いて使います。データは Supabase（Postgres・認証・Realtime・Storage）に置きます。画面の部品はバックエンドを直接呼ばず、`getDataService()` を経由してデータを読み書きします。
 
 | ディレクトリ  | 中身                                                                                                                         |
 | ------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | `shared/`     | 画面の部品・データアクセス層・型です。React 19、TypeScript、react-i18next、Recharts で書いています。                         |
 | `web/`        | ブラウザで動く画面の本体です。Vite、Tailwind CSS v4、TipTap、dnd-kit を使い、Cloudflare Workers の静的配信で公開しています。 |
 | `desktop/`    | `web/` の画面を包む Electron の殻です。electron-vite でビルドし、electron-builder で配布用にまとめます。                     |
-| `mobile/`     | `web/` のビルド結果を包む Capacitor の殻です（iOS / Android）。スマホからはふだん公開 Web URL をブラウザで開きます。         |
 | `mcp-server/` | MCP サーバーです。Node.js と `@modelcontextprotocol/sdk` で書いています。                                                    |
 | `supabase/`   | データベースのマイグレーションと、行単位のアクセス制御（RLS）の検査スクリプトがあります。                                    |
 
@@ -66,7 +65,6 @@ cd ../web && npm install && npm run dev
 | リポジトリ直下     | `bash scripts/docs-lint.sh`                                                   | `.claude/` の文書のリンク切れと書式を検査します。                                        |
 | `shared/` / `web/` | `npm run build` / `npm run lint` / `npm run test` / `npm run typecheck:tests` | 型検査とビルド、lint、テスト、テストコードの型検査をします。                             |
 | `desktop/`         | `npm run dev` / `npm run build` / `npm run dist`                              | Electron 版を開発モードで起動し、ビルドし、配布用にまとめます。                          |
-| `mobile/`          | `npm run build:web` / `npm run sync` / `npm run open:ios`                     | `web/` をビルドして Capacitor に同期し、Xcode で開きます（Android は `open:android`）。  |
 | `mcp-server/`      | `npm run build` / `npm run test` / `npm run catalog`                          | MCP サーバーをビルド・テストし、設定画面用のツール一覧を作り直します。                   |
 | `mcp-server/`      | `npm run deploy`                                                              | Remote MCP を Cloudflare Workers に配ります。                                            |
 | `supabase/`        | `npm run db:check-rls` / `npm run db:push`                                    | RLS の設定を検査し、マイグレーションをデータベースに反映します。                         |

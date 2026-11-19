@@ -15,9 +15,9 @@ import { isImeComposing } from "../utils/imeGuard";
  * snapshot), so a rebind in Settings takes effect immediately — the matcher
  * always consults the current override → default chain.
  *
- * ShortcutConfig is a Mobile 省略 Provider (CLAUDE.md §2). The host passes the
- * value from the OPTIONAL `useShortcutConfig` hook, which is `null` when no
- * Provider is mounted; in that case this hook is inert (no listener attached).
+ * The host passes the value from the OPTIONAL `useShortcutConfig` hook, which
+ * is `null` when no ShortcutConfig Provider is mounted; in that case this
+ * hook is inert (no listener attached).
  *
  * Callbacks are injected per CLAUDE.md §6.4 (no getDataService / no
  * useTranslation inside shared hooks). Every handler is optional — an

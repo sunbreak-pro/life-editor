@@ -52,11 +52,11 @@ export async function signIn(
  * Where the emailed password-reset link should land (#919).
  *
  * The email link opens in the OS default browser, never inside the Electron
- * or Capacitor shell, so the reset is always completed on the public web
- * build. `window.location.origin` is right when the request itself was made
- * from a browser (it keeps localhost working during `npm run dev`), but on the
- * packaged shells the origin is `file://` / `capacitor://localhost` — not a
- * URL Supabase can redirect to. Those fall back to the deployed web URL
+ * shell, so the reset is always completed on the public web build.
+ * `window.location.origin` is right when the request itself was made from a
+ * browser (it keeps localhost working during `npm run dev`), but in the
+ * packaged Desktop the origin is `file://` — not a URL Supabase can redirect
+ * to. Those fall back to the deployed web URL
  * (migration SSOT §Web URL, #600); override with VITE_PUBLIC_WEB_URL if the
  * deployment ever moves.
  */

@@ -7,9 +7,9 @@ import { MobileShellActions } from "../src/MobileShellActions";
  * The app-global rows of the narrow bottom bar's "More" sheet (#472).
  *
  * AppShell renders its `header` slot on the WIDE branch only, so the header's
- * undo/redo never reaches a phone, and the ⌘Z route needs the ShortcutConfig
- * Provider that native mobile deliberately skips. The sheet is the one piece of
- * chrome every narrow section shares, which is why undo/redo land here.
+ * undo/redo never reaches a phone, and a phone has no keyboard for the ⌘Z
+ * route. The sheet is the one piece of chrome every narrow section shares,
+ * which is why undo/redo land here.
  *
  * The command palette's row (#473) went with the palette in #2719, and #1290's
  * "Edit tags" row went in #1851 (it landed on the Connect section, which the

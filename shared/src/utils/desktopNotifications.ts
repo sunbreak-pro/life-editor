@@ -3,17 +3,16 @@
  * `claudeLauncher.ts`, and for the same reason.
  *
  * `shared/` must not import from `desktop/`: the same bundle is served to the
- * browser and to the Capacitor shells, where `electron` does not exist. So
- * this re-declares the one method `desktop/src/shared/ipcContract.ts` exposes,
- * and the two declarations are pinned against each other in
+ * browser, where `electron` does not exist. So this re-declares the one method
+ * `desktop/src/shared/ipcContract.ts` exposes, and the two declarations are pinned against each other in
  * `desktop/tests/ipcContract.test.ts` — a signature change on either side
  * fails desktop's typecheck instead of half-landing.
  *
  * This is the ONLY path to an OS notification. Nothing in shared/ or web/
- * calls `new Notification(...)`, which is what makes the browser and the
- * Capacitor shell safe by construction: no permission prompt to raise, no
- * rejection to handle, nothing to throw. They get the in-app toast and that
- * is the documented Desktop-only boundary (CLAUDE.md §2).
+ * calls `new Notification(...)`, which is what makes the browser safe by
+ * construction: no permission prompt to raise, no rejection to handle,
+ * nothing to throw. It gets the in-app toast and that is the documented
+ * Desktop-only boundary (CLAUDE.md §2).
  */
 
 export interface DesktopNotifyArgs {
@@ -32,10 +31,10 @@ export interface DesktopNotificationBridge {
 }
 
 /**
- * The bridge, or null everywhere it does not exist (browser, Capacitor, tests,
- * SSR). The METHOD is checked, not just the `desktop` object: an older desktop
- * build exposes `window.desktop` without this one, and treating that as
- * present means invoking a channel main has no handler for.
+ * The bridge, or null everywhere it does not exist (browser, tests, SSR). The
+ * METHOD is checked, not just the `desktop` object: an older desktop build
+ * exposes `window.desktop` without this one, and treating that as present
+ * means invoking a channel main has no handler for.
  */
 export function getDesktopNotificationBridge(): DesktopNotificationBridge | null {
   if (typeof window === "undefined") return null;

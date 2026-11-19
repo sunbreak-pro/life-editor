@@ -15,7 +15,7 @@ paths:
 
 ## UI 2 層モデル（2026-06-07 に UI 集約方針として確定）
 
-- 新規 UI は `shared/src/components/`（部品層）に集約し、画面層は `web/src/`。Web / Electron / Capacitor の 3 配布形態が同一ソースを共用する（デザインシステム + `lumen-*` トークン + i18n en/ja catalog も `shared/` 側）。詳細 → `docs/vision/coding-principles.md §6`。旧 `frontend/`（Tauri 時代）は 2026-07-11 削除済み（#197・復元 = git tag `pre-tauri-removal`）
+- 新規 UI は `shared/src/components/`（部品層）に集約し、画面層は `web/src/`。Web / Electron の 2 配布形態が同一ソースを共用する（iOS / Android の殻は #2760 で消した）（デザインシステム + `lumen-*` トークン + i18n en/ja catalog も `shared/` 側）。詳細 → `docs/vision/coding-principles.md §6`。旧 `frontend/`（Tauri 時代）は 2026-07-11 削除済み（#197・復元 = git tag `pre-tauri-removal`）
 
 ## セクションを 1 つ足すときに触る 2 箇所（#676 (b)）
 
@@ -46,7 +46,7 @@ Realtime の変更通知は**ドメインごとのカウンタ**（一覧は `sh
   - Schedule: TagGroup → Routine → ScheduleItems
 - **不変式**: 内側 Provider は外側 Context に依存可、逆は不可（例: ScheduleItemsProvider → RoutineProvider）。逆向きの依存が要るときは、ref で内→外へ関数を渡し戻さず、Provider の順序を入れ替える（#676 (c)）
 - **セクション層 gotcha**: セクション層 Provider は画面遷移で unmount するが、グローバル層は生き残る。グローバル層に状態を預ける機能は unmount 跨ぎの整合を自前で守ること（実例 = `TodoTreeContext.tsx` の unmount 時 UndoRedo stack clear）
-- **Mobile 省略ガードは配線済み**（#320）: web ホスト（`web/src/AppProviders.tsx` の ShortcutConfigHost）が `isNativeMobile()`（`utils/platform.ts`）で native mobile 時に ShortcutConfig Provider を省略する（一覧は CLAUDE.md §2 が正）。省略 Provider は Optional バリアント必須（→ `docs/vision/coding-principles.md §4`）— 消費側は null ガードで no-op にする
+- **ホストごとに省く Provider は無い**: ブラウザ（スマホを含む）と Desktop は同じ鎖を組む。iOS / Android の殻で ShortcutConfig を省いていた分岐（#320）は、殻とともに #2760 で消した。スマホで出さない機能は、Provider ではなく画面幅（`useMediaQuery`）で隠す。Optional バリアントの hook（`useShortcutConfig` など）は、Provider の外で描くテストのために残す（→ `docs/vision/coding-principles.md §4`）
 
 ## Pattern A（Context/Provider 標準 — 3 ファイル）
 

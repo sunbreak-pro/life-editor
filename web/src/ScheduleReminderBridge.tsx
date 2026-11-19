@@ -27,11 +27,11 @@ import {
  * A SWEEP once a minute rather than a setTimeout per event; the reasoning
  * lives with the pure decision in shared/src/utils/reminderSchedule.ts.
  *
- * NOT gated on isNativeMobile(). The gate is one layer down and already
- * there: getDesktopNotificationBridge() returns null off Electron, so the
- * Capacitor shell and the public Web get the in-app toast and nothing else —
+ * NOT gated on the host at the Provider level. The gate is one layer down and
+ * already there: getDesktopNotificationBridge() returns null off Electron, so
+ * the public Web (phones included) gets the in-app toast and nothing else —
  * exactly CLAUDE.md §2's "OS notification is Desktop-only". A Provider-level
- * mobile gate would silently kill the IN-APP reminder on a phone too.
+ * gate would silently kill the IN-APP reminder on a phone too.
  */
 
 
@@ -78,7 +78,7 @@ export function ScheduleReminderBridge({
         time: due.startTime,
       });
       showToast("info", body, { durationMs: 10_000 });
-      // Fire-and-forget with a catch: an absent bridge (Web / Capacitor) or a
+      // Fire-and-forget with a catch: an absent bridge (the browser) or a
       // rejecting one (permission denied) degrades to the toast alone, which
       // is the DoD's graceful-degradation clause.
       void getDesktopNotificationBridge()
