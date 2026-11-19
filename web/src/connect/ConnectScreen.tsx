@@ -36,7 +36,6 @@ import {
   type ItemPanelOptions,
   type NoteExcerpt,
   type NoteNode,
-  type NoteTable,
   type RoutineNode,
   type ScheduleItem,
   type TagHubDetailLabels,
@@ -112,7 +111,7 @@ import { useConnectTagIntent } from "./useConnectTagIntent";
  *
  * EDITING IN PLACE (#2224). A right-click (a long press on a phone) on a todo
  * or an event opens the Schedule's own editor over this screen, through the
- * item panel #2218 built; a note, a table or a daily opens on its own screen,
+ * item panel #2218 built; a note or a daily opens on its own screen,
  * which is where those are edited. A todo's round checkbox writes its status
  * right here — the one-tap update the Mobile brief keeps on every surface.
  *
@@ -145,8 +144,6 @@ interface ConnectSources {
   dailies: DailyNode[];
   /** Repeat series (#1631) — where a repeating item's tags actually live. */
   routines: RoutineNode[];
-  /** Note tables that were tagged (#2094) — their notes are live. */
-  tables: NoteTable[];
   /** Each note's first line (#2224) — read without loading any body. */
   noteExcerpts: NoteExcerpt[];
 }
@@ -160,7 +157,6 @@ const EMPTY_SOURCES: ConnectSources = {
   notes: [],
   dailies: [],
   routines: [],
-  tables: [],
   noteExcerpts: [],
 };
 
@@ -230,14 +226,13 @@ export function ConnectScreen({
     // the rows are already on screen and a refetch only corrects them.
     refetchReportsLoading: false,
     load: async (service) => {
-      const [todos, events, notes, dailies, routines, tables, noteExcerpts] =
+      const [todos, events, notes, dailies, routines, noteExcerpts] =
         await Promise.all([
           service.fetchTodoTree(),
           service.fetchEvents(),
           service.listNotesUnified(),
           service.listDailiesUnified(),
           service.fetchAllRoutines(),
-          service.fetchNoteTables(),
           // An excerpt is a second line under a title (#2224): a failed read
           // leaves the notes without one instead of the hub without rows.
           service.listNoteExcerptsUnified().catch((error: unknown) => {
@@ -255,7 +250,6 @@ export function ConnectScreen({
         notes,
         dailies,
         routines,
-        tables,
         noteExcerpts,
       };
     },
@@ -301,7 +295,7 @@ export function ConnectScreen({
     /*
      * The left edge (#2224): a todo's scheduled day (local, the grid's own
      * rule — todoScheduleSlot) and its start unless it is all-day; an event's
-     * day and start, or "All day"; a note's or a table's last update; a
+     * day and start, or "All day"; a note's last update; a
      * daily's own date. The same pair orders each kind (buildTagHubModel).
      */
     for (const todo of sources.todos) {
@@ -369,35 +363,6 @@ export function ConnectScreen({
         detail: excerptById.get(note.id),
         ...localDayAndTime(note.updatedAt),
         updatedAt: note.updatedAt,
-      });
-    }
-    /*
-     * Note tables (#2094). A table opens the note it sits in — it has no
-     * screen of its own — so the row is navigated as that note. The note's
-     * title is the row's second line, which also tells two tables of the same
-     * name apart. fetchNoteTables already drops tables of trashed notes; the
-     * note list is checked again so the two reads cannot disagree on screen.
-     */
-    const noteTitleById = new Map<string, string>();
-    for (const note of sources.notes) {
-      if (!note.isDeleted) noteTitleById.set(note.id, note.title || untitled);
-    }
-    for (const table of sources.tables) {
-      if (table.isDeleted) continue;
-      const noteTitle = noteTitleById.get(table.parentNoteId);
-      if (noteTitle === undefined) continue;
-      out.push({
-        id: table.id,
-        role: "table",
-        title: table.title || t("connect.untitledTable"),
-        detail: noteTitle,
-        navigateId: table.parentNoteId,
-        navigateRole: "note",
-        taggedOnly: true,
-        // Not in the prototype (it predates #2094): dated like a note, by
-        // its last update.
-        ...localDayAndTime(table.updatedAt),
-        updatedAt: table.updatedAt,
       });
     }
     for (const daily of sources.dailies) {
@@ -948,8 +913,7 @@ export function ConnectScreen({
     (item: TagHubItem) => {
       // `navigateId` when the row is filed under an id the destination cannot
       // select — a repeat series (#1631), which opens at the occurrence its
-      // `date` already points the Calendar at, and a note table (#2094), which
-      // opens its note (`navigateRole`).
+      // `date` already points the Calendar at.
       onNavigateToItem({
         id: item.navigateId ?? item.id,
         role: item.navigateRole ?? item.role,

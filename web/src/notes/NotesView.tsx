@@ -38,7 +38,6 @@ import { NotesSidebarList, type NoteRowDetails } from "./NotesSidebarList";
 import { NoteDetailSurface } from "./NoteDetailSurface";
 import { useNoteListState } from "./hooks/useNoteListState";
 import { useNoteLinking } from "./hooks/useNoteLinking";
-import { useNoteTableItems } from "./hooks/useNoteTableItems";
 import { useNoteExcerpts } from "./hooks/useNoteExcerpts";
 import { useNotePassword } from "./hooks/useNotePassword";
 import { useNoteTemplateRegister } from "./hooks/useNoteTemplateRegister";
@@ -225,9 +224,6 @@ export function NotesView({
     pendingSelectNoteId,
     onConsumePendingSelect,
   });
-  // #2094: tags on the body's tables, and the items' post-save sync.
-  const tableItems = useNoteTableItems(dataService);
-
   // #2576: a list row's excerpt and tags. Tags in the order they were put on,
   // so the chip shows the note's first tag and "+n" the rest.
   const excerpts = useNoteExcerpts(dataService, listNotes);
@@ -831,7 +827,6 @@ export function NotesView({
                 <NoteBodyEditor
                   note={selected}
                   linking={linking}
-                  tableItems={tableItems}
                   remountToken={bodyEpoch}
                   attachments={attachments}
                   onEditorChange={setBodyEditor}

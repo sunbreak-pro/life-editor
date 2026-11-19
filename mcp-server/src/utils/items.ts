@@ -20,8 +20,9 @@ import { notFoundError } from "../errorCodes.js";
  */
 
 /**
- * Mirrors the items_meta.role CHECK (0008, widened by 0034 for `goal` — #2101,
- * and by 0040 for a note's `table` — #2094).
+ * The items_meta.role values this server reads and writes (0008, widened by
+ * 0034 for `goal` — #2101). The CHECK also still allows 0040's `table`,
+ * which nothing has written since #2761 removed tagging a table in a note.
  */
 export type ItemRole =
   | "task"
@@ -29,8 +30,7 @@ export type ItemRole =
   | "routine"
   | "note"
   | "daily"
-  | "goal"
-  | "table";
+  | "goal";
 
 /**
  * True for a row of the retired `folder` type. Todos (#225) and Notes (#375)

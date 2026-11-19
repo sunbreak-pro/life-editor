@@ -385,11 +385,7 @@
         "addRight": "Right",
         "remove": "Delete",
         "nameLabel": "Table name",
-        "namePlaceholder": "Name this table",
-        "tagsGroup": "Tags",
-        "addTags": "Add tags",
-        "addingTags": "Preparing…",
-        "tagFailed": "Couldn't make this table taggable. Try again."
+        "namePlaceholder": "Name this table"
       },
       "conflict": {
         "message": "This note was changed somewhere else while you were editing it. Your latest changes are not saved yet. Choose what to keep.",
@@ -985,7 +981,6 @@
     "selectHint": "Pick a tag to see everything filed under it.",
     "back": "Back to tags",
     "untagged": "Untagged",
-    "untitledTable": "Untitled table",
     "itemCount_one": "{{count}} item",
     "itemCount_other": "{{count}} items",
     "unusedTagsHeading": "Unused tags",

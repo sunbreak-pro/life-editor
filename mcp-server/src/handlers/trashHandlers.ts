@@ -69,10 +69,7 @@ export async function listTrash(args: { role?: ItemRole; limit?: number }) {
     .from("items_meta")
     .select(TRASH_COLUMNS)
     .eq("is_deleted", true);
-  // A note table (#2094) is never in the trash on its own: it is soft-deleted
-  // when its table leaves the note body, and comes back by Undo in the note,
-  // not by restore_item. The app's Trash does not list it either.
-  query = args.role ? query.eq("role", args.role) : query.neq("role", "table");
+  if (args.role) query = query.eq("role", args.role);
 
   // limit + 1 is the cheapest honest `hasMore`: one extra row answers "is
   // there anything past this page" without a second count query.

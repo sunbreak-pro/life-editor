@@ -17,7 +17,7 @@
 
 ### 10.1 2 行分割マッピング（全 role 共通）
 
-`tasks` / `notes` / `dailies` / `routines` / `events` / `goals`（0034 で追加 = §15）/ `tables`（0040 で追加 = §16）のすべての role で、TS の 1 ドメイン型は **`items_meta` 1 行 + `<role>_payload` 1 行**にマップされる。mapper は次の 3 関数だけで構成し、I/O は一切持たない（`@supabase/supabase-js` 依存ゼロ）:
+`tasks` / `notes` / `dailies` / `routines` / `events` / `goals`（0034 で追加 = §15）/ `tables`（0040 で追加 = §16。#2761 からコードは読み書きしない）のすべての role で、TS の 1 ドメイン型は **`items_meta` 1 行 + `<role>_payload` 1 行**にマップされる。mapper は次の 3 関数だけで構成し、I/O は一切持たない（`@supabase/supabase-js` 依存ゼロ）:
 
 - `rowsToType(meta, payload): Type` — SELECT した 2 行 → TS 型
 - `typeToRows(node, userId): { meta, payload }` — TS 型 → 2 行（INSERT 用）
@@ -201,6 +201,8 @@ Briefing の作り直し（計画書 = `archive/2026-10-03-briefing-goals-redesi
 ## 16. ノートの表のアイテム（0040・#2094）
 
 ノート本文の中の表にタグを付けるための DDL の規約です（計画書 = `docs/vision/plans/2026-10-10-note-table-items.md`）。表は新しい role `table` のアイテムで、タグの割り当て（`wiki_tag_assignments`）は role を区別しないので、表の id にそのまま付きます。
+
+> 2026-11-19（#2761）: ノートの表にタグを付ける機能を消しました。使っていなかったためで、本番には role `table` の行も `tables_payload` の行もありませんでした。表 `tables_payload`・`items_meta_role_check` の `table`・`supabase_realtime` への加入は、DDL を打たずに残しています。画面・DataService・MCP の道具から読み書きするコードは消し、Realtime の購読も外しました。ノートの物理削除の前に表のアイテムを消す処理も消したので、行を作り直すときは下の「親はノートだけ」の後始末を戻します。本文に残る `tableId` 属性は、エディタが宣言しなくなったので開くときに黙って落ち、次の保存で消えます。下の規約は、表を使い直すときと、表を消す DDL を書くときのために残します。
 
 - **セルの正本はノート本文のまま**: `tables_payload` が持つのは親のノート（`parent_note_id`）だけです。本文の表ノードが `tableId` 属性でアイテムを指し、表の名前は `items_meta.title` に写します（名前のない表は `''`）。セルを payload に写すと正本が 2 つになるためです
 - **アイテムになるのはタグを初めて付けたときだけ**: backfill はありません。`tableId` の無い表は今までどおりの表です
