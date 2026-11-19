@@ -50,7 +50,7 @@
 
 - git commit / push / PR 作成 / rebase / merge
 - Issue・Epic への書き込み（起票・コメント・close すべて。起票は chat-main 一元 — 依頼を報告に書くまで）
-- 実装コード（`shared/` `web/` `desktop/` `mobile/` `mcp-server/` `supabase/`）と docs の修正
+- 実装コード（`shared/` `web/` `desktop/` `mcp-server/` `supabase/`）と docs の修正
 - 他チャットの memory / outbox / decisions への書き込み（単一書込者原則）
 - `.claude/comm/.session-name` の書き換え（メインリポジトリの session-name は chat-main のもの）
 

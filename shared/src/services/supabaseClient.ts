@@ -39,7 +39,7 @@ export function getSupabaseClient(): SupabaseClient {
     );
   }
   // Platform-aware session storage (#838): Electron main-process safeStorage /
-  // Capacitor Preferences / browser localStorage — see supabaseAuthStorage.ts.
+  // browser localStorage — see supabaseAuthStorage.ts.
   const storage = resolveAuthStorage();
   cached = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: {
@@ -52,10 +52,9 @@ export function getSupabaseClient(): SupabaseClient {
       // Measured before flipping this: the app parses no URLs at all (no
       // router per CLAUDE.md §3.2; zero location.hash / location.search /
       // URLSearchParams references across shared, web and desktop), and the
-      // packaged shells serve file:// (Electron loadFile) and
-      // capacitor://localhost, neither of which can carry parameters. So the
-      // only shell where this changes anything is the public web URL — which
-      // is exactly where the recovery link lands.
+      // packaged Desktop serves file:// (Electron loadFile), which cannot
+      // carry parameters. So the only host where this changes anything is the
+      // public web URL — which is exactly where the recovery link lands.
       detectSessionInUrl: true,
       storageKey: authStorageKey() ?? undefined,
       ...(storage ? { storage } : {}),

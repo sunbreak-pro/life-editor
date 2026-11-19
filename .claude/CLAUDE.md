@@ -2,7 +2,7 @@
 
 > 設計判断・実装規約の SSOT。**「変わらない事実」だけを持ち、手順はスキル / エージェント、frontend 詳細規約は [`.claude/rules/`](./rules/) へ委譲**。各行は「消したら Claude が間違うか」基準で維持する。大きさの上限は `scripts/docs-lint.sh` の (h) が tok で見る。経緯は書かず、決定の記録へのリンクで指す。
 >
-> ⚠️ **Active Migration**: Tauri 2 + D1 + portable-pty → **Electron + Capacitor + Web + Supabase** へ移行中。**現行スタック・Phase 状況・移行手順の SSOT は [`2026-05-04-cross-platform-migration.md`](./2026-05-04-cross-platform-migration.md) と `memory/INDEX.md`** (進捗 / 履歴は per-chat — §9 参照)。本ファイルの実装パス/コマンドはアーキ非依存に一般化済み（具体は移行 SSOT 参照）。方針: 学習ログ廃止 / 完成までコスト $0 厳守。<!-- words-ok: D1 は Cloudflare のデータベースの製品名 -->
+> ⚠️ **Active Migration**: Tauri 2 + D1 + portable-pty → **Electron + Web + Supabase** へ移行中（iOS / Android のアプリの殻は作らない = #2760）。**現行スタック・Phase 状況・移行手順の SSOT は [`2026-05-04-cross-platform-migration.md`](./2026-05-04-cross-platform-migration.md) と `memory/INDEX.md`** (進捗 / 履歴は per-chat — §9 参照)。本ファイルの実装パス/コマンドはアーキ非依存に一般化済み（具体は移行 SSOT 参照）。方針: 学習ログ廃止 / 完成までコスト $0 厳守。<!-- words-ok: D1 は Cloudflare のデータベースの製品名 -->
 
 ---
 
@@ -22,8 +22,7 @@
 
 - Desktop（macOS / Windows / Linux）= 全機能。Mobile（iOS / Android）= Consumption + Quick capture。**MCP の入口は 2 本で、stdio は Desktop 専用のまま**（入口ごとの役割 → §5）。アプリ内 Terminal は退役し、MCP Server は存続（→ §8）
 - **画面別 Mobile スコープの元になる文書 = [`docs/requirements/mobile-scope.md`](./docs/requirements/mobile-scope.md)**（[置き場の決定](./decisions/D-20260723-main-1.md)）: 各セクション内機能の Full / Consumption / Quick capture / 省略 と Phase 1/2 の段取り。§2 は大方針のみを持ち、画面別の取捨は同文書が正（数値の非複製原則）
-- **Mobile 省略ガード**: `mobile/` は `web/dist` を包む Capacitor 殻で独自 Provider 構成を持たず、web ホストが `isNativeMobile()` で native mobile 時に ShortcutConfig Provider を省略する（ScreenLock / FileExplorer / CalendarTags / Audio / Timer は Provider ごと撤去済みで対象外）。ネストの元 = `web/src/AppProviders.tsx`・規約は [`rules/frontend.md`](./rules/frontend.md) §Provider 順序
-- **スマホからの主導線 = 公開 Web URL**（[主導線の決定](./decisions/D-20260807-main-1.md)）: モバイル UI は画面幅（`useMediaQuery`）で出るため、ブラウザで開けば Capacitor 殻と同じ画面になる。ネイティブ殻は併存。PWA の採用範囲・配布経路 → 移行 SSOT §8 / §9
+- **スマホからは公開 Web URL をブラウザで開く**（[主導線の決定](./decisions/D-20260807-main-1.md)）: モバイル UI は画面幅（`useMediaQuery`）で出る。iOS / Android のアプリの殻（Capacitor の `mobile/`）は #2760 で消し、今後も作らない。Provider の鎖はブラウザと Desktop で同じで、ホストごとに省く Provider は無い（ネストの元 = `web/src/AppProviders.tsx`）。PWA の採用範囲 → 移行 SSOT §8 / §9
 - Cloud Sync はログインしたアカウントごとに動きます（RLS owner-only でアカウント単位に分離）。使う人は §1 のとおり。ビルドの配布・署名の手順 → 移行 SSOT
 
 ## 3. Architecture（恒久原則のみ。構成図 → 移行 SSOT）

@@ -824,9 +824,8 @@ export {
   statusLabel,
   type StatusLabelSet,
 } from "./components/todoStatusVisuals";
-// Platform detection. isNativeMobile() (Phase 4) lets the hosts gate the
-// Mobile 省略 UI (roster = CLAUDE.md §2) on the Capacitor shells — platform.ts.
-export { isMac, isNativeMobile, isMacDesktopShell } from "./utils/platform";
+// Platform detection — platform.ts.
+export { isMac, isMacDesktopShell } from "./utils/platform";
 export type {
   DesktopShellPlatform,
   DesktopPlatformBridge,

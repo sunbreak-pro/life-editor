@@ -1,6 +1,6 @@
 # iOS 追加機能要件
 
-> **Status (2026-07-07 consistency-cleanup で実態化)**: **G 系のみ Done** — G-1 / G-2 / G-3 / G-5 は 2026-04-24 実装完了済（G-4 は △ 部分着手）。後続セクション（M 系 / C 系など）は未着手が残り、Done 表記の項目も AC 未チェックがある。全体が ALL DONE ではない。本ファイルは Tier 1/2 の Mobile 補完要件の SSOT として **archive せず保持**。Capacitor 移行 (移行 SSOT Phase 4) で再評価する。
+> **Status (2026-07-07 consistency-cleanup で実態化)**: **G 系のみ Done** — G-1 / G-2 / G-3 / G-5 は 2026-04-24 実装完了済（G-4 は △ 部分着手）。後続セクション（M 系 / C 系など）は未着手が残り、Done 表記の項目も AC 未チェックがある。全体が ALL DONE ではない。本ファイルは Tier 1/2 の Mobile 補完要件の SSOT として **archive せず保持**。iOS / Android のアプリの殻（Capacitor の `mobile/`）は #2760 で消したため、各項目はスマホのブラウザで開く公開 Web 向けの要件として読む。
 >
 > 関連 Tier への統合リンク: G-1 = UndoRedo (tier-2-supporting.md) / G-2 = Cloud Sync (tier-1-core.md) / G-3 = Schedule / Layout (tier-1-core.md / tier-2-supporting.md)
 >
@@ -8,7 +8,7 @@
 > 元 note: life-editor → ノート → iOS追加機能要件（2026-04-22 取得）
 > 関連: `vision/mobile-porting.md` / `vision/mobile-data-parity.md`（いずれも旧構成の歴史参照・現存せず） / CLAUDE.md §2 Platform / §6 Coding Standards（Provider 順序の詳細は rules/frontend.md）
 >
-> ⚠️ **退役スタック注記 (2026-07-04 doc-sync / 2026-07-11 #197 更新)**: 本ファイルの Owner 記述は退役スタック（旧 Tauri `src-tauri/` / iOS Tauri / `portable-pty`）を指す。旧スタックは 2026-07-11 削除済み（#197・復元 = git tag `pre-tauri-removal`）。現行本流は `shared/` + `web/`（Mobile は Capacitor 包装・`mobile/` 実在）。Owner 行の全面改訂は Phase 5。
+> ⚠️ **退役スタック注記 (2026-07-04 doc-sync / 2026-07-11 #197 更新)**: 本ファイルの Owner 記述は退役スタック（旧 Tauri `src-tauri/` / iOS Tauri / `portable-pty`）を指す。旧スタックは 2026-07-11 削除済み（#197・復元 = git tag `pre-tauri-removal`）。現行本流は `shared/` + `web/` で、スマホは公開 Web URL をブラウザで開く（Capacitor の殻 `mobile/` は #2760 で削除）。Owner 行の全面改訂は Phase 5。
 
 iOS は Desktop の **Consumption + Quick capture** 役割（CLAUDE.md §2）に位置付けられているが、
 実機運用で「Desktop と同等まで揃えたい挙動」がいくつか抽出されたため、機能要件として固定する。

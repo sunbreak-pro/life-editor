@@ -165,9 +165,9 @@ export function SettingsScreen({
   } = useReminderPrefs();
   const isWide = useMediaQuery(WIDE_QUERY);
 
-  // Optional (Mobile 省略 Provider): null on the native Capacitor shells,
-  // where ShortcutConfigHost skips the Provider (#320) — the Shortcuts card
-  // below renders only when the value is present.
+  // Optional: null when this screen renders outside ShortcutConfigProvider
+  // (tests mount it bare) — the Shortcuts card below renders only when the
+  // value is present.
   const shortcuts = useShortcutConfig();
 
   const [tab, setTab] = useState<SettingsTabId>("general");
@@ -796,8 +796,8 @@ export function SettingsScreen({
             tools={MCP_TOOL_CATALOG}
             lastActivity={aiLastActivity}
             /*
-             * Desktop-only (#1211). `available` is false in the browser and
-             * inside the Capacitor shells, and the card then shows the
+             * Desktop-only (#1211). `available` is false in the browser, and
+             * the card then shows the
              * "desktop app" sentence instead of a button with no CLI behind
              * it. The field's value is held out here rather than in the card
              * because it is seeded by an async read of the desktop bridge.

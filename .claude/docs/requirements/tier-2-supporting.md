@@ -9,7 +9,7 @@
 
 > **Stack 一括注記 (cleanup-and-consolidation Phase 3-2, 2026-05-24)**: Tier 2 機能の大半は **Frontend 完結** であり、移行は「`frontend/src/components/<Feature>/` → `web/src/<feature>/` への UI コピー」が中心。Provider が DB に書き込む場合のみ DataService 層を差し替える（移行 SSOT Phase 2-5 の web/ 横展開で実施）。例外:
 >
-> - **Audio Mixer / File Explorer / Shortcuts**: Desktop 専用 + Mobile 省略 Provider。Capacitor 移行 (Phase 4) で iOS / Android 向けに省略バリアントを再評価（⚠️ **File Explorer は退役 = 移行 SSOT Phase 5-A 決定・以下の本文は履歴として保持**）。
+> - **Audio Mixer / File Explorer / Shortcuts**: Desktop 向けの機能です。スマホのブラウザでは画面幅（`useMediaQuery`）で隠します。iOS / Android の殻でこれらの Provider を省く分岐は、殻とともに #2760 で消しました（⚠️ **File Explorer は退役 = 移行 SSOT Phase 5-A 決定・以下の本文は履歴として保持**）。
 > - **WikiTags**: Data Unification 計画 (`2026-05-21-data-unification-items-meta.md`) で `items_meta` 統合の対象。S5 WikiTags 旧計画は DU に吸収済。
 > - **Templates / UndoRedo / Trash**: Tier 1 機能（Todos / Notes / Schedule）の移行と同タイミングで shared/ + web/ に並行移植。
 >
@@ -166,7 +166,7 @@ Audio Mixer のサウンド（プリセット / カスタム）を任意の順�
 **Status**: ◎完成
 **Owner Provider/Module**: `WikiTagProvider` / `frontend/src/components/WikiTags/` / `src-tauri/src/commands/{wiki_tag,wiki_tag_group,wiki_tag_connection}_commands.rs`
 **MCP Coverage**: あり（一覧はコード `mcp-server/src/tools.ts` が正）
-**Platform**: Desktop + Mobile（WikiTag は Mobile でも有効 — CLAUDE.md §2。省略 Provider には含まない）
+**Platform**: Desktop + Mobile（WikiTag はスマホのブラウザでも有効）
 
 ### Purpose
 

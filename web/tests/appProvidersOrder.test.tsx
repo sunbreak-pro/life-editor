@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import type { DataService } from "@life-editor/shared";
 
@@ -16,8 +16,6 @@ import type { DataService } from "@life-editor/shared";
  */
 
 const h = vi.hoisted(() => ({
-  /** Flips the #320 native-mobile gate. */
-  nativeMobile: false,
   marker:
     (name: string) =>
     ({ children }: { children?: React.ReactNode }) => (
@@ -27,7 +25,6 @@ const h = vi.hoisted(() => ({
 
 vi.mock("@life-editor/shared", async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
-  isNativeMobile: () => h.nativeMobile,
   ToastProvider: h.marker("Toast"),
   SyncProvider: h.marker("Sync"),
   ShortcutConfigProvider: h.marker("ShortcutConfig"),
@@ -85,10 +82,6 @@ function providersAround(el: HTMLElement): string[] {
   return names;
 }
 
-beforeEach(() => {
-  h.nativeMobile = false;
-});
-
 describe("AppProviders", () => {
   it("nests the global chain outer→inner in dependency order", () => {
     renderChain();
@@ -134,23 +127,5 @@ describe("AppProviders", () => {
     expect(providersAround(screen.getByTestId("shortcuts"))).toContain(
       "ShortcutConfig",
     );
-  });
-
-  it("omits only ShortcutConfig on the native mobile shells (#320)", () => {
-    h.nativeMobile = true;
-    renderChain();
-
-    const chain = providersAround(screen.getByTestId("leaf"));
-    expect(chain).not.toContain("ShortcutConfig");
-    expect(chain).toEqual([
-      "Toast",
-      "Sync",
-      "UndoRedo",
-      "RightSidebar",
-      "ItemPanel",
-    ]);
-    // The executor still mounts; it goes inert via the optional hook rather
-    // than disappearing.
-    expect(screen.queryByTestId("shortcuts")).not.toBeNull();
   });
 });

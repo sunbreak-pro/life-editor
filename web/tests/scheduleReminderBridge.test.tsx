@@ -24,7 +24,7 @@ import { __resetReminderLedger } from "../src/schedule/reminderLedger";
  *   - none when a Realtime bump refetches the SAME rows (the ledger has to
  *     outlive the refetch, not the render);
  *   - the OS notification when the desktop bridge is there, the toast alone
- *     when it is absent (Web / Capacitor) or rejects (permission denied);
+ *     when it is absent (the browser) or rejects (permission denied);
  *   - nothing at all when the master switch is off.
  *
  * jsdom's missing layout is irrelevant: no coordinate is read.
@@ -142,7 +142,7 @@ describe("ScheduleReminderBridge", () => {
     expect(showToast).toHaveBeenCalledTimes(1);
   });
 
-  it("degrades to the toast alone off Electron (Web / Capacitor)", async () => {
+  it("degrades to the toast alone off Electron (the browser)", async () => {
     // No window.desktop at all — the Mobile / Web clause. Nothing throws,
     // and no permission is ever asked for because the renderer never touches
     // window.Notification.

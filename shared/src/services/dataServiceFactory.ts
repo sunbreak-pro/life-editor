@@ -12,7 +12,7 @@ import { readStoredOwnerId } from "./offlineSession";
 import { getSupabaseClient } from "./supabaseClient";
 
 /*
- * Single source for the web/Electron/Capacitor DataService singleton.
+ * Single source for the web/Electron DataService singleton.
  *
  * Hosts (MainScreen / TodosScreen) previously each kept a private
  * `dataServiceSingleton` + `getDataService()`, which produced one

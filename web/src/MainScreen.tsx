@@ -396,8 +396,8 @@ export function MainScreen({ session }: { session: Session }) {
         /*
          * Claude Code launcher (#1211). Passed only on the desktop shell —
          * SidebarNav renders the footer row on the handler, so withholding it
-         * here is what keeps the browser and the Capacitor shells from showing
-         * a button with no CLI behind it.
+         * here is what keeps the browser from showing a button with no CLI
+         * behind it.
          *
          * A failure sends the user to Settings rather than raising a toast:
          * this component sits ABOVE the ToastProvider AppProviders mounts (the

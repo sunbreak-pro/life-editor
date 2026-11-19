@@ -2,7 +2,7 @@
  * Renderer half of the Claude Code launcher bridge (#1211).
  *
  * `shared/` must not import from `desktop/` — the same bundle is served to the
- * browser and to the Capacitor shells, where `electron` does not exist — so
+ * browser, where `electron` does not exist — so
  * this re-declares the two methods `desktop/src/shared/ipcContract.ts` exposes,
  * exactly as `supabaseAuthStorage.ts` re-declares the auth-storage half. The
  * two declarations are pinned against each other in
@@ -34,10 +34,10 @@ export interface DesktopClaudeLauncherBridge {
 }
 
 /**
- * The bridge, or null everywhere it does not exist (browser, Capacitor, tests,
- * SSR). Null is the whole gate: the Settings card falls back to a "Desktop
- * only" sentence on it and the sidebar row is simply not rendered, so no
- * caller has to know which host it is running in.
+ * The bridge, or null everywhere it does not exist (browser, tests, SSR).
+ * Null is the whole gate: the Settings card falls back to a "Desktop only"
+ * sentence on it and the sidebar row is simply not rendered, so no caller has
+ * to know which host it is running in.
  *
  * Both methods are checked, not just the `desktop` object: an older desktop
  * build exposes `window.desktop` without the launcher, and treating that as
