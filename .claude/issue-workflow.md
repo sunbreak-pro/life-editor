@@ -128,7 +128,7 @@ notes は日本語（です・ます）で書きます。
 
 全体確認が合格したあとに、work-finishers がこの決まりで push して PR を作ります。全体確認の役は push しません。全体確認が失敗したときは、push も PR もしません。
 
-1. push は `git -c credential.helper= -c "credential.helper=!gh auth git-credential" push -u origin {{branch}}` で打ちます。既定の資格情報マネージャーはここで止まったまま戻らないためです。`-u origin {{branch}}` は省きません。ブランチは `--no-track` で切っているので upstream がなく、引数なしの `git push` は通らないためです。
+1. push は `git -c credential.helper= -c "credential.helper=!gh auth git-credential" push -u origin {{branch}}` で打ちます。既定の資格情報マネージャーはここで止まったまま戻らないためです。`-u origin {{branch}}` は省きません。ブランチは `--no-track` で切っているので upstream がなく、引数なしの `git push` は通らないためです。push の行には、変数・`$(...)`・リダイレクト・`&&` でつないだ別のコマンドを書きません。`cd {{worktree}} && ` のあとに上のコマンドだけを書いた単独の行で打ちます。行に変数が 1 つでもあると、merge を止める共通の hook が送り先を決められないとして push を止め、PR が開かれないまま終わるためです（2026-11-16 の #2719 と 2026-11-19 の #2752）。
 2. PR は `gh pr create -R {{repo}} --base main --head {{branch}} --title "<commit の題>" --body-file <file>` で作ります。題は英語で、commit の題と同じにします。
 3. 本文には次を入れます。
    - 何を変えたかの短い要約
