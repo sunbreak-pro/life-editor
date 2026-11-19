@@ -11,12 +11,13 @@
  * what a later import (separate Issue) can write back without a mapper
  * guessing at fields it never saw.
  *
- * WHY THIS TABLE LIST. It is the delete list of `delete_my_account()`
- * (supabase/migrations/0025) minus what later migrations dropped: "every row
- * that belongs to me" is the same set whether it is being erased or carried
- * out. `shared/tests/userDataExport.test.ts` reads both migrations and fails
- * the moment the two lists disagree, so a new user table cannot be forgotten
- * here the way it could not be forgotten there.
+ * WHY THIS TABLE LIST. It is every table the migrations leave standing with a
+ * `user_id` column, minus USER_DATA_EXPORT_SKIPPED_TABLES. It used to be the
+ * delete list of `delete_my_account()`, but that function is no longer called
+ * and is not rebuilt when a table is added (#2753), so it stopped being a
+ * roster anyone keeps up to date. `shared/tests/userDataExport.test.ts` reads
+ * the migrations and fails the moment a new user table is neither exported
+ * nor skipped on purpose.
  *
  * Attachments are NOT in the file. Their bytes live in Storage, and their
  * paths are already inside the note / daily bodies (`content` in the payload
@@ -72,6 +73,15 @@ export const USER_DATA_EXPORT_TABLES = [
   // primary key so a Realtime DELETE carries nothing readable (0041 header).
   { table: "record_views", orderBy: "id" },
 ] as const;
+
+/**
+ * Tables that hold the user's rows but stay out of the file on purpose.
+ * `items_meta_tombstones` is sync bookkeeping written by a trigger (#2333):
+ * it records what was erased, which an importer has no use for.
+ */
+export const USER_DATA_EXPORT_SKIPPED_TABLES: readonly string[] = [
+  "items_meta_tombstones",
+];
 
 export type UserDataExportTable =
   (typeof USER_DATA_EXPORT_TABLES)[number]["table"];

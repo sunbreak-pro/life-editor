@@ -108,7 +108,7 @@ partial UNIQUE 制約 (`uq_events_payload_routine_date` 等) を持つ relation/
 - **差分が 1 ページに収まらなければ全件を読む**: ページ送りは位置（offset）で進むので、読むあいだの書き込みで行がページの境目を越えると取りこぼします。基準時刻はその行より先へ進み、取り戻せません。行か削除記録が `POSTGREST_PAGE_SIZE` 件以上あるときは、その回を全件読み出しにします。
 - **migration が無いと判断するのは 4 つのコードだけ**: `42703`・`42P01`・`PGRST204`・`PGRST205` のときだけ、そのセッションの差分を止めます。JWT の期限切れ（`PGRST301`）などは、その回だけ全件読み出しにします。
 - **同じ id の作り直し**は、削除記録と生きている行を並べます。`changed_at` が `deleted_at` より新しければ行が勝ちます。作り直された行の `changed_at` は必ず同じ読み出しの範囲に入るので、変更の中に無い id は記録が勝ちます。端末の時計で書かれた一覧の `updatedAt` とは比べません。
-- **`user_id` を持つ表なので `delete_my_account()` の消す対象に入ります**: `items_meta` を消すと記録が書かれるので、順番は `items_meta` の後です。書き出しファイルには載せません（同期の帳簿のため）。
+- **`user_id` を持つ表ですが、書き出しファイルには載せません**: 同期の帳簿で、読み込む側に使い道がないためです。外す表の一覧は `shared/src/services/userDataExport.ts` の `USER_DATA_EXPORT_SKIPPED_TABLES` が持ちます。0045 は `delete_my_account()` の消す対象にもこの表を入れました（`items_meta` を消すと記録が書かれるので、順番は `items_meta` の後）。その関数は今は画面から呼びません（§18）。
 
 ---
 
@@ -225,3 +225,13 @@ Briefing の作り直し（計画書 = `archive/2026-10-03-briefing-goals-redesi
 - **台帳の引き当てのキーは `(user_id, slug)` の UNIQUE で、主キーは乱数の `id`**（0042・#2271）: slug は登録後に変えません。`app_records.source_app` と窓口の鍵が指すアプリの id が、この slug だからです。画面と MCP は `id` を読まず、更新と削除も slug で絞ります。`id` を主キーにしたのは、Realtime が行の削除の通知を RLS で絞らずに主キーの列を付けて全購読者へ送るためで、主キーが `(user_id, slug)` のままだと、消した人の uuid と slug が他人に届きます（0037 の `ai_rules`・0041 の `record_views` と同じ理由）。「最後の記録」と「30 日の件数」は保存せず、`app_records` から数えます
 - **記録の見せ方は `record_views`（0041・#2260）**: 記録の種類ごとに、値の出し方（合計 / 平均 / 最新 / 件数）とグラフの形（棒 / 折れ線）を 1 行ずつ持ちます。`(user_id, kind, unit)` は UNIQUE で、`unit` なしは空文字です（null を入れると「null 同士は別物」になり、同じ種類の行が何本でも入るため）。主キーは乱数の `id` で、Realtime が削除の通知に主キーの列を付けて全購読者へ送るため、uuid と種類が他人に届かないようにしています（D-20261017-main-2。`ai_rules`・`extension_apps` と同じ理由）。選んだ内容を端末の `localStorage` ではなく DB に置くのは、公開 Web URL が主導線で、Desktop と Mobile で選択が揃わないと「選んだのに戻っている」と見えるためです（D-20261017-main-1）。行が無い種類は初期値（合計・棒）で出し、DB に空行を作りません
 - owner-only の RLS（`(select auth.uid())` の INITPLAN 形の 4 ポリシー）と `supabase_realtime` への加入、`delete_my_account` への 2 表の追加は 0039 の中で済ませています。同期のドメイン `appRecords` と `extensionApps` は #2720 で外しました（`supabase_realtime` への加入は DB に残っています）。データの書き出しの表の一覧にも 2 表が入っています（`shared/src/services/userDataExport.ts`）
+
+---
+
+## 18. アカウント削除の関数 `delete_my_account()` は残してあり、呼ばない（#2753）
+
+> 2026-11-19（#2753）: アカウント削除の画面（Settings の削除の入口と確認のダイアログ）と、それを呼んでいた Edge Function `delete-account` をリポジトリから消しました。配布向けの機能を消す決定（[`2026-11-16-remove-distribution-features.md`](../../decisions/2026-11-16-remove-distribution-features.md)）に従っています。DB の関数 `public.delete_my_account()` は、こうだいさんの決定で DROP せずに残しました。DDL を足さずに済むためです。
+
+- **関数は残してあり、画面からは呼ばない**: 最後の定義は 0045 です。アプリにも MCP にも、この関数を呼ぶコードはありません。
+- **新しい表を足しても、関数は作り直さない**: 0034 から 0045 までは、`user_id` を持つ表を足すたびに `create or replace` で消す対象を足していました。これからは足しません。そのため、0045 より後に足した表の行が残っていると、関数は最後の残りの検査で例外を出し、削除は失敗します。関数を使い直すときは、その時点の表を数え直して作り直します。
+- **書き出しの表の一覧は、この関数に合わせない**: 以前は `shared/tests/userDataExport.test.ts` が、書き出しの一覧を関数の消す対象と突き合わせていました。今は migration に残っている `user_id` を持つ表と突き合わせます。一覧の持ち方は `shared/src/services/userDataExport.ts` が元になる文書です。
