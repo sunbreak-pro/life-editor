@@ -39,10 +39,9 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   // the recess would draw a box around a button that never had one.
   //
   // `danger` waited a release because its disabled state doubles as a BUSY
-  // state on three screens (TrashView, DeleteAccountDialog,
-  // AttachmentCleanupPanel), where a flat grey can be read as "switched off"
-  // rather than "working". #1804 settled that from the other side: those three
-  // now say "working" with a spinner and a `busyLabel`, so the busy reading no
+  // state on the screens that erase data (TrashView, AttachmentCleanupPanel),
+  // where a flat grey can be read as "switched off" rather than "working".
+  // #1804 settled that from the other side: those screens now say "working" with a spinner and a `busyLabel`, so the busy reading no
   // longer rests on the fill, and the fill is free to mean what it means
   // everywhere else.
   primary: `bg-lumen-accent text-lumen-on-accent hover:opacity-90 ${DISABLED_FILLED_BTN}`,

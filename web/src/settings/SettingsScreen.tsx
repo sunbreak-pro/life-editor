@@ -21,12 +21,10 @@ import {
   SettingsReset,
   SettingsTabsNav,
   SettingsDetailPanel,
-  DeleteAccountDialog,
   EmptyState,
   Modal,
   Button,
   getSession,
-  deleteAccount,
   RightSidebarPortal,
   ConfirmDialog,
   useConfirmDialog,
@@ -540,55 +538,6 @@ export function SettingsScreen({
   );
   const passwordForm = usePasswordUpdate(passwordMessages);
 
-  /*
-   * Account deletion (#1200). The host owns the whole flow because it is the
-   * only place that can: the card raises a request, the dialog collects the
-   * typed address, and this is where the Edge Function is called.
-   *
-   * Nothing is reset on success. The account is gone, `deleteAccount()` has
-   * already thrown the local token away, and the SIGNED_OUT that follows takes
-   * this screen down with it — clearing state here would only be racing the
-   * unmount. On FAILURE the dialog stays open with the message, because the
-   * account still exists and the user may well want to try again.
-   */
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteInput, setDeleteInput] = useState("");
-  const [deleteBusy, setDeleteBusy] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-
-  const openDelete = () => {
-    setDeleteInput("");
-    setDeleteError(null);
-    setDeleteOpen(true);
-  };
-
-  const confirmDelete = () => {
-    setDeleteBusy(true);
-    setDeleteError(null);
-    void deleteAccount()
-      .then(({ error }) => {
-        setDeleteBusy(false);
-        if (error) setDeleteError(t("settings.account.delete.error"));
-      })
-      .catch((e: unknown) => {
-        console.error("[settings] deleteAccount", e);
-        setDeleteBusy(false);
-        setDeleteError(t("settings.account.delete.error"));
-      });
-  };
-
-  // #2335: unsent Todos exist nowhere else, and deleting erases them too.
-  const unsent = getOutboxCounts();
-  const unsentCount = unsent.pending + unsent.failed;
-  const deleteConsequences = [
-    t("settings.account.delete.consequences.data"),
-    ...(unsentCount > 0
-      ? [t("settings.account.delete.consequences.outbox", { n: unsentCount })]
-      : []),
-    t("settings.account.delete.consequences.login"),
-    t("settings.account.delete.consequences.irreversible"),
-  ];
-
   const detailTodos = [
     { label: t("settings.detail.todos.shopping"), done: false },
     { label: t("settings.detail.todos.coffee"), done: true },
@@ -816,19 +765,14 @@ export function SettingsScreen({
                 signOutHeading: t("settings.account.signOut.heading"),
                 signOutDescription: t("settings.account.signOut.description"),
                 signOutButton: t("settings.account.signOut.button"),
-                deleteHeading: t("settings.account.delete.heading"),
-                deleteDescription: t("settings.account.delete.description"),
-                deleteButton: t("settings.account.delete.button"),
               }}
               onSignOut={handleSignOut}
-              onDeleteAccount={openDelete}
             />
           </div>
 
           {/*
-           * #1988 — next to Account because it is the answer to the card
-           * above it: deletion is final, so the copy has to be one press
-           * away. Hidden inside the Capacitor shells, where a Blob download
+           * #1988 — next to Account because the copy is the account's own
+           * data. Hidden inside the Capacitor shells, where a Blob download
            * has nowhere to land; a phone browser still gets it.
            */}
           {!isNativeMobile() && (
@@ -1077,29 +1021,6 @@ export function SettingsScreen({
           </Button>
         </div>
       </Modal>
-
-      <DeleteAccountDialog
-        open={deleteOpen}
-        email={accountEmail}
-        value={deleteInput}
-        onValueChange={setDeleteInput}
-        onConfirm={confirmDelete}
-        onCancel={() => setDeleteOpen(false)}
-        busy={deleteBusy}
-        error={deleteError}
-        labels={{
-          title: t("settings.account.delete.title"),
-          body: t("settings.account.delete.body", { email: accountEmail }),
-          consequences: deleteConsequences,
-          typePrompt: t("settings.account.delete.typePrompt", {
-            email: accountEmail,
-          }),
-          inputLabel: t("settings.account.delete.inputLabel"),
-          confirm: t("settings.account.delete.confirm"),
-          busyLabel: t("settings.account.delete.busy"),
-          cancel: t("common.cancel"),
-        }}
-      />
 
       {confirmRequest && (
         <ConfirmDialog

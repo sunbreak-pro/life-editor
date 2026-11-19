@@ -6,6 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { SupabaseExportService } from "../src/services/SupabaseExportService";
 import {
   USER_DATA_EXPORT_SCHEMA_VERSION,
+  USER_DATA_EXPORT_SKIPPED_TABLES,
   USER_DATA_EXPORT_TABLES,
   countUserDataExportRows,
   userDataExportFileName,
@@ -138,10 +139,10 @@ describe("userDataExportFileName (#1988)", () => {
 });
 
 /*
- * Lockstep with account deletion. `delete_my_account()` lists every table that
- * holds a user's rows, and itself raises if one is missed — so it is the most
- * trustworthy roster there is. Tables a later migration dropped are removed
- * from it; what is left must be exactly what the export reads.
+ * The roster is read from the migrations themselves: every table still
+ * standing with a `user_id` column holds a user's rows, so it is either in the
+ * file or skipped on purpose. `delete_my_account()` used to be the roster, but
+ * it is no longer rebuilt when a table is added (#2753).
  */
 describe("export table roster (#1988)", () => {
   const migrationDir = resolve(
@@ -159,49 +160,59 @@ describe("export table roster (#1988)", () => {
     );
   }
 
-  /** The migration holding the definition of delete_my_account() in force. */
-  function latestDeleteFile(): string {
-    const deleteFile = files.filter((f) =>
-      read(f).includes("function public.delete_my_account()"),
-    );
-    expect(deleteFile.length).toBeGreaterThan(0);
-    return deleteFile[deleteFile.length - 1];
-  }
-
-  // The roster below takes this table out of the comparison, so it would not
-  // notice a later migration rebuilding the function from a body without it.
-  // The function's leftover check would then fail every account deletion.
-  it("erases the tombstones in the latest delete_my_account() (#2333)", () => {
-    const code = read(latestDeleteFile()).replace(/--.*$/gm, "");
-    const start = code.indexOf("function public.delete_my_account()");
-    const body = code.slice(start, code.indexOf("$$;", start));
-    expect(body).toMatch(
-      /delete from public\.items_meta_tombstones\s+where user_id = caller/,
-    );
-  });
-
-  it("matches the delete list of delete_my_account() minus dropped tables", () => {
-    const latest = latestDeleteFile();
-    const deleted = new Set(
-      [...read(latest).matchAll(/delete from public\.([a-z_]+)/g)].map(
-        (m) => m[1],
-      ),
-    );
-    for (const f of files.filter((f) => f > latest)) {
-      for (const m of read(f).matchAll(
-        /drop table (?:if exists )?public\.([a-z_]+)/g,
-      )) {
-        deleted.delete(m[1]);
+  /**
+   * Replays create / drop / rename in file and statement order, and answers
+   * which tables are left and whether each has a `user_id` column. Statements
+   * are matched at the start of a line so that `alter publication ... drop
+   * table` (0026) is not read as dropping the table itself.
+   */
+  function standingTables(): Map<string, boolean> {
+    const tables = new Map<string, boolean>();
+    const statement =
+      /^create table (?:if not exists )?(?:public\.)?([a-z_]+)\s*\(([\s\S]*?)\n\);|^drop table (?:if exists )?(?:public\.)?([a-z_]+)|^alter table (?:if exists )?(?:only )?(?:public\.)?([a-z_]+)\s+(?:rename to ([a-z_]+)|add column (?:if not exists )?(user_id)\b)/gm;
+    for (const f of files) {
+      const code = read(f).replace(/--.*$/gm, "");
+      for (const m of code.matchAll(statement)) {
+        if (m[1] !== undefined) {
+          tables.set(m[1], /\buser_id\b/.test(m[2]));
+        } else if (m[3] !== undefined) {
+          tables.delete(m[3]);
+        } else if (m[5] !== undefined) {
+          const hasUser = tables.get(m[4]);
+          tables.delete(m[4]);
+          if (hasUser !== undefined) tables.set(m[5], hasUser);
+        } else if (m[6] !== undefined && tables.has(m[4])) {
+          tables.set(m[4], true);
+        }
       }
     }
+    return tables;
+  }
 
-    // Erased with the account but not carried out: sync bookkeeping (#2333),
-    // written by a trigger and of no use to an importer.
-    deleted.delete("items_meta_tombstones");
+  it("reads every user_id table the migrations leave standing", () => {
+    const owned = [...standingTables()]
+      .filter(([, hasUser]) => hasUser)
+      .map(([table]) => table);
+    // Guards the parser: a regex that matched nothing would compare two
+    // empty lists and pass.
+    expect(owned).toContain("items_meta");
+    expect(owned).toContain("tables_payload");
 
-    expect([...USER_DATA_EXPORT_TABLES.map((t) => t.table)].sort()).toEqual(
-      [...deleted].sort(),
+    const exported = USER_DATA_EXPORT_TABLES.map((t) => t.table);
+    expect(
+      [...exported, ...USER_DATA_EXPORT_SKIPPED_TABLES].sort(),
+    ).toEqual(owned.sort());
+  });
+
+  it("skips only tables that exist, and never exports a skipped one", () => {
+    const tables = standingTables();
+    const exported: readonly string[] = USER_DATA_EXPORT_TABLES.map(
+      (t) => t.table,
     );
+    for (const skipped of USER_DATA_EXPORT_SKIPPED_TABLES) {
+      expect(tables.has(skipped)).toBe(true);
+      expect(exported).not.toContain(skipped);
+    }
   });
 
   it("carries the extension-app records and ledger out (#2162)", () => {

@@ -279,12 +279,6 @@ export {
   type SettingsGeneralOption,
 } from "./SettingsGeneral";
 export { SettingsReset, type SettingsResetProps } from "./SettingsReset";
-// Account deletion confirmation (#1200) — type-the-address gate, deliberately
-// not a plain ConfirmDialog (nothing is recoverable behind this one).
-export {
-  DeleteAccountDialog,
-  type DeleteAccountDialogProps,
-} from "./DeleteAccountDialog";
 // Whole-account export card (#1988) — one button, one JSON file. The read is
 // DataService.exportUserData(); the download is the web host's.
 export {

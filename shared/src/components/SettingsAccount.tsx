@@ -16,10 +16,6 @@ export interface SettingsAccountLabels extends PasswordUpdateFormLabels {
   signOutHeading: string;
   signOutDescription: string;
   signOutButton: string;
-  /** Account deletion (#1200). The button only OPENS the confirmation. */
-  deleteHeading: string;
-  deleteDescription: string;
-  deleteButton: string;
 }
 
 export interface SettingsAccountProps {
@@ -39,8 +35,6 @@ export interface SettingsAccountProps {
   onSubmit: () => void;
   /** Ends the session. Present on BOTH layouts — see the note below. */
   onSignOut: () => void;
-  /** Opens the deletion confirmation; never deletes on its own (#1200). */
-  onDeleteAccount: () => void;
   labels: SettingsAccountLabels;
   passwordMinLength?: number;
 }
@@ -67,7 +61,6 @@ export function SettingsAccount({
   busy,
   onSubmit,
   onSignOut,
-  onDeleteAccount,
   labels,
   passwordMinLength = PASSWORD_MIN_LENGTH,
 }: SettingsAccountProps) {
@@ -129,32 +122,6 @@ export function SettingsAccount({
         <Button variant="secondary" className={CARD_BTN_TAP} onClick={onSignOut}>
           {labels.signOutButton}
         </Button>
-      </div>
-
-      <div aria-hidden="true" className="my-1 h-px bg-lumen-border" />
-
-      {/*
-       * Deletion. The button opens a confirmation that asks the address to be
-       * typed out — this is the one action in the app with nothing behind it
-       * (no Trash, no undo, no restore), so one mis-tap must not be enough.
-       * The host owns that dialog and the call; this card only asks.
-       */}
-      <div className="flex flex-col gap-2">
-        <span className="text-sm font-medium text-lumen-danger">
-          {labels.deleteHeading}
-        </span>
-        <p className="text-sm text-lumen-text-secondary">
-          {labels.deleteDescription}
-        </p>
-        <div>
-          <Button
-            variant="danger"
-            className={CARD_BTN_TAP}
-            onClick={onDeleteAccount}
-          >
-            {labels.deleteButton}
-          </Button>
-        </div>
       </div>
     </div>
   );

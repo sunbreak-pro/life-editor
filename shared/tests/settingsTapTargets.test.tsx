@@ -93,9 +93,6 @@ describe("#1562 — the general cards", () => {
     signOutHeading: "Sign out",
     signOutDescription: "End this session.",
     signOutButton: "Sign out",
-    deleteHeading: "Delete account",
-    deleteDescription: "This cannot be undone.",
-    deleteButton: "Delete account",
     newPassword: "New password",
     newPasswordHelper: "At least 8 characters.",
     confirmPassword: "Confirm password",
@@ -118,18 +115,26 @@ describe("#1562 — the general cards", () => {
         busy={false}
         onSubmit={() => {}}
         onSignOut={() => {}}
-        onDeleteAccount={() => {}}
         labels={ACCOUNT_LABELS}
       />,
     );
   }
 
-  it("floors sign-out, delete and the password submit", () => {
+  it("floors sign-out and the password submit", () => {
     renderAccount();
 
-    for (const name of ["Sign out", "Delete account", "Change password"]) {
+    for (const name of ["Sign out", "Change password"]) {
       expectNarrowFloor(screen.getByRole("button", { name }), "h-9");
     }
+  });
+
+  // #2753: self-service deletion was a distribution feature. The card keeps
+  // only the password change and the sign-out.
+  it("offers no way to delete the account", () => {
+    renderAccount();
+
+    expect(screen.queryByRole("button", { name: /delete/i })).toBeNull();
+    expect(screen.queryByText(/delete/i)).toBeNull();
   });
 
   it("leaves the full-width auth submit alone — it is already 44px", () => {
