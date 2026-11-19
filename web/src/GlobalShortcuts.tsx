@@ -20,8 +20,8 @@ import {
  * through the ambient global UndoRedo context (⌘Z / ⌘⇧Z; the shared executor
  * already skips text fields / contentEditable and IME composition, so TipTap
  * keeps its own history). Both hooks are OPTIONAL: when a Provider is absent
- * (e.g. the native shells skip ShortcutConfig — #320) the corresponding
- * wiring is simply a no-op.
+ * (e.g. a test that mounts this without ShortcutConfigProvider) the
+ * corresponding wiring is simply a no-op.
  */
 export function GlobalShortcuts({
   onNavigate,

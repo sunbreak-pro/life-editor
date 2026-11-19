@@ -15,8 +15,8 @@
  *     initial join and the domains are loading anyway, so it does not count;
  *   - the browser's `online` event;
  *   - the page becoming visible after at least `HIDDEN_RESUME_MS` hidden.
- *     The iOS shell has no app-resume plugin, and WKWebView fires
- *     `visibilitychange` when the app comes back, so this covers it.
+ *     A phone's browser and the home-screen app fire `visibilitychange`
+ *     when they come back to the front, so this covers them.
  *
  * They often arrive together (coming back online re-joins the channel), so
  * SyncProvider sends every resume through its 300 ms bump queue, which folds
