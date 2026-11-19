@@ -3,7 +3,7 @@
  * morning-paper view + its typed props contract, and the extractBriefing
  * convention parser (the read half of the MCP write_briefing tool).
  * The global components/index.ts re-exports this with `export *`
- * (matches Analytics/Connect).
+ * (matches Connect).
  */
 export {
   BriefingView,

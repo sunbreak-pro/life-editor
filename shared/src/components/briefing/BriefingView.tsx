@@ -29,7 +29,8 @@ import { BRIEFING_HINT_CLASS } from "./briefingStyles";
  * 朱 lumen-briefing-shu for "today / action" marks, 琥珀 lumen-briefing-kohaku
  * for context / annotations. All colors are lumen-* tokens (no hardcodes).
  *
- * The visual zone —「きのうまでの自分」, the three adopted Analytics widgets —
+ * The visual zone —「きのうまでの自分」, the charts once borrowed from the
+ * Analytics section (only the Todo completion trend is left, #2754) —
  * used to be one of these sections. It lives in the shared detail panel now
  * (#938 → BriefingVizPanel.tsx): everything the paper prints is about today,
  * and three backward-looking charts in the middle of it kept breaking that

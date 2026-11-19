@@ -134,7 +134,7 @@
 
 - **Tier 1 コア**: [`tier-1-core.md`](./docs/requirements/tier-1-core.md) — Briefing / Todos / Schedule / Notes / Daily / MCP Server / Cloud Sync。Briefing は目標と Todo をつなぐ朝刊・夕刊。退役した Terminal と凍結した汎用 Database は、本文を履歴として残す
 - **Tier 2 補助**: [`tier-2-supporting.md`](./docs/requirements/tier-2-supporting.md) — WikiTags / Templates / UndoRedo / Theme / i18n / Shortcuts / Toast / Connect（Tag hub）/ Trash。Trash の入口は Settings の中で、nav の独立セクションではない。タグの編集所は Connect で、Connect の力学グラフは復活させない（検索・タグ・リンク一覧と役割が重なったため）。File Explorer と、Work 画面とともに外した Audio / Playlist / Pomodoro と、#2720 で外した拡張アプリの Apps は退役し、本文を履歴として残す
-- **Tier 3 実験 / 凍結**: [`tier-3-experimental.md`](./docs/requirements/tier-3-experimental.md) — Paper Boards / Analytics / NotebookLM / Google Calendar / Google Drive / Cognitive Architecture。Analytics は凍結のままで、凍結を解いていた「記録」タブは #2720 で外した
+- **Tier 3 実験 / 凍結**: [`tier-3-experimental.md`](./docs/requirements/tier-3-experimental.md) — Paper Boards / NotebookLM / Google Calendar / Google Drive / Cognitive Architecture。Analytics は #2754 でセクションごと消し、朝刊の右パネルの Todo 完了の推移だけを残した（本文は履歴として残す）
 - 退役・移設・凍結の経緯と決定の記録のパスは、各 tier のファイルの機能の節にある
 - 次の段階の計画は移行の計画書が元になる文書（残す知見の置き場 = [`archive/SUMMARY.md`](./archive/SUMMARY.md)）
 

@@ -21,7 +21,7 @@ paths:
 
 - **アイデンティティ = `shared/src/sections.ts` の registry**（`SectionId` / nav 順 / グループ / アイコン / i18n key / mobile 順）
 - **web ホストの描き方 = `web/src/sectionDescriptors.tsx` の `SECTION_DESCRIPTORS`**（PageContainer の width / ヘッダーのタブ帯 / 狭幅レイアウトの行 / body とその section 層 Provider）。`Record<SectionId, …>` なので registry に足すと descriptor 行が無い間はコンパイルが通らない
-- `MainScreen.tsx` は section id で分岐しない（旧 `MOBILE_HAMBURGER_SECTIONS` / `ownsFullBleed` / 4 分岐のタブ帯 / 7 分岐の body はすべて descriptor 行に移動済み）。重い body（Notes / Analytics）の `lazy()` は `web/src/lazySections.ts`（守り = `web/tests/lazySectionChunks.test.ts`。3 本目だった旧 Connect は #1152 でセクションごと退役。#1171 の新 Connect = Tag hub は**意図的に分割していない** — 重いのはベンダースタック側で、この画面は React と既存アイコンしか持たないため分割しても取り出せる重量が無い）。同じファイルの `SECTION_CHUNK_LOADERS`（#1158 のアイドル先読み）は同じ specifier をもう一度並べるので、**重い body を足す / 消すときは `lazy()` 側と 2 箇所セットで直す** — 片方だけだと削除済みモジュールを `import()` することになり、守りのテストが落ちる
+- `MainScreen.tsx` は section id で分岐しない（旧 `MOBILE_HAMBURGER_SECTIONS` / `ownsFullBleed` / 4 分岐のタブ帯 / 7 分岐の body はすべて descriptor 行に移動済み）。重い body（Notes。Analytics は #2754 でセクションごと退役）の `lazy()` は `web/src/lazySections.ts`（守り = `web/tests/lazySectionChunks.test.ts`。3 本目だった旧 Connect は #1152 でセクションごと退役。#1171 の新 Connect = Tag hub は**意図的に分割していない** — 重いのはベンダースタック側で、この画面は React と既存アイコンしか持たないため分割しても取り出せる重量が無い）。同じファイルの `SECTION_CHUNK_LOADERS`（#1158 のアイドル先読み）は同じ specifier をもう一度並べるので、**重い body を足す / 消すときは `lazy()` 側と 2 箇所セットで直す** — 片方だけだと削除済みモジュールを `import()` することになり、守りのテストが落ちる
 
 ## 命名（プロジェクト固有のみ）
 
@@ -44,7 +44,6 @@ Realtime の変更通知は**ドメインごとのカウンタ**（一覧は `sh
 - **セクション層**（section switch の内側。セクションごとに独立した鎖で、横並びの兄弟関係）:
   - Materials: WikiTagsUnified → TodoTree / NotesUnified / DailiesUnified
   - Schedule: TagGroup → Routine → ScheduleItems
-  - Analytics: AnalyticsFilter（`components/Analytics/AnalyticsView.tsx` 内）
 - **不変式**: 内側 Provider は外側 Context に依存可、逆は不可（例: ScheduleItemsProvider → RoutineProvider）。逆向きの依存が要るときは、ref で内→外へ関数を渡し戻さず、Provider の順序を入れ替える（#676 (c)）
 - **セクション層 gotcha**: セクション層 Provider は画面遷移で unmount するが、グローバル層は生き残る。グローバル層に状態を預ける機能は unmount 跨ぎの整合を自前で守ること（実例 = `TodoTreeContext.tsx` の unmount 時 UndoRedo stack clear）
 - **Mobile 省略ガードは配線済み**（#320）: web ホスト（`web/src/AppProviders.tsx` の ShortcutConfigHost）が `isNativeMobile()`（`utils/platform.ts`）で native mobile 時に ShortcutConfig Provider を省略する（一覧は CLAUDE.md §2 が正）。省略 Provider は Optional バリアント必須（→ `docs/vision/coding-principles.md §4`）— 消費側は null ガードで no-op にする

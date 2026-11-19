@@ -170,7 +170,6 @@ export function MainScreen({ session }: { session: Session }) {
     navSections,
     mobileSections,
     materialsTabDefs,
-    analyticsTabDefs,
     briefingTabDefs,
     connectTabDefs,
     shellLabels,
@@ -194,14 +193,14 @@ export function MainScreen({ session }: { session: Session }) {
    * "切替ごとに再生されて煩わしい" the Issue rules out. So briefing → schedule
    * → briefing animates schedule alone.
    *
-   * The two code-split bodies (Notes / Analytics) carry a caveat:
-   * their Suspense boundary lives INSIDE the descriptor body, so on a cold
+   * The code-split body (Notes) carries a caveat:
+   * its Suspense boundary lives INSIDE the descriptor body, so on a cold
    * chunk this animates the box while the fallback is still in it. Since #1158
-   * the warm-up below normally settles those chunks before the first switch,
+   * the warm-up below normally settles that chunk before the first switch,
    * so the content is what rises; the caveat still stands for a switch made
    * inside the first couple of seconds, and on a Save-Data connection where
    * the warm-up is skipped. Moving the animation past the boundary would mean
-   * pushing it into all seven descriptor rows for the two that need it.
+   * pushing it into every descriptor row for the one that needs it.
    */
   const sectionEntering = useFirstAppearance(section);
 
@@ -244,7 +243,7 @@ export function MainScreen({ session }: { session: Session }) {
     </>
   );
 
-  // The four lifted tab bands, keyed by the id a descriptor names. Building
+  // The three lifted tab bands, keyed by the id a descriptor names. Building
   // them all is free (they are plain objects over already-memoised defs) and
   // keeps the lookup total — a descriptor can never name a band that has no
   // state behind it.
@@ -254,12 +253,6 @@ export function MainScreen({ session }: { session: Session }) {
       active: nav.materialsTab,
       onSelect: (id) => nav.setMaterialsTab(id as typeof nav.materialsTab),
       label: t("section.materials"),
-    },
-    analytics: {
-      defs: analyticsTabDefs,
-      active: nav.analyticsTab,
-      onSelect: (id) => nav.setAnalyticsTab(id as typeof nav.analyticsTab),
-      label: t("analytics.tabsLabel"),
     },
     briefing: {
       defs: briefingTabDefs,
@@ -295,13 +288,13 @@ export function MainScreen({ session }: { session: Session }) {
   // (`narrowHeader`), so the old MOBILE_HAMBURGER_SECTIONS set and the
   // per-section switcher constants are gone: Materials/Briefing/Schedule get
   // hamburger + segmented, Settings the hamburger alone,
-  // Analytics/Trash neither. Schedule joined the first group in #1033 — its
+  // Trash neither. Schedule joined the first group in #1033 — its
   // Calendar body used to draw a SECOND hamburger inside the month heading
   // row, so the same control sat in two different places depending on which
   // section you were looking at.
   //
   // What is NOT per-section is the right end (#1035): Undo/Redo rides on every
-  // narrow section, Analytics and Trash included, which is why the row itself
+  // narrow section, Trash included, which is why the row itself
   // is now unconditional even for the sections whose own chrome is empty.
   const detailHamburger = (
     <RightSidebarToggle

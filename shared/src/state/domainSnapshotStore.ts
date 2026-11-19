@@ -68,7 +68,6 @@ export type DomainSnapshotKey =
   | "briefingPaper"
   | "briefingGoals"
   | "briefingFocus"
-  | "analyticsSummary"
   | "trashLists"
   | "workTargetOptions";
 

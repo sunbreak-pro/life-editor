@@ -1,15 +1,4 @@
-import {
-  Calendar,
-  LayoutDashboard,
-  SquareCheckBig,
-  Sunrise,
-  Sunset,
-  Tag,
-  Target,
-  Timer,
-  type LucideIcon,
-} from "lucide-react";
-import type { AnalyticsTab } from "@life-editor/shared";
+import { Sunrise, Sunset, Tag, Target, type LucideIcon } from "lucide-react";
 
 /*
  * The glyph before each section tab (#2631), from the prototype's tab
@@ -21,13 +10,6 @@ import type { AnalyticsTab } from "@life-editor/shared";
  * (react-refresh) lets a .tsx
  * module export components only, and connectTabs.test.tsx needs these maps.
  */
-export const ANALYTICS_TAB_ICON: Record<AnalyticsTab, LucideIcon> = {
-  overview: LayoutDashboard,
-  todos: SquareCheckBig,
-  work: Timer,
-  schedule: Calendar,
-};
-
 export const BRIEFING_TAB_ICON = {
   morning: Sunrise,
   evening: Sunset,

@@ -1,11 +1,7 @@
 import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
 import { CalendarDays, FileText, type LucideIcon } from "lucide-react";
-import {
-  ANALYTICS_TAB_ICON,
-  BRIEFING_TAB_ICON,
-  CONNECT_TAB_ICON,
-} from "./shellTabIcons";
+import { BRIEFING_TAB_ICON, CONNECT_TAB_ICON } from "./shellTabIcons";
 import {
   getOutboxCounts,
   subscribeOutbox,
@@ -13,7 +9,6 @@ import {
   MAIN_SECTIONS,
   MOBILE_SECTIONS,
   EMPTY_MATERIALS_COUNTS,
-  ANALYTICS_TAB_ORDER,
   type AppShellSection,
   type MaterialsCounts,
   type SectionDef,
@@ -103,20 +98,6 @@ export function useShellChrome() {
     [t, materialsCounts],
   );
 
-  // Analytics in-section tab defs (Overview / Todos / Work / Schedule). No
-  // count badges — these tabs are views, not item lists. Order comes from the
-  // shared ANALYTICS_TAB_ORDER (SSOT) so the shell band and AnalyticsView's
-  // content never drift.
-  const analyticsTabDefs = useMemo(
-    () =>
-      ANALYTICS_TAB_ORDER.map((id) => ({
-        id,
-        label: t(`analytics.tabs.${id}`, { defaultValue: id }),
-        icon: tabGlyph(ANALYTICS_TAB_ICON[id]),
-      })),
-    [t],
-  );
-
   // Briefing in-section tab defs (朝刊 / 夕刊). One list feeds BOTH controls —
   // the wide SectionHeader band and the narrow in-body segmented control
   // (#318) — so the two can never drift apart.
@@ -187,7 +168,6 @@ export function useShellChrome() {
     navSections,
     mobileSections,
     materialsTabDefs,
-    analyticsTabDefs,
     briefingTabDefs,
     connectTabDefs,
     shellLabels,

@@ -31,7 +31,7 @@ describe("the briefing panel keeps recharts out of the initial chunk", () => {
     it(`loads ${name} through lazy(() => import(...))`, () => {
       // Whitespace-tolerant: prettier may re-wrap the arrow body.
       const lazyImport = new RegExp(
-        `lazy\\(\\(\\)\\s*=>\\s*\\n?\\s*import\\("\\.\\./Analytics/${name}"\\)`,
+        `lazy\\(\\(\\)\\s*=>\\s*\\n?\\s*import\\("\\./${name}"\\)`,
       );
       expect(lazyImport.test(source)).toBe(true);
     });
@@ -44,7 +44,7 @@ describe("the briefing panel keeps recharts out of the initial chunk", () => {
        * excludes any import line that starts with `import type`.
        */
       const valueImport = new RegExp(
-        `import\\s+(?!type\\s)[^;]*from\\s*"\\.\\./Analytics/${name}"`,
+        `import\\s+(?!type\\s)[^;]*from\\s*"\\./${name}"`,
       );
       expect(valueImport.test(source)).toBe(false);
     });
