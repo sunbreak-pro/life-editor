@@ -1,5 +1,5 @@
 {
-  "note": "Recordings behind the five ambient loops in the public bucket `sounds` (#1793). start / length / xfade are seconds; filter is an ffmpeg -af chain applied before the loop is cut. Build with ambient-loops.mjs.",
+  "note": "Recordings behind the five ambient loops in the public bucket `sounds` (#1793). start / length / xfade are seconds; filter is an ffmpeg -af chain applied before the loop is cut. The build script ambient-loops.mjs was removed in #2757 (git show c102cd97:supabase/scripts/ambient-loops.mjs).",
   "sounds": [
     {
       "id": "rain",

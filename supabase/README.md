@@ -383,98 +383,25 @@ free tier ended) and a fix is not quick.
 
 > Since #2717 the app plays none of these: the ambient mixer, the completion
 > chime and `shared/src/constants/sounds.ts` were removed with the Work
-> section. The bucket and this record of how the files were made are kept.
+> section. #2757 removed the build script `scripts/ambient-loops.mjs` too.
+> The bucket and the licence record below are kept.
 
 The five ambient loops (`rain` / `wind` / `ocean` / `birds` / `fire`) and
-the completion chime (`complete.mp3`) are objects in the **public** Storage
-bucket `sounds`. The app only built their URL (in
-`shared/src/constants/sounds.ts`, removed in #2717), so replacing a file
-changed what every user heard without a deploy. Audio does not go in the
-repo; the repo keeps how each loop was made:
-
-| File                           | Purpose                                                                                                                         |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
-| `scripts/ambient-sources.json` | For each loop: the recording's page, direct download URL, author, licence, and the stretch used (`start` / `length` / `xfade`). |
-| `scripts/ambient-loops.mjs`    | `build` turns the recordings into the five MP3s; `measure` prints length, level, bandwidth, edge silence and the seam step.     |
+the completion chime (`complete.mp3`) are still objects in the **public**
+Storage bucket `sounds`, so anyone can download them. Audio does not go in
+the repo; `scripts/ambient-sources.json` keeps, for each loop, the
+recording's page, direct download URL, author, licence, and the stretch
+used (`start` / `length` / `xfade`). It stays while the bucket serves the
+files, because it is the attribution and licence record for what is
+published.
 
 Every recording in the manifest is CC0 or Public Domain Mark, because the
 bucket serves the files to anyone. Do not add a recording under a licence
 with NC / ND terms or one that forbids redistributing the raw file (most
 "royalty-free" SFX packs).
 
-### Rebuild
-
-ffmpeg is not a repo dependency. Put one on PATH or point `FFMPEG` at it
-(`uvx --from imageio-ffmpeg python -c "import imageio_ffmpeg as f; print(f.get_ffmpeg_exe())"`
-prints the path of a static build). Then:
-
-```bash
-mkdir -p /tmp/ambient/src /tmp/ambient/out
-# download each manifest entry's `download` URL into src/ as its `file`
-node supabase/scripts/ambient-loops.mjs build /tmp/ambient/src /tmp/ambient/out
-node supabase/scripts/ambient-loops.mjs measure /tmp/ambient/out/*.mp3
-```
-
-A good loop measures: `silenceMs` = `0/0`, `seamRatio` near 1 (the wrap
-step is like any other sample step), `rmsDb` near -28 for all five. The
-build is CBR 128 kbps since #2290 (320 kbps before): a 2-minute loop went
-from about 5MB to about 2MB, because each switch-on streams the whole file
-and that was most of a phone's daily traffic. At 128 kbps LAME drops quiet
-content above 16 kHz, so `band18to20` now reads low and `wallHz` near
-16 kHz; that is the accepted price, not a sign of a double encode.
-
-The build writes `<id>-v<N>.mp3`. The number is `ASSET_VERSION` in the
-script and matched `objectName` in the removed `shared/src/constants/sounds.ts`.
-A new build takes the next number rather than replacing a file, so every
-object can carry a year-long cache.
-
-`silenceMsNoTag` is what a player that ignores the LAME tag plays: about
-23 ms at the head and up to 16 ms at the tail, from the MP3 format itself.
-Chromium honours the tag. Its `<audio loop>` still leaves about 10 ms at
-every wrap, the same for WAV and FLAC. The app does not use `<audio loop>`
-for these files: `shared/src/utils/ambientLoop.ts` turns `loop` off and
-crosses two elements over 1.2 s before each lap ends (#1965). No wrap
-happens, so the 10 ms never plays, and any edge silence falls where the
-outgoing side is already near zero.
-
-### Upload (owner)
-
-Uploading to the bucket is done by the owner, not by Claude. The objects
-go up under NEW names, so nothing the app serves today changes until the
-code that names them is deployed — upload first, merge second.
-
-1. Copy the service role key (Dashboard → Project Settings → API) into a
-   shell variable for this session only. Never commit it or paste it into
-   a file in the repo.
-2. Upload each new file with a year-long cache. The Dashboard's upload
-   button always sets one hour, so use the Storage API:
-
-   ```bash
-   P=https://<project>.supabase.co
-   KEY=<service role key>
-   for f in rain wind ocean birds fire; do
-     curl -fsS -X POST "$P/storage/v1/object/sounds/$f-v2.mp3"        -H "Authorization: Bearer $KEY"        -H "Content-Type: audio/mpeg"        -H "Cache-Control: max-age=31536000"        --data-binary @"out/$f-v2.mp3"
-   done
-   ```
-
-   (The same from supabase-js: `upload(name, file, { cacheControl:
-"31536000", contentType: "audio/mpeg" })`.)
-
-3. Check what the bucket serves: `curl -sI $P/storage/v1/object/public/sounds/rain-v2.mp3`
-   shows `cache-control: max-age=31536000`, and the URL plays in a browser.
-4. **Measure the uploaded files.** `measure` takes the public URLs as they
-   are (ffmpeg reads https), so no download is needed:
-
-   ```bash
-   B=$P/storage/v1/object/public/sounds
-   node supabase/scripts/ambient-loops.mjs measure $B/rain-v2.mp3 $B/wind-v2.mp3 $B/ocean-v2.mp3 $B/birds-v2.mp3 $B/fire-v2.mp3
-   ```
-
-   They read `silenceMs` `0/0` and `seconds` 110–120, like the 320 kbps
-   build did.
-
-5. Merge the PR that moves `objectName` to the new names.
-
-Keep the old `<id>.mp3` objects until the new build has shipped: an app
-still running the old code asks for them. Rolling back is moving
-`objectName` back in the code; the bucket itself needs no change.
+The rebuild, measure and upload procedure (ffmpeg, CBR 128 kbps since
+#2290, versioned `<id>-v<N>.mp3` names with a year-long cache, upload via
+the Storage API with the service role key) went with the script. Both are
+in git history: `git show c102cd97:supabase/scripts/ambient-loops.mjs` and
+`git show c102cd97:supabase/README.md`.
