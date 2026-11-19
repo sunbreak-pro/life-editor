@@ -87,14 +87,6 @@
       ],
       "note": "No worktree of its own and no holder lane: whichever lane takes the Issue edits these files, and scope-overlap blocks two in-flight changes on the same file (TagPicker.tsx was edited by two schedule PRs at once)."
     },
-    "analytics-refine": {
-      "paths": [
-        "shared/src/components/Analytics/**",
-        "web/src/analytics/**",
-        "web/tests/analytics*",
-        "shared/tests/analytics*"
-      ]
-    },
     "settings": {
       "anyLane": true,
       "paths": [
