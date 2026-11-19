@@ -172,7 +172,7 @@ export { useSyncContext } from "./hooks/useSyncContext";
 export { useSyncDomains } from "./hooks/useSyncDomains";
 // The shared load effect (#672) + its stale-while-revalidate store (#1101).
 // Exported for the web HOSTS that fetch for themselves rather than through a
-// domain provider (#1157: Briefing / Analytics / Trash / Work) — hosts may
+// domain provider (#1157: Briefing / Connect / Trash) — hosts may
 // call the DataService directly (§6.4), and this is the one way to do it that
 // survives the section unmount. `clearDomainSnapshots` is test isolation:
 // the store is module-level and outlives a suite's renders.
@@ -808,8 +808,8 @@ export type {
 } from "./types/wikiTagUnified";
 
 // Timer domain types — the timer_sessions / timer_settings rows the
-// DataService still reads (Analytics, the work-time fields). The Pomodoro
-// Provider and the Work section were removed in #2717.
+// DataService still reads. The Pomodoro Provider and the Work section were
+// removed in #2717, and Analytics, the last screen that read the log, in #2754.
 export type {
   TimerSettings,
   TimerSession,
@@ -917,21 +917,6 @@ export {
   type MergeHunk,
 } from "./utils/blockMerge";
 export { stampsEqual } from "./utils/updatedAtStamp";
-// #1375: reading a timer_sessions log — which item a session names.
-export {
-  sessionTargetId,
-  // #2407: the hand-entered rows the retired logged-time field wrote (#2718).
-  MANUAL_SESSION_LABEL,
-  isManualSession,
-  // #1666: the day the Work sidebar's history tab reads back.
-  pickWorkHistoryDay,
-  // #2054: the two days (today, yesterday) the Mobile drawer reads back.
-  pickWorkHistoryDays,
-  type WorkHistoryDay,
-  // #1665: the Schedule slot a free session is filed under.
-  freeSessionSlot,
-  type FreeSessionSlot,
-} from "./utils/timerSessions";
 // `[[ ]]` edges parked until their source item's first save lands (#371).
 export {
   createPendingItemLinks,

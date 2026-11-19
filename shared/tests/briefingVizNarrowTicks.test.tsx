@@ -4,7 +4,7 @@ import {
   evenDateTicks,
   MAX_DATE_TICKS,
   NARROW_MAX_DATE_TICKS,
-} from "../src/components/Analytics/chartTheme";
+} from "../src/components/briefing/chartTheme";
 // vi.mock below is hoisted above this import, so the panel's lazy() chart
 // resolves to the stub.
 import { BriefingVizPanel } from "../src/components/briefing/BriefingVizPanel";
@@ -13,7 +13,7 @@ import { BriefingVizPanel } from "../src/components/briefing/BriefingVizPanel";
  * #2505 — on a phone the morning paper's charts sit in the MobileDrawer
  * (~316px on a 390px screen), and the seven date labels of the 7-day axis
  * touched: "10-2710-2810-29…". Below the wide breakpoint the panel asks the
- * chart for fewer ticks; on the wide panel and in Analytics nothing changes.
+ * chart for fewer ticks; on the wide panel nothing changes.
  *
  * jsdom has no layout, so recharts' ResponsiveContainer draws no axis here.
  * The chart is stubbed to print the tick budget it was handed, and the
@@ -21,7 +21,7 @@ import { BriefingVizPanel } from "../src/components/briefing/BriefingVizPanel";
  * feeds it to.
  */
 
-vi.mock("../src/components/Analytics/TodoCompletionTrend", () => ({
+vi.mock("../src/components/briefing/TodoCompletionTrend", () => ({
   TodoCompletionTrend: ({ maxDateTicks }: { maxDateTicks?: number }) => (
     <div data-testid="trend" data-max-ticks={String(maxDateTicks)} />
   ),
@@ -58,7 +58,7 @@ describe("BriefingVizPanel — date ticks on a phone (#2505)", () => {
     expect(chart.dataset.maxTicks).toBe(String(NARROW_MAX_DATE_TICKS));
   });
 
-  it("keeps the wide panel on the Analytics budget", async () => {
+  it("keeps the wide panel on the full seven-tick budget", async () => {
     stubMatchMedia(true);
     renderPanel();
     const chart = await screen.findByTestId("trend");

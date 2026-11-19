@@ -31,7 +31,6 @@ import {
   Clock,
   Library,
   Tags,
-  BarChart3,
   Settings,
 } from "lucide-react";
 
@@ -65,9 +64,8 @@ export interface SectionDef {
  * in styles/tokens.css).
  *
  * The `rightSidebar` gate is likewise retired (v2 §3): every section shows
- * the detail-panel toggle. A section without portal content (Analytics) opens
- * the shared placeholder empty state until its refine pass defines panel
- * content.
+ * the detail-panel toggle. A section without portal content opens the shared
+ * placeholder empty state until its refine pass defines panel content.
  */
 
 /*
@@ -108,11 +106,11 @@ export const SECTIONS = [
    * time-axis one. Sits straight after Materials because those three are the
    * ways INTO the records (when / what / about what).
    *
-   * `mobileOrder: 5` puts it in the More sheet, not the fixed bottom four.
-   * Deliberate: the phone's job is consumption and quick capture (§2), and the
-   * four that already hold those slots are the ones a phone opens first. It is
-   * also the slot the retired Connect held, so adding this section moves no
-   * other row on the bottom bar.
+   * `mobileOrder: 5` was chosen to keep it in the More sheet, behind the four
+   * a phone opens first. With Work (#2717) and Analytics (#2754) gone it is
+   * now the fourth-smallest order, so it sits on the fixed bottom four and
+   * More holds Settings alone — accepted as is on 2026-11-19 rather than
+   * renumbering the rows.
    */
   {
     id: "connect",
@@ -120,13 +118,6 @@ export const SECTIONS = [
     icon: Tags,
     labelKey: "section.connect",
     mobileOrder: 5,
-  },
-  {
-    id: "analytics",
-    group: "main",
-    icon: BarChart3,
-    labelKey: "section.analytics",
-    mobileOrder: 4,
   },
   /*
    * Settings is the only utility row left. Trash was the other one until

@@ -52,7 +52,6 @@ vi.mock("../src/MobileShellActions", () => ({
 }));
 vi.mock("../src/lazySections", () => ({
   NotesView: () => <div data-testid="notes-body" />,
-  AnalyticsScreen: () => <div data-testid="analytics-body" />,
   prefetchLazySections: () => undefined,
 }));
 vi.mock("../src/notes/NotesUnifiedHost", () => ({
@@ -64,13 +63,16 @@ vi.mock("../src/daily/DailyView", () => ({
 vi.mock("../src/briefing/BriefingScreen", () => ({
   BriefingScreen: () => <div data-testid="briefing-body" />,
 }));
+vi.mock("../src/connect/ConnectScreen", () => ({
+  ConnectScreen: () => <div data-testid="connect-body" />,
+}));
 
 const SESSION = {
   user: { id: "user-1", email: "a@example.com", user_metadata: {} },
 } as unknown as Session;
 
 /** A navigation row, by the section's label in the current language. */
-function goToSection(key: "section.materials" | "section.analytics"): void {
+function goToSection(key: "section.materials" | "section.connect"): void {
   fireEvent.click(screen.getByRole("button", { name: i18n.t(key) }));
 }
 
@@ -161,9 +163,9 @@ describe("rightSidebar toggle name (#2390)", () => {
     fireEvent.click(screen.getByRole("button", { name: "詳細を開く" }));
     expect(screen.getByRole("button", { name: "詳細を閉じる" })).toBeTruthy();
 
-    goToSection("section.analytics");
+    goToSection("section.connect");
 
-    screen.getByTestId("analytics-body");
+    screen.getByTestId("connect-body");
     expect(screen.getByRole("button", { name: "詳細を閉じる" })).toBeTruthy();
     expect(
       screen.queryByRole("button", { name: "ノート一覧を閉じる" }),

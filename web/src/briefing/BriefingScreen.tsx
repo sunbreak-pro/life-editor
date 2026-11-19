@@ -256,8 +256,7 @@ export function BriefingScreen({
   // Goal period copy (#872 → #2106). The period RANGES are computed, not
   // translated — the human-readable face of the same period a goal is filed
   // under. The week is the app-wide start (#1102) — the same boundary the
-  // calendar grids and the Analytics week buckets use (#860), never a
-  // hard-coded Monday.
+  // calendar grids use (#860), never a hard-coded Monday.
   const locale = i18n.language.startsWith("ja") ? "ja-JP" : "en-US";
   const goalRanges = useMemo(
     () => goalPeriodRanges(todayKey, WEEK_STARTS_ON, locale),
@@ -297,14 +296,13 @@ export function BriefingScreen({
   const { detailLabels: goalDetailLabels, linkLabels: goalLinkLabels } =
     useGoalTreeLabels(todayKey);
 
-  // Widget copy re-uses the EXISTING analytics.* keys (Analytics shrink: the
-  // widget moved in here — its labels come along unduplicated). Since #938 it
-  // dresses <BriefingVizPanel> in the detail panel rather than a section of
-  // the paper; the resolution is unchanged.
+  // The chart's copy moved from analytics.* to briefing.todoTrend when the
+  // Analytics section was removed (#2754). Since #938 it dresses
+  // <BriefingVizPanel> in the detail panel rather than a section of the paper.
   const trendLabels = useMemo(
     () => ({
-      title: t("analytics.todoTrend.title"),
-      completedCount: t("analytics.todoTrend.completedCount"),
+      title: t("briefing.todoTrend.title"),
+      completedCount: t("briefing.todoTrend.completedCount"),
     }),
     [t],
   );

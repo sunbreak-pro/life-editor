@@ -4,7 +4,7 @@
 > Phase B-3 で凍結継続 / 削除候補 / 未着手 のラベル付与。Phase C で最終判定。
 > 簡略版テンプレ: Status / Boundary / 凍結 or 削除判断の根拠 のみ記入。
 
-**Tier 3 機能数**: 6（暫定、Phase B-3 で確定）
+**Tier 3 機能数**: 6（暫定、Phase B-3 で確定。うち Analytics は 2026-11 #2754 で退役し、本文を履歴として残す）
 
 > ⚠️ **退役スタック注記 (2026-07-11 #197)**: 本ファイルの Owner 記述は旧 Tauri スタック（`frontend/` / `src-tauri/`）を指す。旧スタックは 2026-07-11 削除済み（復元 = git tag `pre-tauri-removal`）・現行本流は `shared/` + `web/`。Owner 行の全面改訂は Phase 5。
 
@@ -40,10 +40,10 @@
 
 ---
 
-## Feature: Analytics
+## Feature: Analytics（退役 — 2026-11 #2754）
 
 **Tier**: 3
-**Status**: △基盤のみ（基本統計 + 作業時間グラフ + Recharts 複数タブ、ダッシュボード未成熟）。2026-10 に「記録」タブの分だけ解凍した（#2164 = [`D-20261008-main-1`](../../decisions/D-20261008-main-1.md) Q4）が、記録タブは 2026-11-16 #2720 で削除し、全タブが凍結に戻った
+**Status**: ✗RETIRED（2026-11 #2754 でセクションごと削除）。以下は退役前の記録: △基盤のみ（基本統計 + 作業時間グラフ + Recharts 複数タブ、ダッシュボード未成熟）。2026-10 に「記録」タブの分だけ解凍した（#2164 = [`D-20261008-main-1`](../../decisions/D-20261008-main-1.md) Q4）が、記録タブは 2026-11-16 #2720 で削除し、全タブが凍結に戻った
 **Verdict**: **凍結継続 — 破棄しない（2026-07-16 ユーザー決定で追認: 現行デザイン維持・配線/開発は凍結・完成間近に更新再開。ADR-0005 Phase 4 との統合検討は当時の記述）**。一度だけ凍結を解いた「記録」タブは #2720 で消し、残る 4 タブ（概要 / Todo / 作業 / 予定）は凍結のままです
 **Owner Provider/Module**: `AnalyticsFilterProvider` / `frontend/src/components/Analytics/` / `src-tauri/src/commands/diagnostics_commands.rs`
 **Supports Value Prop**: なし（Tier 3 候補）
@@ -63,6 +63,7 @@
 - 2026-07-16 ユーザー決定（briefing-loop 摩擦除去の話し合い）: **破棄しない**。現行の shared/web 版ダッシュボード（`shared/src/components/Analytics/` + `web/src/analytics/` — 上記 Owner 欄の frontend/ 表記は旧 Tauri 時代の記述）のデザインを維持し、配線・開発を凍結。完成間近に更新を再開する（記録 = `archive/2026-07-16-loop-friction-fixes.md` 決定 6）
 - 2026-10-08 ユーザー決定（D-20261008-main-1 Q4）: 拡張アプリの数値の記録（`app_records`）を読む場所として、**「記録」タブの分だけ凍結を解いた**。タブ帯の末尾に置き、アプリ / 種類 / 期間の絞り込み、件数・合計・平均、期間別の棒、一覧を持ちます（`shared/src/components/Analytics/RecordsTab.tsx`・#2164）。タブ帯は wide だけなので、narrow の `MobileAnalyticsView` には直近 7 日の種類ごとの合計を出す「記録」ブロックを足しました。Apps セクションの「記録を見る」から、アプリの絞り込みつきでこのタブへ移れます（#2165）。既存 4 タブには手を入れていません
 - 2026-11-16（#2720）: 拡張アプリを使わないと決めたため（2026-11-12 こうだいさんの決定・A 案）、「記録」タブ・narrow の「記録」ブロック・記録の見せ方の選択を削除し、Apps セクションも消した。`app_records` / `record_views` の表は DB に残してある（db-conventions §17）。上の 2026-10-08 の行は履歴として残す
+- 2026-11（#2754）: Analytics をセクションごと削除しました（2026-11-16 こうだいさんの決定。親 = #2716）。作業タブは Work 画面の削除（#2717）で、記録タブは拡張アプリとの接続の削除（#2720）で入力を失い、残る概要・Todo・予定のタブとスマホ幅の画面も作り直さずに消しました。`web/src/analytics/`・`shared/src/components/Analytics/`・`shared/src/utils/analyticsAggregation.ts`・`shared/src/utils/timerSessions.ts` と i18n の `analytics.*` は無くなりました。朝刊の右パネル「きのうまでの自分」の Todo 完了の推移は、2026-11-19 のこうだいさんの決定で残し、グラフと集計と色の定義を `shared/src/components/briefing/` へ移しました（文言は `briefing.todoTrend.*`）。recharts はこの 1 枚が使うので残ります。上の行は履歴として残します
 
 ### Dependencies
 

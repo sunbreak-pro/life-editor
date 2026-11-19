@@ -33,9 +33,9 @@ describe("resolveInitialSection", () => {
   });
 
   it("opens a fixed section when the pref is a valid section id", () => {
-    localStorage.setItem(STARTUP_KEY, "analytics");
+    localStorage.setItem(STARTUP_KEY, "materials");
     persistLastSection("connect");
-    expect(resolveInitialSection()).toBe("analytics");
+    expect(resolveInitialSection()).toBe("materials");
   });
 
   it("falls back to the default for an invalid fixed section id", () => {
@@ -47,6 +47,13 @@ describe("resolveInitialSection", () => {
     localStorage.setItem(LAST_KEY, "work");
     expect(resolveInitialSection()).toBe("briefing");
     localStorage.setItem(STARTUP_KEY, "work");
+    expect(resolveInitialSection()).toBe("briefing");
+  });
+
+  it("falls back to the default for a stored Analytics section (#2754)", () => {
+    localStorage.setItem(LAST_KEY, "analytics");
+    expect(resolveInitialSection()).toBe("briefing");
+    localStorage.setItem(STARTUP_KEY, "analytics");
     expect(resolveInitialSection()).toBe("briefing");
   });
 

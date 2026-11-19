@@ -6,12 +6,12 @@ import { describe, expect, it } from "vitest";
 /*
  * Code-split guard for the heaviest section bodies (#676 (a)).
  *
- * Notes carries the TipTap editor stack and Analytics carries recharts. (A
- * third row, Connect with the d3 force/zoom stack, left with the section in
- * #1152.) Each is reachable only through its own row of the section descriptor
- * table, so `lazySections.ts` loads it with lazy() and the table renders it
- * behind a <Suspense> boundary; that is what keeps those bundles out of the
- * initial chunk. A plain `import { NotesView } from "./notes/…"` added back
+ * Notes carries the TipTap editor stack. (Connect with the d3 force/zoom stack
+ * left with its section in #1152, and Analytics with recharts in #2754.) It is
+ * reachable only through its own row of the section descriptor table, so
+ * `lazySections.ts` loads it with lazy() and the table renders it behind a
+ * <Suspense> boundary; that is what keeps the bundle out of the initial
+ * chunk. A plain `import { NotesView } from "./notes/…"` added back
  * later would silently undo it — the app still works, the build still passes,
  * and only the dist listing (which nobody reads on a green PR) would show the
  * regression. This test reads the source instead.
@@ -48,7 +48,6 @@ const sources = `${lazySections}\n${descriptors}`;
 
 const LAZY_SECTIONS = [
   { name: "NotesView", path: "./notes/NotesView" },
-  { name: "AnalyticsScreen", path: "./analytics/AnalyticsScreen" },
 ] as const;
 
 /** Escape a module specifier for use inside a RegExp. */
@@ -92,6 +91,12 @@ describe("the section descriptor table keeps the heavy bodies code-split", () =>
       expect(guarded.test(descriptors)).toBe(true);
     });
   }
+
+  it("keeps no row for the removed Analytics screen (#2754)", () => {
+    // A leftover import() of the deleted module would fail the web build.
+    expect(lazySections).not.toContain("./analytics/");
+    expect(descriptors).not.toContain("AnalyticsScreen");
+  });
 
   it("still calls the warm-up from the shell", () => {
     // Without a call site the loader table is inert and every assertion above

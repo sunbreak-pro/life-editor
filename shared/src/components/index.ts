@@ -421,14 +421,11 @@ export {
   type AttachmentCleanupPanelProps,
   type AttachmentCleanupLabels,
 } from "./AttachmentCleanupPanel";
-// Analytics (W4) — recharts dashboards (Overview/Todos/Work/Schedule). Pure
-// presentational: aggregation is pure, data + t are injected by the web host
-// (§6.4). Sub-barrel so the feature can grow exports without touching here.
-export * from "./Analytics";
 // Briefing (Briefing plan Step 1) — the morning-paper home surface. Pure
 // presentational: the host fetches/aggregates (today's schedule + todos +
 // sessions + the daily's Briefing section) and injects data + labels (§6.4).
-// Reuses the 3 adopted Analytics widgets internally (Analytics shrink).
+// Its Todo completion chart is the one widget kept from the retired
+// Analytics section (#2754).
 export * from "./briefing";
 // (Backlinks — the "what links here" panel salvaged from the Connect
 // retirement (#1152) — was deleted in #1239. It never gained a caller: the
@@ -465,7 +462,7 @@ export { SkeletonList, type SkeletonListProps } from "./SkeletonList";
 export { LoadErrorCard, type LoadErrorCardProps } from "./LoadErrorCard";
 // Materials primitives (mini-plan Step 1) — StatusFilterChips / ExcerptListItem
 // / DateStrip for the 4-tab Materials views. Sub-barrel so the
-// feature can grow exports without touching here (matches Analytics).
+// feature can grow exports without touching here (matches briefing).
 export * from "./materials";
 // Notes (life-tags unification S1) — pure tag-heading grouping (buildTagGroups)
 // for the Notes side list. UI-free: the interactive list + DnD stay host-side.

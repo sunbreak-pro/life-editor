@@ -10,7 +10,6 @@ import {
 import { clearDomainSnapshots, type DataService } from "@life-editor/shared";
 import { createBumpableSync, stubDataService } from "./helpers";
 import { TrashScreen } from "../src/trash/TrashScreen";
-import { AnalyticsScreen } from "../src/analytics/AnalyticsScreen";
 import { useBriefingFetch } from "../src/briefing/hooks/useBriefingFetch";
 import { useFocusNote } from "../src/briefing/hooks/useFocusNote";
 
@@ -270,72 +269,5 @@ describe("Briefing — second visit", () => {
       },
     );
     expect(second.result.current.loading).toBe(true);
-  });
-});
-
-// ── Analytics ──────────────────────────────────────────────────────────────
-
-const ANALYTICS_READS = {
-  fetchTimerSessions: () => [],
-  fetchTodoTree: () => [],
-  fetchScheduleItemsByDateRange: () => [],
-  // Every live event, for the Overview tag usage card (#1379) — a different
-  // read from the range one above it.
-  fetchEvents: () => [],
-  fetchAllRoutines: () => [],
-  listNotesUnified: () => [],
-  listAllWikiTagsUnified: () => [],
-  listAllTagAssignments: () => [],
-} as const;
-
-function analyticsService(): DataService {
-  const fns: Record<string, unknown> = {
-    fetchTimerSettings: vi.fn(async () => ({ targetSessions: 4 })),
-  };
-  for (const [name, value] of Object.entries(ANALYTICS_READS)) {
-    fns[name] = vi.fn(async () => value());
-  }
-  return stubDataService(fns) as DataService;
-}
-
-function renderAnalytics(ds: DataService) {
-  const { wrapper } = createBumpableSync();
-  return render(
-    <AnalyticsScreen
-      dataService={ds}
-      tab="overview"
-      onTabChange={() => {}}
-      preset="30d"
-      onPresetChange={() => {}}
-    />,
-    { wrapper },
-  );
-}
-
-describe("Analytics — second visit", () => {
-  it("does not go back to the dashboard skeleton", async () => {
-    const ds = analyticsService();
-    const first = renderAnalytics(ds);
-    await waitFor(() =>
-      expect(
-        (ds.fetchTimerSettings as unknown as ReturnType<typeof vi.fn>).mock.calls
-          .length,
-      ).toBe(1),
-    );
-    // The skeleton is gone once the mount load lands.
-    await waitFor(() =>
-      expect(document.querySelector("[aria-busy=\"true\"]")).toBeNull(),
-    );
-    first.unmount();
-
-    const pending = deferred<unknown>();
-    (
-      ds.fetchTimerSettings as unknown as ReturnType<typeof vi.fn>
-    ).mockReturnValueOnce(pending.promise);
-
-    renderAnalytics(ds);
-    expect(document.querySelector("[aria-busy=\"true\"]")).toBeNull();
-
-    pending.resolve({ targetSessions: 4 });
   });
 });

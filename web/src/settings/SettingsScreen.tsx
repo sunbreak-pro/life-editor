@@ -86,7 +86,7 @@ import { DataExportCard } from "./DataExportCard";
  *
  *   General — every preference that was already here, in the order it was in
  *   Schedule — the initial calendar view (the first per-section preference)
- *   briefing / materials / analytics — receptacles, so the list is the
+ *   briefing / materials — receptacles, so the list is the
  *     whole map of what Settings will cover rather than only what exists today
  *   Claude — the MCP connection, its tool catalog and the Claude Code
  *     launcher. App-wide like General, so it sits after the per-section rows
@@ -105,12 +105,7 @@ import { DataExportCard } from "./DataExportCard";
  */
 
 /** Category ids, in the order the rightSidebar lists them (#1174). */
-const SECTION_TAB_IDS = [
-  "briefing",
-  "schedule",
-  "materials",
-  "analytics",
-] as const;
+const SECTION_TAB_IDS = ["briefing", "schedule", "materials"] as const;
 
 type SettingsTabId =
   "profile" | "general" | "trash" | "claude" | (typeof SECTION_TAB_IDS)[number];
@@ -305,7 +300,7 @@ export function SettingsScreen({
         id,
         // No defaultValue: `labelKey` is typed as the catalog's key union
         // (#726), so a section whose label was never translated is a compile
-        // error rather than a row that quietly says "analytics".
+        // error rather than a row that quietly says "materials".
         label: def ? t(def.labelKey) : id,
         icon: Icon ? <Icon size={16} /> : null,
       };

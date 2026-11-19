@@ -27,7 +27,6 @@ describe("section registry", () => {
       "schedule",
       "materials",
       "connect",
-      "analytics",
       "settings",
     ]);
   });
@@ -55,29 +54,32 @@ describe("section registry", () => {
     expect(SECTION_IDS).not.toContain("apps");
   });
 
+  it("no longer carries the Analytics section (#2754)", () => {
+    // The dashboards were removed with their tabs; a stored "analytics"
+    // falls back through useStartupSection's registry check.
+    expect(SECTION_IDS).not.toContain("analytics");
+  });
+
   it("splits mainline vs. utility groups", () => {
     expect(MAIN_SECTIONS.map((s) => s.id)).toEqual([
       "briefing",
       "schedule",
       "materials",
       "connect",
-      "analytics",
     ]);
     expect(UTILITY_SECTIONS.map((s) => s.id)).toEqual(["settings"]);
   });
 
   it("orders the mobile bottom bar as fixed-4 + More overflow", () => {
-    // Fixed 4 = briefing/schedule/materials/analytics;
-    // More = connect/settings. Analytics moved up into the fourth slot
-    // when Work left it (#2717). Adding Connect (#1171) moved nothing on the
-    // bar itself — it took the More slot the retired Connect had. #1293
-    // dropped Trash off the end of More for the same reason it left the
-    // sidebar, and #2720 dropped Apps from More; Settings stays last.
+    // Fixed 4 = briefing/schedule/materials/connect; More = settings.
+    // Connect rose into the fourth slot when Work (#2717) and Analytics
+    // (#2754) left the bar — the orders were not renumbered (2026-11-19).
+    // #1293 dropped Trash off the end of More for the same reason it left
+    // the sidebar, and #2720 dropped Apps from More; Settings stays last.
     expect(MOBILE_SECTIONS.map((s) => s.id)).toEqual([
       "briefing",
       "schedule",
       "materials",
-      "analytics",
       "connect",
       "settings",
     ]);

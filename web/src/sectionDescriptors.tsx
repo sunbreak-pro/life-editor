@@ -18,8 +18,8 @@ import { DailyView } from "./daily/DailyView";
 import { BriefingScreen } from "./briefing/BriefingScreen";
 import { ScheduleScreen } from "./schedule/ScheduleScreen";
 import { SettingsScreen } from "./settings/SettingsScreen";
-// The three heavy screens, code-split behind lazy() — see lazySections.ts.
-import { AnalyticsScreen, NotesView } from "./lazySections";
+// The heavy screen, code-split behind lazy() — see lazySections.ts.
+import { NotesView } from "./lazySections";
 import type { ShellNavigation } from "./hooks/useShellNavigation";
 
 /*
@@ -52,7 +52,7 @@ import type { ShellNavigation } from "./hooks/useShellNavigation";
  * `useShellNavigation` and the translated defs in `useShellChrome`; a
  * descriptor only names WHICH band its chrome shows, so the two never drift.
  */
-export type TabBandId = "materials" | "analytics" | "briefing" | "connect";
+export type TabBandId = "materials" | "briefing" | "connect";
 
 /**
  * The narrow-layout row that sits above the body (below 768px only — the wide
@@ -61,7 +61,8 @@ export type TabBandId = "materials" | "analytics" | "briefing" | "connect";
  * the same on all of them and are not described here (see NarrowHeaderRow).
  * "alone" below therefore means "alone among the per-section chrome":
  *
- *  - `none`            — no chrome of its own (Analytics). Since #1035 this no
+ *  - `none`            — no chrome of its own. No section uses it since
+ *    Analytics left (#2754). Since #1035 this no
  *    longer means "no row": the row is drawn regardless to carry the
  *    app-global Undo/Redo, and the section simply contributes nothing to its
  *    left and middle
@@ -101,7 +102,7 @@ export interface SectionDescriptor {
    * clamped to max-w-lumen-wide; the px lives in tokens.css). What varies is
    * SCROLL OWNERSHIP: "fluid" for the canvas/board surfaces that own their
    * full-bleed h-full layout and self-scroll inside the clamped box (both
-   * Schedule tabs, Analytics' own centered data column), "wide"
+   * Schedule tabs), "wide"
    * for the document surfaces where PageContainer owns the vertical scroll.
    */
   readonly width: PageContainerWidth;
@@ -306,8 +307,8 @@ export const SECTION_DESCRIPTORS: Readonly<
    * scrolls each pane independently (rail on the left, items on the right), so
    * PageContainer must not take the vertical scroll off it.
    *
-   * Not code-split, unlike Notes and Analytics: those two carry vendor stacks
-   * (TipTap / recharts) and this carries React and icons the entry chunk
+   * Not code-split, unlike Notes: that one carries a vendor stack
+   * (TipTap) and this carries React and icons the entry chunk
    * already has, so a lazy() row here would buy nothing and cost the
    * two-table upkeep in lazySections.ts (#1158).
    */
@@ -335,27 +336,6 @@ export const SECTION_DESCRIPTORS: Readonly<
           />
         </WikiTagsUnifiedProvider>
       ),
-  },
-  /*
-   * Analytics (W4) — recharts dashboards (Overview/Todos/Work/Schedule). Host
-   * fetches sessions/todos/schedule/routines via DataService and injects data
-   * + t into the pure shared <AnalyticsView>.
-   */
-  analytics: {
-    width: "fluid",
-    tabBand: "analytics",
-    narrowHeader: "none",
-    body: ({ ds, nav, loadingFallback }) => (
-      <Suspense fallback={loadingFallback}>
-        <AnalyticsScreen
-          dataService={ds}
-          tab={nav.analyticsTab}
-          onTabChange={nav.setAnalyticsTab}
-          preset={nav.analyticsPreset}
-          onPresetChange={nav.setAnalyticsPreset}
-        />
-      </Suspense>
-    ),
   },
   /*
    * Settings (W1) — reads useThemeContext + useShortcutConfig (the

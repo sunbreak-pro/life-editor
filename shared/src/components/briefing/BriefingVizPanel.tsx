@@ -1,12 +1,12 @@
 import { lazy, Suspense } from "react";
 import type { TodoNode } from "../../types/todoTree";
-import type { TodoCompletionTrendLabels } from "../Analytics/TodoCompletionTrend";
-import { ChartCard } from "../Analytics/ChartCard";
+import type { TodoCompletionTrendLabels } from "./TodoCompletionTrend";
+import { ChartCard } from "./ChartCard";
 import {
   CHART_HEIGHT_MD,
   MAX_DATE_TICKS,
   NARROW_MAX_DATE_TICKS,
-} from "../Analytics/chartTheme";
+} from "./chartTheme";
 import { WIDE_QUERY } from "../../constants/breakpoints";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { PANEL_BLOCK_RULE } from "./briefingStyles";
@@ -16,9 +16,8 @@ import { PANEL_BLOCK_RULE } from "./briefingStyles";
  *
  * Briefing is the default landing section (useStartupSection), so anything it
  * imports statically is in the first download. recharts is ~245 KB of it, and
- * this chart is the only thing that would keep it there — Analytics and
- * Connect have been code-split since #676 (a). Measured on #797: lazy() was
- * reaching 9% of a 2,090 KB initial bundle (gzip 586 KB).
+ * this chart is the only thing that would keep it there. Measured on #797:
+ * lazy() was reaching 9% of a 2,090 KB initial bundle (gzip 586 KB).
  *
  * D-20260812-web-1 chose to leave this alone, and named its own condition for
  * revisiting: "when the briefing's first paint is measured slow, not felt
@@ -28,7 +27,7 @@ import { PANEL_BLOCK_RULE } from "./briefingStyles";
  * names the same module without pulling it into this chunk.
  */
 const TodoCompletionTrend = lazy(() =>
-  import("../Analytics/TodoCompletionTrend").then((m) => ({
+  import("./TodoCompletionTrend").then((m) => ({
     default: m.TodoCompletionTrend,
   })),
 );
@@ -58,8 +57,8 @@ function ChartPlaceholder({ title }: { title: string }) {
  * thing you go and look at, which is what it always was.
  *
  * Nothing about the data changed: the host still computes it (the same
- * BriefingData it feeds the paper) and still resolves the widget copy from the
- * existing analytics.* keys. Only the destination moved.
+ * BriefingData it feeds the paper). Only the destination moved. The chart and
+ * its card came over from the retired Analytics section (#2754).
  *
  * The panel is one column, not the paper's `sm:grid-cols-2` — the well is
  * ~320px wide (RightSidebarContext DEFAULT_WIDTH) and two columns there would
@@ -67,8 +66,7 @@ function ChartPlaceholder({ title }: { title: string }) {
  *
  * On a phone the panel is the MobileDrawer (~316px on a 390px screen), and the
  * 7-day axis prints every other day there (#2505) — seven labels touched and
- * read as one run of digits. The wide panel (~478px) keeps all seven, and
- * Analytics, which mounts the same charts, is not touched: the count is a prop.
+ * read as one run of digits. The wide panel (~478px) keeps all seven.
  *
  * Pure presentation (§6.4): no DataService, no useTranslation.
  */

@@ -6,7 +6,6 @@ import {
   monthGridKeys,
   startOfWeekKey,
 } from "../src/utils/scheduleGridLayout";
-import { calendarWeekRange } from "../src/utils/analyticsAggregation";
 import { goalPeriodKeys } from "../src/components/briefing/goalPeriods";
 
 /*
@@ -61,12 +60,6 @@ describe("week start (#1102)", () => {
 
   it("files a goal under the Sunday week key", () => {
     expect(goalPeriodKeys(WEDNESDAY, WEEK_STARTS_ON).week).toBe("2026-08-16");
-  });
-
-  it("runs the Analytics week from Sunday to Saturday", () => {
-    expect(
-      calendarWeekRange(new Date(2026, 7, 19, 10, 0, 0), WEEK_STARTS_ON),
-    ).toEqual({ startKey: "2026-08-16", endKey: "2026-08-22" });
   });
 });
 

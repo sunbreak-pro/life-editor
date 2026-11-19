@@ -867,193 +867,6 @@
     "filterGroupEmpty": "このグループのタグはすべて削除済みです。",
     "noteAttachConfirm": "添付"
   },
-  "analytics": {
-    "title": "分析",
-    "tabsLabel": "分析ビュー",
-    "datePreset": {
-      "label": "期間",
-      "7d": "7日",
-      "30d": "30日",
-      "thisMonth": "今月",
-      "3m": "3ヶ月",
-      "all": "全期間"
-    },
-    "empty": {
-      "work": {
-        "title": "まだ作業セッションがありません",
-        "description": "Work のタイマーで最初のポモドーロを始めると、ここに作業時間の分析が表示されます。"
-      },
-      "schedule": {
-        "title": "この期間の予定がありません",
-        "description": "予定やルーチンをこなすと、達成率やトレンドがここに表示されます。"
-      },
-      "mobile": {
-        "title": "まだ記録がありません",
-        "description": "タイマーやスケジュールを使い始めると、ここに今日のサマリーが表示されます。"
-      },
-      "tagUsage": {
-        "title": "この期間にタグ付きのアイテムがありません",
-        "description": "Todo・予定・ノートにタグを付けると、使ったタグがここに多い順で並びます。"
-      }
-    },
-    "loadFailed": {
-      "message": "一部のデータを読み込めませんでした（{{sources}}）。下の数値はその分が抜けています。",
-      "separator": "・",
-      "sources": {
-        "sessions": "作業セッション",
-        "todos": "Todo",
-        "todayEvents": "今日の予定",
-        "events": "予定",
-        "routines": "ルーチン",
-        "notes": "ノート",
-        "tags": "タグ",
-        "tagAssignments": "タグ付け",
-        "timerSettings": "タイマー設定"
-      }
-    },
-    "mobile": {
-      "weekTitle": "今週",
-      "routineTitle": "ルーチン達成率",
-      "top3": "上位 3 件"
-    },
-    "tabs": {
-      "overview": "概要",
-      "todos": "Todo",
-      "schedule": "スケジュール",
-      "work": "作業"
-    },
-    "workTime": "作業時間",
-    "todoWorkTime": "Todo 別作業時間",
-    "noTodo": "Todo なし",
-    "period": {
-      "day": "日",
-      "week": "週",
-      "month": "月"
-    },
-    "totalWorkTime": "総作業時間",
-    "sessions": "セッション数",
-    "avgPerDay": "日平均",
-    "hours": "{{hours}}時間{{minutes}}分",
-    "axis": {
-      "hoursOnly": "{{hours}}時間",
-      "minutesOnly": "{{minutes}}分",
-      "weekFrom": "{{date}}〜"
-    },
-    "today": {
-      "title": "今日",
-      "workTime": "作業時間",
-      "completedTodos": "完了",
-      "pomodoroCount": "ポモドーロ"
-    },
-    "weekly": {
-      "title": "週間比較",
-      "workTimeLabel": "作業時間",
-      "sessionsLabel": "セッション",
-      "completedLabel": "完了 Todo"
-    },
-    "streak": {
-      "title": "ストリーク",
-      "current": "現在",
-      "longest": "最長",
-      "days_other": "日",
-      "noStreak": "作業を開始してストリークを積み上げよう！"
-    },
-    "heatmap": {
-      "title": "アクティビティヒートマップ",
-      "meta": "時間帯 × 曜日",
-      "less": "少ない",
-      "more": "多い",
-      "tooltip": "{{minutes}}分",
-      "cell": "{{day}} {{hour}}時 · {{time}}",
-      "mon": "月",
-      "tue": "火",
-      "wed": "水",
-      "thu": "木",
-      "fri": "金",
-      "sat": "土",
-      "sun": "日"
-    },
-    "pomodoroRate": {
-      "title": "ポモドーロ達成率",
-      "actual": "実績",
-      "target": "目標"
-    },
-    "workBreak": {
-      "title": "作業・休憩バランス",
-      "work": "作業",
-      "break": "休憩",
-      "longBreak": "長い休憩"
-    },
-    "timeline": {
-      "title": "デイリータイムライン",
-      "noSessions": "この日のセッションはありません"
-    },
-    "todoTrend": {
-      "title": "Todo 完了トレンド",
-      "completedCount": "完了数"
-    },
-    "stagnation": {
-      "title": "Todo 経過日数分布",
-      "todos": "件",
-      "buckets": {
-        "under1Week": "1週間未満",
-        "1to2Weeks": "1〜2週間",
-        "2to4Weeks": "2〜4週間",
-        "1to3Months": "1〜3か月",
-        "over3Months": "3か月以上"
-      }
-    },
-    "tagTime": {
-      "title": "タグ別作業時間",
-      "noData": "作業時間の記録がありません",
-      "untagged": "タグなし",
-      "other": "その他のタグ"
-    },
-    "tagUsage": {
-      "title": "タグ使用状況",
-      "tag": "タグ",
-      "inRange": "期間内に作成",
-      "liveTotal": "現在の合計（全期間）",
-      "topOf": "{{total}} 件中の上位 {{shown}} 件"
-    },
-    "overview": {
-      "todos": "Todo",
-      "events": "イベント",
-      "notes": "ノート",
-      "work": "作業時間",
-      "routines": "ルーティン",
-      "tags": "タグ",
-      "completed": "完了",
-      "today": "今日",
-      "rate": "達成率",
-      "thisWeek": "今週",
-      "assigned": "割り当て",
-      "scope": {
-        "allTime": "全期間",
-        "today": "今日",
-        "now": "現在"
-      }
-    },
-    "schedule": {
-      "totalEvents": "イベント総数",
-      "completedEvents": "完了",
-      "completionRate": "完了率",
-      "activeRoutines": "アクティブルーティン",
-      "routineRate": "ルーティン達成率",
-      "eventTrend": {
-        "title": "イベント完了トレンド",
-        "completed": "完了数"
-      },
-      "timeDistribution": {
-        "title": "時間帯別イベント",
-        "count": "イベント数"
-      },
-      "routineCompletion": {
-        "title": "ルーティン別達成率",
-        "rate": "達成率"
-      }
-    }
-  },
   "undoRedo": {
     "undone": "元に戻しました: {{label}}",
     "redone": "やり直しました: {{label}}",
@@ -1113,7 +926,6 @@
     "materials": "素材",
     "connect": "つながり",
     "schedule": "予定",
-    "analytics": "分析",
     "settings": "設定",
     "briefing": "朝刊"
   },
@@ -1600,6 +1412,10 @@
       "placedTomorrow": "明日 {{time}}",
       "openDaily": "Daily に移動",
       "openDailyLabel": "{{date}} の Daily に移動"
+    },
+    "todoTrend": {
+      "title": "Todo 完了トレンド",
+      "completedCount": "完了数"
     }
   },
   "errorBoundary": {

@@ -874,194 +874,6 @@
     "filterGroupEmpty": "Every tag in this group is gone.",
     "noteAttachConfirm": "Attach"
   },
-  "analytics": {
-    "title": "Analytics",
-    "tabsLabel": "Analytics views",
-    "datePreset": {
-      "label": "Date range",
-      "7d": "7 days",
-      "30d": "30 days",
-      "thisMonth": "This month",
-      "3m": "3 months",
-      "all": "All time"
-    },
-    "empty": {
-      "work": {
-        "title": "No work sessions yet",
-        "description": "Start your first pomodoro with the Work timer and your work-time analytics will appear here."
-      },
-      "schedule": {
-        "title": "No events in this range",
-        "description": "Complete events and routines and their completion rates and trends will show up here."
-      },
-      "mobile": {
-        "title": "Nothing recorded yet",
-        "description": "Once you start using the timer or the schedule, your daily summary will appear here."
-      },
-      "tagUsage": {
-        "title": "No tagged items in this range",
-        "description": "Tag your todos, events and notes and the tags you used will be ranked here."
-      }
-    },
-    "loadFailed": {
-      "message": "Some data could not be loaded ({{sources}}). The numbers below leave it out.",
-      "separator": ", ",
-      "sources": {
-        "sessions": "work sessions",
-        "todos": "todos",
-        "todayEvents": "today's events",
-        "events": "events",
-        "routines": "routines",
-        "notes": "notes",
-        "tags": "tags",
-        "tagAssignments": "tag assignments",
-        "timerSettings": "timer settings"
-      }
-    },
-    "mobile": {
-      "weekTitle": "This Week",
-      "routineTitle": "Routine Rate",
-      "top3": "Top 3"
-    },
-    "tabs": {
-      "overview": "Overview",
-      "todos": "Todos",
-      "schedule": "Schedule",
-      "work": "Work"
-    },
-    "workTime": "Work Time",
-    "todoWorkTime": "Work Time by Todo",
-    "noTodo": "No Todo",
-    "period": {
-      "day": "Day",
-      "week": "Week",
-      "month": "Month"
-    },
-    "totalWorkTime": "Total Work Time",
-    "sessions": "Sessions",
-    "avgPerDay": "Avg / Day",
-    "hours": "{{hours}}h {{minutes}}m",
-    "axis": {
-      "hoursOnly": "{{hours}}h",
-      "minutesOnly": "{{minutes}}m",
-      "weekFrom": "{{date}}–"
-    },
-    "today": {
-      "title": "Today",
-      "workTime": "Work Time",
-      "completedTodos": "Completed",
-      "pomodoroCount": "Pomodoros"
-    },
-    "weekly": {
-      "title": "Weekly Comparison",
-      "workTimeLabel": "Work Time",
-      "sessionsLabel": "Sessions",
-      "completedLabel": "Completed"
-    },
-    "streak": {
-      "title": "Streaks",
-      "current": "Current",
-      "longest": "Longest",
-      "days_one": "day",
-      "days_other": "days",
-      "noStreak": "Start working to build a streak!"
-    },
-    "heatmap": {
-      "title": "Activity Heatmap",
-      "meta": "Hour × Day",
-      "less": "Less",
-      "more": "More",
-      "tooltip": "{{minutes}} min",
-      "cell": "{{day}} {{hour}}:00 · {{time}}",
-      "mon": "Mon",
-      "tue": "Tue",
-      "wed": "Wed",
-      "thu": "Thu",
-      "fri": "Fri",
-      "sat": "Sat",
-      "sun": "Sun"
-    },
-    "pomodoroRate": {
-      "title": "Pomodoro Completion Rate",
-      "actual": "Actual",
-      "target": "Target"
-    },
-    "workBreak": {
-      "title": "Work / Break Balance",
-      "work": "Work",
-      "break": "Break",
-      "longBreak": "Long Break"
-    },
-    "timeline": {
-      "title": "Daily Timeline",
-      "noSessions": "No sessions for this day"
-    },
-    "todoTrend": {
-      "title": "Todo Completion Trend",
-      "completedCount": "Completed"
-    },
-    "stagnation": {
-      "title": "Todo Age Distribution",
-      "todos": "todos",
-      "buckets": {
-        "under1Week": "< 1 week",
-        "1to2Weeks": "1-2 weeks",
-        "2to4Weeks": "2-4 weeks",
-        "1to3Months": "1-3 months",
-        "over3Months": "3+ months"
-      }
-    },
-    "tagTime": {
-      "title": "Work Time by Tag",
-      "noData": "No work time recorded yet",
-      "untagged": "Untagged",
-      "other": "Other tags"
-    },
-    "tagUsage": {
-      "title": "Tag Usage",
-      "tag": "Tag",
-      "inRange": "Created in range",
-      "liveTotal": "Current total (all time)",
-      "topOf": "Top {{shown}} of {{total}} tags"
-    },
-    "overview": {
-      "todos": "Todos",
-      "events": "Events",
-      "notes": "Notes",
-      "work": "Work Time",
-      "routines": "Routines",
-      "tags": "Tags",
-      "completed": "completed",
-      "today": "today",
-      "rate": "rate",
-      "thisWeek": "this week",
-      "assigned": "assigned",
-      "scope": {
-        "allTime": "All time",
-        "today": "Today",
-        "now": "Now"
-      }
-    },
-    "schedule": {
-      "totalEvents": "Total Events",
-      "completedEvents": "Completed",
-      "completionRate": "Completion Rate",
-      "activeRoutines": "Active Routines",
-      "routineRate": "Routine Rate",
-      "eventTrend": {
-        "title": "Event Completion Trend",
-        "completed": "Completed"
-      },
-      "timeDistribution": {
-        "title": "Events by Time of Day",
-        "count": "Events"
-      },
-      "routineCompletion": {
-        "title": "Routine Completion Rates",
-        "rate": "Rate"
-      }
-    }
-  },
   "undoRedo": {
     "undone": "Undid: {{label}}",
     "redone": "Redid: {{label}}",
@@ -1121,7 +933,6 @@
     "materials": "Materials",
     "connect": "Connect",
     "schedule": "Schedule",
-    "analytics": "Analytics",
     "settings": "Settings",
     "briefing": "Briefing"
   },
@@ -1623,6 +1434,10 @@
       "placedTomorrow": "Tomorrow {{time}}",
       "openDaily": "Open in Daily",
       "openDailyLabel": "Open in Daily: {{date}}"
+    },
+    "todoTrend": {
+      "title": "Todo Completion Trend",
+      "completedCount": "Completed"
     }
   },
   "errorBoundary": {

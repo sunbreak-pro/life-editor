@@ -9,14 +9,6 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import type { TodoNode } from "../../types/todoTree";
-import {
-  aggregateTodoCompletionTrend,
-  rollUpTrendBuckets,
-  trendBucketLabel,
-  trendGranularity,
-  trendSpansYears,
-} from "../../utils/analyticsAggregation";
-import { WEEK_STARTS_ON } from "../../utils/scheduleGridLayout";
 import { ChartCard } from "./ChartCard";
 import {
   CHART_GRID,
@@ -26,6 +18,10 @@ import {
   evenDateTicks,
   MAX_DATE_TICKS,
 } from "./chartTheme";
+import {
+  aggregateTodoCompletionTrend,
+  trendDateLabels,
+} from "./todoCompletionTrendData";
 
 export interface TodoCompletionTrendLabels {
   title: string;
@@ -37,8 +33,7 @@ interface TodoCompletionTrendProps {
   days: number;
   labels: TodoCompletionTrendLabels;
   /**
-   * Most date labels the X axis may print (#2505). Defaults to
-   * MAX_DATE_TICKS, which is what Analytics draws; the Briefing drawer passes
+   * Most date labels the X axis may print (#2505). The panel passes
    * NARROW_MAX_DATE_TICKS on a phone, where seven labels do not fit.
    */
   maxDateTicks?: number;
@@ -50,23 +45,12 @@ export function TodoCompletionTrend({
   labels,
   maxDateTicks = MAX_DATE_TICKS,
 }: TodoCompletionTrendProps): React.JSX.Element {
-  // #1861: one point per day stops being readable once the span is long (the
-  // "All time" preset), so long spans fold into week / month buckets and the
-  // label grows a year as soon as the series crosses one.
   const data = useMemo(() => {
-    const granularity = trendGranularity(days);
-    const buckets = rollUpTrendBuckets(
-      aggregateTodoCompletionTrend(nodes, days),
-      granularity,
-      WEEK_STARTS_ON,
-      (into, day) => {
-        into.completedCount += day.completedCount;
-      },
-    );
-    const spansYears = trendSpansYears(buckets);
-    return buckets.map((d) => ({
-      date: trendBucketLabel(d.date, granularity, spansYears),
-      completed: d.completedCount,
+    const buckets = aggregateTodoCompletionTrend(nodes, days);
+    const dates = trendDateLabels(buckets);
+    return buckets.map((b, i) => ({
+      date: dates[i],
+      completed: b.completedCount,
     }));
   }, [nodes, days]);
 

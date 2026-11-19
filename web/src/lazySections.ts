@@ -3,20 +3,19 @@ import { lazy } from "react";
 /*
  * The code-split section bodies (#676 (a)).
  *
- * Two screens carry vendor stacks big enough to dominate the initial chunk:
- * Notes drags in the TipTap editor (core/react/starter-kit + extensions) and
- * Analytics drags in recharts. (Connect was the third, dragging in the d3
- * force/zoom stack, until #1152 retired the section.) Each is reachable only
- * through its own row of SECTION_DESCRIPTORS, so each is loaded with lazy()
- * and rendered behind a <Suspense> boundary there — which is what keeps those
- * bundles out of the first download. The web app's main entry point is a
+ * Notes carries a vendor stack big enough to dominate the initial chunk: the
+ * TipTap editor (core/react/starter-kit + extensions). (Connect, with the d3
+ * force/zoom stack, left in #1152, and Analytics, with recharts, in #2754.)
+ * It is reachable only through its own row of SECTION_DESCRIPTORS, so it is
+ * loaded with lazy() and rendered behind a <Suspense> boundary there — which
+ * is what keeps that bundle out of the first download. The web app's main entry point is a
  * public URL on a phone (D-20260807-main-1), so this is felt, not theoretical.
  *
  * They live in their own module because the descriptor table exports data, and
  * a file that mixes component and non-component exports breaks Fast Refresh
  * (react-refresh/only-export-components — a CI-gating error here).
  *
- * Both are NAMED exports, mapped to the `default` shape lazy() expects.
+ * It is a NAMED export, mapped to the `default` shape lazy() expects.
  * The lockstep guard is web/tests/lazySectionChunks.test.ts: it fails if any
  * of these ever gains a static `import … from` alongside the dynamic one.
  */
@@ -25,22 +24,16 @@ export const NotesView = lazy(() =>
   import("./notes/NotesView").then((m) => ({ default: m.NotesView })),
 );
 
-export const AnalyticsScreen = lazy(() =>
-  import("./analytics/AnalyticsScreen").then((m) => ({
-    default: m.AnalyticsScreen,
-  })),
-);
-
 /*
  * IDLE WARM-UP (#1158 / #1038 案 C).
  *
- * The two declarations above keep the heavy stacks out of the first download,
- * and they pay for it once: the FIRST time the user opens Notes or Analytics,
- * the chunk is fetched while a one-line fallback sits in the page. Nothing
+ * The declaration above keeps the heavy stack out of the first download, and
+ * it pays for it once: the FIRST time the user opens Notes, the chunk is
+ * fetched while a one-line fallback sits in the page. Nothing
  * prefetched, so that wait is unavoidable — the request only starts when React
  * renders the boundary.
  *
- * So fetch them while nothing else is happening. `import()` populates the
+ * So fetch it while nothing else is happening. `import()` populates the
  * module registry, and React.lazy's own `import()` of an already-loaded module
  * resolves from it without touching the network.
  *
@@ -50,14 +43,11 @@ export const AnalyticsScreen = lazy(() =>
  * out of its way to protect. Two gates instead: the `load` event (the initial
  * download is done) and then idle (the main thread is free).
  *
- * WHAT IT ACTUALLY COSTS. It is not two chunks — Vite's dependency map fans
- * each of these out to what it statically imports, and the union is every
- * async chunk in the build: NotesView pulls RichTextEditor, and AnalyticsScreen
- * pulls CartesianChart plus the two chart widgets it shares with the briefing
- * panel. Measured on this build from vite's own gzip column, that union is
- * ~272 KB against a ~233 KB entry chunk — it costs MORE than the initial
- * download, and every
- * session pays it, including one that only reads the briefing. That is the
+ * WHAT IT ACTUALLY COSTS. It is not one chunk — Vite's dependency map fans
+ * NotesView out to what it statically imports (RichTextEditor). When Analytics
+ * was still here (#2754) the union of the two was ~272 KB against a ~233 KB
+ * entry chunk, measured from vite's own gzip column; every session pays the
+ * Notes share, including one that only reads the briefing. That is the
  * trade the Issue asks for, with three guards on it:
  *
  * - SEQUENTIAL, not Promise.all. `requestIdleCallback` measures MAIN-THREAD
@@ -108,7 +98,6 @@ const FALLBACK_DELAY_MS = 2000;
 
 const SECTION_CHUNK_LOADERS: ReadonlyArray<() => Promise<unknown>> = [
   () => import("./notes/NotesView").then((m) => m.NotesView),
-  () => import("./analytics/AnalyticsScreen").then((m) => m.AnalyticsScreen),
 ];
 
 /**
@@ -129,7 +118,7 @@ async function loadAllChunks(): Promise<void> {
     try {
       await load();
     } catch {
-      // Swallowed so one bad chunk cannot cancel the other. NOT because it is
+      // Swallowed so one bad chunk cannot cancel the rest. NOT because it is
       // free: see the module-map note in the header — the boundary's own
       // import() of a URL that failed here will reject off that record rather
       // than retry. The offline gate is what keeps that rare.
