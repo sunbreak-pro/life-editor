@@ -27,7 +27,7 @@ Life Editor は、作者が自分の生活を回すために作っている個�
 | `desktop/`    | `web/` の画面を包む Electron の殻です。electron-vite でビルドし、electron-builder で配布用にまとめます。                     |
 | `mobile/`     | `web/` のビルド結果を包む Capacitor の殻です（iOS / Android）。スマホからはふだん公開 Web URL をブラウザで開きます。         |
 | `mcp-server/` | MCP サーバーです。Node.js と `@modelcontextprotocol/sdk` で書いています。                                                    |
-| `supabase/`   | データベースのマイグレーション、行単位のアクセス制御（RLS）の検査スクリプト、アカウント削除用の Edge Function があります。   |
+| `supabase/`   | データベースのマイグレーションと、行単位のアクセス制御（RLS）の検査スクリプトがあります。                                    |
 
 公開 Web URL は `https://life-editor.sunbreak-pro.workers.dev` です。
 

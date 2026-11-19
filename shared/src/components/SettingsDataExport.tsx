@@ -23,15 +23,13 @@ export interface SettingsDataExportProps {
 /*
  * "Download all my data" card (#1988).
  *
- * The terms ask users to keep their own copy, account deletion is immediate
- * and final, and the free-tier project has no point-in-time restore — so
- * until this card existed, every road to losing data had no user-side
- * answer. One press, one JSON file.
+ * The free-tier project has no point-in-time restore, so until this card
+ * existed, losing data had no user-side answer. One press, one JSON file.
  *
- * `secondary`: taking a copy costs the user nothing and changes nothing, and
- * the card sits in the same column as Delete account, so it must not borrow
- * that card's weight. The result line is `role="status"` so a screen reader
- * hears the outcome of a press whose visible effect is a file elsewhere.
+ * `secondary`: taking a copy costs the user nothing and changes nothing, so
+ * the button must not carry the weight of a primary action. The result line
+ * is `role="status"` so a screen reader hears the outcome of a press whose
+ * visible effect is a file elsewhere.
  */
 export function SettingsDataExport({
   onExport,
