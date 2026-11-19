@@ -120,7 +120,6 @@ function makeDS(over: Partial<Record<keyof DataService, unknown>> = {}) {
       .fn()
       .mockResolvedValue([{ id: "daily-2026-08-26", date: "2026-08-26" }]),
     fetchAllRoutines: vi.fn().mockResolvedValue([]),
-    fetchNoteTables: vi.fn().mockResolvedValue([]),
     // The full-body reads — the hub must not touch either (#2224).
     getNoteUnified: vi.fn(),
     getNoteBodyUnified: vi.fn(),

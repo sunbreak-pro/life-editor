@@ -339,11 +339,11 @@ async function readItems(
   }
 
   const payloadById = new Map<string, Record<string, unknown>>();
-  for (const [table, tableIds] of byTable) {
+  for (const [table, idsInTable] of byTable) {
     const { data, error } = await client
       .from(table)
       .select("*")
-      .in("item_id", tableIds);
+      .in("item_id", idsInTable);
     if (error) throw new Error(`read ${table}: ${error.message}`);
     for (const row of (data ?? []) as Record<string, unknown>[]) {
       payloadById.set(row.item_id as string, row);

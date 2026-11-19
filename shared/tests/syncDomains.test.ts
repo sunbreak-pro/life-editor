@@ -100,14 +100,15 @@ describe("syncDomains — payload tables", () => {
     }
   });
 
-  it("routes a note table's payload to notes, and only notes (#2094)", () => {
-    expect(domainsForChange("tables_payload")).toEqual(["notes"]);
-  });
-
-  it("routes the unsubscribed extension-app tables nowhere (#2720)", () => {
+  it("routes the unsubscribed tables nowhere (#2720, #2761)", () => {
     // The screens that read them are gone; the tables stay in the DB but are
     // no longer subscribed, so a stray event for them wakes no reader.
-    for (const table of ["app_records", "extension_apps", "record_views"]) {
+    for (const table of [
+      "app_records",
+      "extension_apps",
+      "record_views",
+      "tables_payload",
+    ]) {
       expect(domainsForChange(table)).toEqual([]);
     }
   });

@@ -88,7 +88,8 @@ function droppedTables(sql: string): string[] {
  * extension-app screens were removed while their tables stayed in the DB and
  * in the publication (no DDL, #2720). The routine-group and playlist tables
  * never had a screen, and #2757 removed the code that still subscribed to
- * them. Nothing in the app shows these rows, so a Realtime event for them
+ * them. #2761 removed tagging a table in a note, the only reader of
+ * `tables_payload` (0040). Nothing in the app shows these rows, so a Realtime event for them
  * would only bump a counter nobody reads. Listed explicitly so the exact
  * comparison below still catches every other drift.
  */
@@ -100,6 +101,7 @@ const PUBLISHED_BUT_UNSUBSCRIBED = [
   "routine_group_assignments",
   "playlists",
   "playlist_items",
+  "tables_payload",
 ] as const;
 
 function publishedTables(): string[] {
@@ -149,7 +151,7 @@ describe("Realtime: publication ↔ SyncContext table set", () => {
     expect(publishedTables()).not.toContain("calendars");
   });
 
-  it("covers the 21 subscribed owned tables", () => {
+  it("covers the 20 subscribed owned tables", () => {
     // 0008 unified (items_meta + 5 payloads + routine_groups +
     // routine_group_assignments + 4 wiki_tag*) = 13, plus the 6 W3
     // timer/audio tables (0018) = 19. `calendars` (0006) made it 20 until
@@ -161,9 +163,10 @@ describe("Realtime: publication ↔ SyncContext table set", () => {
     // and stopped subscribing to those three tables (still published, see
     // PUBLISHED_BUT_UNSUBSCRIBED) = 25. #2757 stopped subscribing to the two
     // routine-group and the two playlist tables, which no screen used = 21.
+    // #2761 stopped subscribing to tables_payload with the table tags = 20.
     // A hard count so an accidental
     // truncation is caught even if BOTH lists were truncated identically
     // (which the equality test above would otherwise pass).
-    expect(REALTIME_TABLES.length).toBe(21);
+    expect(REALTIME_TABLES.length).toBe(20);
   });
 });

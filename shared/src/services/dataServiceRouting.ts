@@ -7,7 +7,6 @@ import type {
   DataService,
   GoalsDataService,
   ItemConversionDataService,
-  NoteTablesDataService,
   NotesUnifiedDataService,
   RoutinesDataService,
   ScheduleItemsDataService,
@@ -45,12 +44,6 @@ import {
   PHASE2_GOALS_METHODS,
   type GoalsMethodName,
 } from "./SupabaseGoalsService";
-import {
-  SupabaseNoteTablesService,
-  PHASE2_NOTE_TABLES_METHOD_NAMES,
-  PHASE2_NOTE_TABLES_METHODS,
-  type NoteTablesMethodName,
-} from "./SupabaseNoteTablesService";
 import {
   SupabaseAiCustomizationService,
   PHASE2_AI_CUSTOMIZATION_METHOD_NAMES,
@@ -173,9 +166,6 @@ export type DailiesUnifiedRoutingIsExact = AssertNever<
 export type GoalsRoutingIsExact = AssertNever<
   Mismatch<GoalsDataService, GoalsMethodName>
 >;
-export type NoteTablesRoutingIsExact = AssertNever<
-  Mismatch<NoteTablesDataService, NoteTablesMethodName>
->;
 export type AiCustomizationRoutingIsExact = AssertNever<
   Mismatch<AiCustomizationDataService, AiCustomizationMethodName>
 >;
@@ -194,7 +184,6 @@ export type RoutedMethodName =
   | NotesUnifiedMethodName
   | DailiesUnifiedMethodName
   | GoalsMethodName
-  | NoteTablesMethodName
   | AiCustomizationMethodName;
 
 /**
@@ -286,12 +275,6 @@ export const PHASE2_ROUTING_DOMAINS = [
     names: PHASE2_GOALS_METHOD_NAMES,
     methods: PHASE2_GOALS_METHODS,
     service: SupabaseGoalsService,
-  },
-  {
-    domain: "noteTables",
-    names: PHASE2_NOTE_TABLES_METHOD_NAMES,
-    methods: PHASE2_NOTE_TABLES_METHODS,
-    service: SupabaseNoteTablesService,
   },
   {
     domain: "aiCustomization",

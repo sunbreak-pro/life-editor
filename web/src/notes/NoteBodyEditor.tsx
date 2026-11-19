@@ -12,7 +12,6 @@ import {
 } from "@life-editor/shared";
 import { RichTextEditor } from "./RichTextEditor";
 import type { NoteLinking } from "./hooks/useNoteLinking";
-import type { NoteTableItems } from "./hooks/useNoteTableItems";
 import type { AttachmentWiring } from "./useAttachmentUpload";
 
 /*
@@ -84,11 +83,6 @@ export interface NoteBodyEditorProps {
    * goes away.
    */
   onEditorChange?: (editor: Editor | null) => void;
-  /**
-   * Tags on the body's tables (#2094): the tag row of the table bar, and the
-   * post-save sync of the table items. Omitted → neither.
-   */
-  tableItems?: NoteTableItems;
   className?: string;
 }
 
@@ -104,7 +98,6 @@ function NoteBodySession({
   bodySync,
   attachments,
   onEditorChange,
-  tableItems,
   className,
 }: NoteBodyEditorProps) {
   const { t } = useTranslation();
@@ -121,11 +114,7 @@ function NoteBodySession({
     readEditor: () => readEditorRef.current?.() ?? null,
     // #372: drop inline-origin edges whose "[[ ]]" left the text — once the
     // body is actually stored, not on a save that may yet be refused.
-    // #2094: the table items follow the stored body the same way.
-    onSaved: (content) => {
-      linking.handleBodySaved(noteId, content);
-      tableItems?.syncSavedBody(noteId, content);
-    },
+    onSaved: (content) => linking.handleBodySaved(noteId, content),
     onAdopted: (content) => bodySync.adoptNoteBody(noteId, content),
     onError: (e) => logServiceError("Notes", "saveNoteBody", e),
   });
@@ -184,7 +173,6 @@ function NoteBodySession({
         onCreateNoteForLink={linking.handleCreateNoteForLink}
         attachments={attachments}
         onEditorChange={onEditorChange}
-        tableTags={tableItems?.wiringFor(noteId)}
         className={className}
       />
       {/*

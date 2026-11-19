@@ -123,13 +123,12 @@ export const REALTIME_TABLES = [
   "ai_rules",
   "ai_memories",
   "ai_skills",
-  // Note tables as items (0040 / #2094)
-  "tables_payload",
   // (#2720 removed the extension-app screens, so `app_records`,
-  // `extension_apps` and `record_views` are no longer subscribed. The tables
-  // stay in the DB and in the publication — no DDL — and
-  // syncRealtimeTables.test.ts lists them as published but deliberately
-  // unsubscribed.)
+  // `extension_apps` and `record_views` are no longer subscribed, and #2761
+  // did the same for the payload table of 0040 when it removed tagging a
+  // table in a note. The tables stay in the DB and in the publication — no
+  // DDL — and syncRealtimeTables.test.ts lists them as published but
+  // deliberately unsubscribed.)
 ] as const;
 
 const DEBOUNCE_MS = 300;
