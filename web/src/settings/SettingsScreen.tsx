@@ -49,7 +49,6 @@ import {
   useTranslation,
   getDataService,
   getOutboxCounts,
-  isNativeMobile,
   lastBriefingDate,
   MCP_TOOL_CATALOG,
   type SettingsTabItem,
@@ -66,7 +65,6 @@ import { signOutWithNotice } from "../hooks/signOutWithNotice";
 import { AiCustomizationHost } from "./AiCustomizationHost";
 import { TrashScreen } from "../trash/TrashScreen";
 import { AttachmentCleanupCard } from "../trash/AttachmentCleanupCard";
-import { DataExportCard } from "./DataExportCard";
 
 /*
  * Settings screen (W1, web host — redesigned; §216 lightweight prefs). This is
@@ -769,17 +767,6 @@ export function SettingsScreen({
               onSignOut={handleSignOut}
             />
           </div>
-
-          {/*
-           * #1988 — next to Account because the copy is the account's own
-           * data. Hidden inside the Capacitor shells, where a Blob download
-           * has nowhere to land; a phone browser still gets it.
-           */}
-          {!isNativeMobile() && (
-            <div className={cardClass}>
-              <DataExportCard dataService={dataService} />
-            </div>
-          )}
 
           <div className={cardClass}>
             <SettingsReset

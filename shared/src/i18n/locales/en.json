@@ -111,14 +111,6 @@
         "button": "Sign out"
       }
     },
-    "dataExport": {
-      "heading": "Download your data",
-      "description": "Save everything in this account — todos, schedule, routines, notes, dailies, tags, timer history and sound settings, including items in Trash — as one JSON file. Attached files are not included; their locations are kept inside the notes.",
-      "button": "Download as JSON",
-      "busy": "Preparing…",
-      "done": "Saved {{rows}} items to {{file}}.",
-      "error": "Could not prepare the file. Nothing was changed — please wait a moment and try again."
-    },
     "ai": {
       "heading": "AI integration",
       "description": "Claude Code connects straight to this app's database. Start it on your computer and it reaches the same todos, schedule, notes and dailies these screens show, through the MCP server. The app itself never calls an AI.",

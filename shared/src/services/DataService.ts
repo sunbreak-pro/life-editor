@@ -36,7 +36,6 @@ import type {
   AttachmentOrphanScan,
   StoredAttachment,
 } from "./attachmentOrphans";
-import type { UserDataExport, UserDataExportTable } from "./userDataExport";
 import type {
   WikiTag as WikiTagUnified,
   WikiTagAssignment as WikiTagAssignmentUnified,
@@ -229,21 +228,6 @@ export interface AttachmentsDataService {
    * what the user confirms one `deleteAttachment` at a time.
    */
   findOrphanAttachments(): Promise<AttachmentOrphanScan>;
-}
-
-// ---------------------------------------------------------------------------
-// Whole-account export — SupabaseExportService
-// ---------------------------------------------------------------------------
-
-export type { UserDataExport, UserDataExportTable };
-
-export interface ExportDataService {
-  /**
-   * Every row the signed-in user owns, one array per table (#1988). Includes
-   * soft-deleted rows and full note / daily bodies; attachment bytes are not
-   * read (their paths are inside the bodies).
-   */
-  exportUserData(): Promise<UserDataExport>;
 }
 
 // ---------------------------------------------------------------------------
@@ -1004,7 +988,6 @@ export interface DataService
     TimerDataService,
     AudioDataService,
     AttachmentsDataService,
-    ExportDataService,
     TagGroupsDataService,
     RoutinesDataService,
     ScheduleItemsDataService,
