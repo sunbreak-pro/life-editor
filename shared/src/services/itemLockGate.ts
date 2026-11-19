@@ -1,15 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { hashPassword, verifyPassword } from "../utils/passwordHash";
-import { fetchMaybeSingleRow, requireSingleRow } from "./postgrestSingle";
+import { fetchMaybeSingleRow } from "./postgrestSingle";
 
 /*
- * Shared password gate + edit lock for items_meta-backed domains (#674 / C7).
+ * Shared password gate for items_meta-backed domains (#674 / C7).
  *
  * Notes (SupabaseNotesUnifiedLock, G1) and Dailies (SupabaseDailiesUnified-
- * Service, DU-G G2) grew the same six methods line for line: set / remove /
- * verify password, the lazy PBKDF2 rehash, the edit-lock toggle, and the
- * items_meta updated_at bump they all share. The two copies differed only in
- * four values — the role string, the payload table, the error labels, and how
+ * Service, DU-G G2) grew the same methods line for line: set / remove /
+ * verify password, the lazy PBKDF2 rehash, and the items_meta updated_at
+ * bump they share. The two copies differed only in four values — the role string, the payload table, the error labels, and how
  * the domain object is re-read afterwards — so they are parameters here rather
  * than a second copy of the body.
  *
@@ -31,7 +30,7 @@ import { fetchMaybeSingleRow, requireSingleRow } from "./postgrestSingle";
  * stored column projected back to the client (true for a hash string just as
  * for plaintext).
  *
- * The three single-row READS below go through `postgrestSingle` like the rest
+ * The single-row READ below goes through `postgrestSingle` like the rest
  * of the layer (#674). The two write paths (`bumpMeta` / `patchPayload`) stay
  * hand-written: an UPDATE without `.select()` returns no row, so there is
  * nothing for those helpers to unwrap.
@@ -46,18 +45,17 @@ export interface ItemLockGateLabels {
   removePassword: string;
   verifyPassword: string;
   lazyRehash: string;
-  toggleEditLock: string;
 }
 
 export interface ItemLockGateConfig<TNode> {
   client: SupabaseClient;
   /** items_meta.role this domain owns (`"note"` / `"daily"`). */
   role: string;
-  /** The `<role>_payload` table holding password_hash + is_edit_locked. */
+  /** The `<role>_payload` table holding password_hash. */
   payloadTable: string;
   /**
    * Re-read the domain object after a mutation so the GENERATED
-   * `has_password` column and the flipped flags reflect on what we return.
+   * `has_password` column reflects on what we return.
    * Owns its own "row vanished" error text — the two domains word it
    * differently and both are asserted in tests.
    */
@@ -72,9 +70,9 @@ export interface ItemLockGateConfig<TNode> {
 }
 
 /**
- * The six-method password / edit-lock surface, bound to one domain.
+ * The password surface, bound to one domain.
  *
- * Note the DB-Q2 split: the three mutating methods bump
+ * Note the DB-Q2 split: the two mutating methods bump
  * `items_meta.updated_at` so Sync LWW propagates, while the lazy rehash
  * deliberately does NOT (see `lazyRehash` below).
  */
@@ -202,30 +200,5 @@ export class ItemLockGate<TNode> {
       // chronically failing migration observable.
       console.warn(`${label}(${id}) failed:`, err);
     }
-  }
-
-  /**
-   * Flip `<payload>.is_edit_locked`. Read-modify-write because PostgREST
-   * cannot express the SQLite `CASE WHEN ... END` in one statement. Bumps
-   * items_meta.updated_at so Sync LWW propagates.
-   */
-  async toggleEditLock(id: string): Promise<TNode> {
-    const { client, payloadTable, labels } = this.config;
-    const label = labels.toggleEditLock;
-    this.config.assertId?.(id);
-
-    const cur = await requireSingleRow<{ is_edit_locked: boolean }>(
-      client
-        .from(payloadTable)
-        .select("is_edit_locked")
-        .eq("item_id", id)
-        .single(),
-      `${label} read failed`,
-    );
-    const next = !cur.is_edit_locked;
-
-    await this.bumpMeta(id, label);
-    await this.patchPayload(id, label, { is_edit_locked: next });
-    return this.config.readBack(id, label);
   }
 }

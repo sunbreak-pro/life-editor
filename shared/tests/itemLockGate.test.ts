@@ -94,7 +94,6 @@ const LABELS = {
   removePassword: "removeThingPasswordUnified",
   verifyPassword: "verifyThingPasswordUnified",
   lazyRehash: "lazyRehashThingPassword",
-  toggleEditLock: "toggleThingEditLockUnified",
 };
 
 function makeGate(
@@ -369,70 +368,5 @@ describe("ItemLockGate.verifyPassword", () => {
       `${LABELS.lazyRehash}(t1) failed:`,
       expect.any(Error),
     );
-  });
-});
-
-describe("ItemLockGate.toggleEditLock", () => {
-  let stub: ReturnType<typeof makeStub>;
-  beforeEach(() => {
-    stub = makeStub();
-  });
-
-  it("flips false -> true, bumps the meta, and re-reads", async () => {
-    stub.stage("things_payload", "select", {
-      data: { is_edit_locked: false },
-      error: null,
-    });
-    stageBump(stub);
-    stub.stage("things_payload", "update", { data: null, error: null });
-    const { gate, readBackCalls } = makeGate(stub);
-
-    await expect(gate.toggleEditLock("t1")).resolves.toBe("node:t1");
-    expect(
-      stub.calls.find((c) => c.table === "things_payload" && c.op === "update")
-        ?.args[0],
-    ).toEqual({ is_edit_locked: true });
-    expect(readBackCalls).toEqual([["t1", LABELS.toggleEditLock]]);
-  });
-
-  it("flips true -> false (read-modify-write, not a blind set)", async () => {
-    stub.stage("things_payload", "select", {
-      data: { is_edit_locked: true },
-      error: null,
-    });
-    stageBump(stub);
-    stub.stage("things_payload", "update", { data: null, error: null });
-    const { gate } = makeGate(stub);
-
-    await gate.toggleEditLock("t1");
-    expect(
-      stub.calls.find((c) => c.table === "things_payload" && c.op === "update")
-        ?.args[0],
-    ).toEqual({ is_edit_locked: false });
-  });
-
-  it("throws `<label> read failed` and bumps nothing when the read errors", async () => {
-    stub.stage("things_payload", "select", {
-      data: null,
-      error: { message: "read-err" },
-    });
-    const { gate } = makeGate(stub);
-
-    await expect(gate.toggleEditLock("t1")).rejects.toThrow(
-      `${LABELS.toggleEditLock} read failed: read-err`,
-    );
-    expect(stub.calls.some((c) => c.table === "items_meta")).toBe(false);
-  });
-
-  it("runs assertId before the read", async () => {
-    const { gate } = makeGate(stub, {
-      assertId: (id) => {
-        if (id !== "ok") throw new Error(`invalid id "${id}"`);
-      },
-    });
-    await expect(gate.toggleEditLock("bad")).rejects.toThrow(
-      'invalid id "bad"',
-    );
-    expect(stub.calls).toHaveLength(0);
   });
 });

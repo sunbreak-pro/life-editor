@@ -676,7 +676,7 @@ export interface WikiTagsUnifiedDataService {
 // — SupabaseNotesUnifiedService
 //
 // DU-G PR1 added the remaining UX-critical methods (trash / restore /
-// hard-delete / search / password gate / edit lock) so the legacy bridge
+// hard-delete / search / password gate) so the legacy bridge
 // could finally drop its `_pendingDuRewrite` stubs; the legacy
 // single-table Notes block itself was retired in DU-G G4.
 // ---------------------------------------------------------------------------
@@ -782,7 +782,6 @@ export interface NotesUnifiedDataService {
     currentPassword: string,
   ): Promise<NoteNode>;
   verifyNotePasswordUnified(id: string, password: string): Promise<boolean>;
-  toggleNoteEditLockUnified(id: string): Promise<NoteNode>;
 }
 
 // ---------------------------------------------------------------------------
@@ -870,7 +869,6 @@ export interface DailiesUnifiedDataService {
     currentPassword: string,
   ): Promise<DailyNode>;
   verifyDailyPasswordUnified(id: string, password: string): Promise<boolean>;
-  toggleDailyEditLockUnified(id: string): Promise<DailyNode>;
 }
 
 // ---------------------------------------------------------------------------

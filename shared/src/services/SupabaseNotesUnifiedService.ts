@@ -43,7 +43,7 @@ import { OutboxSendError, classifySendFailure } from "../state/outbox";
  * are not registered in the Proxy):
  * - SupabaseNotesUnifiedReads   list / Trash list / detail / count
  * - SupabaseNotesUnifiedSearch  title + content search
- * - SupabaseNotesUnifiedLock    password gate + edit lock (+ version bump)
+ * - SupabaseNotesUnifiedLock    password gate (+ updated_at bump)
  * - SupabaseNotesUnifiedBodySave version-checked body save (#2057)
  * - notesUnifiedPurgeOrder      pure leaf-first purge ordering
  */
@@ -424,7 +424,7 @@ export class SupabaseNotesUnifiedService implements NotesUnifiedDataService {
   }
 
   // -------------------------------------------------------------------------
-  // Password gate + edit lock (SupabaseNotesUnifiedLock)
+  // Password gate (SupabaseNotesUnifiedLock)
   // -------------------------------------------------------------------------
 
   setNotePasswordUnified(id: string, password: string): Promise<NoteNode> {
@@ -440,10 +440,6 @@ export class SupabaseNotesUnifiedService implements NotesUnifiedDataService {
 
   verifyNotePasswordUnified(id: string, password: string): Promise<boolean> {
     return this.lock.verifyNotePasswordUnified(id, password);
-  }
-
-  toggleNoteEditLockUnified(id: string): Promise<NoteNode> {
-    return this.lock.toggleNoteEditLockUnified(id);
   }
 }
 
@@ -471,7 +467,6 @@ export const PHASE2_NOTES_UNIFIED_METHOD_NAMES = [
   "setNotePasswordUnified",
   "removeNotePasswordUnified",
   "verifyNotePasswordUnified",
-  "toggleNoteEditLockUnified",
 ] as const;
 
 export type NotesUnifiedMethodName =

@@ -72,7 +72,7 @@ interface SaveDailyRow {
  */
 export class SupabaseDailiesUnifiedService implements DailiesUnifiedDataService {
   /**
-   * Password gate + edit lock (#674 / C7). The six methods used to be a
+   * Password gate (#674 / C7). These methods used to be a
    * line-for-line clone of SupabaseNotesUnifiedLock; both now bind the shared
    * `ItemLockGate` and differ only in the values passed here.
    */
@@ -96,7 +96,6 @@ export class SupabaseDailiesUnifiedService implements DailiesUnifiedDataService 
         removePassword: "removeDailyPasswordUnified",
         verifyPassword: "verifyDailyPasswordUnified",
         lazyRehash: "lazyRehashDailyPassword",
-        toggleEditLock: "toggleDailyEditLockUnified",
       },
     });
   }
@@ -633,26 +632,13 @@ export class SupabaseDailiesUnifiedService implements DailiesUnifiedDataService 
   }
 
   // -------------------------------------------------------------------------
-  // Edit lock (DU-G G2)
-  // -------------------------------------------------------------------------
-
-  /**
-   * Flip dailies_payload.is_edit_locked. Read-modify-write because PostgREST
-   * cannot express the SQLite `CASE WHEN ... END` in one statement. Bumps
-   * items_meta.updated_at so Sync LWW propagates.
-   */
-  toggleDailyEditLockUnified(id: string): Promise<DailyNode> {
-    return this.lock.toggleEditLock(id);
-  }
-
-  // -------------------------------------------------------------------------
   // Helpers
   // -------------------------------------------------------------------------
 
   /**
    * Read items_meta + dailies_payload by id and stitch into DailyNode. Used
-   * by the password / lock paths so the returned domain object reflects the
-   * latest GENERATED `has_password` + flipped flags. getDailyByDateUnified
+   * by the password paths so the returned domain object reflects the
+   * latest GENERATED `has_password`. getDailyByDateUnified
    * keys by date — these mutators key by id, so we cannot reuse it directly.
    */
   private async readBackById(id: string, label: string): Promise<DailyNode> {
@@ -702,7 +688,6 @@ export const PHASE2_DAILIES_UNIFIED_METHOD_NAMES = [
   "setDailyPasswordUnified",
   "removeDailyPasswordUnified",
   "verifyDailyPasswordUnified",
-  "toggleDailyEditLockUnified",
 ] as const;
 
 export type DailiesUnifiedMethodName =
