@@ -1,29 +1,19 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AudioDataService } from "./DataService";
 import type { SoundSettings } from "../types/sound";
-import type { Playlist, PlaylistItem } from "../types/playlist";
 import {
   SOUND_SETTINGS_COLUMNS,
-  PLAYLIST_COLUMNS,
-  PLAYLIST_ITEM_COLUMNS,
   rowToSoundSettings,
-  rowToPlaylist,
-  rowToPlaylistItem,
   soundSettingsToUpsert,
-  playlistToInsert,
-  playlistUpdatesToPatch,
-  playlistItemToInsert,
   type SoundSettingsRow,
-  type PlaylistRow,
-  type PlaylistItemRow,
 } from "./audioMapper";
 import { fetchAllPages } from "./postgrestFetchAll";
-import { requireSingleRow, fetchMaybeSingleRow } from "./postgrestSingle";
+import { requireSingleRow } from "./postgrestSingle";
 
 /*
  * SupabaseAudioService (W3-A). I/O layer over the independent audio tables
- * (0018): sound_settings (one row per preset ambient sound), playlists,
- * playlist_items. Pure mapping lives in audioMapper.ts. `user_id` is never
+ * (0018): sound_settings (one row per preset ambient sound). The two
+ * sound-queue tables have no code since #2757. Pure mapping lives in audioMapper.ts. `user_id` is never
  * written (DB default auth.uid()); RLS scopes every read.
  *
  * SCOPE: preset ambient sounds only (user 2026-06-10). Custom-sound blob /
@@ -88,180 +78,12 @@ export class SupabaseAudioService implements AudioDataService {
     return this.client.storage.from("sounds").getPublicUrl(objectName).data
       .publicUrl;
   }
-
-  // -------------------------------------------------------------------------
-  // Playlists
-  // -------------------------------------------------------------------------
-
-  async fetchPlaylists(): Promise<Playlist[]> {
-    // Trailing .order("id") = unique tiebreaker so .range() pages are
-    // deterministic (sort_order can tie).
-    const rows = await fetchAllPages<PlaylistRow>(
-      (from, to) =>
-        this.client
-          .from("playlists")
-          .select(PLAYLIST_COLUMNS)
-          .order("sort_order", { ascending: true })
-          .order("id")
-          .range(from, to),
-      "fetchPlaylists failed",
-    );
-    return rows.map(rowToPlaylist);
-  }
-
-  async createPlaylist(id: string, name: string): Promise<Playlist> {
-    const insert = playlistToInsert(id, name);
-    const data = await requireSingleRow<PlaylistRow>(
-      this.client
-        .from("playlists")
-        .insert(insert)
-        .select(PLAYLIST_COLUMNS)
-        .single(),
-      "createPlaylist failed",
-    );
-    return rowToPlaylist(data);
-  }
-
-  async updatePlaylist(
-    id: string,
-    updates: Partial<
-      Pick<Playlist, "name" | "sortOrder" | "repeatMode" | "isShuffle">
-    >,
-  ): Promise<Playlist> {
-    const now = new Date().toISOString();
-    const patch = playlistUpdatesToPatch(updates, now);
-    const data = await requireSingleRow<PlaylistRow>(
-      this.client
-        .from("playlists")
-        .update(patch)
-        .eq("id", id)
-        .select(PLAYLIST_COLUMNS)
-        .single(),
-      `updatePlaylist (id=${id}) failed`,
-    );
-    return rowToPlaylist(data);
-  }
-
-  /** playlist_items are removed by the 0018 ON DELETE CASCADE FK. */
-  async deletePlaylist(id: string): Promise<void> {
-    const { error } = await this.client.from("playlists").delete().eq("id", id);
-    if (error)
-      throw new Error(`deletePlaylist (id=${id}) failed: ${error.message}`);
-  }
-
-  // -------------------------------------------------------------------------
-  // Playlist items
-  // -------------------------------------------------------------------------
-
-  async fetchPlaylistItems(playlistId: string): Promise<PlaylistItem[]> {
-    const rows = await fetchAllPages<PlaylistItemRow>(
-      (from, to) =>
-        this.client
-          .from("playlist_items")
-          .select(PLAYLIST_ITEM_COLUMNS)
-          .eq("playlist_id", playlistId)
-          .order("sort_order", { ascending: true })
-          .order("id")
-          .range(from, to),
-      "fetchPlaylistItems failed",
-    );
-    return rows.map(rowToPlaylistItem);
-  }
-
-  async fetchAllPlaylistItems(): Promise<PlaylistItem[]> {
-    const rows = await fetchAllPages<PlaylistItemRow>(
-      (from, to) =>
-        this.client
-          .from("playlist_items")
-          .select(PLAYLIST_ITEM_COLUMNS)
-          .order("sort_order", { ascending: true })
-          .order("id")
-          .range(from, to),
-      "fetchAllPlaylistItems failed",
-    );
-    return rows.map(rowToPlaylistItem);
-  }
-
-  /**
-   * Append an item to a playlist. `sort_order` is computed as max+1 within
-   * the playlist so a new item lands at the end (legacy parity).
-   */
-  async addPlaylistItem(
-    id: string,
-    playlistId: string,
-    soundId: string,
-  ): Promise<PlaylistItem> {
-    const existing = await fetchMaybeSingleRow<{ sort_order: number }>(
-      this.client
-        .from("playlist_items")
-        .select("sort_order")
-        .eq("playlist_id", playlistId)
-        .order("sort_order", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      "addPlaylistItem read failed",
-    );
-    const nextOrder = (existing?.sort_order ?? -1) + 1;
-
-    const insert = playlistItemToInsert(id, playlistId, soundId, nextOrder);
-    const data = await requireSingleRow<PlaylistItemRow>(
-      this.client
-        .from("playlist_items")
-        .insert(insert)
-        .select(PLAYLIST_ITEM_COLUMNS)
-        .single(),
-      "addPlaylistItem failed",
-    );
-    return rowToPlaylistItem(data);
-  }
-
-  async removePlaylistItem(itemId: string): Promise<void> {
-    const { error } = await this.client
-      .from("playlist_items")
-      .delete()
-      .eq("id", itemId);
-    if (error)
-      throw new Error(
-        `removePlaylistItem (id=${itemId}) failed: ${error.message}`,
-      );
-  }
-
-  /**
-   * Reassign sort_order to match the given id order (index = sort_order).
-   * Issued as one UPDATE per item — PostgREST has no batch-by-position
-   * update, and the playlist length is small (legacy parity).
-   */
-  async reorderPlaylistItems(
-    playlistId: string,
-    itemIds: string[],
-  ): Promise<void> {
-    for (let i = 0; i < itemIds.length; i++) {
-      const { error } = await this.client
-        .from("playlist_items")
-        .update({ sort_order: i })
-        .eq("id", itemIds[i])
-        .eq("playlist_id", playlistId);
-      if (error)
-        throw new Error(
-          `reorderPlaylistItems (id=${itemIds[i]}) failed: ${error.message}`,
-        );
-    }
-  }
 }
 
 export const PHASE2_AUDIO_METHOD_NAMES = [
   "fetchSoundSettings",
   "updateSoundSetting",
   "getSoundAssetUrl",
-  "fetchPlaylists",
-  "createPlaylist",
-  "updatePlaylist",
-  "deletePlaylist",
-  "fetchPlaylistItems",
-  "fetchAllPlaylistItems",
-  "addPlaylistItem",
-  "removePlaylistItem",
-  "reorderPlaylistItems",
 ] as const;
 
 export type AudioMethodName = (typeof PHASE2_AUDIO_METHOD_NAMES)[number];

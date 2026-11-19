@@ -3,12 +3,12 @@ import { describe, expect, it } from "vitest";
 import { readMorningRecord } from "../src/components/briefing/dailyMorning";
 
 /*
- * The day's morning record (D-20261007-briefing-1): Claude's comment and the
- * user's 宣言, read for the blocks that show them outside the Daily body.
- * New days carry the comment in `morning_comment` (0035); older days carry
- * both as heading sections of the body, never rewritten. What is pinned:
- * the column wins, the body is the fallback, and text written after the
- * section lines comes back here rather than nowhere.
+ * The day's morning record (D-20261007-briefing-1): Claude's comment, read
+ * for the blocks that show it outside the Daily body. New days carry it in
+ * `morning_comment` (0035); older days carry it as a heading section of the
+ * body, never rewritten. What is pinned: the column wins, the body is the
+ * fallback, and text written after the section lines comes back here rather
+ * than nowhere. (The 宣言 half went with #2757 — no screen showed it.)
  */
 
 const doc = (...content: unknown[]) => JSON.stringify({ type: "doc", content });
@@ -35,7 +35,7 @@ describe("readMorningRecord — the comment", () => {
         content: doc(para("日記")),
         morningComment: [C1, C2],
       }),
-    ).toEqual({ comment: [C1, C2], intention: "" });
+    ).toEqual({ comment: [C1, C2] });
   });
 
   it("prefers the column over the body's section when a day has both", () => {
@@ -83,34 +83,14 @@ describe("readMorningRecord — the comment", () => {
   });
 });
 
-describe("readMorningRecord — the 宣言", () => {
-  it("reads the 宣言 section's lines up to the next heading", () => {
-    const record = readMorningRecord({
-      content: doc(
-        heading("朝刊"),
-        para(C1),
-        heading("宣言"),
-        para("企画書を午前で出す"),
-        para("夜は早く寝る"),
-        heading("夕刊"),
-        para("気分: 4/5"),
-      ),
-    });
-    expect(record.intention).toBe("企画書を午前で出す\n夜は早く寝る");
-  });
-
-  it("keeps an old day's body that was typed after the 宣言 lines", () => {
-    const record = readMorningRecord({
-      content: doc(heading("宣言"), para("走る"), para("帰りに本屋へ寄った。")),
-    });
-    expect(record.intention).toBe("走る\n帰りに本屋へ寄った。");
-  });
-
-  it("does not read a 宣言 from the comment column", () => {
-    expect(readMorningRecord({ content: "", morningComment: [C1] })).toEqual({
-      comment: [C1],
-      intention: "",
-    });
+describe("readMorningRecord — the 宣言 is not read (#2757)", () => {
+  it("returns only the comment, even on an older day with a 宣言 section", () => {
+    expect(
+      readMorningRecord({
+        content: doc(heading("宣言"), para("走る")),
+        morningComment: [C1],
+      }),
+    ).toEqual({ comment: [C1] });
   });
 });
 
@@ -122,7 +102,7 @@ describe("readMorningRecord — nothing to read", () => {
     ["a null body", { content: null }],
     ["a body without either section", { content: doc(para("日記だけ")) }],
   ])("returns an empty record for %s", (_label, daily) => {
-    expect(readMorningRecord(daily)).toEqual({ comment: [], intention: "" });
+    expect(readMorningRecord(daily)).toEqual({ comment: [] });
   });
 
   it("reads a legacy plain-text body as having neither section", () => {
@@ -130,6 +110,6 @@ describe("readMorningRecord — nothing to read", () => {
     // is just a line of the diary.
     expect(
       readMorningRecord({ content: "朝刊\n昨日はよく眠れた\n宣言\n走る" }),
-    ).toEqual({ comment: [], intention: "" });
+    ).toEqual({ comment: [] });
   });
 });

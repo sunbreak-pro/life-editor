@@ -376,12 +376,6 @@ export {
 export { TagHeadingIcon, type TagHeadingIconProps } from "./TagHeadingIcon";
 export { TagPill, type TagPillProps } from "./TagPill";
 export {
-  SettingsDetailPanel,
-  type SettingsDetailPanelProps,
-  type SettingsDetailTip,
-  type SettingsDetailTodo,
-} from "./SettingsDetailPanel";
-export {
   TrashView,
   type TrashViewProps,
   type TrashViewLabels,

@@ -22,7 +22,6 @@ import type { Goal, GoalPeriodKind, GoalTodoLink } from "../types/goal";
 import type { GoalCreateInput, GoalUpdates } from "./goalMapper";
 import type { NoteTable, NoteTableSyncResult } from "../types/table";
 import type { ScheduleItem } from "../types/schedule";
-import type { Playlist, PlaylistItem } from "../types/playlist";
 import type {
   AiMemory,
   AiRule,
@@ -231,7 +230,7 @@ export interface AttachmentsDataService {
 }
 
 // ---------------------------------------------------------------------------
-// Sound settings + playlists — SupabaseAudioService
+// Sound settings — SupabaseAudioService
 // ---------------------------------------------------------------------------
 
 export interface AudioDataService {
@@ -248,26 +247,6 @@ export interface AudioDataService {
    * simply yields a URL that 404s on play.
    */
   getSoundAssetUrl(objectName: string): Promise<string>;
-
-  // Playlists
-  fetchPlaylists(): Promise<Playlist[]>;
-  createPlaylist(id: string, name: string): Promise<Playlist>;
-  updatePlaylist(
-    id: string,
-    updates: Partial<
-      Pick<Playlist, "name" | "sortOrder" | "repeatMode" | "isShuffle">
-    >,
-  ): Promise<Playlist>;
-  deletePlaylist(id: string): Promise<void>;
-  fetchPlaylistItems(playlistId: string): Promise<PlaylistItem[]>;
-  fetchAllPlaylistItems(): Promise<PlaylistItem[]>;
-  addPlaylistItem(
-    id: string,
-    playlistId: string,
-    soundId: string,
-  ): Promise<PlaylistItem>;
-  removePlaylistItem(itemId: string): Promise<void>;
-  reorderPlaylistItems(playlistId: string, itemIds: string[]): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------

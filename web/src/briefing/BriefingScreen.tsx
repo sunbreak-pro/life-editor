@@ -61,7 +61,6 @@ import { useEveningIssue } from "./hooks/useEveningIssue";
 import { useEveningNotes } from "./hooks/useEveningNotes";
 import { useFocusNote } from "./hooks/useFocusNote";
 import { useMorningGoals } from "./hooks/useMorningGoals";
-import { useNoteGoalsMigration } from "./hooks/useNoteGoalsMigration";
 
 /*
  * Briefing host shell (Briefing plan Step 1). Owns data fetching (it may
@@ -164,11 +163,6 @@ export function BriefingScreen({
     queueDailyWrite,
   } = useDailySections(ds, todayKey, dailyContent, setDailyContent);
 
-  // The goals note's current-period lines become goal rows, once (#2105). It
-  // only READS the note — nothing on the paper writes to it any more (#2106).
-  // The goals below are read after it settles, so they include what it moved.
-  const goalsMigrated = useNoteGoalsMigration(ds, todayKey);
-
   // Goals are rows since #2101, and the paper reads them (#2106): this week's
   // goals, the marks on the todo rows and the period-end review. The free-text
   // 週 / 月 / 年 fields over the goals note are gone from the paper.
@@ -186,7 +180,7 @@ export function BriefingScreen({
     writeLinks,
     snapshotState: goalSnapshotState,
     snapshotFailed: goalSnapshotFailed,
-  } = useMorningGoals(ds, todayKey, data.todoNodes, todosRead, goalsMigrated);
+  } = useMorningGoals(ds, todayKey, data.todoNodes, todosRead);
 
   // The focus note (#1048) — its own document too: the morning paper READS
   // today's focus (written last evening), the evening paper EDITS tomorrow's.

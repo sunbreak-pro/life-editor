@@ -24,13 +24,13 @@ import {
   startOfWeekKey,
   type WeekStartsOn,
 } from "../../utils/scheduleGridLayout";
-import type { GoalPeriod } from "./goalSections";
+import type { GoalPeriodKind } from "../../types/goal";
 
 /** One display range per period, ready to sit next to the field's heading. */
-export type GoalPeriodRanges = Record<GoalPeriod, string>;
+export type GoalPeriodRanges = Record<GoalPeriodKind, string>;
 
 /** One storage key per period — the tail of the stored heading (#957). */
-export type GoalPeriodKeys = Record<GoalPeriod, string>;
+export type GoalPeriodKeys = Record<GoalPeriodKind, string>;
 
 /**
  * The three period keys the day `todayKey` falls in.

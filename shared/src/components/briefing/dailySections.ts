@@ -4,14 +4,14 @@
  * briefing-loop decisions 1/6 + Step 4):
  *
  *   朝刊 / Briefing   → extractBriefing.ts (read only)
- *   宣言 / Intention  → intentionSection.ts (read only — the user's morning
- *                       declaration on older days)
+ *   宣言 / Intention  → no reader since #2757 (older days only; readDailyText
+ *                       leaves it out of the day's one text)
  *   夕刊 / Evening    → eveningSection.ts (the closing page)
  *
  * Nothing writes the first two into a body any more (D-20261007-briefing-1):
  * MCP write_briefing puts Claude's comment in `dailies_payload.morning_comment`
  * (0035), and no screen takes a declaration. Older days keep both sections as
- * they are, so the readers stay.
+ * they are, so the 朝刊 reader stays.
  *
  * A "section" is always [heading matching the marker RE, next heading or
  * document end). Keeping the heading REs here is what guarantees the three
@@ -81,9 +81,9 @@ export function parseDailyDoc(
 /**
  * Section nodes → one trimmed line per block (list items line-by-line).
  *
- * The line model every "plain-line surface" section shares: 宣言
- * (intentionSection) and the 週/月/年 goals (goalSections) both read their
- * section back as LINES, and both write it back as one paragraph per line.
+ * The line model every "plain-line surface" section shares: the focus note
+ * (focusSections) and the 夕刊 plain-lines read take their section back as
+ * LINES, and the focus note writes it back as one paragraph per line.
  * Blank blocks are dropped, so a section of only whitespace reads as empty.
  */
 export function sectionLines(nodes: TipTapNode[]): string[] {

@@ -149,8 +149,7 @@ export class SupabaseAiCustomizationService implements AiCustomizationDataServic
 
   /**
    * Rewrite sort_order to match `ids` (index = sort_order). One UPDATE per
-   * item — PostgREST has no batch-by-position update, and the list is short
-   * (reorderPlaylistItems does the same).
+   * item — PostgREST has no batch-by-position update, and the list is short.
    */
   async reorderAiMemories(ids: readonly string[]): Promise<void> {
     const now = new Date().toISOString();

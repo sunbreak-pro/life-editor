@@ -35,11 +35,6 @@ import {
  * review would ask about goals MCP calls achieved. A「やめる」written then
  * would be permanent, so the whole goals face waits instead.
  *
- * The goals themselves are read only once the goals note's move into goal
- * rows has settled (`migrated`, #2105): a read taken mid-move would show an
- * empty week over goals that exist, and its count is where the add field puts
- * the next goal.
- *
  * The review asks about one goal at a time. Each write patches the goals it
  * returns into the snapshot before the busy state clears, so the next card's
  * carry plan already counts the goal just carried. An answer that lands is
@@ -93,16 +88,15 @@ export function useMorningGoals(
   todayKey: string,
   todoNodes: readonly TodoNode[],
   todosRead: boolean,
-  migrated: boolean,
 ): MorningGoalsState {
   const { t } = useTranslation();
   const toast = useToastOptional();
   const snapshot = useGoalLinkSnapshot(ds, {
-    active: migrated,
+    active: true,
     todos: todoNodes,
   });
   const { writeLinks, writeGoals } = snapshot;
-  const state = todosRead && migrated ? snapshot.state : null;
+  const state = todosRead ? snapshot.state : null;
   const [answered, setAnswered] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
@@ -237,7 +231,7 @@ export function useMorningGoals(
 
   return {
     state,
-    snapshotState: migrated ? snapshot.state : null,
+    snapshotState: snapshot.state,
     snapshotFailed: snapshot.failed,
     goals,
     review,
