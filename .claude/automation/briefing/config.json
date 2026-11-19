@@ -1,0 +1,22 @@
+{
+  "model": "claude-sonnet-5-5",
+  "effort": "medium",
+  "maxTokens": 8000,
+  "maxSearches": 5,
+  "maxCostUsdPerRun": 0.25,
+  "newsTopic": "Claude Code と AI の開発の道具",
+  "newsCount": 3,
+  "learningTopic": "秘書検定 2 級",
+  "limits": {
+    "focusChars": 60,
+    "titleChars": 40,
+    "summaryChars": 100,
+    "paragraphChars": 400,
+    "maxParagraphs": 5
+  },
+  "pricingUsdPerMTok": {
+    "input": 2,
+    "output": 10
+  },
+  "searchUsdPer1000": 10
+}
