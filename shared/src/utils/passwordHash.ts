@@ -6,7 +6,7 @@
  * compare (old known-issues 027). This module replaces that with a real
  * PBKDF2-HMAC-SHA256 derivation via the Web Crypto API
  * (`globalThis.crypto.subtle`), which is present in every runtime this code
- * ships to — Web, Electron renderer, Capacitor WebView and Node 18+ (vitest).
+ * ships to — Web, Electron renderer and Node 18+ (vitest).
  * No extra dependency (no bcrypt / argon2 native module).
  *
  * ## Storage format (self-describing, single text column)
