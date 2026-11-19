@@ -279,12 +279,6 @@ export {
   type SettingsGeneralOption,
 } from "./SettingsGeneral";
 export { SettingsReset, type SettingsResetProps } from "./SettingsReset";
-// Whole-account export card (#1988) — one button, one JSON file. The read is
-// DataService.exportUserData(); the download is the web host's.
-export {
-  SettingsDataExport,
-  type SettingsDataExportProps,
-} from "./SettingsDataExport";
 // AI integration card (#1210) — what the MCP connection is, the tool catalog
 // generated from the server's own registry, and the last day a briefing was
 // written. No API call anywhere in it (the $0 rule).
