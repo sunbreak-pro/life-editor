@@ -1,17 +1,13 @@
 import { useMemo, useState } from "react";
 import {
   AuthCard,
-  EmailConfirmationCard,
   PASSWORD_MIN_LENGTH,
   PasswordRecoveryCard,
   PasswordResetRequestCard,
-  resendConfirmationEmail,
   sendPasswordResetEmail,
   signIn,
-  signUp,
   useTranslation,
   type AuthCardLabels,
-  type AuthMode,
   type TranslationKey,
 } from "@life-editor/shared";
 import { usePasswordUpdate } from "./hooks/usePasswordUpdate";
@@ -25,14 +21,10 @@ import { usePasswordUpdate } from "./hooks/usePasswordUpdate";
  * listener in App. This host owns the state + the auth calls; the cards stay
  * pure presentation.
  *
- * Confirm email works either way (#1197). With it OFF signUp returns a live
- * session and App swaps to the app; with it ON there is no session, and the
- * "check your inbox" view below is what the user gets instead of a form that
- * looks like it did nothing. Nothing here reads the project setting — the
- * shape of the signUp result is the only signal, so flipping the toggle in
- * the dashboard needs no code change.
+ * There is no sign-up (#2752): the app has one user, whose account already
+ * exists, so the credentials card only signs in.
  *
- * Four views share the canvas (#919 / #1197): the credentials card, the
+ * Three views share the canvas (#919): the credentials card, the
  * "email me a reset link" card, and — when App reports a PASSWORD_RECOVERY
  * event — the "set a new password" card. The recovery view is driven from
  * App rather than from local state because the recovery link creates a REAL
@@ -61,28 +53,18 @@ function errorKeyFor(raw: string): TranslationKey {
   if (/invalid login credentials/i.test(raw)) {
     return "auth.errors.invalidCredentials";
   }
-  if (/already registered/i.test(raw)) {
-    return "auth.errors.alreadyRegistered";
-  }
-  // What Supabase returns for signing in to an account whose address was
-  // never confirmed. Generic copy here would send the user hunting for a
-  // typo in a password that is perfectly correct.
-  if (/email not confirmed/i.test(raw)) {
-    return "auth.errors.emailNotConfirmed";
-  }
   return "auth.errors.generic";
 }
 
-type View = "credentials" | "resetRequest" | "confirmPending";
+type View = "credentials" | "resetRequest";
 
 export function AuthScreen({
   recovery = false,
   recoveryUsername,
   onRecoveryComplete,
-}: AuthScreenProps = {}) {
+}: AuthScreenProps = {}): React.JSX.Element {
   const { t } = useTranslation();
   const [view, setView] = useState<View>("credentials");
-  const [mode, setMode] = useState<AuthMode>("signIn");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -94,14 +76,6 @@ export function AuthScreen({
   const [resetError, setResetError] = useState<string | null>(null);
   const [resetNotice, setResetNotice] = useState<string | null>(null);
   const [resetBusy, setResetBusy] = useState(false);
-
-  // Confirmation-pending card state (#1197). The address is held separately
-  // from `email` so the card keeps showing what the link was sent to even if
-  // the user walks back to the form and edits the field.
-  const [pendingEmail, setPendingEmail] = useState("");
-  const [resendError, setResendError] = useState<string | null>(null);
-  const [resendNotice, setResendNotice] = useState<string | null>(null);
-  const [resendBusy, setResendBusy] = useState(false);
 
   const recoveryMessages = useMemo(
     () => ({
@@ -123,24 +97,14 @@ export function AuthScreen({
   const labels: AuthCardLabels = {
     productName: t("auth.productName"),
     tagline: t("auth.tagline"),
-    modeToggle: t("auth.modeToggle"),
     signIn: t("auth.signIn"),
-    signUp: t("auth.signUp"),
     email: t("auth.email"),
     emailPlaceholder: t("auth.emailPlaceholder"),
     password: t("auth.password"),
-    passwordHelper: t("auth.passwordHelper", { min: PASSWORD_MIN_LENGTH }),
     showPassword: t("auth.showPassword"),
     hidePassword: t("auth.hidePassword"),
     busy: t("auth.busy"),
-    footerSignIn: t("auth.footerSignIn"),
-    footerSignUp: t("auth.footerSignUp"),
     forgotPassword: t("auth.forgotPassword"),
-  };
-
-  const changeMode = (next: AuthMode) => {
-    setMode(next);
-    setError(null);
   };
 
   const submit = async () => {
@@ -149,8 +113,7 @@ export function AuthScreen({
     if (busy) return;
     setError(null);
     setBusy(true);
-    const fn = mode === "signIn" ? signIn : signUp;
-    const result = await fn(email.trim(), password);
+    const result = await signIn(email.trim(), password);
     setBusy(false);
     if (result.error) {
       // Raw message goes to the console for the N=1 owner; the screen
@@ -159,46 +122,12 @@ export function AuthScreen({
       setError(t(errorKeyFor(result.error)));
       return;
     }
-    /*
-     * Confirm email ON (#1197): the account exists, no session was started,
-     * and the mail is out. This is a success, not a failure — the only
-     * remaining step happens in the inbox.
-     */
-    if (result.pendingConfirmation) {
-      setPendingEmail(email.trim());
-      setResendError(null);
-      setResendNotice(null);
-      setView("confirmPending");
-      return;
-    }
+    // A success with no session would leave the form looking as if nothing
+    // happened, so it is reported rather than left silent.
     if (!result.session) {
-      setError(t("auth.errors.noSession"));
+      setError(t("auth.errors.generic"));
     }
     // Success: the App's auth listener swaps to the main screen.
-  };
-
-  const submitResend = async () => {
-    if (resendBusy) return;
-    setResendError(null);
-    setResendNotice(null);
-    setResendBusy(true);
-    const result = await resendConfirmationEmail(pendingEmail);
-    setResendBusy(false);
-    if (result.error) {
-      console.error("[auth] resendConfirmationEmail", result.error);
-      setResendError(t("auth.confirm.error"));
-      return;
-    }
-    setResendNotice(t("auth.confirm.sent"));
-  };
-
-  const leaveConfirmPending = () => {
-    // Back to a clean sign-in form: the account now exists, so the next step
-    // after the link is signing in, not signing up again.
-    setMode("signIn");
-    setPassword("");
-    setError(null);
-    setView("credentials");
   };
 
   const submitResetRequest = async () => {
@@ -257,27 +186,6 @@ export function AuthScreen({
         }}
       />
     );
-  } else if (view === "confirmPending") {
-    card = (
-      <EmailConfirmationCard
-        email={pendingEmail}
-        error={resendError}
-        notice={resendNotice}
-        busy={resendBusy}
-        onResend={() => void submitResend()}
-        onBack={leaveConfirmPending}
-        labels={{
-          productName: t("auth.productName"),
-          tagline: t("auth.tagline"),
-          heading: t("auth.confirm.heading"),
-          description: t("auth.confirm.description"),
-          hint: t("auth.confirm.hint"),
-          resend: t("auth.confirm.resend"),
-          busy: t("auth.confirm.busy"),
-          back: t("auth.confirm.back"),
-        }}
-      />
-    );
   } else if (view === "resetRequest") {
     card = (
       <PasswordResetRequestCard
@@ -304,8 +212,6 @@ export function AuthScreen({
   } else {
     card = (
       <AuthCard
-        mode={mode}
-        onModeChange={changeMode}
         email={email}
         onEmailChange={setEmail}
         password={password}

@@ -6,42 +6,26 @@ import { NoticePanel } from "./NoticePanel";
 import { AuthBrandHeader } from "./AuthBrandHeader";
 import { Button } from "./Button";
 import { PasswordField, type PasswordFieldLabels } from "./PasswordField";
-import { SegmentedToggle } from "./SegmentedToggle";
-import { PASSWORD_MIN_LENGTH } from "../constants/password";
-
-export type AuthMode = "signIn" | "signUp";
 
 export interface AuthCardLabels {
   /** Brand name next to the logo mark ("Life Editor"). */
   productName: string;
   /** One-line description under the brand header. */
   tagline: string;
-  /** Accessible name of the mode radiogroup. */
-  modeToggle: string;
-  /** Segment + submit label for the sign-in mode. */
+  /** Submit label. */
   signIn: string;
-  /** Segment + submit label for the sign-up mode. */
-  signUp: string;
   email: string;
   emailPlaceholder: string;
   password: string;
-  /** Hint under the password input (min-length rule). */
-  passwordHelper: string;
   showPassword: string;
   hidePassword: string;
   /** Submit label while the request is in flight. */
   busy: string;
-  /** Footer hint shown in sign-in mode. */
-  footerSignIn: string;
-  /** Footer hint shown in sign-up mode. */
-  footerSignUp: string;
-  /** Link to the reset-request card, shown in sign-in mode (#919). */
+  /** Link to the reset-request card (#919). */
   forgotPassword: string;
 }
 
 export interface AuthCardProps {
-  mode: AuthMode;
-  onModeChange: (mode: AuthMode) => void;
   email: string;
   onEmailChange: (value: string) => void;
   password: string;
@@ -52,26 +36,23 @@ export interface AuthCardProps {
   busy: boolean;
   /** Fired on form submit (Enter / button). preventDefault is handled here. */
   onSubmit: () => void;
-  /** Opens the reset-request card. The link renders in sign-in mode only. */
+  /** Opens the reset-request card. */
   onForgotPassword: () => void;
   labels: AuthCardLabels;
-  /** Floor for a password being CREATED — sign-up mode only (see below). */
-  passwordMinLength?: number;
   className?: string;
 }
 
 /*
- * Auth card (ClaudeDesign Auth import) — brand header + sign-in/sign-up
- * mode toggle + email/password form + inline error band + busy submit.
+ * Auth card (ClaudeDesign Auth import) — brand header + email/password
+ * sign-in form + inline error band + busy submit. There is no sign-up mode
+ * (#2752): the app has one user, whose account already exists.
  * Shell-independent: this is the pre-login entry, so no Sidebar / tabs /
  * Toast here. The card is the primary container: opaque bg-secondary
  * face (§5). Pure presentation: copy + submit intent are injected by the
- * host (§6.4) — the host owns the signIn/signUp calls (DataService-style
+ * host (§6.4) — the host owns the signIn call (DataService-style
  * boundary), this component never touches the backend.
  */
 export function AuthCard({
-  mode,
-  onModeChange,
   email,
   onEmailChange,
   password,
@@ -81,11 +62,9 @@ export function AuthCard({
   onSubmit,
   onForgotPassword,
   labels,
-  passwordMinLength = PASSWORD_MIN_LENGTH,
   className,
-}: AuthCardProps) {
+}: AuthCardProps): React.JSX.Element {
   const passwordId = useId();
-  const submitLabel = mode === "signIn" ? labels.signIn : labels.signUp;
   const passwordLabels: PasswordFieldLabels = {
     show: labels.showPassword,
     hide: labels.hidePassword,
@@ -107,25 +86,14 @@ export function AuthCard({
         tagline={labels.tagline}
       />
 
-      {/* The design dims the toggle + fields while busy; the alert band and
-          submit button stay at full strength (the button carries the spinner). */}
+      {/* The design dims the fields while busy; the alert band and submit
+          button stay at full strength (the button carries the spinner). */}
       <div
         className={cn(
           "flex flex-col gap-4",
           busy && "pointer-events-none opacity-60",
         )}
       >
-        <SegmentedToggle<AuthMode>
-          options={[
-            { value: "signIn", label: labels.signIn },
-            { value: "signUp", label: labels.signUp },
-          ]}
-          value={mode}
-          onChange={onModeChange}
-          label={labels.modeToggle}
-          disabled={busy}
-        />
-
         <label className="flex flex-col gap-1.5">
           <span className="text-sm text-lumen-text-secondary">
             {labels.email}
@@ -151,39 +119,29 @@ export function AuthCard({
           >
             {labels.password}
           </label>
-          {/* Sign-up only (#956): the minimum is a rule for a password being
-              created, and an existing one predates every raise of it. Enforced
-              here it would refuse to submit the account's real password —
-              locking the owner out until they went through email recovery —
-              and the helper line would state a rule that does not apply to
-              what they are typing. */}
+          {/* No minLength (#956): the minimum is a rule for a password being
+              created, and the account's existing one predates every raise of
+              it. Enforced here it would refuse to submit the real password,
+              locking the owner out until they went through email recovery. */}
           <PasswordField
             id={passwordId}
             required
-            minLength={mode === "signUp" ? passwordMinLength : undefined}
-            autoComplete={
-              mode === "signIn" ? "current-password" : "new-password"
-            }
+            autoComplete="current-password"
             value={password}
             disabled={busy}
             onChange={onPasswordChange}
             labels={passwordLabels}
-            helperText={mode === "signUp" ? labels.passwordHelper : undefined}
           />
         </div>
 
-        {/* Sign-in only (#919): in sign-up mode there is no password to have
-            forgotten yet, and the link would just be a way to lose the form. */}
-        {mode === "signIn" ? (
-          <button
-            type="button"
-            onClick={onForgotPassword}
-            disabled={busy}
-            className="self-start rounded-lumen-sm text-sm text-lumen-text-secondary underline-offset-2 transition-colors hover:text-lumen-text hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent disabled:cursor-not-allowed"
-          >
-            {labels.forgotPassword}
-          </button>
-        ) : null}
+        <button
+          type="button"
+          onClick={onForgotPassword}
+          disabled={busy}
+          className="self-start rounded-lumen-sm text-sm text-lumen-text-secondary underline-offset-2 transition-colors hover:text-lumen-text hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent disabled:cursor-not-allowed"
+        >
+          {labels.forgotPassword}
+        </button>
       </div>
 
       {error ? <NoticePanel message={error} tone="danger" role="alert" /> : null}
@@ -195,12 +153,8 @@ export function AuthCard({
         busyLabel={labels.busy}
         className="w-full"
       >
-        {submitLabel}
+        {labels.signIn}
       </Button>
-
-      <p className="text-center text-xs text-lumen-text-tertiary">
-        {mode === "signIn" ? labels.footerSignIn : labels.footerSignUp}
-      </p>
     </form>
   );
 }

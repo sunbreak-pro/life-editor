@@ -77,18 +77,15 @@ export {
   type NoteSeparatedNotice,
 } from "./state/noteSendEvents";
 export {
-  signUp,
   signIn,
   signOut,
   getSession,
   onAuthStateChange,
   sendPasswordResetEmail,
-  resendConfirmationEmail,
   updatePassword,
   // Profile display name in user_metadata (#1624).
   updateDisplayName,
-  // Renamed on main (#1197): the redirect now serves sign-up confirmation as
-  // well as password recovery.
+  // Where the password-reset link lands (#919).
   authRedirectUrl,
   // Self-service account deletion (#1200) — the Edge Function call plus the
   // local session teardown that has to follow it.

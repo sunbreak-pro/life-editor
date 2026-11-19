@@ -1,35 +1,28 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { AuthCard, type AuthCardLabels } from "../src/components";
-import { PASSWORD_MIN_LENGTH } from "../src/constants/password";
 
 /*
- * Shell-independent pre-login card (target-IA D8). Mode toggle + email /
- * password form + inline error band + busy submit. Pure presentation:
- * the host injects copy and owns the signIn/signUp calls.
+ * Shell-independent pre-login card (target-IA D8). Email / password sign-in
+ * form + inline error band + busy submit. Pure presentation: the host injects
+ * copy and owns the signIn call. There is no sign-up mode (#2752).
  */
 
 const LABELS: AuthCardLabels = {
   productName: "Life Editor",
   tagline: "Your workspace",
-  modeToggle: "Authentication mode",
   signIn: "Sign in",
-  signUp: "Sign up",
   email: "Email address",
   emailPlaceholder: "you@example.com",
   password: "Password",
-  passwordHelper: `At least ${PASSWORD_MIN_LENGTH} characters`,
   showPassword: "Show password",
   hidePassword: "Hide password",
   busy: "Working…",
-  footerSignIn: "No account yet?",
-  footerSignUp: "Already have an account?",
   forgotPassword: "Forgot your password?",
 };
 
 function renderCard(props?: Partial<Parameters<typeof AuthCard>[0]>) {
   const handlers = {
-    onModeChange: vi.fn(),
     onEmailChange: vi.fn(),
     onPasswordChange: vi.fn(),
     onSubmit: vi.fn(),
@@ -37,7 +30,6 @@ function renderCard(props?: Partial<Parameters<typeof AuthCard>[0]>) {
   };
   render(
     <AuthCard
-      mode="signIn"
       email=""
       password=""
       error={null}
@@ -51,7 +43,7 @@ function renderCard(props?: Partial<Parameters<typeof AuthCard>[0]>) {
 }
 
 describe("AuthCard", () => {
-  it("renders the brand header, both fields, and the mode-matched copy", () => {
+  it("renders the brand header, both fields, and the sign-in submit", () => {
     renderCard();
     expect(screen.getByText("Life Editor")).toBeInTheDocument();
     expect(screen.getByText("Your workspace")).toBeInTheDocument();
@@ -67,26 +59,14 @@ describe("AuthCard", () => {
       "type",
       "submit",
     );
-    expect(screen.getByText("No account yet?")).toBeInTheDocument();
   });
 
-  it("follows the sign-up mode: submit label, footer, autocomplete", () => {
-    renderCard({ mode: "signUp" });
-    expect(screen.getByLabelText("Password")).toHaveAttribute(
-      "autocomplete",
-      "new-password",
-    );
-    expect(screen.getByRole("button", { name: "Sign up" })).toHaveAttribute(
-      "type",
-      "submit",
-    );
-    expect(screen.getByText("Already have an account?")).toBeInTheDocument();
-  });
-
-  it("reports mode changes from the toggle", () => {
-    const { onModeChange } = renderCard();
-    fireEvent.click(screen.getByRole("radio", { name: "Sign up" }));
-    expect(onModeChange).toHaveBeenCalledWith("signUp");
+  it("offers no way to create an account", () => {
+    // Sign-up was removed (#2752): no mode toggle, no second submit.
+    renderCard();
+    expect(screen.queryByRole("radiogroup")).toBeNull();
+    expect(screen.queryByRole("radio")).toBeNull();
+    expect(screen.getAllByRole("button", { name: "Sign in" })).toHaveLength(1);
   });
 
   it("fires onSubmit on form submit", () => {
@@ -109,31 +89,12 @@ describe("AuthCard", () => {
     expect(onForgotPassword).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps that link out of sign-up mode", () => {
-    // Nothing to have forgotten yet, and the link would discard the form.
-    renderCard({ mode: "signUp" });
-    expect(
-      screen.queryByRole("button", { name: "Forgot your password?" }),
-    ).toBeNull();
-  });
-
-  it("leaves the new-password floor off sign-in mode", () => {
+  it("leaves the new-password floor off the password field", () => {
     // The account's existing password predates every raise of the minimum
     // (#956). Enforced here, the browser would refuse to submit the real
-    // password and strand the owner outside their own account; the helper
-    // line would also be stating a rule that does not apply to it.
+    // password and strand the owner outside their own account.
     renderCard();
     expect(screen.getByLabelText("Password")).not.toHaveAttribute("minlength");
-    expect(screen.queryByText(LABELS.passwordHelper)).toBeNull();
-  });
-
-  it("enforces and states the floor in sign-up mode", () => {
-    renderCard({ mode: "signUp" });
-    expect(screen.getByLabelText("Password")).toHaveAttribute(
-      "minlength",
-      String(PASSWORD_MIN_LENGTH),
-    );
-    expect(screen.getByText(LABELS.passwordHelper)).toBeInTheDocument();
   });
 
   it("shows the error band as an alert", () => {
@@ -147,7 +108,6 @@ describe("AuthCard", () => {
     renderCard({ busy: true });
     expect(screen.getByLabelText("Email address")).toBeDisabled();
     expect(screen.getByLabelText("Password")).toBeDisabled();
-    expect(screen.getByRole("radio", { name: "Sign in" })).toBeDisabled();
     const submit = screen.getByRole("button", { name: "Working…" });
     expect(submit).toBeDisabled();
   });

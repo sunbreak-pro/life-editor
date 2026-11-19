@@ -236,12 +236,15 @@ them into the create-table migration** for every Phase 2+ table.
 
 ## Auth email — custom SMTP (#1986)
 
-Confirm email is ON (D-20260829-web-1), so a new user cannot sign in until
-the confirmation mail arrives. Supabase's built-in sender is for testing
-only: it sends a handful of mails per hour and delivers only to the
-project's team-member addresses. With more than one person signing up at
-once, mails stop arriving and those people are locked out. The fix is to
-point Supabase Auth at a free-tier transactional mail provider over SMTP.
+The app has no sign-up any more (#2752): the owner's account already
+exists, and the only auth mail the app sends is the password-reset link.
+That mail is the way back in when the password is forgotten, so it has to
+arrive. Supabase's built-in sender is for testing only: it sends a handful
+of mails per hour and delivers only to the project's team-member
+addresses. Pointing Supabase Auth at a free-tier transactional mail
+provider over SMTP removes both limits. Whether the built-in sender alone
+reaches the owner's address is not yet checked; until it is, keep the
+setup below.
 
 Everything in this section is **done in the Supabase Dashboard, the
 provider's console and DNS — by the owner, not by Claude**. The repo only
@@ -292,15 +295,13 @@ step 7 tests at least one inbox **outside** Gmail.
 
 5. **Check the send rate limit**: Dashboard → Authentication → Rate
    Limits. Turning on custom SMTP sets the email limit to a low default
-   (30 per hour). That already covers the 10–20 distribution users; raise
-   it only if the provider's daily cap allows.
-6. **Paste the `ja/` templates** from `templates/auth/` (next section).
-7. **Test** (the DoD of #1986):
-   - sign up with a fresh address and confirm the mail arrives within a
+   (30 per hour). That already covers one owner's reset mails; raise it
+   only if the provider's daily cap allows.
+6. **Paste the `ja/` template** from `templates/auth/` (next section).
+7. **Test** (the DoD of #1986, narrowed to the reset mail by #2752):
+   - request a password reset and confirm the mail arrives within a
      minute;
-   - request a password reset and confirm it arrives the same way;
-   - send 5 mails within 5 minutes (sign-ups + "resend confirmation") and
-     confirm none is refused;
+   - request 5 resets within 5 minutes and confirm none is refused;
    - send one more to an inbox **outside Gmail** (Yahoo, Outlook, iCloud,
      a carrier address…) and note whether it arrived, whether it went to
      spam, and what the "From" line shows.
@@ -340,11 +341,11 @@ The steps are the trial's, with these differences:
 
 The Dashboard is the source of truth; `templates/auth/{ja,en}/` is a copy
 so the wording is reviewed in PRs and can be restored. The app sends only
-two kinds of auth mail, so only these two are kept:
+one kind of auth mail, so only that one is kept (the sign-up confirmation
+template went with sign-up in #2752):
 
 | Dashboard template | File                  | Sent by (`shared/src/services/SupabaseAuth.ts`) |
 | ------------------ | --------------------- | ----------------------------------------------- |
-| Confirm signup     | `confirm-signup.html` | `signUp`, `resendConfirmationEmail`             |
 | Reset password     | `reset-password.html` | `sendPasswordResetEmail`                        |
 
 Each file's first comment line is the **Subject**; the rest is the
@@ -371,17 +372,12 @@ free tier ended) and a fix is not quick.
    SMTP** off and save. Auth immediately falls back to Supabase's
    built-in sender. The templates stay as they are.
 2. **The built-in sender delivers only to team-member addresses.** While
-   it is active, anyone else who signs up never gets a confirmation mail
-   and cannot sign in. If distribution users are still signing up, turn
-   **Confirm email** off (Authentication → Sign In / Providers → Email)
-   for the duration — the revival condition recorded in
-   D-20260829-web-1. The app works with it on or off (#1197). Anyone who
-   signed up before the switch and never got their mail can use
-   "resend confirmation" once custom SMTP is back.
+   it is active, a reset mail reaches the owner only if the owner's
+   address is a team member of the project. Check that before relying on
+   it.
 3. Rotate or delete the SMTP credential in the provider console if the
    reason was a leak or an abandoned provider.
-4. When custom SMTP is back, turn Confirm email on again and re-run the
-   tests in step 7.
+4. When custom SMTP is back, re-run the tests in step 7.
 
 ## Ambient sounds — the `sounds` bucket (#1793)
 

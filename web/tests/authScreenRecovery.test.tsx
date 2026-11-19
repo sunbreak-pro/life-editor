@@ -21,7 +21,6 @@ const state = vi.hoisted(() => ({
   sendPasswordResetEmail: vi.fn(),
   updatePassword: vi.fn(),
   signIn: vi.fn(),
-  signUp: vi.fn(),
 }));
 
 vi.mock("@life-editor/shared", async (importOriginal) => {
@@ -30,7 +29,6 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
     ...actual,
     useTranslation: () => ({ t: (key: string) => key }),
     signIn: state.signIn,
-    signUp: state.signUp,
     sendPasswordResetEmail: state.sendPasswordResetEmail,
     updatePassword: state.updatePassword,
   };

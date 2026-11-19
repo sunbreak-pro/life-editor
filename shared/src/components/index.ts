@@ -211,12 +211,11 @@ export {
 // field-level parts. SegmentedToggle is the *form-mode* sibling of the
 // shell-owned SegmentedControl (radiogroup vs tablist — see each file's
 // header comment). Pure presentation: copy + submit intent injected by the
-// host (§3.1 / §6.4); the host owns the signIn/signUp calls.
+// host (§3.1 / §6.4); the host owns the signIn call.
 export {
   AuthCard,
   type AuthCardProps,
   type AuthCardLabels,
-  type AuthMode,
 } from "./AuthCard";
 export {
   PasswordField,
@@ -227,13 +226,6 @@ export {
 // points (signed-in change + post-recovery reset); the two cards wrap it in
 // the pre-login surface, SettingsAccount in the Settings column.
 export { AUTH_SURFACE_CLASS } from "./authSurface";
-// The gap between "signed up" and "signed in" when Confirm email is ON
-// (#1197). Same auth face as the other pre-login cards.
-export {
-  EmailConfirmationCard,
-  type EmailConfirmationCardProps,
-  type EmailConfirmationCardLabels,
-} from "./EmailConfirmationCard";
 export { AuthBrandHeader, type AuthBrandHeaderProps } from "./AuthBrandHeader";
 export {
   PasswordUpdateForm,
