@@ -35,7 +35,6 @@ const LABELS: TagHubDetailLabels = {
     task: "Todo",
     event: "Event",
     note: "Note",
-    table: "Table",
     daily: "Daily",
     unknown: "Other",
   },
@@ -220,31 +219,6 @@ describe("TagHubDetailPanel", () => {
       note: "0%",
       daily: "0%",
     });
-  });
-
-  it("adds a bar for note tables only when the tag holds one (#2409)", () => {
-    const { rows, widths } = renderBreakdown([
-      {
-        role: "note",
-        items: [item("note-1", "note", "Migration notes")],
-      },
-      {
-        role: "table",
-        items: [
-          item("table-1", "table", "Budget"),
-          item("table-2", "table", "Rota"),
-        ],
-      },
-    ]);
-    expect(rows).toEqual([
-      "Todo0 items",
-      "Event0 items",
-      "Note1 items",
-      "Table2 items",
-      "Daily0 items",
-    ]);
-    expect(widths.table).toBe("100%");
-    expect(widths.note).toBe("50%");
   });
 
   it("lists the recent rows and routes a click to the host", () => {

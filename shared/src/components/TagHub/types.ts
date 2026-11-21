@@ -36,8 +36,8 @@ export interface TagHubItem {
    *  for an untitled row, so this is never empty). */
   readonly title: string;
   /**
-   * The second line, drawn small UNDER the title (#2224): a note's excerpt, a
-   * table's note title. Dates no longer go here — they have the row's left
+   * The second line, drawn small UNDER the title (#2224): a note's excerpt.
+   * Dates no longer go here — they have the row's left
    * edge (`dayKey` / `time`), and the right edge carries none.
    */
   readonly detail?: string;
@@ -51,8 +51,7 @@ export interface TagHubItem {
    * The left edge (#2224). Every kind puts its day there, bold, with a time
    * under it, and the same pair orders the kind's rows: oldest day first, then
    * by time. What each kind means by "its day" is the host's call — a todo's
-   * scheduled day, an event's day, a note's or a table's last update, a
-   * daily's own date.
+   * scheduled day, an event's day, a note's last update, a daily's own date.
    */
   /** Local YYYY-MM-DD. Absent = undated (a todo set for no day), sorted last. */
   readonly dayKey?: string;
@@ -100,18 +99,6 @@ export interface TagHubItem {
    * select — a routine id would highlight nothing.
    */
   readonly navigateId?: string;
-  /**
-   * The role the shell should open `navigateId` as, when it differs from
-   * `role`. A note table (#2094) is filed under its own id but opens its note,
-   * so it is navigated as a `note`.
-   */
-  readonly navigateRole?: string;
-  /**
-   * Listed only under the tags it carries, never in the untagged bucket. A
-   * note table (#2094) is an item only because it was tagged once; with its
-   * tags removed it has nothing to say there that its note does not.
-   */
-  readonly taggedOnly?: boolean;
 }
 
 /** A tag as the rail lists it, counts derived from the rows behind it. */

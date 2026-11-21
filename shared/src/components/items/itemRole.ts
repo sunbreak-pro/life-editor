@@ -4,7 +4,6 @@ import {
   Clock,
   FileText,
   HelpCircle,
-  Table2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -16,7 +15,7 @@ import {
  * two different visual languages for the same four kinds.
  *
  * Scope note: `items_meta` carries seven roles (todo / event / routine / note /
- * daily / goal / table), but only five are user-facing kinds here. Routine is an
+ * daily / goal / table), but only four are user-facing kinds here. Routine is an
  * implementation detail — the UI presents it as "an Event with a repeat
  * setting" and it owns no tag surface (CLAUDE.md §4, 2026-07-11 #185) — so it
  * is deliberately NOT in the designed set. Goal (#2101) is left out for the
@@ -27,9 +26,10 @@ import {
  * through the neutral fallback below rather than being dropped: an assignment
  * we cannot name is still an assignment the user must be able to remove.
  *
- * Table (#2094) is in the set: a note's table becomes an item once it is
- * tagged, and Connect lists it under its tags. It sits right after note
- * because it lives inside one, and opening it opens that note.
+ * Table is left out as well: tagging a table in a note was removed in #2761,
+ * so no surface lists one any more. The role stays in `items_meta_role_check`
+ * only because rows written before then may remain, and such a row resolves
+ * to `null` like any other role outside the set.
  *
  * Redundancy is intentional: every badge carries an icon SHAPE, a text LABEL,
  * and a color tint. Color never carries the distinction alone (a11y).
@@ -40,7 +40,6 @@ export const ITEM_ROLE_ORDER = [
   "task",
   "event",
   "note",
-  "table",
   "daily",
 ] as const;
 
@@ -65,7 +64,6 @@ export const ITEM_ROLE_ICON: Record<ItemRole, LucideIcon> = {
   task: CheckSquare,
   event: Clock,
   note: FileText,
-  table: Table2,
   daily: CalendarDays,
 };
 
@@ -82,7 +80,6 @@ export const ITEM_ROLE_ICON_CLASS: Record<ItemRole, string> = {
   task: "text-lumen-accent",
   event: "text-lumen-info",
   note: "text-lumen-accent-secondary",
-  table: "text-lumen-success",
   daily: "text-lumen-warning",
 };
 
@@ -96,12 +93,6 @@ export interface ItemRoleLabels {
   task: string;
   event: string;
   note: string;
-  /**
-   * A note table (#2094). Optional because only Connect lists tables; the
-   * other hosts (the todo detail, LinkPanel, Schedule) never show one, and
-   * an absent label reads as `unknown`.
-   */
-  table?: string;
   daily: string;
   unknown: string;
 }
@@ -112,5 +103,5 @@ export function itemRoleLabel(
   labels: ItemRoleLabels,
 ): string {
   const resolved = resolveItemRole(role);
-  return resolved ? (labels[resolved] ?? labels.unknown) : labels.unknown;
+  return resolved ? labels[resolved] : labels.unknown;
 }

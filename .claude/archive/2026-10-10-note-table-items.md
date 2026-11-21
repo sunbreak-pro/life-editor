@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS — Step 1（PR #2175）と Step 2（PR #2191）は merge 済み。Step 3〜7 の PR を open（#2201 / #2207 / #2208 / #2206 / docs の PR）。残りはこうだいさんの `db push`（0040）と各 PR の merge、メインのチャットの Step 8
+Status: COMPLETED — Step 1〜7 は PR #2175・#2191・#2201・#2206・#2207・#2208・#2209 で merge 済みで、Step 8 の実画面での確認を経て #2094 は 2026-10-19 に close されました。作った機能は 2026-11-19 に #2761（PR #2796）で消したので、この計画書は履歴として残します
 Created: 2026-10-10
 Branch: claude/note-table-items-docs-2094
 Owner-chat: materials-refine
@@ -200,3 +200,4 @@ AC を満たせない見込みになったら、自分で免除せず **P-008** 
 - 2026-10-11: Step 4 = PR #2207（エディタ）。Step 3 のブランチを取り込んでいます（#2190 → #2191 と同じ形）。Step 3 の merge の後に main を取り込み直すと、差分は自分の変更だけに戻ります。計画の「初めてタグを付けると 1→2→3 の順」は、「タグを付ける」ボタンでアイテムを作って `tableId` を書き、その後は普通のタグ選択でタグを付ける 2 段にしました。既存の TagPicker をそのまま使えるためです。タグを付けずに離れた表のアイテムはタグが無いので、Connect にも MCP にも出ません。`tableId` を書く操作は Undo の履歴に入れていません（Ctrl+Z で表とタグのつながりが切れないようにするためです）。保存後の同期は、監査の申し送りどおりノートごとに 1 本ずつ順に流します。
 - 2026-10-11: Step 5 = PR #2208（Connect）。Step 3 のブランチを取り込んでいます。表の行は親のノートとして開き（`navigateRole`）、タグを外した表は「未分類」に入れません（`taggedOnly`）。`useShellNavigation.ts` は変えずに済みました。`ItemRoleLabels.table` は任意にしました。表を一覧に出すのは Connect だけで、TagPicker・LinkPanel・Schedule の 3 か所は表を出さないためです。
 - 2026-10-11: Step 7 = この PR（CLAUDE.md §4・db-conventions §16・tier-2 §WikiTags）。Step 8（実画面での確認）はメインのチャットに渡します。#2094 は Step 8 まで open のままです。
+- 2026-11-21: Status を COMPLETED にして `archive/` へ移しました（#2797）。表にタグを付ける機能は #2761（PR #2796）で消しました。そのあとに残っていた Connect の `navigateRole`・`taggedOnly` と、role `table` の種類の表示も #2797 で消しました。DDL（0040）は本番に残してあり、使い直すときに戻す処理は db-conventions §16 に書きました。

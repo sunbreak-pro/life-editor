@@ -940,7 +940,6 @@
     "event": "Event",
     "note": "Note",
     "daily": "Daily",
-    "table": "Table",
     "unknown": "Other"
   },
   "detailPanel": {

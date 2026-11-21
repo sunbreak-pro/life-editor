@@ -198,18 +198,24 @@ Briefing の作り直し（計画書 = `archive/2026-10-03-briefing-goals-redesi
 - **`dailies_payload` に足した 3 列**: `evening_published_at`（夕刊を★で発行した時刻）と `evening_notes`（出来事の行に足した一言。jsonb のオブジェクト = 行の鍵 → 文）が 0034、`morning_comment`（Claude の朝刊の講評。jsonb の配列）が 0035 です。どれも型を CHECK で縛っています。講評は Daily の本文に書かず列に書き、列が無い古い日だけ本文の「朝刊」の節を読みます（D-20261007-briefing-1）
 - 新しい 2 表とも owner-only の RLS と `supabase_realtime` への加入を 0034 の中で済ませています。同期のドメインは `goals`（`shared/src/context/syncDomains.ts`）です
 
-## 16. ノートの表のアイテム（0040・#2094）
+## 16. ノートの表のアイテム（0040・#2094。機能は #2761 で消した）
 
-ノート本文の中の表にタグを付けるための DDL の規約です（計画書 = `docs/vision/plans/2026-10-10-note-table-items.md`）。表は新しい role `table` のアイテムで、タグの割り当て（`wiki_tag_assignments`）は role を区別しないので、表の id にそのまま付きます。
+ノート本文の中の表にタグを付けるために作った DDL の規約です（計画書 = `archive/2026-10-10-note-table-items.md`）。表は role `table` のアイテムで、タグの割り当て（`wiki_tag_assignments`）は role を区別しないので、表の id にそのまま付いていました。
 
-> 2026-11-19（#2761）: ノートの表にタグを付ける機能を消しました。使っていなかったためで、本番には role `table` の行も `tables_payload` の行もありませんでした。表 `tables_payload`・`items_meta_role_check` の `table`・`supabase_realtime` への加入は、DDL を打たずに残しています。画面・DataService・MCP の道具から読み書きするコードは消し、Realtime の購読も外しました。ノートの物理削除の前に表のアイテムを消す処理も消したので、行を作り直すときは下の「親はノートだけ」の後始末を戻します。本文に残る `tableId` 属性は、エディタが宣言しなくなったので開くときに黙って落ち、次の保存で消えます。下の規約は、表を使い直すときと、表を消す DDL を書くときのために残します。
+> 2026-11-19（#2761）: ノートの表にタグを付ける機能を消しました。使っていなかったためで、本番には role `table` の行も `tables_payload` の行もありませんでした。表 `tables_payload`・`items_meta_role_check` の `table`・`supabase_realtime` への加入は、DDL を打たずに残しています。画面・DataService・MCP の道具から読み書きするコードは消し、Realtime の購読も外しました。Connect が表を親のノートとして開く分岐と、role `table` の表示（種類のアイコン・色・ラベル）も #2797 で消しました。本文に残る `tableId` 属性は、エディタが宣言しなくなったので開くときに黙って落ち、次の保存で消えます。下の規約は、表を使い直すときと、表を消す DDL を書くときのために残します。
 
-- **セルの正本はノート本文のまま**: `tables_payload` が持つのは親のノート（`parent_note_id`）だけです。本文の表ノードが `tableId` 属性でアイテムを指し、表の名前は `items_meta.title` に写します（名前のない表は `''`）。セルを payload に写すと正本が 2 つになるためです
-- **アイテムになるのはタグを初めて付けたときだけ**: backfill はありません。`tableId` の無い表は今までどおりの表です
-- **親はノートだけ**: `(parent_note_id, parent_note_role)` → `items_meta(id, role)` の複合 FK（`parent_note_role` は `'note'` 固定の生成列・`ON DELETE NO ACTION`）。ノートを物理削除するときは、そのノートの表のアイテムを先に消します（§10.4。`permanentDeleteNoteUnified` がノート 1 件ごとに `purgeNoteTablesOf` を呼びます）
-- **本文と行のずれはアプリが直す**: ノートを保存するたびに `syncNoteTables` が本文の `tableId` とそのノートの表のアイテムを比べ、本文から消えた表をソフトデリートし、戻った表（Undo）を復元し、名前をそろえます。本文を JSON として読めないときは何もしません。貼り付けた表からは `tableId` を外します（2 つの表が 1 つのアイテムを指さないようにするためです）
-- **表は単独でゴミ箱に出さない**: 親のノートがゴミ箱にある表は、Connect と MCP の `search_by_tag` が読むときに外します。表のアイテム自体はソフトデリートしないので、ノートを戻せば表も戻ります。MCP の `list_trash` も表を出しません
-- owner-only の RLS と `supabase_realtime` への加入は 0040 の中で済ませています。同期のドメインは `notes` です（`shared/src/context/syncDomains.ts`）
+いまも DB に残っている DDL の決まりです。
+
+- **セルの元はノート本文のまま**: `tables_payload` が持つのは親のノート（`parent_note_id`）だけです。本文の表ノードが `tableId` 属性でアイテムを指し、表の名前は `items_meta.title` に写す形でした（名前のない表は `''`）。セルを payload に写すと元が 2 つになるためです
+- **親はノートだけ**: `(parent_note_id, parent_note_role)` → `items_meta(id, role)` の複合 FK（`parent_note_role` は `'note'` 固定の生成列・`ON DELETE NO ACTION`）です
+- owner-only の RLS と `supabase_realtime` への加入は 0040 の中で済ませています。同期のドメインの対応は `notes` です（`shared/src/context/syncDomains.ts`）
+
+表を使い直すときに戻すアプリ側の処理です。どれも #2761 で消したので、今のコードにはありません。
+
+- **アイテムにするのはタグを初めて付けたときだけにする**: backfill は作りませんでした。`tableId` の無い表は普通の表のままです
+- **ノートの物理削除の前に、そのノートの表のアイテムを消す**（§10.4）: `permanentDeleteNoteUnified` は、#2761 までノート 1 件ごとに `purgeNoteTablesOf`（消した関数）を呼んでいました。戻さずに表のアイテムを作り始めると、表のあるノートの物理削除を複合 FK（NO ACTION）が 23503 で断ります
+- **本文と行のずれを保存のたびに直す**: 消した `syncNoteTables` は、ノートを保存するたびに本文の `tableId` とそのノートの表のアイテムを比べ、本文から消えた表をソフトデリートし、戻った表（Undo）を復元し、名前をそろえていました。本文を JSON として読めないときは何もせず、貼り付けた表からは `tableId` を外していました（2 つの表が 1 つのアイテムを指さないようにするためです）
+- **表を単独でゴミ箱に出さない**: 親のノートがゴミ箱にある表は、Connect と MCP の `search_by_tag` が読むときに外していました。表のアイテム自体はソフトデリートしないので、ノートを戻せば表も戻ります。MCP の `list_trash` も表を出していませんでした
 
 ## 17. 拡張アプリの記録と台帳の独立テーブル（0039・#2161）
 
