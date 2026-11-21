@@ -727,6 +727,9 @@ export function NotesView({
           <AddPill
             onClick={handleAddNote}
             label={t("materials.notes.addCta")}
+            // #2793: the visible "+ ノート" reads the same as the tab; the
+            // spoken name says what the button does.
+            ariaLabel={t("materials.notes.addAria")}
             // #1560: the pill measured 33 tall at 390px. The floor rides on
             // THIS call site rather than on AddPill's own recipe because the
             // part has two other hosts in the Schedule lane, and growing their

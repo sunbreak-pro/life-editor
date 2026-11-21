@@ -266,7 +266,7 @@ describe("Notes sidebar rows on narrow (#2032)", () => {
   // the stuck note header.
   it("keeps the narrow column's top gap off the scroller's padding", () => {
     render(<NotesView />);
-    const add = screen.getByRole("button", { name: "materials.notes.addCta" });
+    const add = screen.getByRole("button", { name: "materials.notes.addAria" });
     const scroller = add.closest(".overflow-y-auto") as HTMLElement;
     expect(scroller).not.toBeNull();
     expect(scroller.className.split(" ")).not.toContain("pt-2");

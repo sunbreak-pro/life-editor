@@ -387,9 +387,21 @@ describe("NotesView — desktop (wide)", () => {
     render(<NotesView />);
 
     fireEvent.click(
-      screen.getAllByRole("button", { name: "materials.notes.addCta" })[0],
+      screen.getAllByRole("button", { name: "materials.notes.addAria" })[0],
     );
     expect(state.createNote).toHaveBeenCalled();
+  });
+
+  // #2793: the spoken name is the action, the visible text stays the short
+  // label, and neither the pill nor anything else is named like the tab.
+  it("speaks the pill as the create action and keeps its visible text", () => {
+    render(<NotesView />);
+
+    const pill = screen.getAllByRole("button", {
+      name: "materials.notes.addAria",
+    })[0];
+    expect(pill.textContent).toBe("materials.notes.addCta");
+    expect(pill.getAttribute("aria-label")).toBe("materials.notes.addAria");
   });
 
   /*
@@ -403,7 +415,7 @@ describe("NotesView — desktop (wide)", () => {
     render(<NotesView />);
 
     const pill = screen.getAllByRole("button", {
-      name: "materials.notes.addCta",
+      name: "materials.notes.addAria",
     })[0];
     expect(pill.classList.contains("max-md:min-h-11")).toBe(true);
     // Unprefixed would grow the Desktop toolbar's pill too.
@@ -510,11 +522,16 @@ describe("NotesView — desktop (wide)", () => {
     // #1372: TWO add entries, not three. The main content's is the toolbar
     // pill alone; the third used to sit in the centred empty state, saying the
     // same thing a few centimetres under the pill. The side list keeps its own.
+    // #2793: the two entries no longer share a name. The pill is spoken as
+    // the action; the list's CTA keeps the visible label.
+    expect(
+      screen.getAllByRole("button", { name: "materials.notes.addAria" }).length,
+    ).toBe(1);
     expect(
       screen.getAllByRole("button", { name: "materials.notes.addCta" }).length,
-    ).toBe(2);
+    ).toBe(1);
     fireEvent.click(
-      screen.getAllByRole("button", { name: "materials.notes.addCta" })[0],
+      screen.getAllByRole("button", { name: "materials.notes.addAria" })[0],
     );
     expect(state.createNote).toHaveBeenCalled();
   });
@@ -532,7 +549,7 @@ describe("NotesView — desktop (wide)", () => {
 
     screen.getAllByText("materials.notes.empty");
     fireEvent.click(
-      screen.getAllByRole("button", { name: "materials.notes.addCta" })[0],
+      screen.getAllByRole("button", { name: "materials.notes.addAria" })[0],
     );
     expect(state.createNote).toHaveBeenCalled();
   });
@@ -593,7 +610,7 @@ describe("NotesView — desktop (wide)", () => {
     // with #1372, leaving the toolbar pill as the one add entry on screen.
     screen.getByText("materials.notes.mainEmpty");
     expect(
-      screen.getAllByRole("button", { name: "materials.notes.addCta" }).length,
+      screen.getAllByRole("button", { name: "materials.notes.addAria" }).length,
     ).toBe(1);
   });
 
@@ -668,7 +685,7 @@ describe("NotesView — what goes in the right sidebar (#2390)", () => {
     render(<NotesView />);
 
     const pill = screen.getByRole("button", {
-      name: "materials.notes.addCta",
+      name: "materials.notes.addAria",
     });
     expect(screen.getByTestId("right-sidebar-portal").contains(pill)).toBe(
       false,
@@ -682,8 +699,11 @@ describe("NotesView — what goes in the right sidebar (#2390)", () => {
     const panel = within(screen.getByTestId("right-sidebar-portal"));
     panel.getByRole("button", { name: "materials.notes.addCta" });
     expect(
+      screen.getAllByRole("button", { name: "materials.notes.addAria" }).length,
+    ).toBe(1);
+    expect(
       screen.getAllByRole("button", { name: "materials.notes.addCta" }).length,
-    ).toBe(2);
+    ).toBe(1);
   });
 });
 
@@ -740,7 +760,7 @@ describe("NotesView — mobile (narrow)", () => {
     // list's own button. Both route through the host's one handler; the pill is
     // the one a phone reaches without opening the drawer.
     fireEvent.click(
-      screen.getAllByRole("button", { name: /materials\.notes\.addCta/ })[0],
+      screen.getAllByRole("button", { name: /materials\.notes\.addAria/ })[0],
     );
     // #1147: no title-first sheet in between. `createNote()` takes no title, so
     // useNotesUnifiedCRUD's "Untitled" fallback names it and selects it.
@@ -767,7 +787,7 @@ describe("NotesView — mobile (narrow)", () => {
     const { rerender } = render(<NotesView />);
 
     fireEvent.click(
-      screen.getAllByRole("button", { name: /materials\.notes\.addCta/ })[0],
+      screen.getAllByRole("button", { name: /materials\.notes\.addAria/ })[0],
     );
     state.notes = [fresh];
     state.selectedId = "note-new";
@@ -1285,7 +1305,7 @@ describe("NotesView — a search that matches nothing (#1470)", () => {
     // One entry, not two: the side list's accent CTA belonged to "no notes
     // yet" and here would offer to create out of a search term.
     expect(
-      screen.getAllByRole("button", { name: "materials.notes.addCta" }).length,
+      screen.getAllByRole("button", { name: "materials.notes.addAria" }).length,
     ).toBe(1);
   });
 
@@ -1363,7 +1383,7 @@ describe("NotesView — a search that matches nothing, on narrow (#1470)", () =>
     // The toolbar pill, and not the list's accent CTA underneath it — which
     // here would offer to make a note out of the search term.
     expect(
-      screen.getAllByRole("button", { name: "materials.notes.addCta" }).length,
+      screen.getAllByRole("button", { name: "materials.notes.addAria" }).length,
     ).toBe(1);
   });
 
