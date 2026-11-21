@@ -1,5 +1,5 @@
 ---
-id: D-20261121-main-1
+id: 2026-11-21-restore-equal-width-add-dialog-buttons
 type: decision
 status: answered
 asked: 2026-11-21
@@ -14,7 +14,7 @@ implemented-by: []
 promoted-to: null
 ---
 
-# D-20261121-main-1: スマホの追加ダイアログのフッターで、送信ボタンを等幅に戻すか
+# スマホの追加ダイアログのフッターで、送信ボタンを等幅に戻すか
 
 ## 背景
 
