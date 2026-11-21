@@ -1,13 +1,19 @@
+import { useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { isMacDesktopShell } from "../utils/platform";
 import { WIDE_QUERY } from "../constants/breakpoints";
 import { useSoftKeyboard } from "../hooks/useSoftKeyboard";
 import { useLocalStorage } from "../hooks/useLocalStorage";
+import { useRightSidebarOptional } from "../hooks/useRightSidebarContext";
 import { cn } from "./cn";
-import { SidebarNav, type SidebarNavSection } from "./SidebarNav";
+import {
+  SidebarNav,
+  SIDEBAR_NAV_WIDTH_REM,
+  type SidebarNavSection,
+} from "./SidebarNav";
 import { BottomTabBar } from "./BottomTabBar";
-import { RightSidebar } from "./RightSidebar";
+import { RightSidebar, rightSidebarWidthFor } from "./RightSidebar";
 import { MobileDrawer } from "./MobileDrawer";
 
 /** Already-translated copy for the target-IA detail panel (App Shell Turn 2). */
@@ -143,6 +149,77 @@ export interface AppShellProps {
 
 const SIDEBAR_COLLAPSED_KEY = "life-editor.shell.sidebar-collapsed";
 
+/** The narrowest <main> the open right sidebar may leave (#2544). */
+export const MAIN_MIN_WIDTH_PX = 320;
+
+/** What the browser falls back to when nothing sets the root font size. */
+const FALLBACK_ROOT_FONT_PX = 16;
+
+export interface ShellWidths {
+  /** Window width in px. */
+  windowWidth: number;
+  /** Root font size in px — what one rem of the nav's width is. */
+  rootFontPx: number;
+  /** The right sidebar's stored width (clamped here, as the panel does). */
+  rightSidebarWidth: number;
+}
+
+/**
+ * #2544 — whether the nav has to fold to its rail so that the open right
+ * sidebar leaves <main> at least MAIN_MIN_WIDTH_PX.
+ *
+ * Asked with the nav EXPANDED, whatever it shows now: folding it widens the
+ * row, so asking with the rail would flip the answer back and the nav would
+ * flicker. On a 768px window at the default 18px root, the expanded nav
+ * (270px) and the panel's floor (240px) leave <main> 258px, so it folds; at
+ * 1280px <main> keeps 520px and nothing changes.
+ */
+export function shouldAutoCollapseNav({
+  windowWidth,
+  rootFontPx,
+  rightSidebarWidth,
+}: ShellWidths): boolean {
+  const row = windowWidth - SIDEBAR_NAV_WIDTH_REM.expanded * rootFontPx;
+  return row - rightSidebarWidthFor(rightSidebarWidth, row) < MAIN_MIN_WIDTH_PX;
+}
+
+function readRootFontPx(): number {
+  const px = parseFloat(
+    window.getComputedStyle(document.documentElement).fontSize,
+  );
+  return Number.isFinite(px) && px > 0 ? px : FALLBACK_ROOT_FONT_PX;
+}
+
+// One string so useSyncExternalStore compares a primitive: a fresh object per
+// read would count as a change on every render.
+function readViewportSnapshot(): string {
+  return `${window.innerWidth}|${readRootFontPx()}`;
+}
+
+function subscribeViewport(onChange: () => void): () => void {
+  window.addEventListener("resize", onChange);
+  // The Settings font-size step writes the root font size inline
+  // (ThemeContext), which fires no resize, so watch the attribute instead.
+  const observer = new MutationObserver(onChange);
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["style"],
+  });
+  return () => {
+    window.removeEventListener("resize", onChange);
+    observer.disconnect();
+  };
+}
+
+function useViewportWidths(): { windowWidth: number; rootFontPx: number } {
+  const snapshot = useSyncExternalStore(
+    subscribeViewport,
+    readViewportSnapshot,
+  );
+  const [windowWidth, rootFontPx] = snapshot.split("|").map(Number);
+  return { windowWidth, rootFontPx };
+}
+
 /*
  * Responsive single app shell (W5). One component switches between the
  * wide sidebar layout (≥ md) and the narrow bottom-tab layout (< md) via
@@ -194,6 +271,39 @@ export function AppShell({
     SIDEBAR_COLLAPSED_KEY,
     false,
   );
+  // Null without a RightSidebarProvider, which only a host that passes
+  // `detailPanelLabels` has to mount.
+  const rightSidebar = useRightSidebarOptional();
+  const viewport = useViewportWidths();
+  const panelOpen = detailPanelLabels != null && rightSidebar?.isOpen === true;
+  /*
+   * #2544 — the auto fold is display state only. `collapsed` stays what the
+   * user chose and SIDEBAR_COLLAPSED_KEY is written only by the toggle, so
+   * closing the panel or widening the window brings the user's nav back.
+   */
+  const autoCollapsed =
+    isWide &&
+    panelOpen &&
+    !collapsed &&
+    shouldAutoCollapseNav({
+      ...viewport,
+      rightSidebarWidth: rightSidebar.width,
+    });
+  /*
+   * Expanding the nav while it is folded for the panel closes the panel
+   * instead: an expanded nav next to the open panel is the squeeze this fold
+   * exists to prevent. Writing `!collapsed` here would store "collapsed" for a
+   * user who never chose it. The close is the guarded one (#753), so a draft
+   * in the panel still asks first, and the nav stays folded if the user keeps
+   * it.
+   */
+  const toggleNav = (): void => {
+    if (autoCollapsed) {
+      rightSidebar.requestClose();
+      return;
+    }
+    setCollapsed((v) => !v);
+  };
 
   // Narrow bottom bar list: explicit `mobileSections` wins; otherwise the
   // mainline sections followed by the utility group (Settings / Trash).
@@ -213,8 +323,8 @@ export function AppShell({
           utilitySections={utilitySections}
           activeSection={activeSection}
           onNavigate={onNavigate}
-          collapsed={collapsed}
-          onToggleCollapsed={() => setCollapsed((v) => !v)}
+          collapsed={collapsed || autoCollapsed}
+          onToggleCollapsed={toggleNav}
           onLaunchClaude={onLaunchClaude}
           userEmail={userEmail}
           userName={userName}

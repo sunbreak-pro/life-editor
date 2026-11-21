@@ -104,6 +104,18 @@ export interface SidebarNavProps {
   labels: SidebarNavLabels;
 }
 
+/**
+ * The nav's widths in rem: `w-60` expanded, `w-16` as the rail (#2544).
+ *
+ * AppShell needs them in numbers to tell whether the open right sidebar would
+ * squeeze <main> under its floor. They are rem, not px, because the Settings
+ * font-size step drives the root font size, so the px width follows it (240px
+ * at 16px, 270px at the default 18px). The class names below cannot read these
+ * constants (Tailwind only sees literal strings); sidebarNav.test.tsx pins the
+ * two together.
+ */
+export const SIDEBAR_NAV_WIDTH_REM = { expanded: 15, collapsed: 4 } as const;
+
 /*
  * Wide-layout sidebar (W5 app shell). Header (brand mark + name + collapse
  * toggle), a scrollable mainline section list, a bottom-pinned utility group
