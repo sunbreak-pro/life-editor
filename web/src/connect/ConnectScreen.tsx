@@ -447,7 +447,6 @@ export function ConnectScreen({
         task: t("itemRole.task"),
         event: t("itemRole.event"),
         note: t("itemRole.note"),
-        table: t("itemRole.table"),
         daily: t("itemRole.daily"),
         unknown: t("itemRole.unknown"),
       },
@@ -916,7 +915,7 @@ export function ConnectScreen({
       // `date` already points the Calendar at.
       onNavigateToItem({
         id: item.navigateId ?? item.id,
-        role: item.navigateRole ?? item.role,
+        role: item.role,
         date: item.date,
       });
     },

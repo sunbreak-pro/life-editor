@@ -65,10 +65,7 @@ export interface TagHubDetailPanelProps {
 
 /**
  * The breakdown's rows, in ITEM_ROLE_ORDER (#2409). Every kind gets a row even
- * at zero, so the same bars stand in the same places from tag to tag. A note
- * table (#2094) is the exception: most tags hold none and a permanent fifth
- * bar would say nothing, but when one is filed here it has to be counted, or
- * the bars would not add up to the tag's total.
+ * at zero, so the same bars stand in the same places from tag to tag.
  */
 function breakdownRows(
   groups: readonly TagHubGroup[],
@@ -76,9 +73,10 @@ function breakdownRows(
   const counts = new Map(
     groups.map((group) => [group.role, group.items.length]),
   );
-  return ITEM_ROLE_ORDER.filter(
-    (role) => role !== "table" || counts.has(role),
-  ).map((role) => ({ role, count: counts.get(role) ?? 0 }));
+  return ITEM_ROLE_ORDER.map((role) => ({
+    role,
+    count: counts.get(role) ?? 0,
+  }));
 }
 
 export function TagHubDetailPanel({
