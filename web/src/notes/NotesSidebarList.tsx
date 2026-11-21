@@ -433,7 +433,7 @@ export function NotesSidebarList({
               onChange={(e) => handleSearchChange(e.target.value)}
               placeholder={labels.searchPlaceholder}
               aria-label={labels.searchPlaceholder}
-              className="min-w-0 flex-1 bg-transparent text-[12.5px] text-lumen-text placeholder:text-lumen-text-tertiary focus:outline-none"
+              className="min-w-0 flex-1 bg-transparent text-[12.5px] max-md:text-sm text-lumen-text placeholder:text-lumen-text-tertiary focus:outline-none"
             />
           </div>
         }

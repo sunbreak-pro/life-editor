@@ -162,7 +162,7 @@ export function SidebarListControls({
           aria-describedby={summaryId}
           title={summary}
           className={cn(
-            "flex h-8 w-full items-center gap-1.5 rounded-lumen-md border px-2.5 text-[12.5px]",
+            "flex h-8 w-full items-center gap-1.5 rounded-lumen-md border px-2.5 text-[12.5px] max-md:text-sm",
             // #1975's 44px floor on narrow, as the square the button becomes
             // there; Desktop keeps h-8 for the mouse.
             "max-md:h-11 max-md:min-h-11 max-md:w-11 max-md:shrink-0 max-md:justify-center max-md:px-0",
