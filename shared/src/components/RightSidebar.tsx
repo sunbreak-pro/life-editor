@@ -33,6 +33,8 @@ export interface RightSidebarProps {
 const MIN_WIDTH = 240;
 const MAX_WIDTH = 560;
 const KEY_STEP = 16;
+/** The room the panel leaves <main> before its own floor wins (#2496). */
+const MAIN_FLOOR = 520;
 
 /*
  * #2496 — the floor under <main>. The 240–560 clamp is about the panel alone,
@@ -45,13 +47,35 @@ const KEY_STEP = 16;
  * or a collapsed nav with no observer. `max(MIN_WIDTH, …)` keeps the panel's
  * own floor — on a small window <main> gives way, as it did before. The stored
  * width is left alone, so widening the window brings the panel back to it.
- * The floor is 520px and the panel's own floor 240px (= MIN_WIDTH), both
- * spelled out in the class because Tailwind only sees literal strings.
+ * The floor is 520px (= MAIN_FLOOR) and the panel's own floor 240px
+ * (= MIN_WIDTH), both spelled out in the class because Tailwind only sees
+ * literal strings. How far <main> may give way is AppShell's call (#2544): it
+ * folds the nav to its rail before <main> drops under 320px.
  */
 const CAP_CLASS = "max-w-[max(240px,calc(100%_-_520px))]";
 
 function clampWidth(w: number): number {
   return Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, Math.round(w)));
+}
+
+/**
+ * The width the open panel takes in a row of `rowWidth` px (= <main> + panel),
+ * from the stored width: the same sum CAP_CLASS has the browser do.
+ *
+ * #2544: AppShell asks this to decide whether <main> would drop under its own
+ * floor and the nav should fold. It is arithmetic rather than a measurement
+ * because the answer changes the very row it would measure, and because jsdom
+ * has no layout to measure in tests. It sits beside CAP_CLASS so the two
+ * numbers move together.
+ */
+export function rightSidebarWidthFor(
+  storedWidth: number,
+  rowWidth: number,
+): number {
+  return Math.max(
+    MIN_WIDTH,
+    Math.min(clampWidth(storedWidth), rowWidth - MAIN_FLOOR),
+  );
 }
 
 export function RightSidebar({
