@@ -254,7 +254,7 @@
     "notes": "ノート",
     "restore": "復元",
     "deletePermanently": "完全に削除",
-    "events": "イベント",
+    "events": "予定",
     "routines": "ルーティン",
     "dailies": "デイリー",
     "loading": "ゴミ箱を読み込み中...",
@@ -931,7 +931,7 @@
   },
   "itemRole": {
     "task": "Todo",
-    "event": "イベント",
+    "event": "予定",
     "note": "ノート",
     "daily": "デイリー",
     "unknown": "その他"
