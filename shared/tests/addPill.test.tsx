@@ -26,6 +26,13 @@ describe("AddPill (#1034)", () => {
     ).toBeInTheDocument();
   });
 
+  it("lets a host speak a different name than the visible label (#2793)", () => {
+    render(<AddPill onClick={() => {}} label="Note" ariaLabel="Create note" />);
+    const btn = screen.getByRole("button", { name: "Create note" });
+    expect(btn).toHaveTextContent("Note");
+    expect(screen.queryByRole("button", { name: "Note" })).toBeNull();
+  });
+
   it("fires onClick once when tapped", () => {
     const onClick = vi.fn();
     render(<AddPill onClick={onClick} label="Add" />);

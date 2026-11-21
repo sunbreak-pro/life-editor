@@ -332,6 +332,7 @@
     "notes": {
       "searchPlaceholder": "ノートを検索…",
       "addCta": "ノート",
+      "addAria": "ノートを作成",
       "empty": "ノートはまだありません",
       "searchEmpty": "検索に一致するノートはありません",
       "deleteNote": "ノートを削除",

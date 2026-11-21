@@ -41,6 +41,12 @@ export interface AddPillProps {
    * themselves (rules/frontend.md §デザイン規約).
    */
   label: string;
+  /**
+   * Already-translated accessible name, for a host whose visible label is
+   * short enough to collide with a sibling's name (#2793: the Notes tab and its
+   * "+ ノート" pill both read as "ノート"). Omitted, the visible label is the name.
+   */
+  ariaLabel?: string;
   /** Glyph override. Defaults to the 14px plus every current host wants. */
   icon?: ReactNode;
   className?: string;
@@ -49,6 +55,7 @@ export interface AddPillProps {
 export function AddPill({
   onClick,
   label,
+  ariaLabel,
   icon,
   className,
 }: AddPillProps) {
@@ -56,6 +63,7 @@ export function AddPill({
     <button
       type="button"
       onClick={onClick}
+      aria-label={ariaLabel}
       className={cn(PILL, FOCUS_RING_TIGHT, className)}
     >
       {icon ?? <Plus size={14} aria-hidden />}

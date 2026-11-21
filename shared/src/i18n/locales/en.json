@@ -333,6 +333,7 @@
     "notes": {
       "searchPlaceholder": "Search notes…",
       "addCta": "Note",
+      "addAria": "Create note",
       "empty": "No notes yet",
       "searchEmpty": "No notes match that search",
       "deleteNote": "Delete note",
