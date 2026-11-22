@@ -21,9 +21,10 @@ import { cn } from "../cn";
 import { WIDE_QUERY } from "../../constants/breakpoints";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { Button } from "../Button";
+import { Card } from "../Card";
 import { EmptyState } from "../EmptyState";
+import { IconButton } from "../IconButton";
 import { Input } from "../Input";
-import { SegmentedToggle } from "../SegmentedToggle";
 import { SkeletonList } from "../SkeletonList";
 import { TodoStatusCheckbox, toggledTodoStatus } from "../TodoStatusCheckbox";
 import type { StatusLabelSet } from "../todoStatusVisuals";
@@ -46,9 +47,9 @@ import { canDropOn, type GoalTreeDragSource } from "./goalTreeDrag";
  * The Connect "Goals & Todos" tab body (#2108, plan Step 9 — design C1–C6
  * as described in .claude/docs/design/briefs/briefing.md §1.5 / §10.4 / §11).
  *
- * Top to bottom: the add button, which opens the period, title and dates
- * (#2410; no limit per period, and a start and end date that may differ from
- * the period's own — #2366), the year → month →
+ * Top to bottom: the add button, which opens a card with the period, title
+ * and dates (#2410, #2608; no limit per period, and a start and end date that
+ * may differ from the period's own — #2366), the year → month →
  * week tree with each goal's linked todos under it, the unconnected goals,
  * and the todos no goal holds. A group with nothing in it is not drawn — no
  * heading over an empty frame — and with no goal at all the tree is replaced
@@ -119,16 +120,26 @@ export interface GoalTreeLabels {
   kinds: Record<GoalPeriodKind, string>;
   /** "This year" / "This month" / "This week" — the add choices, a row's badge. */
   periods: Record<GoalPeriodKind, string>;
-  /** "2026" / "October" / "10/4 – 10/10" — beside the period name. */
+  /**
+   * "2026" / "October" / "10/4 – 10/10". Not drawn since the add field's
+   * placeholder stopped naming the period (#2608): the select does that, and
+   * the date fields show the range.
+   */
   periodRanges: Record<GoalPeriodKind, string>;
   addHeading: string;
   addPlaceholder: string;
   /**
-   * Appended to the placeholder for a month or week goal only: a goal with no
-   * goal above it is a valid start there (#2400). Carries its own separator.
+   * The line at the bottom of the add card, for a month or week goal only: a
+   * goal with no goal above it is a valid start there (#2400, #2608).
    */
   addNoParentHint: string;
+  /** "Add" — the buttons of a row's "+" field and of the loose todo field. */
   add: string;
+  /**
+   * "Save" — the add card's button (#2608). Optional so that a host without
+   * the copy keeps building: the button then says `add`.
+   */
+  saveGoal?: string;
   cancel: string;
   /** The add field's date inputs (#2366). */
   startDate: string;
@@ -298,6 +309,11 @@ const GROUP_HEADING = "mb-1.5 text-xs font-medium text-lumen-text-tertiary";
  * the button to one character's width and 「追加」 broke into a column.
  */
 const KEEP_LABEL = "shrink-0 whitespace-nowrap";
+
+/** The add card's periods, nearest first (#2608): it opens on this week. */
+const ADD_PERIOD_KINDS: readonly GoalPeriodKind[] = [
+  ...GOAL_PERIOD_KINDS,
+].reverse();
 
 /*
  * The arrow's width is one CSS variable, set on the view's root, and the
@@ -1389,6 +1405,9 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
   const [range, setRange] = useState({ start: "", end: "" });
   const rangeStartId = useId();
   const rangeEndId = useId();
+  const addHeadingId = useId();
+  const addHintId = useId();
+  const addButton = useRef<HTMLButtonElement>(null);
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
@@ -1447,6 +1466,13 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
     setAdding(kind);
     if (kind) setRange(goalPeriodBounds(kind, model.periodKeys[kind]));
   };
+  // Closing unmounts whatever held the focus, so it goes back to the button.
+  const closeAdd = (): void => {
+    openAdd(null);
+    addButton.current?.focus();
+  };
+  const saveLabel = labels.saveGoal ?? labels.add;
+  const showNoParentHint = adding === "month" || adding === "week";
   const rangeValid = !!range.start && !!range.end && range.start <= range.end;
 
   const submit = (): void => {
@@ -1569,6 +1595,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
     <div className={cn("flex flex-col gap-6", TREE_TOGGLE_SIZE)}>
       <section aria-label={labels.addHeading}>
         <Button
+          ref={addButton}
           variant={adding ? "primary" : "secondary"}
           size="sm"
           // Opens on this week, the period the empty state's button sets too.
@@ -1580,103 +1607,126 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
           {labels.addHeading}
         </Button>
         {adding && (
-          <SegmentedToggle
-            options={GOAL_PERIOD_KINDS.map((kind) => ({
-              value: kind,
-              label: labels.periods[kind],
-            }))}
-            value={adding}
-            onChange={openAdd}
-            label={labels.addHeading}
-            className="mt-2 max-w-sm"
-          />
-        )}
-        {adding && (
-          // Below 768px the field takes its own line, so the placeholder is
-          // not cut down to a few characters beside the two buttons (#2490).
-          <div className="mt-2 flex items-center gap-2 max-md:flex-wrap">
-            <Input
-              autoFocus
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (isImeComposing(e)) return;
-                if (e.key === "Enter") submit();
-                if (e.key === "Escape") openAdd(null);
-              }}
-              placeholder={`${labels.periods[adding]} ${labels.periodRanges[adding]}: ${labels.addPlaceholder}${
-                adding === "month" || adding === "week"
-                  ? labels.addNoParentHint
-                  : ""
-              }`}
-              aria-label={`${labels.periods[adding]}: ${labels.addPlaceholder}`}
-              className="min-w-0 max-md:min-h-11 max-md:basis-full max-md:text-base"
-            />
-            <Button
-              size="sm"
-              onClick={submit}
-              disabled={!draft.trim() || !rangeValid}
-              busy={busy}
-              busyLabel={labels.add}
-              className={cn(KEEP_LABEL, "max-md:min-h-11")}
-            >
-              {labels.add}
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => openAdd(null)}
-              className={cn(KEEP_LABEL, "max-md:min-h-11")}
-            >
-              {labels.cancel}
-            </Button>
-          </div>
-        )}
-        {adding && (
-          // Each label and its date field form one pair, so a wrap never
-          // leaves a label at the end of one line and its field on the next.
-          // Below 768px the pairs stack and the fields fill the width (#2490).
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-lumen-text-secondary max-md:flex-col max-md:items-stretch">
-            <div data-goal-range-pair className="flex items-center gap-2">
-              <label
-                htmlFor={rangeStartId}
-                className="shrink-0 whitespace-nowrap"
+          <Card
+            padding="sm"
+            role="group"
+            aria-labelledby={addHeadingId}
+            // On the card, so Esc closes it from the select and dates too.
+            onKeyDown={(e) => {
+              if (e.key === "Escape" && !isImeComposing(e)) closeAdd();
+            }}
+            className="mt-2"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <h3
+                id={addHeadingId}
+                className="min-w-0 text-sm font-bold text-lumen-text"
               >
-                {labels.startDate}
-              </label>
-              <span className="w-40 shrink-0 max-md:w-auto max-md:min-w-0 max-md:flex-1">
-                <Input
-                  id={rangeStartId}
-                  type="date"
-                  value={range.start}
-                  invalid={!rangeValid}
-                  onChange={(e) =>
-                    setRange({ ...range, start: e.target.value })
-                  }
-                  className="max-md:min-h-11 max-md:text-base"
-                />
-              </span>
+                {labels.addHeading}
+              </h3>
+              <IconButton
+                size="sm"
+                label={labels.cancel}
+                icon={<X size={14} aria-hidden />}
+                onClick={closeAdd}
+                className={cn(KEEP_LABEL, "max-md:min-h-11 max-md:min-w-11")}
+              />
             </div>
-            <div data-goal-range-pair className="flex items-center gap-2">
-              <label
-                htmlFor={rangeEndId}
-                className="shrink-0 whitespace-nowrap"
+            {/* Below 768px each control takes its own line, so the placeholder
+                is not cut down to a few characters between the two (#2490). */}
+            <div className="mt-2 flex items-center gap-2 max-md:flex-wrap">
+              <select
+                aria-label={labels.addHeading}
+                value={adding}
+                onChange={(e) => openAdd(e.target.value as GoalPeriodKind)}
+                className={cn(
+                  "h-9 shrink-0 rounded-md border border-lumen-border bg-lumen-bg px-2 text-sm text-lumen-text",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+                  "max-md:min-h-11 max-md:basis-full max-md:text-base",
+                )}
               >
-                {labels.endDate}
-              </label>
-              <span className="w-40 shrink-0 max-md:w-auto max-md:min-w-0 max-md:flex-1">
-                <Input
-                  id={rangeEndId}
-                  type="date"
-                  value={range.end}
-                  min={range.start || undefined}
-                  invalid={!rangeValid}
-                  onChange={(e) => setRange({ ...range, end: e.target.value })}
-                  className="max-md:min-h-11 max-md:text-base"
-                />
-              </span>
+                {ADD_PERIOD_KINDS.map((kind) => (
+                  <option key={kind} value={kind}>
+                    {labels.periods[kind]}
+                  </option>
+                ))}
+              </select>
+              <Input
+                autoFocus
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !isImeComposing(e)) submit();
+                }}
+                placeholder={labels.addPlaceholder}
+                aria-label={`${labels.periods[adding]}: ${labels.addPlaceholder}`}
+                aria-describedby={showNoParentHint ? addHintId : undefined}
+                className="min-w-0 max-md:min-h-11 max-md:basis-full max-md:text-base"
+              />
+              <Button
+                size="sm"
+                onClick={submit}
+                disabled={!draft.trim() || !rangeValid}
+                busy={busy}
+                busyLabel={saveLabel}
+                className={cn(KEEP_LABEL, "max-md:min-h-11 max-md:basis-full")}
+              >
+                {saveLabel}
+              </Button>
             </div>
-          </div>
+            {/* Each label and its date field form one pair, so a wrap never
+                leaves a label at the end of one line and its field on the next.
+                Below 768px the pairs stack and the fields fill the width (#2490). */}
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-lumen-text-secondary max-md:flex-col max-md:items-stretch">
+              <div data-goal-range-pair className="flex items-center gap-2">
+                <label
+                  htmlFor={rangeStartId}
+                  className="shrink-0 whitespace-nowrap"
+                >
+                  {labels.startDate}
+                </label>
+                <span className="w-40 shrink-0 max-md:w-auto max-md:min-w-0 max-md:flex-1">
+                  <Input
+                    id={rangeStartId}
+                    type="date"
+                    value={range.start}
+                    invalid={!rangeValid}
+                    onChange={(e) =>
+                      setRange({ ...range, start: e.target.value })
+                    }
+                    className="max-md:min-h-11 max-md:text-base"
+                  />
+                </span>
+              </div>
+              <div data-goal-range-pair className="flex items-center gap-2">
+                <label
+                  htmlFor={rangeEndId}
+                  className="shrink-0 whitespace-nowrap"
+                >
+                  {labels.endDate}
+                </label>
+                <span className="w-40 shrink-0 max-md:w-auto max-md:min-w-0 max-md:flex-1">
+                  <Input
+                    id={rangeEndId}
+                    type="date"
+                    value={range.end}
+                    min={range.start || undefined}
+                    invalid={!rangeValid}
+                    onChange={(e) => setRange({ ...range, end: e.target.value })}
+                    className="max-md:min-h-11 max-md:text-base"
+                  />
+                </span>
+              </div>
+            </div>
+            {showNoParentHint && (
+              <p
+                id={addHintId}
+                className="mt-2 text-xs text-lumen-text-secondary"
+              >
+                {labels.addNoParentHint}
+              </p>
+            )}
+          </Card>
         )}
       </section>
 
