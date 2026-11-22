@@ -687,6 +687,26 @@ describe("ConnectScreen — the save button routes each field to its own patch",
 });
 
 describe("ConnectScreen — removing a tag", () => {
+  it("heads the question and offers ×, Cancel and Delete (#2605)", async () => {
+    await renderScreen();
+
+    fireEvent.click(screen.getByRole("button", { name: "Work: Tag actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Delete tag" }));
+
+    const dialog = within(
+      await screen.findByRole("dialog", { name: "Delete tag" }),
+    );
+    dialog.getByRole("heading", { name: "Delete tag" });
+    dialog.getByText(
+      "“Work” will be deleted. It is removed from every item carrying it.",
+    );
+    expect(
+      dialog
+        .getAllByRole("button")
+        .map((b) => b.getAttribute("aria-label") ?? b.textContent),
+    ).toEqual(["Close", "Cancel", "Delete"]);
+  });
+
   it("asks first, then soft-deletes — never a hard write", async () => {
     const { ds, writes } = makeWritableDS();
     await renderScreen(ds);
@@ -698,7 +718,7 @@ describe("ConnectScreen — removing a tag", () => {
 
     fireEvent.click(
       within(await screen.findByRole("dialog")).getByRole("button", {
-        name: "Delete tag",
+        name: "Delete",
       }),
     );
 
@@ -708,23 +728,28 @@ describe("ConnectScreen — removing a tag", () => {
     expectOnlyWrite(writes, "softDeleteWikiTagUnified", ["t-work"]);
   });
 
-  it("leaves the tag alone when the question is refused", async () => {
-    const { ds, writes } = makeWritableDS();
-    await renderScreen(ds);
+  it.each(["Cancel", "Close"])(
+    "leaves the tag alone when the question is refused with %s",
+    async (refusal) => {
+      const { ds, writes } = makeWritableDS();
+      await renderScreen(ds);
 
-    fireEvent.click(screen.getByRole("button", { name: "Work: Tag actions" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Delete tag" }));
-    fireEvent.click(
-      within(await screen.findByRole("dialog")).getByRole("button", {
-        name: "Cancel",
-      }),
-    );
+      fireEvent.click(
+        screen.getByRole("button", { name: "Work: Tag actions" }),
+      );
+      fireEvent.click(screen.getByRole("menuitem", { name: "Delete tag" }));
+      fireEvent.click(
+        within(await screen.findByRole("dialog")).getByRole("button", {
+          name: refusal,
+        }),
+      );
 
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    for (const method of WRITE_METHODS) {
-      expect(writes[method]).not.toHaveBeenCalled();
-    }
-  });
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      for (const method of WRITE_METHODS) {
+        expect(writes[method]).not.toHaveBeenCalled();
+      }
+    },
+  );
 });
 
 /*
@@ -808,7 +833,7 @@ describe("ConnectScreen — the row's right-click menu", () => {
     expect(writes.softDeleteWikiTagUnified).not.toHaveBeenCalled();
     fireEvent.click(
       within(await screen.findByRole("dialog")).getByRole("button", {
-        name: "Delete tag",
+        name: "Delete",
       }),
     );
 
