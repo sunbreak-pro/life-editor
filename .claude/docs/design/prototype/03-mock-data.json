@@ -665,12 +665,11 @@
       "figures": {
         "events": "3",
         "todos": "3/5",
-        "work": "2時間10分",
         "goalsMoved": "2"
       },
       "morning": {
         "comment": [
-          "昨日は 3 件の Todo を終え、作業は 2 時間 10 分でした。",
+          "昨日は 3 件の Todo を終えました。",
           "午前のうちに価格の調べものを終えると、午後の相談に間に合います。"
         ],
         "intention": "企画書の構成を決める\n夜は早めに寝る"
@@ -686,7 +685,6 @@
       "figures": {
         "events": "2",
         "todos": "4/4",
-        "work": "1時間30分",
         "goalsMoved": "1"
       },
       "morning": {
@@ -704,7 +702,6 @@
       "figures": {
         "events": "1",
         "todos": "1/3",
-        "work": "45分",
         "goalsMoved": "0"
       }
     },
@@ -718,7 +715,6 @@
       "figures": {
         "events": "2",
         "todos": "—",
-        "work": "0分",
         "goalsMoved": "—"
       }
     },
@@ -732,7 +728,6 @@
       "figures": {
         "events": "0",
         "todos": "2/2",
-        "work": "1時間",
         "goalsMoved": "0"
       }
     }
@@ -742,7 +737,7 @@
       "date": "2026-10-10",
       "dateLabel": "2026年10月10日 土曜日",
       "fromLastNight": "構成だけ決めれば、あとは手が動く。",
-      "claudeNote": "昨日は 3 件の Todo を終え、作業は 2 時間 10 分でした。今週の「企画書の初稿を書き上げる」は残り 2 件です。午前のうちに価格の調べものを終えると、午後の相談に間に合います。"
+      "claudeNote": "昨日は 3 件の Todo を終えました。今週の「企画書の初稿を書き上げる」は残り 2 件です。午前のうちに価格の調べものを終えると、午後の相談に間に合います。"
     },
     "evening": {
       "issueNumber": 128,
@@ -780,18 +775,11 @@
           "kind": "event",
           "title": "チーム定例",
           "note": ""
-        },
-        {
-          "time": "10:40",
-          "kind": "work",
-          "title": "作業 50 分（企画書の図を 2 枚作る）",
-          "note": ""
         }
       ],
       "summary": {
         "events": 3,
-        "todos": 3,
-        "work": 2
+        "todos": 3
       },
       "toTomorrow": ""
     },
@@ -806,275 +794,6 @@
       6,
       3,
       4
-    ],
-    "workBreakBalance": {
-      "workMinutes": 130,
-      "breakMinutes": 35
-    }
-  },
-  "workSessions": [
-    {
-      "id": "ws-1",
-      "date": "2026-10-10",
-      "title": "企画書の図を 2 枚作る",
-      "minutes": 50
-    },
-    {
-      "id": "ws-2",
-      "date": "2026-10-10",
-      "title": null,
-      "minutes": 25,
-      "tags": [
-        "勉強"
-      ]
-    },
-    {
-      "id": "ws-3",
-      "date": "2026-10-09",
-      "title": "競合 3 社の価格を調べる",
-      "minutes": 25
-    },
-    {
-      "id": "ws-4",
-      "date": "2026-10-09",
-      "title": "企画書の構成を決める",
-      "minutes": 50
-    },
-    {
-      "id": "ws-5",
-      "date": "2026-10-09",
-      "title": null,
-      "minutes": 25
-    }
-  ],
-  "timer": {
-    "workMinutes": 25,
-    "breakMinutes": 5,
-    "longBreakMinutes": 15,
-    "sessionsUntilLongBreak": 4,
-    "dailyGoalSessions": 8,
-    "completedToday": 3,
-    "autoStartBreak": false,
-    "presets": [
-      {
-        "name": "標準",
-        "work": 25,
-        "break": 5
-      },
-      {
-        "name": "じっくり",
-        "work": 50,
-        "break": 10
-      }
-    ]
-  },
-  "ambientSounds": [
-    {
-      "id": "rain",
-      "label": "雨",
-      "on": true,
-      "volume": 60
-    },
-    {
-      "id": "wind",
-      "label": "風",
-      "on": false,
-      "volume": 40
-    },
-    {
-      "id": "ocean",
-      "label": "海",
-      "on": false,
-      "volume": 50
-    },
-    {
-      "id": "birds",
-      "label": "鳥",
-      "on": true,
-      "volume": 30
-    },
-    {
-      "id": "fire",
-      "label": "焚き火",
-      "on": false,
-      "volume": 50
-    }
-  ],
-  "analytics": {
-    "rangeDefault": "30日",
-    "overview": {
-      "todos": 86,
-      "events": 41,
-      "notes": 23,
-      "workMinutes": 1940,
-      "routines": 4,
-      "tags": 8
-    },
-    "today": {
-      "todosDone": 3,
-      "workMinutes": 75
-    },
-    "weekCompare": {
-      "thisWeekTodos": 18,
-      "lastWeekTodos": 14
-    },
-    "streakDays": 6,
-    "tagUsage": [
-      {
-        "tag": "仕事",
-        "count": 14
-      },
-      {
-        "tag": "勉強",
-        "count": 11
-      },
-      {
-        "tag": "健康",
-        "count": 9
-      },
-      {
-        "tag": "家のこと",
-        "count": 7
-      },
-      {
-        "tag": "アイデア",
-        "count": 6
-      },
-      {
-        "tag": "お金",
-        "count": 4
-      },
-      {
-        "tag": "旅行",
-        "count": 3
-      }
-    ],
-    "todoCompletionTrend": [
-      {
-        "date": "10/04",
-        "done": 4
-      },
-      {
-        "date": "10/05",
-        "done": 6
-      },
-      {
-        "date": "10/06",
-        "done": 3
-      },
-      {
-        "date": "10/07",
-        "done": 2
-      },
-      {
-        "date": "10/08",
-        "done": 5
-      },
-      {
-        "date": "10/09",
-        "done": 3
-      },
-      {
-        "date": "10/10",
-        "done": 3
-      }
-    ],
-    "todoAgeBuckets": [
-      {
-        "label": "1 週間未満",
-        "count": 9
-      },
-      {
-        "label": "1〜2 週間",
-        "count": 4
-      },
-      {
-        "label": "2〜4 週間",
-        "count": 2
-      },
-      {
-        "label": "1〜3 か月",
-        "count": 1
-      },
-      {
-        "label": "3 か月以上",
-        "count": 0
-      }
-    ],
-    "workByDay": [
-      {
-        "date": "10/04",
-        "minutes": 50
-      },
-      {
-        "date": "10/05",
-        "minutes": 100
-      },
-      {
-        "date": "10/06",
-        "minutes": 75
-      },
-      {
-        "date": "10/07",
-        "minutes": 25
-      },
-      {
-        "date": "10/08",
-        "minutes": 125
-      },
-      {
-        "date": "10/09",
-        "minutes": 100
-      },
-      {
-        "date": "10/10",
-        "minutes": 75
-      }
-    ],
-    "pomodoroRate": 0.78,
-    "routineRates": [
-      {
-        "title": "朝のストレッチ",
-        "rate": 0.93
-      },
-      {
-        "title": "英語のオンライン会話",
-        "rate": 0.71
-      },
-      {
-        "title": "ゴミ出し（燃える）",
-        "rate": 0.88
-      },
-      {
-        "title": "週のふり返り",
-        "rate": 0.5
-      }
-    ],
-    "eventsByHour": [
-      {
-        "hour": 9,
-        "count": 6
-      },
-      {
-        "hour": 10,
-        "count": 9
-      },
-      {
-        "hour": 13,
-        "count": 7
-      },
-      {
-        "hour": 16,
-        "count": 4
-      },
-      {
-        "hour": 19,
-        "count": 8
-      },
-      {
-        "hour": 20,
-        "count": 5
-      }
     ]
   },
   "trash": [
