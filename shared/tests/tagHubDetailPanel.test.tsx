@@ -194,11 +194,12 @@ describe("TagHubDetailPanel", () => {
 
   it("draws the four kinds as bars, the empty kinds too (#2409)", () => {
     const { rows, widths } = renderBreakdown(GROUPS);
+    // The bare number that is drawn, then the counted words that are read out.
     expect(rows).toEqual([
-      "Todo2 items",
-      "Event0 items",
-      "Note1 items",
-      "Daily0 items",
+      "Todo22 items",
+      "Event00 items",
+      "Note11 items",
+      "Daily00 items",
     ]);
     // The longest bar is the largest count, and the rest scale from it.
     expect(widths).toEqual({
@@ -207,6 +208,32 @@ describe("TagHubDetailPanel", () => {
       note: "50%",
       daily: "0%",
     });
+  });
+
+  it("draws a kind as glyph, plain name, bar and bare number (#2601)", () => {
+    renderBreakdown(GROUPS);
+    const [todo] = within(
+      screen.getByRole("region", { name: "By kind" }),
+    ).getAllByRole("listitem");
+    const [glyph, name, bar, count] = [...todo.children];
+    expect(todo.children).toHaveLength(4);
+    expect(todo.className).toContain("grid-cols-[1rem_4rem_minmax(0,1fr)_");
+    expect(glyph.tagName).toBe("svg");
+    expect(glyph).toHaveClass("text-lumen-text-tertiary");
+    // A name, not the framed badge the recent rows still carry.
+    expect(name.textContent).toBe("Todo");
+    expect(name).not.toHaveClass("rounded-full");
+    expect(bar).toHaveAttribute("data-kind-bar", "task");
+    // The eye gets the number; the unit stays for a screen reader.
+    expect(count.querySelector("[aria-hidden]")?.textContent).toBe("2");
+    expect(count.querySelector(".sr-only")?.textContent).toBe("2 items");
+  });
+
+  it("sets both headings bold (#2601)", () => {
+    renderBreakdown(GROUPS);
+    for (const heading of screen.getAllByRole("heading", { level: 3 })) {
+      expect(heading).toHaveClass("font-bold");
+    }
   });
 
   it("keeps all four bars at zero for a tag holding nothing (#2409)", () => {
@@ -250,6 +277,31 @@ describe("TagHubDetailPanel", () => {
     expect(section.getByRole("img", { name: "Event" })).toBeTruthy();
     fireEvent.click(section.getByRole("button", { name: /Standup/ }));
     expect(onOpenItem).toHaveBeenCalledWith(recent[1]);
+  });
+
+  it("ends a recent row in the host's short date, which the title yields to (#2601)", () => {
+    const recent: TagHubItem[] = [
+      { id: "task-1", role: "task", title: "Draft", dayKey: "2026-10-11" },
+      { id: "daily-1", role: "daily", title: "October 9" },
+    ];
+    render(
+      <TagHubDetailPanel
+        tag={WORK}
+        groups={GROUPS}
+        recent={recent}
+        onOpenItem={vi.fn()}
+        formatCount={formatCount}
+        formatRecentDate={(row) => (row.role === "task" ? "10/11" : null)}
+        labels={LABELS}
+      />,
+    );
+    const dateOf = (name: RegExp) =>
+      screen.getByRole("button", { name }).querySelector("[data-recent-date]");
+    expect(dateOf(/Draft/)?.textContent).toBe("10/11");
+    expect(dateOf(/Draft/)).toHaveClass("shrink-0", "whitespace-nowrap");
+    expect(screen.getByTitle("Draft")).toHaveClass("min-w-0", "truncate");
+    // A row the host has no date for draws no empty slot.
+    expect(dateOf(/October 9/)).toBeNull();
   });
 
   it("says so when the tag holds nothing", () => {

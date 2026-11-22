@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ArrowRightLeft, Tag, X } from "lucide-react";
 import { Button } from "../Button";
 import { cn } from "../cn";
 import { CARD_BTN_TAP } from "../styleTokens";
@@ -12,9 +12,12 @@ import type { TagHubTagSummary } from "./types";
 
 /*
  * The bulk bar (#1644 / D10), up while at least one row is checked: "N
- * selected", then add a tag (primary), remove this tag, move to another tag,
- * and clear. Where it sits is the view's (#2224): stacked in the Desktop tag
- * rail (`layout="rail"`), or one row pinned over the bottom of the Mobile list.
+ * selected" and clear, then add a tag, move to another tag and remove this
+ * tag. Where it sits is the view's (#2224): stacked in the Desktop tag rail
+ * (`layout="rail"`), or a card pinned over the bottom of the Mobile list.
+ *
+ * The three writes carry one weight (#2601): framed, each led by its own
+ * glyph. A filled "Add a tag" said that adding is what selecting is for.
  *
  * "Remove" and "move" act on the tag being READ, so they exist only while that
  * is a real tag — the untagged bucket has nothing to take off (the host passes
@@ -26,9 +29,10 @@ import type { TagHubTagSummary } from "./types";
  * once: English wrapped each button's label onto a second line, which spilled
  * the text out of the 32px pill it is painted in, and Japanese kept one line
  * by truncating "2 件を選択中" down to "2 …". So nothing here shrinks — the
- * count and every button keep their content width and refuse to wrap — and the
- * row scrolls sideways if even that does not fit. A label the user cannot read
- * is worse than one they have to scroll to.
+ * count and every button keep their content width and refuse to wrap. What
+ * gives instead is the Mobile card's height (#2601): its buttons flow onto
+ * further lines. It used to be one strip that scrolled sideways, and a button
+ * cut in half at the screen's edge does not say there is more to scroll to.
  *
  * Esc clears the selection. The listener is on the document (the focus can be
  * anywhere in the pane while rows are checked) and skips an Esc something else
@@ -71,8 +75,8 @@ export interface TagHubSelectionBarProps {
   onClear: () => void;
   labels: TagHubSelectionBarLabels;
   /**
-   * "row" = one line of buttons (the Mobile bar pinned over the list's
-   * bottom edge); "rail" = stacked, for the Desktop tag rail (#2224).
+   * "row" = the Mobile card pinned over the list's bottom edge, its buttons
+   * wrapping; "rail" = stacked, for the Desktop tag rail (#2224).
    */
   layout?: "row" | "rail";
 }
@@ -81,6 +85,15 @@ type Chooser = "assign" | "move" | null;
 
 /** #1732 — a bar button keeps its label on one line and its content width. */
 const NO_SHRINK = "shrink-0 whitespace-nowrap";
+/**
+ * The writes' frame (#2601): `secondary` is the same surface the bar is
+ * painted in, so without a border they read as text, not as buttons.
+ */
+const WRITE_BTN = cn(
+  CARD_BTN_TAP,
+  NO_SHRINK,
+  "border border-lumen-border-strong",
+);
 
 export function TagHubSelectionBar({
   count,
@@ -119,16 +132,16 @@ export function TagHubSelectionBar({
     <div className={cn("relative", layout === "rail" ? "w-full" : "shrink-0")}>
       <Button
         ref={assignRef}
-        variant="primary"
+        variant="secondary"
         size="sm"
-        className={cn(CARD_BTN_TAP, NO_SHRINK, layout === "rail" && "w-full")}
+        leadingIcon={<Tag size={13} aria-hidden className="shrink-0" />}
+        className={cn(WRITE_BTN, layout === "rail" && "w-full")}
         disabled={busy}
         aria-haspopup="dialog"
         aria-expanded={chooser === "assign"}
         onClick={() => toggle("assign")}
       >
         {labels.assign}
-        <ChevronDown size={13} aria-hidden className="ml-1" />
       </Button>
       <TagHubTagPickerPopover
         open={chooser === "assign"}
@@ -147,7 +160,8 @@ export function TagHubSelectionBar({
     <Button
       variant="secondary"
       size="sm"
-      className={cn(CARD_BTN_TAP, NO_SHRINK, layout === "rail" && "w-full")}
+      leadingIcon={<X size={13} aria-hidden className="shrink-0" />}
+      className={cn(WRITE_BTN, layout === "rail" && "w-full")}
       disabled={busy}
       onClick={onRemove}
     >
@@ -161,14 +175,16 @@ export function TagHubSelectionBar({
         ref={moveRef}
         variant="secondary"
         size="sm"
-        className={cn(CARD_BTN_TAP, NO_SHRINK, layout === "rail" && "w-full")}
+        leadingIcon={
+          <ArrowRightLeft size={13} aria-hidden className="shrink-0" />
+        }
+        className={cn(WRITE_BTN, layout === "rail" && "w-full")}
         disabled={busy}
         aria-haspopup="dialog"
         aria-expanded={chooser === "move"}
         onClick={() => toggle("move")}
       >
         {labels.move}
-        <ChevronDown size={13} aria-hidden className="ml-1" />
       </Button>
       <TagHubTagPickerPopover
         open={chooser === "move"}
@@ -235,23 +251,20 @@ export function TagHubSelectionBar({
       role="toolbar"
       aria-label={labels.region}
       data-taghub-selection-bar="row"
-      className={cn(
-        "flex h-12 flex-shrink-0 items-center gap-2 border-t border-lumen-border",
-        // `overflow-x-auto` is the last resort under the no-shrink rule above:
-        // past a certain width something has to give, and a scroll keeps every
-        // label whole where clipping would not. It also clips vertically (an
-        // overflow-x other than visible makes overflow-y auto), which is why the
-        // two tag choosers portal out of the bar instead of opening in it (#1845).
-        "overflow-x-auto bg-lumen-bg-secondary px-3 shadow-lumen-sm",
-      )}
+      // TagHubItemGroups leaves the room under its last row for this card at
+      // its tallest, so a taller card means more room there (#2601).
+      className="m-2 flex flex-shrink-0 flex-col gap-2 rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary px-3 py-2 shadow-lumen-md"
     >
-      {countText}
-      {/* Pushes the actions to the right without being a shrink target. */}
-      <span aria-hidden className="min-w-0 flex-1" />
-      {assignButton}
-      {removeButton}
-      {moveButton}
-      {clearButton}
+      <div className="flex items-center gap-2">
+        {countText}
+        <span aria-hidden className="min-w-0 flex-1" />
+        {clearButton}
+      </div>
+      <div data-taghub-selection-actions="" className="flex flex-wrap gap-2">
+        {assignButton}
+        {moveButton}
+        {removeButton}
+      </div>
     </div>
   );
 }

@@ -251,7 +251,9 @@ describe("ConnectScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Work: 4 items" }));
     // By accessible NAME, not by text: the date also appears as the event
     // row's trailing detail, and only the daily row is named by it alone.
-    expect(screen.getByRole("button", { name: "2026-08-29" })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /^Sat, August 29(, 2026)?$/ }),
+    ).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Untagged: 1 item" }));
     expect(screen.getByText("Untitled")).toBeTruthy();
   });
@@ -302,7 +304,8 @@ describe("ConnectScreen", () => {
       within(panel().getByRole("region", { name: "Breakdown by kind (Work)" }))
         .getAllByRole("listitem")
         .map((li) => li.textContent),
-    ).toEqual(["Todo1 item", "Event1 item", "Note1 item", "Daily1 item"]);
+      // #2601 — the bare number that is drawn, then the words that are read.
+    ).toEqual(["Todo11 item", "Event11 item", "Note11 item", "Daily11 item"]);
 
     // The panel's rows leave the hub the same way the main pane's do.
     fireEvent.click(

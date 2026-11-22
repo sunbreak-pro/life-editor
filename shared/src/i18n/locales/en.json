@@ -1021,6 +1021,7 @@
     "detail": {
       "breakdownHeading": "Breakdown by kind ({{name}})",
       "recentHeading": "Recently tagged",
+      "recentUpdated": "Updated {{date}}",
       "recentUntaggedHeading": "Recently updated",
       "recentEmpty": "Nothing is filed under this tag yet."
     },
@@ -1046,6 +1047,7 @@
     "row": {
       "noDate": "No date",
       "allDay": "All day",
+      "dailyTitle": "{{weekday}}, {{date}}",
       "repeats": "Repeats",
       "done": "Done",
       "statusFailed": "Couldn't save the todo's status. Check your connection."
