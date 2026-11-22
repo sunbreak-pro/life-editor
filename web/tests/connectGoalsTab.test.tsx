@@ -2468,7 +2468,7 @@ describe("Deleting a goal and choosing what goes with it (#2405)", () => {
     // A phone row keeps its delete behind the "…" chip line (#2611).
     const title = "Win an autumn project";
     fireEvent.click(
-      screen.getByRole("button", { name: new RegExp(`Delete: ${title}$`) }),
+      screen.getByRole("button", { name: `More actions: ${title}` }),
     );
     fireEvent.click(
       within(screen.getByRole("group", { name: title })).getByRole("button", {
@@ -2476,5 +2476,20 @@ describe("Deleting a goal and choosing what goes with it (#2405)", () => {
       }),
     );
     expect(screen.getByRole("dialog").className).toContain("max-w-none");
+  });
+
+  it("names a phone todo's \"…\" and its edit chip from the catalog (#2701)", async () => {
+    setNarrow();
+    await renderTab();
+    const title = "Write the estimate";
+    fireEvent.click(
+      screen.getByRole("button", { name: `More actions: ${title}` }),
+    );
+    // Exact name: the fallback was the whole "Edit: <title>".
+    expect(
+      within(screen.getByRole("group", { name: title })).getByRole("button", {
+        name: "Edit",
+      }),
+    ).toBeTruthy();
   });
 });
