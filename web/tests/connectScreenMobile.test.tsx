@@ -143,18 +143,110 @@ afterEach(() => {
 });
 
 describe("ConnectScreen narrow — a row's actions (M3)", () => {
-  it("offers reading the relations and taking this tag off", async () => {
+  /** One item of each kind, all tagged Work. */
+  const makeFourKindsDS = () =>
+    makeDS({
+      fetchEvents: vi.fn().mockResolvedValue([
+        {
+          id: "event-1",
+          date: "2026-11-04",
+          title: "Standup",
+          startTime: "09:00",
+        },
+      ]),
+      listDailiesUnified: vi
+        .fn()
+        .mockResolvedValue([{ id: "daily-2026-11-04", date: "2026-11-04" }]),
+      listAllTagAssignments: vi.fn().mockResolvedValue([
+        ...ASSIGNMENTS,
+        { id: "a-3", itemId: "event-1", tagId: "t-work", isDeleted: false },
+        {
+          id: "a-4",
+          itemId: "daily-2026-11-04",
+          tagId: "t-work",
+          isDeleted: false,
+        },
+      ]),
+    });
+
+  const itemRow = (id: string): HTMLElement => {
+    const row = document.querySelector(`[data-taghub-row="${id}"]`);
+    if (!(row instanceof HTMLElement)) throw new Error(`no row for ${id}`);
+    return row;
+  };
+
+  /**
+   * Opens a row's "…" and hands back the sheet's action rows, in order. By id:
+   * a daily's title is spelled by the year the test happens to run in.
+   */
+  const openItemSheet = (id: string): HTMLElement[] => {
+    fireEvent.click(
+      within(itemRow(id)).getByRole("button", { name: /: Item actions$/ }),
+    );
+    return within(
+      within(screen.getByRole("dialog", { name: /: Item actions$/ })).getByRole(
+        "list",
+      ),
+    ).getAllByRole("button");
+  };
+
+  it("offers leaving, the relations, and taking the named tag off", async () => {
     await renderNarrow();
     openWork();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Draft the PR: Item actions" }),
-    );
 
-    const sheet = within(
-      screen.getByRole("dialog", { name: "Draft the PR: Item actions" }),
+    const rows = openItemSheet("task-1");
+    screen.getByRole("dialog", { name: "Draft the PR: Item actions" });
+    expect(rows.map((row) => row.textContent)).toEqual([
+      "Go to this todo",
+      "See what it relates to",
+      "Remove “Work” from this item",
+    ]);
+    for (const row of rows) expect(row.querySelector("svg")).not.toBeNull();
+    // Only the last one is destructive.
+    expect(
+      rows.map((row) => row.className.includes("text-lumen-danger")),
+    ).toEqual([false, false, true]);
+  });
+
+  it.each([
+    ["task-1", "Go to this todo"],
+    ["event-1", "Go to this event"],
+    ["note-1", "Go to this note"],
+    ["daily-2026-11-04", "Go to this daily"],
+  ])("names the kind it leaves for: %s", async (id, label) => {
+    await renderNarrow(makeFourKindsDS());
+    fireEvent.click(screen.getByRole("button", { name: "Work: 4 items" }));
+
+    expect(openItemSheet(id)[0]?.textContent).toBe(label);
+  });
+
+  it("leaves for the item through the route the row itself takes", async () => {
+    const { onNavigateToItem } = await renderNarrow(makeFourKindsDS());
+    fireEvent.click(screen.getByRole("button", { name: "Work: 4 items" }));
+    const target = { id: "event-1", role: "event", date: "2026-11-04" };
+    fireEvent.click(rowButton(itemRow("event-1")));
+    expect(onNavigateToItem.mock.calls).toEqual([[target]]);
+    onNavigateToItem.mockClear();
+
+    openItemSheet("event-1");
+    fireEvent.click(screen.getByRole("button", { name: "Go to this event" }));
+
+    expect(onNavigateToItem.mock.calls).toEqual([[target]]);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("has no tag to take off in the untagged bucket", async () => {
+    await renderNarrow(
+      makeDS({
+        listAllTagAssignments: vi.fn().mockResolvedValue([ASSIGNMENTS[1]]),
+      }),
     );
-    sheet.getByRole("button", { name: "See what it relates to" });
-    sheet.getByRole("button", { name: "Remove this tag" });
+    fireEvent.click(screen.getByRole("button", { name: "Untagged: 1 item" }));
+
+    expect(openItemSheet("task-1").map((row) => row.textContent)).toEqual([
+      "Go to this todo",
+      "See what it relates to",
+    ]);
   });
 
   it("takes the tag off through the assignment the cache holds", async () => {
@@ -164,7 +256,9 @@ describe("ConnectScreen narrow — a row's actions (M3)", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Draft the PR: Item actions" }),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Remove this tag" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove “Work” from this item" }),
+    );
 
     await waitFor(() =>
       expect(writes.unassignTagFromItem).toHaveBeenCalledWith("a-1"),

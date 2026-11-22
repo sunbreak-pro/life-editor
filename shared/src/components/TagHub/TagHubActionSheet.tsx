@@ -10,11 +10,13 @@ import { FOCUS_RING_TIGHT } from "../styleTokens";
  * A dropdown anchored to a 44px button at the right edge of a 390px screen
  * opens over the row it belongs to and is a thumb-stretch away; the sheet
  * comes up from the edge the thumb is already at. The actions themselves are
- * passed in, so the tag rail's four and the item row's two use one component
- * and cannot drift apart in height, focus ring or order.
+ * passed in, so the tag rail's and the item row's use one component and
+ * cannot drift apart in height, focus ring or order.
  *
  * Rows are 52px (the brief's number), destructive ones tinted with the danger
- * token and given the trash glyph. Copy injected (§6.4), lumen-* only.
+ * token. A label can carry a tag's name (#2629), so it wraps instead of
+ * truncating: in Japanese the verb is last, and an ellipsis would hide what the
+ * row does. Copy injected (§6.4), lumen-* only.
  */
 
 export interface TagHubSheetAction {
@@ -61,7 +63,7 @@ export function TagHubActionSheet({
                 action.onSelect();
               }}
               className={cn(
-                "flex min-h-[52px] w-full items-center gap-3 rounded-lumen-md px-3 text-left text-sm",
+                "flex min-h-[52px] w-full items-center gap-3 rounded-lumen-md px-3 py-2 text-left text-sm",
                 "transition-colors hover:bg-lumen-hover",
                 action.danger ? "text-lumen-danger" : "text-lumen-text",
                 FOCUS_RING_TIGHT,
@@ -72,7 +74,7 @@ export function TagHubActionSheet({
                   {action.icon}
                 </span>
               ) : null}
-              <span className="min-w-0 flex-1 truncate">{action.label}</span>
+              <span className="min-w-0 flex-1 break-words">{action.label}</span>
             </button>
           </li>
         ))}
