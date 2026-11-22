@@ -268,6 +268,49 @@ export function ConnectScreen({
   >(() => new Map());
 
   /*
+   * Every date this screen prints (#2601). Each one names the year once the
+   * day is not in this one, or "3/4" is ambiguous.
+   *
+   *   - `rowDay`: a row's left edge. The Desktop column is 3.25rem, so it has
+   *     no weekday and a two-digit year; the phone keeps the fuller day it had
+   *     on the line under the title (#2498).
+   *   - `shortDay`: the right panel's recent rows.
+   *   - `dailyTitle`: a daily's name, in words, so it does not repeat the
+   *     digits standing in the day column beside it.
+   */
+  const dates = useMemo(() => {
+    const thisYear = new Date().getFullYear();
+    const format = (options: Intl.DateTimeFormatOptions) => {
+      const formatter = new Intl.DateTimeFormat(i18n.language, options);
+      return (date: Date) => formatter.format(date);
+    };
+    const monthDay = { month: "numeric", day: "numeric" } as const;
+    const inWords = { month: "long", day: "numeric" } as const;
+    const weekday = format({ weekday: "short" });
+    /** A day key through one format this year, through another otherwise. */
+    const byYear =
+      (current: (date: Date) => string, other: (date: Date) => string) =>
+      (dayKey: string): string => {
+        const [y, m, d] = dayKey.split("-").map(Number);
+        if (!y || !m || !d) return dayKey;
+        return (y === thisYear ? current : other)(new Date(y, m - 1, d));
+      };
+    const named = (day: (date: Date) => string) => (date: Date) =>
+      t("connect.row.dailyTitle", { date: day(date), weekday: weekday(date) });
+    const withYear = format({ year: "numeric", ...monthDay });
+    return {
+      rowDay: isWide
+        ? byYear(format(monthDay), format({ year: "2-digit", ...monthDay }))
+        : byYear(format({ ...monthDay, weekday: "short" }), withYear),
+      shortDay: byYear(format(monthDay), withYear),
+      dailyTitle: byYear(
+        named(format(inWords)),
+        named(format({ year: "numeric", ...inWords })),
+      ),
+    };
+  }, [i18n.language, isWide, t]);
+
+  /*
    * The lists flattened into one row shape. The conventions here are the
    * ones the removed cross-item search used (#503), deliberately: an event carries
    * its DATE because the Calendar cannot select a row outside the window it is
@@ -370,13 +413,13 @@ export function ConnectScreen({
       out.push({
         id: daily.id,
         role: "daily",
-        title: daily.date,
+        title: dates.dailyTitle(daily.date),
         dayKey: daily.date,
         updatedAt: daily.updatedAt,
       });
     }
     return out;
-  }, [sources, t, pendingStatus]);
+  }, [sources, t, pendingStatus, dates]);
 
   const model = useMemo(
     () =>
@@ -1023,25 +1066,19 @@ export function ConnectScreen({
     [itemPanel, panelOptions, handleOpenItem],
   );
 
-  const formatDay = useMemo(() => {
-    const thisYear = new Date().getFullYear();
-    const short = new Intl.DateTimeFormat(i18n.language, {
-      month: "numeric",
-      day: "numeric",
-      weekday: "short",
-    });
-    const long = new Intl.DateTimeFormat(i18n.language, {
-      year: "numeric",
-      month: "numeric",
-      day: "numeric",
-    });
-    return (dayKey: string): string => {
-      const [y, m, d] = dayKey.split("-").map(Number);
-      if (!y || !m || !d) return dayKey;
-      // Another year's day says which year, or "3/4" is ambiguous.
-      return (y === thisYear ? short : long).format(new Date(y, m - 1, d));
-    };
-  }, [i18n.language]);
+  // A recent row's date (#2601): a todo's scheduled day, an event's start, a
+  // note's last update. A daily has none — its day is already its title.
+  const formatRecentDate = useCallback(
+    (item: TagHubItem): string | null => {
+      if (!item.dayKey || item.role === "daily") return null;
+      const day = dates.shortDay(item.dayKey);
+      if (item.role === "note") {
+        return t("connect.detail.recentUpdated", { date: day });
+      }
+      return item.role === "event" && item.time ? `${day} ${item.time}` : day;
+    },
+    [dates, t],
+  );
 
   return (
     <>
@@ -1068,6 +1105,7 @@ export function ConnectScreen({
             recent={recent}
             onOpenItem={handleOpenItem}
             formatCount={formatCount}
+            formatRecentDate={formatRecentDate}
             labels={detailLabels}
           />
         </RightSidebarPortal>
@@ -1114,7 +1152,7 @@ export function ConnectScreen({
         onToggleSelecting={toggleSelecting}
         checkedItemIds={checkedIds}
         onToggleItemChecked={toggleChecked}
-        formatDay={formatDay}
+        formatDay={dates.rowDay}
         onToggleTodoStatus={setTodoStatus}
         onItemContextMenu={editItem}
         formatSelectItem={(title) =>
