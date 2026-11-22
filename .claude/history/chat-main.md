@@ -1,5 +1,23 @@
 # HISTORY (chat-main)
 
+### 2026-11-22 (2) - 追加ダイアログのフッターの高さをそろえる（#2814・Issue #2714）
+
+#### 概要
+
+#2814 を issue-workflow の Workflow で回し、PR #2816（フッターの行を `items-center` から `items-stretch` に変え、vitest で固定する）を merge した。merge のあとの実ブラウザでの確認は、サインインのセッションが無くてできていない。#2814 は open のままで、公開 Web への配布もしていない。
+
+#### 変更点
+
+- **merge**: 回 20261122T073145Z（main 1aa28c93 → b5bdff33、1 本）。main の tree は確かめた組み合わせの tree と一致した。全体確認は 20 ステップが終了コード 0、別の目での確認は直さないと通せない指摘が 0 件
+- **決定の記録**: `decisions/2026-11-22-align-add-dialog-footer-heights.md` の `implemented-by` に #2816 を書いた
+- **未確認**: 幅 375px・390px でのボタンの高さの差と文字の縦の位置、1280px で見た目が変わらないこと。ボタンのクラスは変えていないので、文字が中央に見えなければ `inline-flex items-center justify-center` を足すのが次の手になる
+
+#### 実測・知見
+
+- Playwright のブラウザは `Invalid Refresh Token` でサインイン画面に戻り、Chrome も `localhost:5173` と公開 Web の両方でサインインしていなかった。パスワードは Claude Code が入力しない決まりなので、こうだいさんのサインインを待つ
+- 台本をセッションの追加フォルダ（Orca の chat-scratch）に写すと、`scriptPath` で起動できた。62KB の台本を `script` に貼らずに済む
+- 空きメモリの最小は 7.58GB（16:30）。記録は 16:08〜16:32 で、Workflow の 23 分を覆っている
+
 ### 2026-11-22 - 確認の途中で起票した 3 件（#2805 #2806 #2808・Issue #2714）
 
 #### 概要
