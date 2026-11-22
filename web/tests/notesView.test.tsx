@@ -375,7 +375,7 @@ describe("NotesView — desktop (wide)", () => {
 
     expect(screen.queryByTestId("editor")).toBeNull();
     expect(
-      screen.getByRole("button", { name: "materials.notes.lockedHint" }),
+      screen.getByRole("button", { name: "materials.notes.password.unlockCta" }),
     ).toBeTruthy();
     expect(
       (screen.getByLabelText("notesView.detailTitle") as HTMLInputElement)
