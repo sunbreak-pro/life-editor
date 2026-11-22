@@ -432,7 +432,7 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     expect(
       card.getByRole("textbox", { name: /This week/ }).parentElement,
     ).toBe(line);
-    expect(card.getByRole("button", { name: "Add" }).parentElement).toBe(line);
+    expect(card.getByRole("button", { name: "Save" }).parentElement).toBe(line);
     expect(
       line.compareDocumentPosition(card.getByLabelText("From")) &
         Node.DOCUMENT_POSITION_FOLLOWING,
@@ -568,7 +568,7 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     pickAddPeriod("month");
     const field = screen.getByRole("textbox", { name: /This month/ });
     fireEvent.change(field, { target: { value: "Ship the redesign" } });
-    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => expect(ds.createGoal).toHaveBeenCalledTimes(1));
     expect(ds.createGoal).toHaveBeenCalledWith(
@@ -689,11 +689,11 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     // A range that runs backwards cannot be added.
     fireEvent.change(to, { target: { value: "2026-09-20" } });
     expect(
-      (screen.getByRole("button", { name: "Add" }) as HTMLButtonElement)
+      (screen.getByRole("button", { name: "Save" }) as HTMLButtonElement)
         .disabled,
     ).toBe(true);
     fireEvent.change(to, { target: { value: "2026-10-15" } });
-    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(ds.createGoal).toHaveBeenCalledTimes(1));
     expect(ds.createGoal).toHaveBeenCalledWith(
       expect.objectContaining({
