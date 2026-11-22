@@ -355,6 +355,7 @@
         "setTitle": "ノートにパスワードを設定",
         "removeTitle": "ノートのパスワードを解除",
         "verifyTitle": "ノートのロックを解除",
+        "unlockCta": "ロックを解除",
         "passwordLabel": "パスワード",
         "currentPasswordLabel": "現在のパスワード",
         "confirmPasswordLabel": "パスワード（確認）",

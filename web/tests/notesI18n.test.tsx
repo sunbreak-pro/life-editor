@@ -154,12 +154,11 @@ describe("Notes i18n — password dialog (#1843)", () => {
     state.notes = [LOCKED];
     state.selectedId = "note-locked";
     render(<NotesView />);
-    // The gate's CTA is labelled with the hint, so the label comes from the
-    // catalog rather than being spelled out here — a reworded hint should not
-    // fail this test.
+    // The label comes from the catalog rather than being spelled out here — a
+    // reworded button should not fail this test.
     fireEvent.click(
       screen.getByRole("button", {
-        name: i18n.t("materials.notes.lockedHint"),
+        name: i18n.t("materials.notes.password.unlockCta"),
       }),
     );
     return screen.getByRole("dialog");

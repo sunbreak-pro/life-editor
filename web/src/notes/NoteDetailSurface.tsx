@@ -34,6 +34,8 @@ export interface NoteDetailLabels {
   delete: string;
   moreActions: string;
   lockedHint: string;
+  /** The explicit button over a locked body (#2585). */
+  unlockLabel: string;
   /** Kebab entry that registers this note as a template (#1179). */
   registerTemplate: string;
   /** Kebab entry that pours a saved template into this note (#1181). */
@@ -198,6 +200,7 @@ export function NoteDetailSurface({
         <LockedBodyGate
           locked={locked}
           hint={labels.lockedHint}
+          unlockLabel={labels.unlockLabel}
           onUnlock={() => onUnlock(note.id)}
         >
           {contentEditor}

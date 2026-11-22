@@ -126,8 +126,8 @@ describe("LockedBodyGate", () => {
       </LockedBodyGate>,
     );
 
-    // The hosts do not pass unlockLabel yet; the stand-in is drawn anyway, but
-    // hidden, so it does not leak into the button's name.
+    // The stand-in is drawn without a label too, but hidden, so it does not
+    // leak into the button's name.
     const buttons = screen.getAllByRole("button");
     expect(buttons).toHaveLength(1);
     expect(buttons[0]).toHaveAccessibleName("Locked");
