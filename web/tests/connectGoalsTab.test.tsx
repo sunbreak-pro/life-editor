@@ -9,6 +9,7 @@ import {
 } from "@testing-library/react";
 import { useEffect, useRef } from "react";
 import {
+  GoalTreeView,
   ItemPanelProvider,
   RightSidebarProvider,
   ToastContext,
@@ -17,6 +18,9 @@ import {
   useRightSidebarContext,
   type DataService,
   type Goal,
+  type GoalPeriodKind,
+  type GoalTreeLabels,
+  type GoalTreeModel,
   type TodoNode,
 } from "@life-editor/shared";
 import { GoalsTodosScreen } from "../src/connect/GoalsTodosScreen";
@@ -246,6 +250,21 @@ const goalRow = (title: string, status?: string) =>
       (status === undefined || name.endsWith(status)),
   });
 
+/** The add card's period select (#2608). */
+const pickAddPeriod = (kind: GoalPeriodKind) =>
+  fireEvent.change(screen.getByRole("combobox", { name: "Set a goal" }), {
+    target: { value: kind },
+  });
+
+const EMPTY_MODEL: GoalTreeModel = {
+  roots: [],
+  unconnected: [],
+  looseTodos: [],
+  byId: new Map(),
+  periodKeys: { year: "2026", month: "2026-09", week: "2026-09-27" },
+  periodCounts: { year: 0, month: 0, week: 0 },
+};
+
 function setNarrow() {
   Object.defineProperty(window, "matchMedia", {
     writable: true,
@@ -385,7 +404,7 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     screen.getByRole("textbox", { name: /This week/ });
   });
 
-  it("offers one add button, which opens the period, the title and the dates (#2410)", async () => {
+  it("offers one add button, which opens a card with the period, the title and the dates (#2410, #2608)", async () => {
     await renderTab();
     const add = screen.getByRole("region", { name: "Set a goal" });
     expect(within(add).getAllByRole("button").map((b) => b.textContent)).toEqual(
@@ -397,19 +416,33 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     expect(open.getAttribute("aria-expanded")).toBe("false");
     fireEvent.click(open);
     expect(open.getAttribute("aria-expanded")).toBe("true");
+    const card = within(within(add).getByRole("group", { name: "Set a goal" }));
+    card.getByRole("heading", { name: "Set a goal" });
+    card.getByRole("button", { name: "Cancel" });
+    const period = card.getByRole("combobox") as HTMLSelectElement;
+    expect(period.value).toBe("week");
     expect(
-      within(add)
-        .getAllByRole("radio")
-        .map((r) => r.textContent),
-    ).toEqual(["This year", "This month", "This week"]);
-    screen.getByRole("textbox", { name: /This week/ });
-    screen.getByLabelText("From");
+      within(period)
+        .getAllByRole("option")
+        .map((o) => o.textContent),
+    ).toEqual(["This week", "This month", "This year"]);
+    // The select, the field and the save button share one line, and the dates
+    // come under it.
+    const line = period.parentElement as HTMLElement;
+    expect(
+      card.getByRole("textbox", { name: /This week/ }).parentElement,
+    ).toBe(line);
+    expect(card.getByRole("button", { name: "Add" }).parentElement).toBe(line);
+    expect(
+      line.compareDocumentPosition(card.getByLabelText("From")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
 
     // Another period moves the seeded dates with it, and keeps the draft.
     fireEvent.change(screen.getByRole("textbox", { name: /This week/ }), {
       target: { value: "Keep this" },
     });
-    fireEvent.click(within(add).getByRole("radio", { name: "This year" }));
+    fireEvent.change(period, { target: { value: "year" } });
     expect(
       (screen.getByRole("textbox", { name: /This year/ }) as HTMLInputElement)
         .value,
@@ -420,6 +453,71 @@ describe("Connect Goals & Todos tab (#2108)", () => {
 
     fireEvent.click(open);
     expect(screen.queryByRole("textbox", { name: /This year/ })).toBeNull();
+  });
+
+  it("closes the add card with its × and with Esc from any field, back to the button (#2608)", async () => {
+    await renderTab();
+    const open = screen.getByRole("button", { name: "Set a goal" });
+    const card = () => screen.queryByRole("group", { name: "Set a goal" });
+
+    fireEvent.click(open);
+    fireEvent.click(
+      within(card() as HTMLElement).getByRole("button", { name: "Cancel" }),
+    );
+    expect(card()).toBeNull();
+    expect(document.activeElement).toBe(open);
+
+    for (const target of [
+      () => screen.getByRole("textbox", { name: /This week/ }),
+      () => screen.getByRole("combobox", { name: "Set a goal" }),
+      () => screen.getByLabelText("From"),
+    ]) {
+      fireEvent.click(open);
+      // The Esc that cancels a Japanese conversion leaves the card open.
+      fireEvent.keyDown(target(), { key: "Escape", keyCode: 229 });
+      expect(card()).not.toBeNull();
+      fireEvent.keyDown(target(), { key: "Escape" });
+      expect(card()).toBeNull();
+      expect(document.activeElement).toBe(open);
+    }
+  });
+
+  it("names the add card's button with the host's save copy (#2608)", async () => {
+    const onCreateGoal = vi.fn().mockResolvedValue(true);
+    const labels: Partial<GoalTreeLabels> = {
+      periods: { year: "Year", month: "Month", week: "Week" },
+      addHeading: "Set a goal",
+      addPlaceholder: "Goal",
+      add: "Add",
+      saveGoal: "Save",
+      cancel: "Cancel",
+      startDate: "From",
+      endDate: "To",
+    };
+    render(
+      <GoalTreeView
+        model={EMPTY_MODEL}
+        isLoading={false}
+        selectedGoalId={null}
+        onSelectGoal={() => undefined}
+        onCreateGoal={onCreateGoal}
+        onCreateLooseTodo={vi.fn()}
+        onSetTodoStatus={() => undefined}
+        onOpenTodo={() => undefined}
+        labels={labels as GoalTreeLabels}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Set a goal" }));
+    expect(screen.queryByRole("button", { name: "Add" })).toBeNull();
+    fireEvent.change(screen.getByRole("textbox", { name: "Week: Goal" }), {
+      target: { value: "Read two books" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(onCreateGoal).toHaveBeenCalledWith("week", "Read two books", null);
+    // A saved goal closes the card.
+    await waitFor(() =>
+      expect(screen.queryByRole("group", { name: "Set a goal" })).toBeNull(),
+    );
   });
 
   it("badges a goal of the current period, and leaves the plain kind where that would be false (#2410)", async () => {
@@ -463,14 +561,14 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     expect(within(goalRow("Last month's frame")).getByText("Month")).toBeTruthy();
   });
 
-  it("creates a goal in the current period from the add row", async () => {
+  it("creates a goal in the period picked in the select (#2608)", async () => {
     const ds = makeDS();
     await renderTab(ds);
     fireEvent.click(screen.getByRole("button", { name: "Set a goal" }));
-    fireEvent.click(screen.getByRole("radio", { name: "This month" }));
+    pickAddPeriod("month");
     const field = screen.getByRole("textbox", { name: /This month/ });
     fireEvent.change(field, { target: { value: "Ship the redesign" } });
-    fireEvent.keyDown(field, { key: "Enter" });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
 
     await waitFor(() => expect(ds.createGoal).toHaveBeenCalledTimes(1));
     expect(ds.createGoal).toHaveBeenCalledWith(
@@ -503,22 +601,33 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     expect(input).not.toHaveProperty("startDate");
   });
 
-  it("ends the placeholder with the no-parent hint for a month or week goal only (#2400)", async () => {
+  it("says at the bottom of the card, not in the placeholder, that a month or week goal needs no goal above it (#2400, #2608)", async () => {
     await renderTab();
     fireEvent.click(screen.getByRole("button", { name: "Set a goal" }));
+    const card = within(screen.getByRole("group", { name: "Set a goal" }));
     const hint = "You can set one without a higher goal.";
-    const placeholder = (name: RegExp): string | null =>
-      screen.getByRole("textbox", { name }).getAttribute("placeholder");
+    const field = (name: RegExp): HTMLElement =>
+      card.getByRole("textbox", { name });
 
-    expect(placeholder(/This week/)).toMatch(/What do you want to reach\? /);
-    expect(placeholder(/This week/)?.endsWith(hint)).toBe(true);
-    fireEvent.click(screen.getByRole("radio", { name: "This month" }));
-    expect(placeholder(/This month/)?.endsWith(hint)).toBe(true);
+    for (const [kind, name] of [
+      ["week", /This week/],
+      ["month", /This month/],
+    ] as const) {
+      pickAddPeriod(kind);
+      expect(field(name).getAttribute("placeholder")).toBe(
+        "What do you want to reach?",
+      );
+      const line = card.getByText(hint);
+      expect(field(name).getAttribute("aria-describedby")).toBe(line.id);
+      expect(
+        card.getByLabelText("To").compareDocumentPosition(line) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
     // A year goal has nothing above it to leave out.
-    fireEvent.click(screen.getByRole("radio", { name: "This year" }));
-    expect(placeholder(/This year/)).toBe(
-      "This year 2026: What do you want to reach?",
-    );
+    pickAddPeriod("year");
+    expect(card.queryByText(hint)).toBeNull();
+    expect(field(/This year/).hasAttribute("aria-describedby")).toBe(false);
   });
 
   it("creates a month and a week goal with no goal above them when no year goal exists (#2400)", async () => {
@@ -536,7 +645,7 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     await renderTab(ds, "Unconnected goals");
     fireEvent.click(screen.getByRole("button", { name: "Set a goal" }));
 
-    fireEvent.click(screen.getByRole("radio", { name: "This month" }));
+    pickAddPeriod("month");
     const month = screen.getByRole("textbox", { name: /This month/ });
     fireEvent.change(month, { target: { value: "Finish the draft" } });
     fireEvent.keyDown(month, { key: "Enter" });
