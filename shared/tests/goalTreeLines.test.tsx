@@ -13,9 +13,9 @@ import { separateCompleted } from "../src/components/goalTree/buildGoalTreeModel
 /*
  * The goal tree's hierarchy lines (#2282). jsdom has no layout, so these pin
  * the structure the browser draws from: the arrow's width and every line's
- * position come from one CSS variable in --spacing units, each list under a
- * goal carries its own full-height line, and a year's line wraps everything
- * down to its weeks' rows. The pixels themselves are chat-main's check.
+ * position come from one CSS variable, each list under a goal carries its own
+ * full-height line, and a year's line wraps everything down to its weeks'
+ * rows. The pixels themselves are chat-main's check.
  */
 
 function goal(over: Partial<Goal> & Pick<Goal, "id" | "title">): Goal {
@@ -174,8 +174,7 @@ describe("GoalTreeView hierarchy lines (#2282)", () => {
   it("sizes every arrow and places every line from one variable", () => {
     const { container } = renderTree();
     const root = container.firstElementChild as HTMLElement;
-    // Defined once on the root, in --spacing (rem) at both widths, so the
-    // root font size setting scales the arrow and the line together.
+    // Defined once on the root, so the arrow and the line move together.
     // Wide is the icon-only tap floor, which a one-icon arrow is lifted to
     // anyway: below it, that arrow outgrows the variable and its line misses
     // the centre (2.25px at an 18px root).
@@ -185,8 +184,10 @@ describe("GoalTreeView hierarchy lines (#2282)", () => {
     expect(root.className).not.toContain(
       `[${TOGGLE_VAR}:calc(var(--spacing)*6)]`,
     );
+    // Narrow is 40px at every phone text size, not a --spacing step, which is
+    // 45px or 40.5px at the 18px root (#2672).
     expect(root.className).toContain(
-      `max-md:[${TOGGLE_VAR}:calc(var(--spacing)*11)]`,
+      `max-md:[${TOGGLE_VAR}:max(40px,var(--spacing-lumen-tap-min))]`,
     );
 
     const toggles = screen.getAllByRole("button", { name: /^Collapse: / });
@@ -210,7 +211,16 @@ describe("GoalTreeView hierarchy lines (#2282)", () => {
     expect(container.querySelector(".ml-3.border-l")).toBeNull();
   });
 
-  it("indents each list past the line, from the same variable", () => {
+  it("lets a press through the line, which crosses a phone's child arrows (#2672)", () => {
+    const { container } = renderTree();
+    const lines = container.querySelectorAll("[data-goal-tree-line]");
+    expect(lines).toHaveLength(5);
+    for (const line of lines) {
+      expect(line.className).toContain("pointer-events-none");
+    }
+  });
+
+  it("indents each list past the line on desktop, and 17px on a phone (#2672)", () => {
     const { container } = renderTree();
     const lists = container.querySelectorAll("[data-goal-tree-branch] > ul");
     expect(lists).toHaveLength(5);
@@ -218,6 +228,7 @@ describe("GoalTreeView hierarchy lines (#2282)", () => {
       expect(list.className).toContain(
         `pl-[calc(var(${TOGGLE_VAR})_/_2_+_var(--spacing)_*_3)]`,
       );
+      expect(list.className.split(/\s+/)).toContain("max-md:pl-[17px]");
     }
   });
 
@@ -375,8 +386,9 @@ describe("GoalTreeView progress (#2606)", () => {
 
 describe("GoalTreeView — a phone row's … opens its chips (#2611)", () => {
   /*
-   * jsdom has no layout, so the 44px is pinned as the class that sets it:
-   * size-11 on the "…" and min-h-11 on every chip, at Tailwind's 4px step.
+   * jsdom has no layout, so the sizes are pinned as the classes that set them:
+   * the arrow's own 40px on the "…", the checkbox and the row (#2672), and the
+   * 44px min-h-11 on every chip.
    */
   afterEach(() => {
     Reflect.deleteProperty(window, "matchMedia");
@@ -435,7 +447,7 @@ describe("GoalTreeView — a phone row's … opens its chips (#2611)", () => {
     const more = screen.getByRole("button", {
       name: "More actions: Run 3 times",
     });
-    expect(classesOf(more)).toContain("size-11");
+    expect(classesOf(more)).toContain(`size-(${TOGGLE_VAR})`);
     expect(screen.queryByRole("group", { name: "Run 3 times" })).toBeNull();
 
     fireEvent.click(more);
@@ -465,7 +477,7 @@ describe("GoalTreeView — a phone row's … opens its chips (#2611)", () => {
       screen.getByRole("button", { name: "More actions: Run weekly" }),
     );
     const more = screen.getByRole("button", { name: "More actions: 5 km jog" });
-    expect(classesOf(more)).toContain("size-11");
+    expect(classesOf(more)).toContain(`size-(${TOGGLE_VAR})`);
     fireEvent.click(more);
     expect(screen.queryByRole("group", { name: "Run weekly" })).toBeNull();
     const chips = within(
@@ -474,6 +486,23 @@ describe("GoalTreeView — a phone row's … opens its chips (#2611)", () => {
     expect(chips.map((c) => c.textContent)).toEqual(["Edit", "Delete"]);
     for (const chip of chips) expect(classesOf(chip)).toContain("min-h-11");
     expect(classesOf(chips[1] as HTMLElement)).toContain("text-lumen-danger");
+  });
+
+  it("draws a phone's rows at the arrow's 40px, not the 44px floor (#2672)", () => {
+    setNarrow();
+    renderWithActions();
+    const floor = `max-md:min-h-(${TOGGLE_VAR})`;
+    for (const name of [/^Week: Run 3 times — /, "Done: 5 km jog"]) {
+      const row = classesOf(screen.getByRole("button", { name }));
+      expect(row).toContain(floor);
+      expect(row).not.toContain("max-md:min-h-11");
+    }
+    // The shared checkbox's own 44px would hold the row up, so it is overridden
+    // below 768px only.
+    const box = classesOf(screen.getByRole("checkbox", { name: /^5 km jog/ }));
+    expect(box).toContain(floor);
+    expect(box).toContain(`max-md:min-w-(${TOGGLE_VAR})`);
+    expect(box).toContain("min-h-11");
   });
 
   it("closes the chips on Esc", () => {

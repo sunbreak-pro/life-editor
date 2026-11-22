@@ -295,7 +295,8 @@ export interface GoalTreeDragHandlers {
 
 const ROW_BUTTON_SHAPE = cn(
   "flex min-w-0 flex-1 items-center gap-2 rounded-lumen-sm px-2 py-1.5 text-left",
-  "transition-colors max-md:min-h-11",
+  // A phone row is the arrow's 40px, not the 44px of other screens (#2672).
+  "transition-colors max-md:min-h-(--goal-tree-toggle)",
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
 );
 
@@ -318,30 +319,44 @@ const ADD_PERIOD_KINDS: readonly GoalPeriodKind[] = [
 /*
  * The arrow's width is one CSS variable, set on the view's root, and the
  * hierarchy lines are placed from it (#2282): a line runs through the middle
- * of its parent's arrow at every depth and on both widths. Both sizes are in
- * --spacing (rem), so the root font size setting moves the arrow and the line
- * together; the only px is the half of the 1px line that centres it.
+ * of its parent's arrow at every depth and on both widths.
  *
  * Wide is the tap floor itself, not --spacing*6: an arrow button holding one
  * icon (a year's, or any arrow while dragging is off) matches tokens.css's
  * icon-only rule and is lifted to --spacing-lumen-tap-min, so a smaller
  * variable left the line 2.25px off that arrow's centre at an 18px root
  * while the grip-carrying arrows stayed on it. At the floor every arrow is
- * the variable's width. Narrow's --spacing*11 is already above the floor.
+ * the variable's width.
+ *
+ * Narrow is 40px (#2672), and the row, the checkbox and the "…" read it too.
+ * In px because a finger does not shrink with the font setting: no --spacing
+ * step is 40px at the default 18px root, and a rem would leave 31px at the
+ * phone's smallest text. Past a 22.8px root the tap floor is wider than 40px
+ * and lifts the one-icon arrows, so the variable follows it there.
  */
 const TREE_TOGGLE_SIZE =
-  "[--goal-tree-toggle:var(--spacing-lumen-tap-min)] max-md:[--goal-tree-toggle:calc(var(--spacing)*11)]";
+  "[--goal-tree-toggle:var(--spacing-lumen-tap-min)] max-md:[--goal-tree-toggle:max(40px,var(--spacing-lumen-tap-min))]";
 
 /** The arrow's column, kept on rows without one so titles line up. */
 const BRANCH_TOGGLE =
   "grid size-(--goal-tree-toggle) shrink-0 place-items-center";
 
+/*
+ * Narrow's indent is short of the parent's arrow centre, so the line runs
+ * inside the left edge of the arrows and checkboxes below it: it lets a press
+ * through, or it would cut a 1px gap in their 40px.
+ */
 const TREE_LINE =
-  "absolute inset-y-0 left-[calc(var(--goal-tree-toggle)_/_2_-_0.5px)] w-px bg-lumen-border";
+  "pointer-events-none absolute inset-y-0 left-[calc(var(--goal-tree-toggle)_/_2_-_0.5px)] w-px bg-lumen-border";
 
-/** Past the line by the old gap, so a child's arrow never sits on it. */
+/*
+ * Wide: past the line by the old gap, so a child's arrow never sits on it.
+ * Narrow: 17px a level and no longer tied to the arrow's width, which took
+ * 38px a level from the third level's title (#2672). The line stays clear of
+ * the child's glyph, which is centred in its 40px.
+ */
 const TREE_INDENT =
-  "pl-[calc(var(--goal-tree-toggle)_/_2_+_var(--spacing)_*_3)]";
+  "pl-[calc(var(--goal-tree-toggle)_/_2_+_var(--spacing)_*_3)] max-md:pl-[17px]";
 
 type StatusLabels = Pick<
   GoalTreeLabels,
@@ -565,6 +580,9 @@ function TodoRow({
         labels={labels.statusLabels}
         label={labels.status}
         itemName={todo.title}
+        // Over the shared 44px, which would keep the row above 40px. A
+        // max-md: rule comes after the base one, so it wins without a merge.
+        className="max-md:min-h-(--goal-tree-toggle) max-md:min-w-(--goal-tree-toggle)"
       />
       <button
         type="button"
@@ -669,12 +687,12 @@ interface RowMenu {
 }
 
 /*
- * The "…" at a phone row's right end (#2611). Always shown and 44px square:
- * #2488's icons were hidden until a hover a phone never sends, and #2487's
- * three took the title's room. One target leaves the title its line.
+ * The "…" at a phone row's right end (#2611). Always shown and 40px square
+ * (#2672): #2488's icons were hidden until a hover a phone never sends, and
+ * #2487's three took the title's room. One target leaves the title its line.
  */
 const MORE_BUTTON = cn(
-  "grid size-11 shrink-0 place-items-center rounded-lumen-sm text-lumen-text-tertiary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+  "grid size-(--goal-tree-toggle) shrink-0 place-items-center rounded-lumen-sm text-lumen-text-tertiary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
   "aria-expanded:bg-lumen-hover aria-expanded:text-lumen-text",
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
 );
