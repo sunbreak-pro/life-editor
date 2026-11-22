@@ -1,10 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
-import type { TodoCalendarChip } from "@life-editor/shared";
+import type { TodoCalendarChip, WikiTagUnified } from "@life-editor/shared";
 import {
+  bubbleTags,
   eventQuickEditPatch,
   eventQuickEditValue,
   itemTapRoute,
+  todoChipMemo,
   todoChipPanelModel,
+  type TodoChipDetails,
   todoSlotFromStart,
 } from "../src/schedule/todoChipPanel";
 
@@ -23,6 +26,7 @@ import {
 const COPY = {
   untitled: "(untitled)",
   allDay: "All-day",
+  when: (dateKey: string, time: string) => `${dateKey} / ${time}`,
   delete: "Delete",
   convertToEvent: "Convert to event",
 };
@@ -45,18 +49,18 @@ const PLACED: TodoCalendarChip = {
   isAllDay: false,
 };
 
-function build(chip: TodoCalendarChip) {
+function build(chip: TodoCalendarChip, details?: TodoChipDetails) {
   const onRename = vi.fn();
   const onRetime = vi.fn();
   const onDelete = vi.fn();
   const onConvertToEvent = vi.fn();
   return {
-    model: todoChipPanelModel(chip, COPY, {
-      onRename,
-      onRetime,
-      onDelete,
-      onConvertToEvent,
-    }),
+    model: todoChipPanelModel(
+      chip,
+      COPY,
+      { onRename, onRetime, onDelete, onConvertToEvent },
+      details,
+    ),
     onRename,
     onRetime,
     onDelete,
@@ -120,12 +124,25 @@ describe("todoChipPanelModel (#564)", () => {
     expect(model.title).toBe("write the report");
     // The #298 staging shape carries midnight at both ends; printed literally
     // it reads as a zero-length event at midnight.
-    expect(model.timeLabel).toBe("All-day");
+    expect(model.when).toBe("2026-06-15 / All-day");
   });
 
-  it("prints the span of a placed chip", () => {
+  it("prints the day and the span of a placed chip (#2574)", () => {
     const { model } = build(PLACED);
-    expect(model.timeLabel).toBe("09:00–10:00");
+    expect(model.when).toBe("2026-06-15 / 09:00–10:00");
+  });
+
+  it("carries the todo's tags and memo into the summary (#2574)", () => {
+    const tags = [{ id: "t-1", name: "Work", color: "#3366ff", icon: null }];
+    const { model } = build(PLACED, { tags, memo: "bring the draft" });
+    expect(model.tags).toEqual(tags);
+    expect(model.memo).toBe("bring the draft");
+  });
+
+  it("has nothing to draw for a todo with neither (#2574)", () => {
+    const { model } = build(PLACED);
+    expect(model.tags).toEqual([]);
+    expect(model.memo).toBe("");
   });
 
   it("falls back to the untitled placeholder, but seeds the input empty", () => {
@@ -134,6 +151,60 @@ describe("todoChipPanelModel (#564)", () => {
     // Seeding the input with the placeholder would commit "(untitled)" as a
     // real title on the first Enter.
     expect(model.quickEditValue.title).toBe("");
+  });
+});
+
+describe("todoChipMemo (#2574)", () => {
+  const body = (...lines: string[]) =>
+    JSON.stringify({
+      type: "doc",
+      content: lines.map((text) => ({
+        type: "paragraph",
+        content: text ? [{ type: "text", text }] : [],
+      })),
+    });
+
+  it("reads the first line of text out of the todo's rich-text body", () => {
+    expect(
+      todoChipMemo("todochip-task-1", [
+        { id: "task-0", content: body("someone else's") },
+        { id: "task-1", content: body("", "bring the draft", "and a pen") },
+      ]),
+    ).toBe("bring the draft");
+  });
+
+  it("reads nothing from an empty body, no body, or a todo that is gone", () => {
+    expect(
+      todoChipMemo("todochip-task-1", [{ id: "task-1", content: body("") }]),
+    ).toBeUndefined();
+    expect(todoChipMemo("todochip-task-1", [{ id: "task-1" }])).toBeUndefined();
+    expect(todoChipMemo("todochip-task-1", [])).toBeUndefined();
+  });
+});
+
+describe("bubbleTags (#2574)", () => {
+  const tag = (
+    id: string,
+    overrides: Partial<WikiTagUnified> = {},
+  ): WikiTagUnified => ({
+    id,
+    name: id,
+    color: null,
+    icon: null,
+    isDeleted: false,
+    deletedAt: null,
+    createdAt: "2026-06-01T00:00:00.000Z",
+    updatedAt: "2026-06-01T00:00:00.000Z",
+    ...overrides,
+  });
+
+  it("keeps the assignments' order and drops trashed and unknown tags", () => {
+    expect(
+      bubbleTags(
+        [{ tagId: "b" }, { tagId: "gone" }, { tagId: "trash" }, { tagId: "a" }],
+        [tag("a"), tag("b"), tag("trash", { isDeleted: true })],
+      ).map((shown) => shown.id),
+    ).toEqual(["b", "a"]);
   });
 });
 

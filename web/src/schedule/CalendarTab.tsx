@@ -18,6 +18,8 @@ import {
   useMinuteClock,
   useHolidayColorPref,
   useHolidayVisibilityPref,
+  isTodoChip,
+  unwrapTodoChipId,
   type EventEditorItem,
   type DataService,
   WIDE_QUERY,
@@ -49,6 +51,7 @@ import { useScheduleCreateFlow } from "./useScheduleCreateFlow";
 import { useScheduleSelection } from "./useScheduleSelection";
 import { useScheduleDayLabels } from "./useScheduleDayLabels";
 import { useScheduleTodayAgenda } from "./useScheduleTodayAgenda";
+import { bubbleTags, todoChipMemo } from "./todoChipPanel";
 import { toEditorItem } from "./scheduleViewModels";
 import { scheduleItemById } from "./scheduleSelectionSurface";
 import { useScheduleCopy } from "./scheduleCopy";
@@ -210,7 +213,8 @@ export function CalendarTab({
   // mounts TagGroupProvider + WikiTagsUnifiedProvider around the Schedule
   // tree), so this adds no fetch.
   const { tagGroups } = useTagGroupContext();
-  const { allTags, allAssignments } = useWikiTagsUnifiedContext();
+  const { allTags, allAssignments, getTagsForItem } =
+    useWikiTagsUnifiedContext();
 
   // Navigation + visible fetch window (#280 → useCalendarNav).
   const {
@@ -1097,6 +1101,16 @@ export function CalendarTab({
         selectedTagCount: selected ? tagCountOf(selected) : 0,
         // #2397: the same tags as chips, for the bubble's summary.
         selectedTags: selected ? tagsOf(selected) : undefined,
+        // #2574: the same two for a todo chip, out of the tag cache and the
+        // tree this host already holds — no fetch of its own.
+        todoTags:
+          popover && isTodoChip(popover.id)
+            ? bubbleTags(getTagsForItem(unwrapTodoChipId(popover.id)), allTags)
+            : undefined,
+        todoMemo:
+          popover && isTodoChip(popover.id)
+            ? todoChipMemo(popover.id, todoNodes)
+            : undefined,
         findTodoChip,
         onClose: closePopover,
         onOpenDetail: handleItemOpenDetail,
@@ -1149,6 +1163,10 @@ export function CalendarTab({
       repeatPanel={{
         state: repeatPanel,
         row: repeatRows.find((r) => r.id === repeatPanel?.id) ?? null,
+        // #2574: a series' tags hang off the routine itself (#1632).
+        tags: repeatPanel
+          ? bubbleTags(getTagsForItem(repeatPanel.id), allTags)
+          : undefined,
         onClose: closeRepeatPanel,
         // #1830 / #1678: both jump to the series' next occurrence; the hook
         // waits for that day's range and then selects it or opens it.

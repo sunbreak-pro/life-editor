@@ -29,14 +29,18 @@ const rows: RepeatListRow[] = [
     id: "r-1",
     title: "Morning run",
     timeLabel: "7:00",
+    endTimeLabel: "7:30",
     frequencyLabel: "Daily",
+    cycleLabel: "Daily",
     nextLabel: "July 28 (Tue)",
   },
   {
     id: "r-2",
     title: "Broken repeat",
     timeLabel: "",
+    endTimeLabel: "",
     frequencyLabel: "Every N days",
+    cycleLabel: "Every N days",
     nextLabel: null,
   },
 ];

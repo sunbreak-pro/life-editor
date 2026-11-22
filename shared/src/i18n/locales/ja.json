@@ -703,6 +703,8 @@
     "repeatPanelLabel": "繰り返しの操作",
     "repeatNeverFires": "実行される日がありません",
     "repeatNext": "次 {{date}}",
+    "repeatCycleWeekly": "毎週{{days}}曜",
+    "repeatBubbleWhen": "{{cycle}} · {{time}}",
     "untitled": "無題の繰り返し",
     "repeatDeleteConfirm": "「{{name}}」と、その予定をすべて削除しますか？",
     "repeatDeleteFailed": "繰り返しを削除できませんでした。予定は変更されていません。もう一度お試しください。",
