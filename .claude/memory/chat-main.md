@@ -16,8 +16,8 @@
 **対象**: `.claude/docs/requirements/`・`.claude/docs/vision/plans/`・GitHub Issues（#2714 #2716 #2717 #2718 #2719 #2720）
 
 - 前回（2026-11-22）: 手順 3 の Claude Code の分を merge し、main b5bdff33 を公開 Web に配布した（Cloudflare の版 4d1af15a）。1 本ごとの記録は history 2026-11-21・2026-11-22 と計画書の Worklog
-- 現在（2026-11-22 夜）: #2672 #2673 #2795 は案が決まった（決定の記録 3 本）。手順 4 の 1 回目（Workflow、4 件）のうち、#2601 = PR #2822 と #2567 = PR #2821 を merge し、実ブラウザで確かめて閉じた（main 591f2431、未配布）。#2608（ブランチ claude/goal-form-card-2608、07a254f3）と #2782（claude/removal-leftovers-2782、b4f8f8bf）は、完了条件に要るファイルが Issue の Scope に無く、PR を開かずに止めた
-- 次: こうだいさんに 4 点を聞く（#2608 の Scope に `web/src/connect/useGoalTreeLabels.ts`、#2782 の Scope に `shared/design-system/claude-design/foundations/colors.html` を足すか、main 591f2431 の配布、確認中に誤って未完了にした Todo「verify-20260810-child」を元の完了日時 2026-08-31T12:09:46.958Z で戻すか）。そのあと #2672 → #2673 → #2795、#2608 → #2701・#2613、#2782 → #2788・#2790 の順（どれも直列。#2701 は Scope に ja/en.json が無いので本文を直してから）。#2601 と #2585・#2590 には 2026-11-04 の PR の無い古いブランチがあるので、着手の前に `git branch -a` で見る。人の作業待ちは #2289 #2291 = iPhone、#2285 = 書き込みの要る確認、#2762 = 各端末の送信待ちの箱、#2753 = Edge Function `delete-account`、#2717 #2720 #2758 = 手順 1 の人の作業
+- 現在（2026-11-22 夜）: #2672 #2673 #2795 は案が決まった（決定の記録 3 本）。手順 4 の 1 回目の 4 件（#2601 = PR #2822、#2567 = #2821、#2608 = #2823、#2782 = #2824）を merge し、実ブラウザで確かめて閉じた。main b50f3123 を公開 Web に配布した（Cloudflare の版 d2cda22a）
+- 次: #2672 → #2673 → #2795、#2701・#2613、#2788・#2790（#2701 は Scope に ja/en.json が無いので本文を直してから。#2790 は設定の変更に承認が要る）。起動の前に、完了条件に要るファイルが Scope に全部入っているかと、「依存する作業」の欄に依存だけが書かれているかを見る。#2585・#2590 には 2026-11-04 の PR の無い古いブランチが origin にある。Claude Design の色見本 `foundations/colors.html` の送り直しは、こうだいさんの `/design-login` を待つ。人の作業待ちは #2289 #2291 = iPhone、#2285 = 書き込みの要る確認、#2762 = 各端末の送信待ちの箱、#2753 = Edge Function `delete-account`、#2717 #2720 #2758 = 手順 1 の人の作業
 
 ### ⏸️ merge 済みで open のままの Issue を確かめて閉じる（Issue #2361）（着手日: 2026-10-28）
 
