@@ -1,7 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
-import type { ScheduleItem, TodoCalendarChip } from "@life-editor/shared";
+import {
+  buildWeekdayLabels,
+  i18n,
+  type ScheduleItem,
+  type TodoCalendarChip,
+} from "@life-editor/shared";
 import { ScheduleOverlays } from "../src/schedule/ScheduleOverlays";
+import { formatRepeatCycle } from "../src/schedule/scheduleCopy";
 import { SCHEDULE_ITEM_PANEL_WIDTH } from "../src/schedule/todoChipPanel";
 import type { ScheduleOverlaysProps } from "../src/schedule/ScheduleOverlays";
 
@@ -606,7 +612,8 @@ describe("ScheduleOverlays — the single-click bubble", () => {
  * #2397 — the event bubble's summary as the Claude Design proposal draws it:
  * the kind badge, the title, the day with its time, the tag chips and the
  * memo's first line. Rows with nothing in them are not drawn at all, so a bare
- * event's bubble closes up. The todo bubble only gains the badge.
+ * event's bubble closes up. #2574 gave the todo's bubble the same summary, and
+ * an occurrence of a series its own badge.
  */
 describe("ScheduleOverlays — the event bubble's summary (#2397)", () => {
   const POPOVER = { id: ITEM.id, x: 10, y: 20 };
@@ -692,16 +699,62 @@ describe("ScheduleOverlays — the event bubble's summary (#2397)", () => {
     expect(eventPanel().querySelector("[data-bubble-memo]")).toBeNull();
   });
 
-  it("gives the todo bubble the Todo badge and nothing else new", () => {
+  it("badges an occurrence of a series as a repeat (#2574)", () => {
+    renderOverlays({
+      popover: { state: POPOVER, selected: { ...ITEM, routineId: "r-1" } },
+    });
+    const badge = eventPanel().querySelector(
+      '[data-bubble-kind="routine"]',
+    ) as HTMLElement;
+    expect(badge.textContent).toBe("scheduleScreen.chipKindRoutine");
+    expect(badge.className).toContain("bg-lumen-chip-routine-bg");
+    expect(eventPanel().querySelector('[data-bubble-kind="event"]')).toBeNull();
+    // Everything under the badge is still the event's own summary.
+    expect(whenParts()).toMatchObject({ day: "16", time: "10:00–11:00" });
+  });
+
+  const todoPanel = () =>
+    screen.getByRole("dialog", { name: "scheduleScreen.todoActionsLabel" });
+
+  it("gives the todo bubble the day, the tags and the memo (#2574)", () => {
+    renderOverlays({
+      popover: {
+        state: { ...POPOVER, id: CHIP.id },
+        todoChip: CHIP,
+        todoTags: TAGS,
+        todoMemo: "下書きを持っていく",
+      },
+    });
+    const panel = todoPanel();
+    expect(within(panel).getByText("scheduleScreen.typeTodo")).toBeTruthy();
+    expect(within(panel).queryByText("scheduleScreen.typeEvent")).toBeNull();
+
+    const when = within(panel).getByText(/^scheduleScreen\.bubbleWhen /);
+    expect(
+      JSON.parse(
+        (when.textContent ?? "").slice("scheduleScreen.bubbleWhen ".length),
+      ),
+    ).toEqual({
+      month: "8",
+      day: "16",
+      monthName: "8月",
+      weekday: "日",
+      time: "13:00–14:00",
+    });
+    const tagRow = panel.querySelector("[data-bubble-tags]") as HTMLElement;
+    expect(within(tagRow).getByText("仕事")).toBeTruthy();
+    expect(within(tagRow).getByText("健康")).toBeTruthy();
+    expect(panel.querySelector("[data-bubble-memo]")?.textContent).toBe(
+      "下書きを持っていく",
+    );
+  });
+
+  it("closes the todo bubble up when it has neither tags nor a memo (#2574)", () => {
     renderOverlays({
       popover: { state: { ...POPOVER, id: CHIP.id }, todoChip: CHIP },
     });
-    const panel = screen.getByRole("dialog", {
-      name: "scheduleScreen.todoActionsLabel",
-    });
-    expect(within(panel).getByText("scheduleScreen.typeTodo")).toBeTruthy();
-    expect(within(panel).queryByText("scheduleScreen.typeEvent")).toBeNull();
-    expect(within(panel).queryByText(/^scheduleScreen\.bubbleWhen/)).toBeNull();
+    const summary = within(todoPanel()).getByText(CHIP.title).parentElement!;
+    expect(summary.children).toHaveLength(3);
   });
 });
 
@@ -797,7 +850,13 @@ describe("ScheduleOverlays — the bubble's frame (#2564)", () => {
     renderOverlays({
       repeatPanel: {
         state: { id: "r-1", x: 10, y: 20 },
-        row: { title: "Morning run", frequencyLabel: "Daily", nextLabel: "x" },
+        row: {
+          title: "Morning run",
+          cycleLabel: "Daily",
+          timeLabel: "7:00",
+          endTimeLabel: "7:30",
+          nextLabel: "x",
+        },
       },
     });
     const panel = screen.getByRole("dialog", {
@@ -1154,10 +1213,18 @@ describe("ScheduleOverlays — the repeat scope dialog (#279)", () => {
 describe("ScheduleOverlays — the repeat row's panel (#1678)", () => {
   const ROW = {
     title: "Morning run",
-    frequencyLabel: "Daily",
+    cycleLabel: "Daily",
+    timeLabel: "7:00",
+    endTimeLabel: "7:30",
     nextLabel: "July 28 (Tue)",
   };
   const STATE = { id: "r-1", x: 10, y: 20 };
+  const FREQ = {
+    daily: "毎日",
+    weekdaysFallback: "曜日",
+    intervalEvery: "",
+    intervalDays: "日ごと",
+  };
 
   it("is Desktop-only, like the grid's bubble", () => {
     renderOverlays({
@@ -1167,16 +1234,110 @@ describe("ScheduleOverlays — the repeat row's panel (#1678)", () => {
     expect(screen.queryByText("Morning run")).toBeNull();
   });
 
-  it("shows what the row shows, and hands the jump back", () => {
+  it("names the series and its cycle, and hands the jump back", () => {
     const { repeatPanelActions } = renderOverlays({
       repeatPanel: { state: STATE, row: ROW },
     });
     expect(screen.getByText("Morning run")).toBeTruthy();
-    expect(screen.getByText("Daily")).toBeTruthy();
-    expect(screen.getByText("July 28 (Tue)")).toBeTruthy();
+    expect(
+      screen.getByText(
+        `scheduleScreen.repeatBubbleWhen ${JSON.stringify({
+          cycle: "Daily",
+          time: "7:00–7:30",
+        })}`,
+      ),
+    ).toBeTruthy();
+    // #2574: the next date is the row's to say, beside this panel.
+    expect(screen.queryByText("July 28 (Tue)")).toBeNull();
 
     fireEvent.click(screen.getByText("scheduleScreen.repeatShowNext"));
     expect(repeatPanelActions.onShowNext).toHaveBeenCalledWith("r-1");
+  });
+
+  it("leads with the repeat badge and draws the series' tags (#2574)", () => {
+    renderOverlays({
+      repeatPanel: {
+        state: STATE,
+        row: ROW,
+        tags: [{ id: "t-health", name: "健康", color: null, icon: "Heart" }],
+      },
+    });
+    const panel = screen.getByRole("dialog", {
+      name: "scheduleScreen.repeatPanelLabel",
+    });
+    const badge = panel.querySelector(
+      '[data-bubble-kind="routine"]',
+    ) as HTMLElement;
+    expect(badge.textContent).toBe("scheduleScreen.chipKindRoutine");
+    const tagRow = panel.querySelector("[data-bubble-tags]") as HTMLElement;
+    expect(within(tagRow).getByText("健康")).toBeTruthy();
+  });
+
+  it("closes up without tags, and without a time says the cycle alone (#2574)", () => {
+    renderOverlays({
+      repeatPanel: {
+        state: STATE,
+        row: { ...ROW, timeLabel: "", endTimeLabel: "" },
+      },
+    });
+    expect(screen.getByText("Daily")).toBeTruthy();
+    const summary = screen.getByText("Morning run").parentElement!;
+    expect(summary.children).toHaveLength(3);
+  });
+
+  it("says the start alone for a series with no end time (#2574)", () => {
+    renderOverlays({
+      repeatPanel: { state: STATE, row: { ...ROW, endTimeLabel: "" } },
+    });
+    expect(
+      screen.getByText(
+        `scheduleScreen.repeatBubbleWhen ${JSON.stringify({
+          cycle: "Daily",
+          time: "7:00",
+        })}`,
+      ),
+    ).toBeTruthy();
+  });
+
+  /*
+   * The words themselves, through the real catalogs and the host's own
+   * formatter — everything above reads the keys back.
+   */
+  it.each([
+    ["ja", [0], "毎週日曜 · 21:00–21:30"],
+    ["ja", [5, 1, 3], "毎週月・水・金曜 · 21:00–21:30"],
+    ["en", [0], "Weekly on Sun · 21:00–21:30"],
+  ])("the %s catalog reads days %j as %s (#2574)", (lang, days, out) => {
+    const t = i18n.getFixedT(lang);
+    const cycle = formatRepeatCycle(
+      { frequencyType: "weekdays", frequencyDays: days, frequencyInterval: null },
+      FREQ,
+      buildWeekdayLabels(t),
+      (names) => t("scheduleScreen.repeatCycleWeekly", { days: names }),
+    );
+    expect(
+      t("scheduleScreen.repeatBubbleWhen", { cycle, time: "21:00–21:30" }),
+    ).toBe(out);
+  });
+
+  it("wraps only a weekday repeat that has days to name (#2574)", () => {
+    const weekly = vi.fn((days: string) => `weekly ${days}`);
+    const cycle = (routine: Parameters<typeof formatRepeatCycle>[0]) =>
+      formatRepeatCycle(routine, FREQ, [], weekly);
+    expect(
+      cycle({ frequencyType: "daily", frequencyDays: [], frequencyInterval: null }),
+    ).toBe("毎日");
+    expect(
+      cycle({ frequencyType: "interval", frequencyDays: [], frequencyInterval: 3 }),
+    ).toBe("3 日ごと");
+    expect(
+      cycle({
+        frequencyType: "weekdays",
+        frequencyDays: [],
+        frequencyInterval: null,
+      }),
+    ).toBe("曜日");
+    expect(weekly).not.toHaveBeenCalled();
   });
 
   it("opens the next occurrence's editor from the panel's primary action", () => {

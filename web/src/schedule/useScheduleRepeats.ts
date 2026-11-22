@@ -12,6 +12,7 @@ import {
   type ScheduleItem,
 } from "@life-editor/shared";
 import { pickRepeatOccurrence } from "./repeatOccurrence";
+import { formatRepeatCycle } from "./scheduleCopy";
 import {
   deleteRepeatSeries,
   type DeleteRepeatSeriesArgs,
@@ -163,7 +164,14 @@ export function useScheduleRepeats({
                 id: r.id,
                 title: r.title || t("scheduleScreen.untitled"),
                 timeLabel: r.startTime ?? "",
+                endTimeLabel: r.endTime ?? "",
                 frequencyLabel: frequencyLabel(r, freqCopy, weekdayLabels),
+                cycleLabel: formatRepeatCycle(
+                  r,
+                  freqCopy,
+                  weekdayLabels,
+                  (days) => t("scheduleScreen.repeatCycleWeekly", { days }),
+                ),
                 nextLabel: next ? formatFullDay(next) : null,
               };
             }),

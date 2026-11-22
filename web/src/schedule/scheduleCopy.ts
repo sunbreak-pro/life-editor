@@ -2,11 +2,13 @@ import { useCallback, useMemo } from "react";
 import {
   buildWeekdayLabels,
   dateFromKey,
+  frequencyLabel,
   useTranslation,
   type FrequencyEditorLabels,
   type FrequencyLabelCopy,
   type ItemCreatePanelLabels,
   type ItemCreateRepeatField,
+  type RoutineNode,
   type SegmentedOption,
   type TodoScheduleSlot,
 } from "@life-editor/shared";
@@ -91,6 +93,29 @@ export function formatDayParts(
     ),
     weekday: formatDayHeadingParts(language, dateKey).weekday,
   };
+}
+
+/**
+ * How often a series repeats, as a phrase that stands alone (#2574). Only the
+ * weekday kind differs from `frequencyLabel`: the bare day names it prints
+ * read as days in a list of repeats, and as nothing in particular at the head
+ * of「毎週日曜 · 21:00–21:30」. A weekday repeat with no day picked has no
+ * names to wrap, so it keeps the fallback word.
+ */
+export function formatRepeatCycle(
+  routine: Pick<
+    RoutineNode,
+    "frequencyType" | "frequencyDays" | "frequencyInterval"
+  >,
+  copy: FrequencyLabelCopy,
+  weekdayLabels: string[],
+  weekly: (days: string) => string,
+): string {
+  const label = frequencyLabel(routine, copy, weekdayLabels);
+  return routine.frequencyType === "weekdays" &&
+    routine.frequencyDays.length > 0
+    ? weekly(label)
+    : label;
 }
 
 /**

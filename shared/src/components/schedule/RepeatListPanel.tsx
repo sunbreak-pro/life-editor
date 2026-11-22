@@ -31,8 +31,15 @@ export interface RepeatListRow {
    * Not drawn on the row since #2569 — the row's panel reads it (#2574).
    */
   timeLabel: string;
+  /** The end of that span (#2574); "" when the routine has none. */
+  endTimeLabel: string;
   /** Already-translated frequency summary (e.g. "毎日" / "月・水・金"). */
   frequencyLabel: string;
+  /**
+   * The same frequency as a phrase of its own (e.g. "毎週日曜"), for the row's
+   * panel (#2574): off the list, a bare "日" does not say it is a weekday.
+   */
+  cycleLabel: string;
   /**
    * Already-formatted date of the next occurrence, or null when the routine
    * fires on no day. Since #1678 such a row still opens — the panel it opens

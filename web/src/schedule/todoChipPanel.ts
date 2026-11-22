@@ -1,8 +1,16 @@
-import { HOLIDAY_ITEM_PREFIX, isTodoChip } from "@life-editor/shared";
+import {
+  HOLIDAY_ITEM_PREFIX,
+  contentExcerpt,
+  isTodoChip,
+  unwrapTodoChipId,
+} from "@life-editor/shared";
 import type {
   ItemAction,
   ScheduleItem,
   TodoCalendarChip,
+  TodoNode,
+  WikiTagAssignmentUnified,
+  WikiTagUnified,
 } from "@life-editor/shared";
 import { selectionSurface } from "./scheduleSelectionSurface";
 
@@ -69,10 +77,46 @@ export function itemTapRoute(
  */
 export const SCHEDULE_ITEM_PANEL_WIDTH = 520;
 
+/** One tag chip in a bubble's summary (#2397 / #2574). */
+export type ScheduleBubbleTag = Pick<
+  WikiTagUnified,
+  "id" | "name" | "color" | "icon"
+>;
+
+/**
+ * The tags one owner shows in its bubble (#2574): a todo's own, or a series'.
+ * The same rule an event's chips follow (useDuplicateTagCopy `tagsOf`) — a tag
+ * in the trash keeps its assignments and is not drawn.
+ */
+export function bubbleTags(
+  assignments: readonly Pick<WikiTagAssignmentUnified, "tagId">[],
+  allTags: readonly WikiTagUnified[],
+): ScheduleBubbleTag[] {
+  return assignments.flatMap(({ tagId }) => {
+    const tag = allTags.find((candidate) => candidate.id === tagId);
+    return tag && !tag.isDeleted ? [tag] : [];
+  });
+}
+
+/**
+ * The memo line of the todo behind a chip (#2574), read from the tree the
+ * calendar already holds. A todo's memo is a rich-text body, not the plain
+ * string an event carries, so the bubble shows its first line of text.
+ */
+export function todoChipMemo(
+  chipId: string,
+  todoNodes: readonly Pick<TodoNode, "id" | "content">[],
+): string | undefined {
+  const todoId = unwrapTodoChipId(chipId);
+  return contentExcerpt(todoNodes.find((n) => n.id === todoId)?.content);
+}
+
 /** Already-translated copy for the todo-chip bubble (§6.4). */
 export interface TodoChipPanelCopy {
   untitled: string;
   allDay: string;
+  /** #2574: the day with its time, worded as on an event's bubble. */
+  when: (dateKey: string, time: string) => string;
   delete: string;
   /** #625 "予定に変換" — the chip's own row is the shortest route to it. */
   convertToEvent: string;
@@ -95,11 +139,24 @@ export interface TodoChipPanelHandlers {
   onConvertToEvent: () => void;
 }
 
+/** What the bubble says of the todo beyond its chip (#2574). */
+export interface TodoChipDetails {
+  tags?: readonly ScheduleBubbleTag[];
+  memo?: string;
+}
+
 export interface TodoChipPanelModel {
   /** Summary heading — the chip's title, or the untitled placeholder. */
   title: string;
-  /** Summary meta line: the all-day word, or the chip's `HH:MM–HH:MM` span. */
-  timeLabel: string;
+  /**
+   * Summary meta line: the day, with the all-day word or the chip's
+   * `HH:MM–HH:MM` span (#2574).
+   */
+  when: string;
+  /** #2574: empty when the todo carries none. */
+  tags: readonly ScheduleBubbleTag[];
+  /** #2574: "" when the todo has no memo. */
+  memo: string;
   actions: ItemAction[];
   /** #2222: what the in-place form starts from. */
   quickEditValue: QuickEditValue;
@@ -151,16 +208,19 @@ export function todoChipPanelModel(
   chip: TodoCalendarChip,
   copy: TodoChipPanelCopy,
   handlers: TodoChipPanelHandlers,
+  details: TodoChipDetails = {},
 ): TodoChipPanelModel {
   // An all-day chip carries "00:00"–"00:00" (todoCalendarChips), so printing
   // its span would read as a zero-length midnight event rather than "all day" —
   // the same reason the event branch of the bubble looks at the flag first.
-  const timeLabel = chip.isAllDay
+  const time = chip.isAllDay
     ? copy.allDay
     : `${chip.startTime}–${chip.endTime}`;
   return {
     title: chip.title || copy.untitled,
-    timeLabel,
+    when: copy.when(chip.date, time),
+    tags: details.tags ?? [],
+    memo: details.memo ?? "",
     // Spec: a todo changes its start only. An all-day todo has no time to
     // change, so it edits its title alone.
     quickEditValue: chip.isAllDay

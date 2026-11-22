@@ -221,7 +221,9 @@ describe("ScheduleSidebar — repeats tab", () => {
     id: "r1",
     title: "Morning run",
     timeLabel: "7:00",
+    endTimeLabel: "7:30",
     frequencyLabel: "Daily",
+    cycleLabel: "Daily",
     nextLabel: "Aug 17",
   };
 

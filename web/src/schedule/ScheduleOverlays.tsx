@@ -1,4 +1,9 @@
-import { useState, type ComponentProps, type ReactNode } from "react";
+import {
+  useState,
+  type ComponentProps,
+  type JSX,
+  type ReactNode,
+} from "react";
 import {
   CalendarPlus,
   CalendarSearch,
@@ -22,16 +27,17 @@ import {
   TagFilterPanel,
   TagPill,
   useTranslation,
+  type BubbleKind,
   type ConfirmRequest,
   type ItemCreatePanelHandlers,
   type ItemCreatePanelLabels,
   type ItemCreatePanelPools,
   type ItemAction,
   type ItemCreateRepeatField,
+  type RepeatListRow,
   type ScheduleItem,
   type TagFilterPanelProps,
   type TodoCalendarChip,
-  type WikiTagUnified,
 } from "@life-editor/shared";
 import { formatDayParts } from "./scheduleCopy";
 import {
@@ -39,6 +45,7 @@ import {
   eventQuickEditPatch,
   eventQuickEditValue,
   todoChipPanelModel,
+  type ScheduleBubbleTag,
 } from "./todoChipPanel";
 import type {
   SchedulePopover,
@@ -99,12 +106,6 @@ export interface ScheduleItemPopoverActions {
   onDelete: (id: string) => void;
 }
 
-/** One tag chip in the event bubble's summary (#2397). */
-export type ScheduleBubbleTag = Pick<
-  WikiTagUnified,
-  "id" | "name" | "color" | "icon"
->;
-
 /** The todo-chip variant of the same bubble (#564 / #626 / #625). */
 export interface ScheduleTodoPopoverActions {
   onRename: (id: string, title: string) => void;
@@ -119,15 +120,17 @@ export interface ScheduleTodoPopoverActions {
 
 /**
  * The repeat tab's row panel (#1678). `row` is the pressed series as the list
- * already formatted it, so the panel says exactly what the row says.
+ * already formatted it. Since #2574 the panel says the series the way a bubble
+ * does — the cycle with its time — and the next date stays on the row.
  */
 export interface ScheduleRepeatPanel {
   state: { id: string; x: number; y: number } | null;
-  row: {
-    title: string;
-    frequencyLabel: string;
-    nextLabel: string | null;
-  } | null;
+  row: Pick<
+    RepeatListRow,
+    "title" | "cycleLabel" | "timeLabel" | "endTimeLabel" | "nextLabel"
+  > | null;
+  /** #2574: the series' own tags. Left out reads as none. */
+  tags?: readonly ScheduleBubbleTag[];
   onClose: () => void;
   /** Move the calendar to the next occurrence (the press's old behaviour). */
   onShowNext: (id: string) => void;
@@ -138,36 +141,41 @@ export interface ScheduleRepeatPanel {
 }
 
 /*
- * #2397: what the event bubble says about its item — the kind, the title, the
- * day with its time, the tags and the memo's first line, as in the Claude
- * Design proposal. The tag and memo rows are left out entirely when there is
- * nothing to put in them, so a bare event's bubble closes up instead of
- * keeping two empty rows.
+ * #2397: what a bubble says about its item — the kind, the title, when it is,
+ * the tags and the memo on one line, as in the Claude Design proposal. #2574
+ * gave the todo's and the repeat row's bubbles the same part. The tag and memo
+ * rows are left out entirely when there is nothing to put in them, so a bare
+ * item's bubble closes up instead of keeping two empty rows.
  *
  * The bubble grows with the tag row, which is fine: ItemActionPopover measures
  * what it drew and holds the panel inside the viewport (clampToViewport), and
  * a panel taller than that scrolls inside itself.
  */
-function EventBubbleSummary({
-  item,
+function BubbleSummary({
+  kind,
+  kindLabel,
   title,
   when,
-  tags,
-  kindLabel,
+  note,
+  tags = [],
+  memo: rawMemo,
 }: {
-  item: ScheduleItem;
+  kind: BubbleKind;
+  kindLabel: string;
   title: string;
   when: string;
-  tags: readonly ScheduleBubbleTag[];
-  kindLabel: string;
-}) {
+  /** A second line under `when`, for what the item cannot do. */
+  note?: string;
+  tags?: readonly ScheduleBubbleTag[];
+  memo?: string | null;
+}): JSX.Element {
   // One line: a memo written over several lines reads as one run of words,
   // and a memo of nothing but spaces and line breaks is no memo.
-  const memo = (item.memo ?? "").replace(/\s+/g, " ").trim();
+  const memo = (rawMemo ?? "").replace(/\s+/g, " ").trim();
   return (
     <div className="flex flex-col gap-0.5">
       <BubbleKindBadge
-        kind="event"
+        kind={kind}
         label={kindLabel}
         className="mb-0.5 self-start"
       />
@@ -175,6 +183,7 @@ function EventBubbleSummary({
         {title}
       </p>
       <p className="text-lumen-text-secondary">{when}</p>
+      {note && <p className="text-lumen-text-secondary">{note}</p>}
       {tags.length > 0 && (
         <div data-bubble-tags="" className="mt-1 flex flex-wrap gap-1">
           {tags.map((tag) => (
@@ -226,6 +235,12 @@ export interface ScheduleOverlaysProps {
     selectedTags?: readonly ScheduleBubbleTag[];
     /** The todo chip behind the bubble, when the bubble belongs to one. */
     todoChip: TodoCalendarChip | null;
+    /**
+     * #2574: that todo's tags and memo line. The chip is what the grid draws
+     * and holds neither. Left out reads as none.
+     */
+    todoTags?: readonly ScheduleBubbleTag[];
+    todoMemo?: string;
     onClose: () => void;
     onOpenDetail: (id: string) => void;
     itemActions: ScheduleItemPopoverActions;
@@ -290,7 +305,17 @@ export function ScheduleOverlays({
   const kindLabels = {
     event: t("scheduleScreen.typeEvent"),
     task: t("scheduleScreen.typeTodo"),
+    // #2574: no type switch offers a repeat, so this one is the month chip's
+    // own word for it.
+    routine: t("scheduleScreen.chipKindRoutine"),
   };
+
+  // #2397: the day and time line, the same on every bubble that names a day.
+  const bubbleWhen = (dateKey: string, time: string): string =>
+    t("scheduleScreen.bubbleWhen", {
+      ...formatDayParts(i18n.language, dateKey),
+      time,
+    });
 
   // #2564: the todo rows come from todoChipPanelModel, which stays free of
   // React nodes; the icons are a look this bubble adds, so they are put on
@@ -326,6 +351,7 @@ export function ScheduleOverlays({
           // written for the repeat list. A todo is neither.
           untitled: t("common.untitled"),
           allDay: t("scheduleScreen.allDay"),
+          when: bubbleWhen,
           delete: t("todoDetail.todoDelete"),
           convertToEvent: t("itemConvert.toEvent"),
         },
@@ -338,6 +364,7 @@ export function ScheduleOverlays({
           onConvertToEvent: () =>
             popover.todoActions.onConvertToEvent(popover.todoChip!.id),
         },
+        { tags: popover.todoTags, memo: popover.todoMemo },
       )
     : null;
 
@@ -349,6 +376,8 @@ export function ScheduleOverlays({
   const selectedQuickEdit = popover.selected
     ? eventQuickEditValue(popover.selected)
     : null;
+  const selectedKind =
+    popover.selected?.routineId != null ? "routine" : "event";
 
   /*
    * #2565: a holiday has no row (#1626), so `selected` and `todoChip` are both
@@ -414,19 +443,14 @@ export function ScheduleOverlays({
         // #2049: opened from the keyboard in the month "他 N 件" panel.
         autoFocus={popover.state.focus}
         summary={
-          <div className="flex flex-col gap-0.5">
-            <BubbleKindBadge
-              kind="task"
-              label={kindLabels.task}
-              className="mb-0.5 self-start"
-            />
-            <p className="line-clamp-2 break-words font-semibold text-lumen-text">
-              {todoChipPanel.title}
-            </p>
-            <p className="text-lumen-text-secondary">
-              {todoChipPanel.timeLabel}
-            </p>
-          </div>
+          <BubbleSummary
+            kind="task"
+            kindLabel={kindLabels.task}
+            title={todoChipPanel.title}
+            when={todoChipPanel.when}
+            tags={todoChipPanel.tags}
+            memo={todoChipPanel.memo}
+          />
         }
         actions={withTodoIcons(todoChipPanel.actions)}
         quickEdit={{
@@ -455,17 +479,19 @@ export function ScheduleOverlays({
         position={{ x: popover.state.x, y: popover.state.y }}
         autoFocus={popover.state.focus}
         summary={
-          <EventBubbleSummary
-            item={popover.selected}
+          <BubbleSummary
+            // #2574: an occurrence of a series says so, as the grid's icon does.
+            kind={selectedKind}
+            kindLabel={kindLabels[selectedKind]}
             title={popover.selected.title || t("scheduleCalendar.newEvent")}
-            when={t("scheduleScreen.bubbleWhen", {
-              ...formatDayParts(i18n.language, popover.selected.date),
-              time: popover.selected.isAllDay
+            when={bubbleWhen(
+              popover.selected.date,
+              popover.selected.isAllDay
                 ? t("scheduleScreen.allDay")
                 : `${popover.selected.startTime}–${popover.selected.endTime}`,
-            })}
-            tags={popover.selectedTags ?? []}
-            kindLabel={kindLabels.event}
+            )}
+            tags={popover.selectedTags}
+            memo={popover.selected.memo}
           />
         }
         // #2222: the title, day and time are edited where they are printed
@@ -552,6 +578,13 @@ export function ScheduleOverlays({
       />
     ) : null;
 
+  // Either end may be missing on a series, and a lone one takes no dash.
+  const repeatTime = repeatPanel.row
+    ? [repeatPanel.row.timeLabel, repeatPanel.row.endTimeLabel]
+        .filter(Boolean)
+        .join("–")
+    : "";
+
   /*
    * #1678 — the repeat row's panel. Desktop only, for the same reason the
    * grid's bubble is (#299): on narrow the list lives in the drawer that
@@ -568,18 +601,27 @@ export function ScheduleOverlays({
         key={repeatPanel.state.id}
         position={{ x: repeatPanel.state.x, y: repeatPanel.state.y }}
         summary={
-          <div className="flex flex-col gap-0.5">
-            <p className="line-clamp-2 break-words font-semibold text-lumen-text">
-              {repeatPanel.row.title}
-            </p>
-            <p className="text-lumen-text-secondary">
-              {repeatPanel.row.frequencyLabel}
-            </p>
-            <p className="text-lumen-text-secondary">
-              {repeatPanel.row.nextLabel ??
-                t("scheduleScreen.repeatNeverFires")}
-            </p>
-          </div>
+          <BubbleSummary
+            kind="routine"
+            kindLabel={kindLabels.routine}
+            title={repeatPanel.row.title}
+            when={
+              repeatTime
+                ? t("scheduleScreen.repeatBubbleWhen", {
+                    cycle: repeatPanel.row.cycleLabel,
+                    time: repeatTime,
+                  })
+                : repeatPanel.row.cycleLabel
+            }
+            // #2574 took the next date out (the row says it), not this: the
+            // disabled "show the next one" needs its reason beside it.
+            note={
+              repeatPanel.row.nextLabel == null
+                ? t("scheduleScreen.repeatNeverFires")
+                : undefined
+            }
+            tags={repeatPanel.tags}
+          />
         }
         actions={[
           {
