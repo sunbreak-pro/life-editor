@@ -225,15 +225,14 @@ describe("the add dialog's floor on a phone (#2427)", () => {
     );
   });
 
-  it("sizes the footer's two submits from their labels on a phone", () => {
-    // An equal split (flex-basis 0) is 103px each at 375px, under the 110px
-    // that 「追加して詳細へ」 needs, so its last character fell to a second line.
+  it("splits the footer's two submits equally on a phone", () => {
+    // Equal width wins over fitting the label: at 375px each is 103px, so
+    // 「追加して詳細へ」 may wrap, and the 44px floor keeps it inside the button.
     renderPanel();
     for (const name of ["Add and edit", "Add"]) {
-      expect(screen.getByRole("button", { name })).toHaveClass(
-        "flex-1",
-        "max-md:basis-auto",
-      );
+      const button = screen.getByRole("button", { name });
+      expect(button).toHaveClass("flex-1", "max-md:min-h-11");
+      expect(button).not.toHaveClass("max-md:basis-auto");
     }
   });
 });
