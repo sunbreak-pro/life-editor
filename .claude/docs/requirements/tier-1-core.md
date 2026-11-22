@@ -58,7 +58,7 @@
 
 - DB Tables: `goals_payload` / `goal_todo_links`（目標）と `dailies_payload` の `morning_comment` / `evening_published_at` / `evening_notes`（2026-10〜）。夕刊の文章と気分は今も `dailies_payload.content_json` 内の見出しセクション
 - 読み取り: ScheduleItem（今日の約束）/ TodoNode（今日のタスク・持ち越し）/ タスクツリー（視覚ゾーンの完了推移。連続記録と作業・休憩の割合は #2717 で外し、`timer_sessions` は読まない）/ WikiTagsUnified リンク（タスク行の purposes）
-- 他機能: Daily（朝刊・夕刊の保存先）/ Schedule（閲覧責務の移譲元）/ Todos/ MCP Server（Step 2 の書き込み経路）
+- 他機能: Daily（朝刊・夕刊の保存先）/ Schedule（閲覧責務の移譲元）/ Todos / MCP Server（Step 2 の書き込み経路）
 - 子計画: `2026-07-14-schedule-redesign.md`（「組む」）/ `2026-07-16-loop-friction-fixes.md`（F-1 / F-2 / F-6 — COMPLETED・`archive/` 移動済）
 
 ### Known Issues / Tech Debt
