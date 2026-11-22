@@ -369,10 +369,6 @@
   --color-lumen-chip-task-dot: var(--color-chip-task-dot);
   --color-lumen-chip-progress-bg: var(--color-chip-progress-bg);
   --color-lumen-chip-progress-fg: var(--color-chip-progress-fg);
-  /* Pomodoro LONG_BREAK phase accent (amber). Reuses the theme-invariant
-     chart phase hue so the ring / main button read as a distinct third phase
-     (WORK reuses accent, BREAK reuses the mint secondary). Additive only. */
-  --color-lumen-phase-long-break: var(--color-chart-phase-long-break);
   --color-lumen-on-vivid: var(--color-on-vivid);
   --color-lumen-status-done-band: var(--color-status-done-band);
   /* Schedule (W8 target-IA) — routine=藍 / single event=紫 block faces +
