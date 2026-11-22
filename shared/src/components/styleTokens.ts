@@ -184,13 +184,13 @@ export const BUSY_SPINNER = "animate-spin motion-reduce:animate-none";
  * Content left on screen while a refresh replaces it (#1804).
  *
  * The other half of the busy problem. A control that is working can say so in
- * a spinner; a PANEL that is re-fetching has no control to put one on, and
- * Analytics deliberately keeps the previous range's numbers up rather than
- * flashing a skeleton over them. Until now the only thing marking that pause
- * was `aria-busy`, so the numbers on screen looked current when they were the
- * ones from before the click.
+ * a spinner; a LIST that is re-fetching has no control to put one on. The
+ * notes list (NotesSidebarList) keeps its title matches up while the body half
+ * of a search is still in flight, rather than flashing a skeleton over them.
+ * `aria-busy` alone would leave those rows looking like the finished answer to
+ * anyone watching the screen.
  *
- * Dimming rather than covering, because the stale figures are still the best
+ * Dimming rather than covering, because the stale rows are still the best
  * answer available — they just should not read as settled. `opacity-60` is
  * the same dim the auth cards already put over their fields while a submit is
  * in flight, so "this region is waiting" looks the same everywhere.

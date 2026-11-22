@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { cn } from "./cn";
 
 /** Page width variant — the single knob a host picks per section. */
-export type PageContainerWidth = "reading" | "data" | "wide" | "fluid" | "full";
+export type PageContainerWidth = "reading" | "wide" | "fluid" | "full";
 
 export interface PageContainerProps {
   /**
@@ -10,10 +10,9 @@ export interface PageContainerProps {
    * styles/tokens.css (--container-lumen-*); naming it here too would just be
    * a second copy to forget when the columns are retuned.
    *   - "reading": document-style centered column (max-w-lumen-reading) — the
-   *     default for text surfaces, and the narrowest of the three.
-   *   - "data": wide dashboard column (max-w-lumen-data) — analytics.
+   *     default for text surfaces, and the narrower of the two columns.
    *   - "wide": the Notes / Daily editor column (max-w-lumen-wide) — the
-   *     widest variant, a mid-point between reading and full-bleed for text
+   *     wider of the two, a mid-point between reading and full-bleed for text
    *     surfaces that want more room than a reading column but not the full
    *     page width.
    *   - "fluid": the child owns its full-bleed h-full layout + self-scroll
@@ -86,7 +85,6 @@ export function PageContainer({
             className={cn(
               "mx-auto w-full px-lumen-gutter py-4 md:px-lumen-gutter-wide md:py-6",
               width === "reading" && "max-w-lumen-reading",
-              width === "data" && "max-w-lumen-data",
               width === "wide" && "max-w-lumen-wide",
               // "full" sets no max-w — gutter-padded full width.
             )}

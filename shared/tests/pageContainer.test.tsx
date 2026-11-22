@@ -19,17 +19,16 @@ describe("PageContainer", () => {
     );
     expect(screen.getByText("body")).toBeInTheDocument();
     expect(container.querySelector(".max-w-lumen-reading")).not.toBeNull();
-    expect(container.querySelector(".max-w-lumen-data")).toBeNull();
+    expect(container.querySelector(".max-w-lumen-wide")).toBeNull();
   });
 
-  it("uses the wide data column (max-w-lumen-data) for width='data'", () => {
-    // data is the only regression foothold until #181 wires an in-app consumer.
+  it("uses the editor column (max-w-lumen-wide) for width='wide'", () => {
     const { container } = render(
-      <PageContainer width="data">
+      <PageContainer width="wide">
         <p>body</p>
       </PageContainer>,
     );
-    expect(container.querySelector(".max-w-lumen-data")).not.toBeNull();
+    expect(container.querySelector(".max-w-lumen-wide")).not.toBeNull();
     expect(container.querySelector(".max-w-lumen-reading")).toBeNull();
   });
 
@@ -42,7 +41,7 @@ describe("PageContainer", () => {
       </PageContainer>,
     );
     expect(container.querySelector(".max-w-lumen-reading")).toBeNull();
-    expect(container.querySelector(".max-w-lumen-data")).toBeNull();
+    expect(container.querySelector(".max-w-lumen-wide")).toBeNull();
     expect(container.querySelector(".overflow-y-auto")).not.toBeNull();
     expect(container.querySelector(".px-lumen-gutter")).not.toBeNull();
   });
@@ -55,7 +54,6 @@ describe("PageContainer", () => {
     );
     expect(screen.getByText("body")).toBeInTheDocument();
     expect(container.querySelector(".max-w-lumen-reading")).toBeNull();
-    expect(container.querySelector(".max-w-lumen-data")).toBeNull();
     // fluid drops the self-scroll wrapper too — the body sits in a bare flex-1.
     expect(container.querySelector(".overflow-y-auto")).toBeNull();
   });

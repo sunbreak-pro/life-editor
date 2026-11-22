@@ -51,6 +51,7 @@ export function useGoalTreeLabels(todayKey: string): {
       addPlaceholder: t("connect.goals.addPlaceholder"),
       addNoParentHint: t("connect.goals.addNoParentHint"),
       add: t("connect.goals.add"),
+      saveGoal: t("connect.goals.saveGoal"),
       cancel: t("connect.goals.cancel"),
       startDate: t("connect.goals.startDate"),
       endDate: t("connect.goals.endDate"),

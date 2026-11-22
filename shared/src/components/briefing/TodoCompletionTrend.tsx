@@ -23,6 +23,15 @@ import {
   trendDateLabels,
 } from "./todoCompletionTrendData";
 
+/*
+ * recharts centres the last date label on the plot's right edge, so half of it
+ * overhangs into the margin and the svg clips whatever does not fit (#2782).
+ * A glyph at CHART_TICK's 10px is at most 6px wide (the monospace setting), so
+ * half a label needs 3px per character. Derived from the label rather than
+ * fixed because the week that crosses New Year prints the year as well.
+ */
+const DATE_TICK_OVERHANG_PER_CHAR_PX = 3;
+
 export interface TodoCompletionTrendLabels {
   title: string;
   completedCount: string;
@@ -54,6 +63,10 @@ export function TodoCompletionTrend({
     }));
   }, [nodes, days]);
 
+  const rightMargin =
+    (data[data.length - 1]?.date.length ?? 0) * DATE_TICK_OVERHANG_PER_CHAR_PX +
+    1;
+
   // Even stride counted back from today (#1866) — see `evenDateTicks`.
   const dateTicks = useMemo(
     () =>
@@ -69,7 +82,7 @@ export function TodoCompletionTrend({
       <ResponsiveContainer width="100%" height={CHART_HEIGHT_MD} minWidth={0}>
         <AreaChart
           data={data}
-          margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
+          margin={{ top: 5, right: rightMargin, left: -10, bottom: 0 }}
         >
           <CartesianGrid {...CHART_GRID} />
           <XAxis

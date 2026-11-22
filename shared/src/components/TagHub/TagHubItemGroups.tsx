@@ -11,7 +11,11 @@ import {
 } from "lucide-react";
 import { cn } from "../cn";
 import { FOCUS_RING_TIGHT } from "../styleTokens";
-import { ItemRoleBadge } from "../items/ItemRoleBadge";
+import {
+  ITEM_ROLE_ICON,
+  ITEM_ROLE_ICON_CLASS,
+  type ItemRole,
+} from "../items/itemRole";
 import { SelectCheckbox } from "../SelectCheckbox";
 import { TodoStatusCheckbox } from "../TodoStatusCheckbox";
 import type { TodoStatus } from "../../types/todoTree";
@@ -22,20 +26,21 @@ import type { TagHubGroup, TagHubItem, TagHubLabels } from "./types";
  *
  * #2224 reworked the rows after the Claude Design prototype:
  *   - each kind is a FRAME of its own, headed by the kind's icon (the same
- *     tint the Schedule gives it — ../items/itemRole), its name and a count;
+ *     tint the Schedule gives it — ../items/itemRole), its name and a count —
+ *     since #2601 an icon box, a bold name, and a pill at the right end;
  *   - every row starts with its DAY, bold, and a time under it. That pair is
- *     the row's whole date: the right edge carries none any more;
+ *     the row's whole date: the right edge carries none any more. On wide the
+ *     kind's icon box stands between that column and the title (#2601);
  *   - a todo row leads with the round completion checkbox, and a done todo is
- *     struck through with a "Done" chip;
+ *     struck through with a green "Done" pill;
  *   - the square selection checkbox (#2217) appears only in selection mode,
  *     left of the day, so an ordinary read of a topic is not a column of boxes;
  *   - a right-click (a long press on a phone) asks the host to EDIT the row —
  *     what that means per kind is the host's (the item panel for a todo or an
  *     event, the item's own screen otherwise).
  *
- * The kind is announced by the frame's HEADING rather than by a badge on every
- * row — the same ItemRoleBadge the tag editor puts on each row (#409), lifted
- * once to the top of its run.
+ * The kind is ANNOUNCED by the frame's heading, once per run; the box on each
+ * wide row is decoration for the eye.
  *
  * Rows NAVIGATE (or select, on wide), they do not edit in place — except the
  * todo's round checkbox, the one-tap write the Mobile brief keeps.
@@ -46,21 +51,62 @@ import type { TagHubGroup, TagHubItem, TagHubLabels } from "./types";
 /*
  * #2496 — a cramped Desktop frame. The detail column shrinks with the right
  * panel, and a frame under 20rem left the title 3–4 characters between the
- * 4.5rem day column and the Done chip, with the chip pushed onto the frame's
- * clipped edge. Under that width the row turns into two lines: the title takes
- * the whole first line, and the day (now inline with its time) and the chip
- * follow on the second. Order only — the DOM, and so the button's name, stays.
+ * day column and the Done chip, with the chip pushed onto the frame's clipped
+ * edge. Under that width the row turns into two lines: the title takes the
+ * whole first line, and the kind box, the day (now inline with its time) and
+ * the chip follow on the second. Order only — the DOM, and so the button's
+ * name, stays.
  *
  * Wide only, measured on the frame (`@container`): the phone keeps the row it
  * has, and the standard Desktop panel (~24rem frames) is above the line.
  */
 const NARROW = {
   button: "@max-[20rem]:flex-wrap @max-[20rem]:gap-y-0.5",
+  kind: "@max-[20rem]:order-1",
   when: "@max-[20rem]:order-2 @max-[20rem]:w-auto @max-[20rem]:flex-row @max-[20rem]:items-center @max-[20rem]:gap-1.5",
   title: "@max-[20rem]:basis-full",
   done: "@max-[20rem]:order-3",
   chevron: "@max-[20rem]:order-4 @max-[20rem]:ml-auto",
 } as const;
+
+/*
+ * The box's face per kind (#2601): the opaque wash of the hue
+ * ITEM_ROLE_ICON_CLASS paints the icon with. A note's hue (accent-secondary)
+ * has no `-subtle` token; the mint chip face is that hue's wash.
+ */
+const KIND_BOX_CLASS: Record<ItemRole, string> = {
+  task: "bg-lumen-accent-subtle",
+  event: "bg-lumen-info-subtle",
+  note: "bg-lumen-chip-mint-bg",
+  daily: "bg-lumen-warning-subtle",
+};
+
+/** The kind's icon in a box of its tint — a frame's heading and a wide row. */
+function KindIconBox({
+  role,
+  size,
+  className,
+}: {
+  role: ItemRole;
+  size: "heading" | "row";
+  className?: string;
+}): React.JSX.Element {
+  const Icon = ITEM_ROLE_ICON[role];
+  return (
+    <span
+      aria-hidden
+      data-taghub-kind={role}
+      className={cn(
+        "grid shrink-0 place-items-center rounded-lumen-sm",
+        size === "heading" ? "size-5" : "size-[1.375rem]",
+        KIND_BOX_CLASS[role],
+        className,
+      )}
+    >
+      <Icon size={13} className={ITEM_ROLE_ICON_CLASS[role]} />
+    </span>
+  );
+}
 
 /** How long a touch has to rest on a row before it counts as a long press. */
 export const LONG_PRESS_MS = 500;
@@ -152,6 +198,7 @@ export function TagHubItemGroups({
   onItemContextMenu,
 }: TagHubItemGroupsProps) {
   const showSelect = selecting && onToggleChecked !== undefined;
+  const hasChecked = showSelect && (checkedIds?.size ?? 0) > 0;
 
   /*
    * The long press (#2224). iOS Safari raises no `contextmenu` for a held
@@ -240,7 +287,15 @@ export function TagHubItemGroups({
   };
 
   return (
-    <div className="flex flex-col gap-3">
+    <div
+      className={cn(
+        "flex flex-col gap-3",
+        // #2601 — the narrow selection bar is a card of up to four 44px lines
+        // pinned over the list's end, taller than the room the view leaves for
+        // it. Without this the last rows can never be scrolled clear of it.
+        !wide && hasChecked && "pb-40",
+      )}
+    >
       {groups.map((group) => (
         <section
           key={group.role}
@@ -252,9 +307,9 @@ export function TagHubItemGroups({
           )}
         >
           {/*
-           * aria-label rather than the concatenated content: the badge already
-           * names the kind and the chip is a bare number, so without it the
-           * heading is announced as "Todo 3" with no sense of what 3 counts.
+           * aria-label rather than the concatenated content: the pill is a
+           * bare number, so without it the heading is announced as "Todo 3"
+           * with no sense of what 3 counts.
            */}
           <h3
             aria-label={`${labels.roles[group.role]}: ${formatCount(
@@ -262,10 +317,17 @@ export function TagHubItemGroups({
             )}`}
             className="flex items-center gap-2 border-b border-lumen-border bg-lumen-bg-secondary px-2 py-1.5"
           >
-            <ItemRoleBadge role={group.role} labels={labels.roles} size="md" />
+            <KindIconBox role={group.role} size="heading" />
             <span
               aria-hidden
-              className="text-sm font-medium tabular-nums text-lumen-text-tertiary"
+              className="min-w-0 truncate text-xs font-bold text-lumen-text"
+            >
+              {labels.roles[group.role]}
+            </span>
+            <span
+              aria-hidden
+              data-taghub-count=""
+              className="ml-auto min-w-6 shrink-0 rounded-full border border-lumen-border bg-lumen-bg px-1.5 text-center text-xs tabular-nums text-lumen-text-secondary"
             >
               {group.items.length}
             </span>
@@ -285,8 +347,11 @@ export function TagHubItemGroups({
               /*
                * The day and the time under (wide) or after (narrow) it. Wide
                * gives them a fixed column at the left edge; narrow lays them
-               * on one line under the title (#2498), where a 4.5rem column
+               * on one line under the title (#2498), where a fixed column
                * left a 390px phone three letters of title.
+               *
+               * The two glyphs are narrow's: wide shows a daily's kind in its
+               * box and a repeat left of the title (#2601).
                */
               const whenParts = (
                 <>
@@ -298,18 +363,22 @@ export function TagHubItemGroups({
                         : "text-lumen-text-tertiary",
                     )}
                   >
-                    {item.role === "daily" && (
+                    {!wide && item.role === "daily" && (
                       <CalendarDays
                         size={12}
                         className="shrink-0 text-lumen-warning"
                       />
                     )}
-                    <span className="truncate">{dayText}</span>
+                    {/* Wide never clips the day: another year's is a few px
+                        over the column, and spills into the row's gap. */}
+                    <span className={wide ? "whitespace-nowrap" : "truncate"}>
+                      {dayText}
+                    </span>
                   </span>
-                  {(timeText || item.repeats) && (
+                  {(timeText || (!wide && item.repeats)) && (
                     <span className="flex items-center gap-1 text-[11px] tabular-nums text-lumen-text-tertiary">
                       {timeText && <span className="truncate">{timeText}</span>}
-                      {item.repeats && (
+                      {!wide && item.repeats && (
                         <Repeat size={11} className="shrink-0" />
                       )}
                     </span>
@@ -320,7 +389,7 @@ export function TagHubItemGroups({
                 <span
                   data-taghub-done=""
                   className={cn(
-                    "shrink-0 whitespace-nowrap rounded-lumen-sm border border-lumen-border px-1.5 py-0.5 text-[11px] text-lumen-text-secondary",
+                    "shrink-0 whitespace-nowrap rounded-full bg-lumen-success-subtle px-2 py-0.5 text-[11px] font-medium text-lumen-success",
                     extra,
                   )}
                 >
@@ -393,7 +462,11 @@ export function TagHubItemGroups({
                       // #1749 — `min-w-0` is what lets the row end at the
                       // screen edge; truncation only reaches the title once
                       // every flex level above can shrink.
-                      "group flex min-w-0 flex-1 items-center gap-3 rounded-lumen-sm px-2 py-1.5 text-left",
+                      "group flex min-w-0 flex-1 items-center rounded-lumen-sm px-2 py-1.5 text-left",
+                      // Wide holds one more piece (the kind box) in the width
+                      // the wider day column used to take. One gap class or
+                      // the other — `cn` does not merge.
+                      wide ? "gap-2" : "gap-3",
                       "transition-colors hover:bg-lumen-hover",
                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
                       // #1561 — 44px touch floor on narrow only. `min-h-*`,
@@ -409,12 +482,19 @@ export function TagHubItemGroups({
                         aria-hidden
                         data-taghub-when=""
                         className={cn(
-                          "flex w-[4.5rem] shrink-0 flex-col leading-tight",
+                          "flex w-[3.25rem] shrink-0 flex-col leading-tight",
                           NARROW.when,
                         )}
                       >
                         {whenParts}
                       </span>
+                    )}
+                    {wide && (
+                      <KindIconBox
+                        role={item.role}
+                        size="row"
+                        className={NARROW.kind}
+                      />
                     )}
                     <span
                       data-taghub-title=""
@@ -432,6 +512,17 @@ export function TagHubItemGroups({
                         )}
                         title={item.title}
                       >
+                        {/* Inside the title's own line, so it truncates with
+                            the title instead of taking a line of its own.
+                            Read through the button's name above. */}
+                        {wide && item.repeats && (
+                          <Repeat
+                            size={12}
+                            aria-hidden
+                            data-taghub-repeat=""
+                            className="mr-1 inline-block align-[-0.125em] text-lumen-text-tertiary"
+                          />
+                        )}
                         {item.title}
                       </span>
                       {/* #2498 — narrow reads the day and the Done chip under

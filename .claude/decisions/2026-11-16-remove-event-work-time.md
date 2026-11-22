@@ -10,7 +10,7 @@ topics: [feature-removal, work-time, timer-sessions, schedule]
 refs: ["#2716", "#2717", "#2718", "#2407", "#2553", "docs/reports/2026-11-16-feature-inventory-for-removal.html", "https://claude.ai/artifact/7XVyuwdr2WXwxcRHmZiLiv"]
 supersedes: []
 superseded-by: []
-implemented-by: []
+implemented-by: ["#2767", "#2773"]
 promoted-to: null
 ---
 

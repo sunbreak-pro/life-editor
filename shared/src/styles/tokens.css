@@ -135,30 +135,10 @@
      task chip face above. The done band is the 4px accent line for a
      finished item — a slightly stronger, solid tone than the chip-* faces so
      the status reads at a glance. Its hue is FIXED (green), so it stays the
-     same across themes (it encodes state, like the chart series below). */
+     same across themes (it encodes state). */
   --color-chip-progress-bg: #fef6e0;
   --color-chip-progress-fg: #a06b09;
   --color-status-done-band: #10b981;
-  /* Analytics data-series colors. These encode DATA (a task-age bucket, a
-     project category, a session phase), not themeable container chrome, so
-     a given series keeps the same hue across light/dark — defined once here
-     and reused by both themes. Ported verbatim from frontend charts. */
-  --color-chart-stagnation-1: #22c55e; /* < 1 week */
-  --color-chart-stagnation-2: #84cc16; /* 1-2 weeks */
-  --color-chart-stagnation-3: #eab308; /* 2-4 weeks */
-  --color-chart-stagnation-4: #f97316; /* 1-3 months */
-  --color-chart-stagnation-5: #ef4444; /* 3+ months */
-  --color-chart-phase-long-break: #f59e0b; /* WORK/BREAK reuse accent/success */
-  --color-chart-cat-1: #2563eb;
-  --color-chart-cat-2: #22c55e;
-  --color-chart-cat-3: #f59e0b;
-  --color-chart-cat-4: #ef4444;
-  --color-chart-cat-5: #8b5cf6;
-  --color-chart-cat-6: #ec4899;
-  --color-chart-cat-7: #06b6d4;
-  --color-chart-cat-8: #84cc16;
-  --color-chart-cat-9: #f97316;
-  --color-chart-cat-10: #6366f1;
   /* Elevation (W-UX). Soft, layered panel/card shadows so surfaces read as
      designed depth rather than flat outlined boxes. Tuned for the light
      surface; the dark counterparts (below) use higher alpha + larger blur so
@@ -369,10 +349,6 @@
   --color-lumen-chip-task-dot: var(--color-chip-task-dot);
   --color-lumen-chip-progress-bg: var(--color-chip-progress-bg);
   --color-lumen-chip-progress-fg: var(--color-chip-progress-fg);
-  /* Pomodoro LONG_BREAK phase accent (amber). Reuses the theme-invariant
-     chart phase hue so the ring / main button read as a distinct third phase
-     (WORK reuses accent, BREAK reuses the mint secondary). Additive only. */
-  --color-lumen-phase-long-break: var(--color-chart-phase-long-break);
   --color-lumen-on-vivid: var(--color-on-vivid);
   --color-lumen-status-done-band: var(--color-status-done-band);
   /* Schedule (W8 target-IA) — routine=藍 / single event=紫 block faces +
@@ -426,15 +402,14 @@
   --spacing-lumen-4: 16px;
   --spacing-lumen-6: 24px;
   /* Content width scale (Layout Standard v1, Issue #180) → max-w-lumen-reading /
-     max-w-lumen-data / max-w-lumen-wide. reading = document-style centered
-     column; data = wide dashboard column (analytics); wide = the Notes / Daily
-     editor column, a mid-point between reading and full-bleed (2026-07-19 user
-     request). Owned by PageContainer; sections must not hardcode page widths,
-     and no other file should restate these px — the three lines below are the
-     only place they appear.
+     max-w-lumen-wide. reading = document-style centered column; wide = the
+     Notes / Daily editor column, a mid-point between reading and full-bleed
+     (2026-07-19 user request). Owned by PageContainer; sections must not
+     hardcode page widths, and no other file should restate these px — the two
+     lines below are the only place they appear.
 
      Widened by 50px each on 2026-08-02 (user request: the side margins read as
-     too generous). All three moved together so the relationship between the
+     too generous). Both moved together so the relationship between the
      variants is unchanged — only the column set as a whole is wider, which is
      what "narrow the side space" means once the gutter is already at its
      minimum on a wide screen.
@@ -443,7 +418,6 @@
      web/src: that is the app's narrow/wide breakpoint, a different concept
      that happens to share a number with the original reading column. */
   --container-lumen-reading: 818px;
-  --container-lumen-data: 1050px;
   --container-lumen-wide: 1170px;
   /* Layout Standard v1 page gutter — horizontal padding 16px narrow / 24px ≥md,
      consumed as px-lumen-gutter / md:px-lumen-gutter-wide. */
