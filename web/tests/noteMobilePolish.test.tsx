@@ -117,15 +117,20 @@ describe("Note header tag row (#2291 items 2, 5 and 8)", () => {
     expect(remove.closest("span.contents")).toBeNull();
   });
 
-  it("gives the chip's X and every picker row the 44px floor on narrow", async () => {
+  it("gives the chip's X, the bare + and every picker row its floor on narrow", async () => {
     renderPicker(false);
     const remove = await screen.findByRole("button", {
       name: "Remove tag Work",
     });
-    expect(remove.className).toContain("max-md:min-h-11");
-    expect(remove.className).toContain("max-md:min-w-11");
+    expect(remove.className).toContain("max-md:min-h-lumen-tap-touch");
+    expect(remove.className).toContain("max-md:min-w-lumen-tap-touch");
 
-    fireEvent.click(screen.getByRole("button", { name: "Add tag" }));
+    // #2673: with a tag on, a phone's add button is a "+" with no name.
+    const add = screen.getByRole("button", { name: "Add tag" });
+    expect(add.className).toContain("max-md:min-h-lumen-tap-touch");
+    expect(add.className).toContain("max-md:min-w-lumen-tap-touch");
+    expect(add.className).not.toContain("max-md:min-h-11");
+    fireEvent.click(add);
     const candidate = await screen.findByRole("button", { name: "Home" });
     expect(candidate.className).toContain("max-md:min-h-11");
     fireEvent.change(screen.getByRole("textbox"), {

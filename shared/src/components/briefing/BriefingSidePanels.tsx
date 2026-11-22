@@ -167,7 +167,7 @@ export function EveningTodosPanel({
           {todos.map((todo) => (
             <li
               key={todo.id}
-              className="flex items-center gap-1.5 border-b border-dashed border-lumen-border last:border-b-0"
+              className="flex items-center gap-1.5 border-b border-dashed border-lumen-border last:border-b-0 max-md:min-h-11"
             >
               {/* 朱 is the user's own action voice on the paper, so the
                   control wears it rather than the app accent. */}

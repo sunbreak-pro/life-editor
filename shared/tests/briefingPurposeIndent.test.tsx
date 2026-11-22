@@ -12,7 +12,8 @@ import {
  *
  * Since #2223 the todo sits in a cell of the time table, so the indent clears
  * the two columns that now stand before its title: the checkbox (`min-w-11`)
- * and the `gap-1` after it — 2.75 + 0.25 = 3rem, `ml-12`. Both are rem, so the
+ * and the `gap-1` after it — 2.75 + 0.25 = 3rem, `ml-12` (on a phone the
+ * checkbox is the icon-only floor, and the indent reads the same token). Both are rem, so the
  * only honest indent is rem too. Written as `ml-[124px]` it matched exactly
  * one step of the Settings font scale and started left of the title at the
  * others.
@@ -99,6 +100,10 @@ describe("#1821 — the purpose line's indent follows the columns", () => {
     renderMorning();
     // 2.75rem (min-w-11) + 0.25 (gap-1).
     expect(purposeLine().className).toContain("ml-12");
+    // A phone's checkbox is the icon-only floor (#2673), so is its indent.
+    expect(purposeLine().className).toContain(
+      "max-md:ml-[calc(var(--spacing-lumen-tap-touch)+var(--spacing))]",
+    );
   });
 
   it("carries no px indent of any kind", () => {

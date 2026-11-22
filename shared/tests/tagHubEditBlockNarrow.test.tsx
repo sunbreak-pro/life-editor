@@ -6,7 +6,7 @@ import { TAG_HUB_LABELS } from "./tagHubLabels";
 
 /*
  * #2499 — at 390px the tag edit sheet's colour swatches were 27px and the name
- * field 38px, under the 44px touch floor (#1561), and the "Icon" / "Color"
+ * field 38px, under the touch floor (#1561), and the "Icon" / "Color"
  * labels sat halfway down their rows instead of beside the first line. #2603
  * then put each label on top of its field, which retires the label heights.
  *
@@ -50,12 +50,12 @@ const swatches = (): HTMLElement[] =>
 beforeEach(cleanup);
 
 describe("tag edit block — touch floor on narrow (#2499)", () => {
-  it("gives every swatch a 44px hit area around the same 24px dot", () => {
+  it("gives every swatch the icon-only floor around the same 24px dot", () => {
     renderBlock();
 
     for (const swatch of swatches()) {
       // Desktop size kept; the phone size is a max-md: override.
-      expect(swatch).toHaveClass("h-6", "w-6", "max-md:h-11", "max-md:w-11");
+      expect(swatch).toHaveClass("h-6", "w-6", "max-md:size-lumen-tap-touch");
       const dot = swatch.querySelector("[data-swatch-dot]") as HTMLElement;
       expect(dot).not.toBeNull();
       expect(dot).toHaveClass("h-6", "w-6", "rounded-full");
@@ -162,10 +162,14 @@ describe("tag edit block — each caption on top of its field (#2603)", () => {
     expect((save as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it("matches the icon strip's narrow height (the strip is unchanged)", () => {
+  it("keeps the icon strip one floor-sized row on narrow (#2673)", () => {
     renderBlock();
     const strip = screen.getByRole("group", { name: LABELS.iconLabel });
 
-    expect(strip).toHaveClass("max-md:h-12");
+    expect(strip).toHaveClass(
+      "max-md:h-[calc(var(--spacing-lumen-tap-touch)+var(--spacing))]",
+    );
+    // The column gap alone: a row gap keeps the folded line out of the padding.
+    expect(strip).toHaveClass("gap-1", "max-md:gap-x-0");
   });
 });

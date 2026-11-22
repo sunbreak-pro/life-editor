@@ -188,11 +188,12 @@ export function TagHubEditBlock({
            */}
           <div className="flex flex-wrap items-center gap-4 max-md:items-start">
             {/*
-             * On narrow each swatch is a 44px button around the same 24px dot
-             * (#2499): the dot stays the size it is, the hit area reaches the
-             * touch floor. Six 44px cells are wider than the sheet's field
-             * column at 390px, so the grid drops to four columns and closes
-             * its gap — the cells' own padding is the gap between the dots.
+             * On narrow each swatch is a floor-sized button around the same
+             * 24px dot (#2499, #2673): the dot stays the size it is, the hit
+             * area reaches the touch floor. Six 44px cells were wider than the
+             * sheet's field column at 390px, so the grid drops to four columns
+             * and closes its gap — the cells' own padding is the gap between
+             * the dots.
              */}
             <div
               role="group"
@@ -211,7 +212,7 @@ export function TagHubEditBlock({
                     onClick={() => onEdit({ color: preset })}
                     className={cn(
                       "flex h-6 w-6 items-center justify-center rounded-full",
-                      "max-md:h-11 max-md:w-11",
+                      "max-md:size-lumen-tap-touch",
                       FOCUS_RING_TIGHT,
                     )}
                   >

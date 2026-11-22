@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import { ICON_TAP_NARROW } from "../styleTokens";
 
 /*
  * TodoFocusCard (#2393) — the todo a link pointed at, at the top of the Schedule
@@ -60,7 +61,7 @@ export function TodoFocusCard({
           type="button"
           aria-label={labels.dismiss}
           onClick={onDismiss}
-          className="flex size-6 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11 max-md:min-w-11"
+          className={`flex size-6 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent ${ICON_TAP_NARROW}`}
         >
           <X aria-hidden className="size-3.5" />
         </button>

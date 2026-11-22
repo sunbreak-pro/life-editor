@@ -478,6 +478,15 @@
                   icon-only (a glyph plus a label, a custom element). */
   --spacing-lumen-icon-min: 0.9rem;
   --spacing-lumen-tap-min: 1.75rem;
+  /* The phone's floor for an icon-only control, and the only place it is
+     written (#2673): a close ×, a "…", an arrow, a star, a swatch. Rows,
+     labelled buttons, fields and calendar days keep their own 2.75rem.
+       PX, unlike the pair above: a finger does not shrink with the Settings
+     font step, no --spacing step is 40px at the default 18px root, and a rem
+     would leave 31px at the phone's smallest text. Past a 22.8px root the rem
+     floor is the wider of the two and already lifts every icon-only button
+     there, so this follows it up. */
+  --spacing-lumen-tap-touch: max(40px, var(--spacing-lumen-tap-min));
   /* Icon size steps (#2036) → `size-lumen-icon-sm / -md / -lg` on the lucide
      element (Tailwind's size-* reads the --spacing-* keys). CSS width/height
      outrank the `size` attribute lucide writes, so the prop can be left off.

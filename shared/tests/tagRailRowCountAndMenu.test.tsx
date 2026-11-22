@@ -91,9 +91,9 @@ describe("TagHubTagRail — the row's count and menu (#2409)", () => {
     expect(menuButton().classList.contains("opacity-0")).toBe(false);
   });
 
-  it("keeps the narrow menu at its 44px size", () => {
+  it("keeps the narrow menu at the touch floor", () => {
     renderRail(false);
-    expect(menuButton().classList.contains("h-11")).toBe(true);
+    expect(menuButton().classList.contains("h-lumen-tap-touch")).toBe(true);
   });
 
   it("gives the untagged bucket no menu, since there is nothing to edit", () => {

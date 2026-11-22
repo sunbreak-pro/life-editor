@@ -2,6 +2,7 @@ import { useId, type ReactNode } from "react";
 import { ArrowRight, CheckCircle2, Star } from "lucide-react";
 import type { TodoStatus } from "../../types/todoTree";
 import { SkeletonList } from "../SkeletonList";
+import { ICON_TAP_NARROW } from "../styleTokens";
 import {
   EveningEventRow,
   EveningTomorrowRow,
@@ -200,13 +201,13 @@ function BlockHead({
  * One mood star's box (#1559).
  *
  * The 390px audit measured these at 35×35: a 26px glyph in `p-1`. Five of them
- * sit `gap-1.5` apart in a centred row, so the floor is bought by growing the
+ * sit side by side in a centred row, so the floor is bought by growing the
  * BOXES rather than by hanging a `::after` over each — the extensions of two
- * neighbours 6px apart would overlap and the row would answer the wrong star.
- * Five 44px boxes plus four 6px gaps come to 244px, well inside the 343px the
- * paper prints on, so nothing is displaced by the growth.
+ * neighbours would overlap and the row would answer the wrong star. On a phone
+ * the boxes touch (#2673): five of them come to 200px, well inside the 343px
+ * the paper prints on.
  *
- * `max-md:` and never a bare `min-h-11`: one component draws this row at every
+ * `max-md:` and never a bare min-height: one component draws this row at every
  * width, and the Desktop star is the 34px box #263 chose.
  *
  * `inline-flex` + centring is what makes the floor mean anything — without it
@@ -214,8 +215,7 @@ function BlockHead({
  * than its content. It is a no-op at Desktop size, where the box already hugs
  * the 26px star.
  */
-const MOOD_STAR_BASE =
-  "inline-flex items-center justify-center p-1 transition-transform hover:scale-110 max-md:min-h-11 max-md:min-w-11";
+const MOOD_STAR_BASE = `inline-flex items-center justify-center p-1 transition-transform hover:scale-110 ${ICON_TAP_NARROW}`;
 
 export function EveningView({
   loading,
@@ -288,7 +288,7 @@ export function EveningView({
         >
           {labels.moodTitle}
         </p>
-        <div className="flex items-center justify-center gap-1.5">
+        <div className="flex items-center justify-center gap-1.5 max-md:gap-0">
           {[1, 2, 3, 4, 5].map((n) => {
             const filled = mood !== null && n <= mood;
             return (

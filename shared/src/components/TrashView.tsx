@@ -9,7 +9,7 @@ import { NoticePanel } from "./NoticePanel";
 import { SelectCheckbox } from "./SelectCheckbox";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { cn } from "./cn";
-import { CARD_BTN_TAP } from "./styleTokens";
+import { CARD_BTN_TAP, ICON_TAP_NARROW } from "./styleTokens";
 
 /*
  * Cross-platform Trash view (target IA / ClaudeDesign import 2026-07-05,
@@ -172,7 +172,7 @@ type PendingDelete =
  *
  * The shared square <SelectCheckbox> (#2217) — a `role="checkbox"`, so it is
  * announced as a checkbox and not as a third button beside the row's two.
- * The <label> around it is what gives it the 44px touch target on narrow
+ * The <label> around it is what gives it the icon-only floor on narrow
  * (mobile-scope) without inflating the row's own height: a click anywhere in
  * the label is forwarded to the control.
  */
@@ -194,7 +194,7 @@ function SelectBox({
       className={cn(
         "flex shrink-0 cursor-pointer items-center justify-center",
         disabled && "cursor-not-allowed opacity-60",
-        wide ? "h-6 w-6" : "min-h-11 min-w-11",
+        wide ? "h-6 w-6" : cn("min-h-11 min-w-11", ICON_TAP_NARROW),
       )}
     >
       <SelectCheckbox

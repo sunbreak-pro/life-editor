@@ -245,12 +245,12 @@ export function TagHubView({
               label={labels.back}
               variant="ghost"
               size="md"
-              // #1561 — this branch draws ONLY on narrow, so the 44px floor is
-              // unconditional (same shape as the drawer's close button in
-              // #1556). Both axes: the audit read 36×36. The box grows rather
-              // than a `::after` because the heading icon sits flush beside it
-              // and a pseudo-element would overlap it.
-              className="min-h-11 min-w-11"
+              // #1561 — this branch draws ONLY on narrow, so the icon-only
+              // floor is unconditional (same shape as the drawer's close button
+              // in #1556). Both axes: the audit read 36×36. The box grows
+              // rather than a `::after` because the heading icon sits flush
+              // beside it and a pseudo-element would overlap it.
+              className="min-h-lumen-tap-touch min-w-lumen-tap-touch"
               onClick={() => onSelectTag(null)}
             />
           )}
@@ -310,7 +310,7 @@ export function TagHubView({
               className={cn(
                 "shrink-0",
                 editOpen && "bg-lumen-accent-subtle text-lumen-accent",
-                !wide && "min-h-11 min-w-11",
+                !wide && "min-h-lumen-tap-touch min-w-lumen-tap-touch",
               )}
               onClick={onToggleEdit}
             />

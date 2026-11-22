@@ -1363,7 +1363,7 @@ describe("DailyView — the strip under the body (#2123)", () => {
  * header and the narrow one, so an unconditional min-height would grow the
  * mouse layout too.
  */
-describe("#1840 — Daily's controls meet the 44px touch floor", () => {
+describe("#1840 — Daily's controls meet the touch floor", () => {
   it("floors the Today CTA in height, and leaves its width to the label", () => {
     render(<DailyView />);
     const cta = screen.getByRole("button", { name: "materials.daily.toToday" });
@@ -1383,11 +1383,11 @@ describe("#1840 — Daily's controls meet the 44px touch floor", () => {
       name: "materials.daily.moreActions",
     });
 
-    expect(kebab.classList.contains("max-md:min-h-11")).toBe(true);
-    expect(kebab.classList.contains("max-md:min-w-11")).toBe(true);
+    expect(kebab.classList.contains("max-md:min-h-lumen-tap-touch")).toBe(true);
+    expect(kebab.classList.contains("max-md:min-w-lumen-tap-touch")).toBe(true);
     // The drawn box is untouched — the hit box is what grew.
     expect(kebab.classList.contains("h-7")).toBe(true);
-    expect(kebab.classList.contains("min-h-11")).toBe(false);
+    expect(kebab.classList.contains("min-h-lumen-tap-touch")).toBe(false);
   });
 
   // The reflection preview the audit also read (34px) went with the evening
@@ -1397,7 +1397,9 @@ describe("#1840 — Daily's controls meet the 44px touch floor", () => {
     const star = screen.getByRole("button", {
       name: "briefing.evening.moodStar|1",
     });
-    expect(star.classList.contains("max-md:min-h-11")).toBe(true);
-    expect(star.classList.contains("max-md:min-w-11")).toBe(true);
+    expect(star.classList.contains("max-md:min-h-lumen-tap-touch")).toBe(true);
+    expect(star.classList.contains("max-md:min-w-lumen-tap-touch")).toBe(true);
+    // #2673: the five touch on a phone.
+    expect(star.parentElement?.classList.contains("max-md:gap-0")).toBe(true);
   });
 });

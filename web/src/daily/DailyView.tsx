@@ -1030,7 +1030,7 @@ export function DailyView({
           // #1840 — on the shared string rather than inside the "boxed"
           // branch, so both variants carry it and a test can read it without
           // faking a viewport.
-          "max-md:min-h-11 max-md:min-w-11",
+          "max-md:min-h-lumen-tap-touch max-md:min-w-lumen-tap-touch",
           FOCUS_RING,
         )}
       >

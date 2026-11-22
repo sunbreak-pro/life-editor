@@ -271,7 +271,7 @@ describe("GoalDeleteDialog (#2405)", () => {
     );
   });
 
-  it("runs full width on a phone, with 44px targets", () => {
+  it("runs full width on a phone, with touch targets", () => {
     setNarrow();
     const { dialog } = renderDialog();
     const panel = screen.getByRole("dialog");
@@ -286,7 +286,7 @@ describe("GoalDeleteDialog (#2405)", () => {
       expect(target.className).toContain("max-md:min-h-11");
     }
     expect(dialog.getByRole("button", { name: "Close" }).className).toContain(
-      "max-md:size-11",
+      "max-md:size-lumen-tap-touch",
     );
   });
 

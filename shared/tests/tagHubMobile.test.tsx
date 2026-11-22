@@ -21,7 +21,7 @@ import {
 /*
  * The narrow layout's three steps (#1646 / M1–M8).
  *
- * jsdom has no layout (CLAUDE.md §7.1), so the 44px floors are pinned as the
+ * jsdom has no layout (CLAUDE.md §7.1), so the touch floors are pinned as the
  * CLASS contract that produces them — the same way #1561's suite does — and
  * the sheets are pinned by their accessible names, which is what a phone user
  * is actually told.
@@ -116,23 +116,25 @@ describe("TagHub narrow — the tag list (M1 / M2)", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("keeps the tag rows and the “…” at the 44px floor", () => {
+  it("keeps the tag rows and the “…” at their touch floors", () => {
     renderNarrow();
     const row = screen.getByRole("button", { name: "Work: 1 items" });
     expect(row).toHaveClass("min-h-11");
     expect(
       screen.getByRole("button", { name: "Work: Tag actions" }),
-    ).toHaveClass("h-11");
+    ).toHaveClass("h-lumen-tap-touch");
   });
 });
 
 describe("TagHub narrow — a tag's items (M3)", () => {
-  it("gives each row its own 44px actions button", () => {
+  it("gives each row its own floor-sized actions button", () => {
     const { onItemMenu } = renderNarrow({ selectedTagId: "t-work" });
     const menu = screen.getByRole("button", {
       name: "Draft the PR: Item actions",
     });
-    expect(menu).toHaveClass("size-11");
+    expect(menu).toHaveClass("size-lumen-tap-touch");
+    // #2673: the row's icon buttons touch on a phone.
+    expect(menu.closest("li")).toHaveClass("gap-0");
 
     fireEvent.click(menu);
     expect(onItemMenu).toHaveBeenCalledWith(

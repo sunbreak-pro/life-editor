@@ -830,8 +830,8 @@ describe("ScheduleSidebar — the Todo tab's day (#2281)", () => {
       "scheduleScreen.todoDayNext",
     ]) {
       const cls = screen.getByRole("button", { name }).className;
-      expect(cls).toContain("max-md:min-h-11");
-      expect(cls).toContain("max-md:min-w-11");
+      expect(cls).toContain("max-md:min-h-lumen-tap-touch");
+      expect(cls).toContain("max-md:min-w-lumen-tap-touch");
     }
     expect(
       screen.getByRole("button", { name: "scheduleScreen.today" }).className,
@@ -882,7 +882,7 @@ describe("ScheduleSidebar — the Todo tab's prototype shape (#2568)", () => {
     expect(screen.queryByText(/scheduleScreen\.todoDayTodayMark/)).toBeNull();
   });
 
-  it("outlines the ‹ › faces without framing the 44px box on narrow", () => {
+  it("outlines the ‹ › faces without framing the grown box on narrow", () => {
     render(<ScheduleSidebar {...makeProps({ tab: "todo", isWide: false })} />);
     for (const name of [
       "scheduleScreen.todoDayPrev",

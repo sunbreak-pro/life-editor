@@ -63,8 +63,8 @@ export interface TagIconPickerProps {
  */
 const STRIP_COUNT = 10;
 
-/** Mobile tap floor (frontend.md §Gotchas: 44px is the caller's job). */
-const CELL = "h-8 w-8 max-md:h-11 max-md:w-11";
+/** Mobile tap floor (frontend.md §Gotchas: it is the caller's job). */
+const CELL = "h-8 w-8 max-md:size-lumen-tap-touch";
 
 /**
  * Icon picker: a one-row strip of glyphs (the current one first) with a "show
@@ -110,7 +110,10 @@ export function TagIconPicker({
       <div
         role="group"
         aria-label={labels.iconLabel}
-        className="flex h-9 flex-wrap gap-1 overflow-hidden p-0.5 max-md:h-12"
+        // Narrow: one cell plus the p-0.5 at each end. Only the COLUMN gap
+        // closes (#2673): with no row gap the folded second line would start
+        // inside the bottom padding, which `overflow-hidden` does not clip.
+        className="flex h-9 flex-wrap gap-1 overflow-hidden p-0.5 max-md:h-[calc(var(--spacing-lumen-tap-touch)+var(--spacing))] max-md:gap-x-0"
       >
         <div
           role="img"
@@ -167,8 +170,8 @@ export function TagIconPicker({
           focus-return all come from Modal; its layer stack is what makes one
           Escape close this panel and leave the sheet or dialog underneath
           standing (#1342's guarantee, kept by a different mechanism).
-          `closeLabel` draws Modal's corner × beside the heading (44px under
-          768px), outside the scrolling body, so it stays in reach while the
+          `closeLabel` draws Modal's corner × beside the heading (the touch
+          floor under 768px), outside the scrolling body, so it stays in reach while the
           grid scrolls (#2500). */}
       <Modal
         open={open}
@@ -337,15 +340,16 @@ function IconPanel({ current, labels, onPick }: IconPanelProps) {
            fixed `grid-cols-8` is `minmax(0, 1fr)` per track, so a narrower box
            would squeeze the tracks under the buttons and let them spill
            sideways (#1289 in small). The track floor follows the button size:
-           2rem desktop, 2.75rem under 768px. */
+           2rem desktop, the icon-only floor under 768px, where the gap closes
+           (#2673). */
         <div
           id={gridId}
           role="listbox"
           aria-label={labels.iconLabel}
           className={cn(
-            "grid justify-items-center gap-1",
+            "grid justify-items-center gap-1 max-md:gap-0",
             "grid-cols-[repeat(auto-fill,minmax(2rem,1fr))]",
-            "max-md:grid-cols-[repeat(auto-fill,minmax(2.75rem,1fr))]",
+            "max-md:grid-cols-[repeat(auto-fill,minmax(var(--spacing-lumen-tap-touch),1fr))]",
           )}
         >
           {choices.map((choiceName, index) => {
@@ -369,7 +373,7 @@ function IconPanel({ current, labels, onPick }: IconPanelProps) {
                 title={choiceName}
                 onClick={() => onPick(choiceName)}
                 className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-lumen-sm text-lumen-text-secondary max-md:h-11 max-md:w-11",
+                  "flex h-8 w-8 items-center justify-center rounded-lumen-sm text-lumen-text-secondary max-md:size-lumen-tap-touch",
                   "transition-colors hover:bg-lumen-hover hover:text-lumen-text",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
                   isCurrent && "bg-lumen-accent-subtle text-lumen-accent",

@@ -157,8 +157,9 @@ export function NoteTagFilterPanel({
             title={labels.clear}
             className={cn(
               // An icon with no label is the one control here that is also too
-              // NARROW to aim at, hence the width floor as well (#1560).
-              "inline-flex h-7 items-center justify-center rounded-lumen-md px-1.5 text-lumen-text-tertiary hover:bg-lumen-hover hover:text-lumen-text-secondary max-md:min-h-11 max-md:min-w-11",
+              // NARROW to aim at, hence the width floor as well (#1560); it
+              // takes the icon-only floor, not the labelled button's (#2673).
+              "inline-flex h-7 items-center justify-center rounded-lumen-md px-1.5 text-lumen-text-tertiary hover:bg-lumen-hover hover:text-lumen-text-secondary max-md:min-h-lumen-tap-touch max-md:min-w-lumen-tap-touch",
               FOCUS_RING,
             )}
           >

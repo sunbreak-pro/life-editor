@@ -283,13 +283,13 @@ export function GoalDeleteDialog({
         onClick={onCancel}
         disabled={busy}
         aria-label={labels.close}
-        className="absolute right-2 top-2 flex size-8 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent disabled:cursor-not-allowed disabled:opacity-60 max-md:size-11"
+        className="absolute right-2 top-2 flex size-8 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent disabled:cursor-not-allowed disabled:opacity-60 max-md:size-lumen-tap-touch"
       >
         <X aria-hidden className="size-4" />
       </button>
       <h2
         id={headingId}
-        className="mb-2 shrink-0 pr-10 text-base font-semibold text-lumen-text max-md:pr-12"
+        className="mb-2 shrink-0 pr-10 text-base font-semibold text-lumen-text"
       >
         {labels.title}
       </h2>

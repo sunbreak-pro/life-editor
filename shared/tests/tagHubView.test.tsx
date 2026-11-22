@@ -578,7 +578,7 @@ describe("TagHubView — #1561 narrow rows meet the 44px touch floor", () => {
     // 36×36 was short on BOTH axes, so both are floored, and the painted
     // size="md" box is still what the IconButton contract says.
     const back = screen.getByRole("button", { name: "Back to tags" });
-    expect(back).toHaveClass("min-h-11", "min-w-11");
+    expect(back).toHaveClass("min-h-lumen-tap-touch", "min-w-lumen-tap-touch");
     expect(back).toHaveClass("h-8", "w-8");
   });
 
@@ -589,7 +589,7 @@ describe("TagHubView — #1561 narrow rows meet the 44px touch floor", () => {
     for (const row of rows) expect(row).not.toHaveClass("min-h-11");
   });
 
-  it("gives the narrow row menu a 44px box of its own (#1643)", () => {
+  it("gives the narrow row menu a floor-sized box of its own (#1643)", () => {
     renderHub({
       wide: false,
       onEditTag: vi.fn(),
@@ -597,6 +597,6 @@ describe("TagHubView — #1561 narrow rows meet the 44px touch floor", () => {
     });
     expect(
       screen.getByRole("button", { name: "Work: Tag actions" }),
-    ).toHaveClass("h-11");
+    ).toHaveClass("h-lumen-tap-touch");
   });
 });

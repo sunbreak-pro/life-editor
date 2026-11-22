@@ -681,8 +681,8 @@ describe("GoalTreeView — +, edit and delete on a goal row (#2367)", () => {
     expect(classesOf(close)).toEqual(
       expect.arrayContaining([
         "shrink-0",
-        "max-md:min-h-11",
-        "max-md:min-w-11",
+        "max-md:min-h-lumen-tap-touch",
+        "max-md:min-w-lumen-tap-touch",
       ]),
     );
   });
@@ -700,8 +700,8 @@ describe("GoalTreeView — +, edit and delete on a goal row (#2367)", () => {
     fireEvent.click(plus);
     // The × is an icon, so it needs a name; it has a tap target on a phone.
     const close = screen.getByRole("button", { name: "Cancel" });
-    expect(close.className).toContain("max-md:min-h-11");
-    expect(close.className).toContain("max-md:min-w-11");
+    expect(close.className).toContain("max-md:min-h-lumen-tap-touch");
+    expect(close.className).toContain("max-md:min-w-lumen-tap-touch");
     fireEvent.click(close);
     expect(screen.queryByRole("textbox", { name: /^Add under/ })).toBeNull();
     expect(rowActions.onAddTodo).not.toHaveBeenCalled();

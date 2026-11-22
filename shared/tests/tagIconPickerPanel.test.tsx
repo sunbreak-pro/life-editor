@@ -104,22 +104,23 @@ describe("tag icon picker — it starts as one row", () => {
     expect(panel()).toBeNull();
   });
 
-  it("keeps every tap target at 44px on a phone", () => {
+  it("keeps every tap target at its floor on a phone", () => {
     renderPicker();
     openPanel();
 
-    // 44px is the caller's job (frontend.md §Gotchas), and these are the
+    // The floor is the caller's job (frontend.md §Gotchas), and these are the
     // callers: the strip's glyphs, the button under it, and the panel's own
     // controls.
     for (const cell of strip().children) {
-      expect(classesOf(cell)).toContain("max-md:h-11");
-      expect(classesOf(cell)).toContain("max-md:w-11");
+      expect(classesOf(cell)).toContain("max-md:size-lumen-tap-touch");
     }
     expect(classesOf(moreButton())).toContain("max-md:min-h-11");
     expect(classesOf(searchField())).toContain("max-md:min-h-11");
     for (const option of screen.getAllByRole("option")) {
-      expect(classesOf(option)).toContain("max-md:h-11");
+      expect(classesOf(option)).toContain("max-md:size-lumen-tap-touch");
     }
+    // The grid's gap closes with them (#2673).
+    expect(classesOf(screen.getByRole("listbox"))).toContain("max-md:gap-0");
     expect(
       classesOf(screen.getByRole("button", { name: LABELS.clearIconLabel })),
     ).toContain("max-md:min-h-11");

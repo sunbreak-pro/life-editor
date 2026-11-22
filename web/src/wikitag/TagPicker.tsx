@@ -365,7 +365,7 @@ export function TagPicker({
             removeLabel={t("materials.tags.pickerRemove", { name: tag.name })}
             onRemove={() => void handleUnassign(a.id)}
             // #2291: the X was 32px and 14px from the "+", and it removes
-            // without asking. A 44px square below the breakpoint.
+            // without asking. A touch-floor square below the breakpoint.
             touch="narrow"
           />
         );
@@ -382,6 +382,9 @@ export function TagPicker({
         );
       });
 
+  // On a phone the add button is a "+" with no name beside it.
+  const bareAdd = !addLabel && (assignments.length > 0 || loading);
+
   return (
     <div
       ref={containerRef}
@@ -390,7 +393,11 @@ export function TagPicker({
       data-tag-row={onTagContextMenu || onTagLongPress ? "" : undefined}
       className={cn(
         "relative inline-flex flex-wrap items-center gap-1",
-        singleRow && "max-md:flex max-md:min-w-0 max-md:flex-nowrap",
+        // A chip's X is taller than the chip, so wrapped lines sit far enough
+        // apart on a phone that two of them never overlap (#2673).
+        singleRow
+          ? "max-md:flex max-md:min-w-0 max-md:flex-nowrap"
+          : "max-md:gap-y-3",
       )}
     >
       {showLabel &&
@@ -418,8 +425,10 @@ export function TagPicker({
         aria-expanded={pickerOpen}
         // TAP_TARGET is 1.75rem, which is 31.5px — the app's icon floor, not
         // a thumb's (#1840). The narrow-width floor is added here rather than
-        // to TAP_TARGET itself, which every icon button in the app shares.
-        className={`${TAP_TARGET} max-md:min-h-11 max-md:min-w-11 gap-1 rounded-md border border-dashed border-lumen-border px-2 py-1 text-xs text-lumen-text-secondary hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent`}
+        // to TAP_TARGET itself, which every icon button in the app shares. The
+        // bare "+" takes the icon-only floor; with its name showing it is a
+        // labelled button and keeps 2.75rem (#2673).
+        className={`${TAP_TARGET} ${bareAdd ? "max-md:min-h-lumen-tap-touch max-md:min-w-lumen-tap-touch" : "max-md:min-h-11 max-md:min-w-11"} gap-1 rounded-md border border-dashed border-lumen-border px-2 py-1 text-xs text-lumen-text-secondary hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent`}
       >
         <Plus size={14} aria-hidden />
         {addLabel ? (
@@ -429,11 +438,7 @@ export function TagPicker({
           // chips did not read as "add a tag". Narrow widths keep the bare "+"
           // once a tag is on, so the single-row strip keeps the width #2474 /
           // #2291 won back for the chips.
-          <span
-            className={
-              assignments.length === 0 && !loading ? undefined : "max-md:hidden"
-            }
-          >
+          <span className={bareAdd ? "max-md:hidden" : undefined}>
             {t("materials.tags.pickerLabelShort")}
           </span>
         )}

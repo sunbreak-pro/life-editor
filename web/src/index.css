@@ -439,8 +439,9 @@ body {
 /*
  * The delete button (#1606).
  *
- * 44x44 at EVERY width, not `max-md:` like the note rows and filter chips
- * (#1560). Those floors are narrow-only because growing them would grow the
+ * 2.75rem at EVERY width, not `max-md:` like the note rows and filter chips
+ * (#1560); a phone then takes the icon-only floor (#2673, the media block after
+ * the link card). Those floors are narrow-only because growing them would grow the
  * mouse layout of a list; this is one icon button with no label of its own,
  * sitting in a block row that has no flowing text beside it to swallow. The
  * taskList checkbox further down keeps a 20px target for exactly the opposite
@@ -581,7 +582,7 @@ body {
   font-size: 0.75rem;
 }
 /*
- * The delete button — 44x44 at every width, parked over the anchor's right
+ * The delete button — sized as the file chip's, parked over the anchor's right
  * edge, for the reasons the file chip's own delete rule gives.
  */
 .note-editor .ProseMirror .note-link-card__delete {
@@ -634,6 +635,29 @@ body {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
   border-radius: 0.375rem;
+}
+/*
+ * The chip's and the card's delete button on a phone: the icon-only floor
+ * (#2673), and the room kept for it with it. The blocks themselves are rows
+ * and keep their 2.75rem. After both rules above, which it overrides at equal
+ * specificity.
+ */
+@media (max-width: 767px) {
+  .note-editor .ProseMirror .note-attachment__delete,
+  .note-editor .ProseMirror .note-link-card__delete {
+    width: var(--spacing-lumen-tap-touch);
+    height: var(--spacing-lumen-tap-touch);
+  }
+  .note-editor
+    .ProseMirror
+    .note-attachment--removable
+    .note-attachment__file,
+  .note-editor
+    .ProseMirror
+    .note-attachment--removable.note-attachment--unavailable,
+  .note-editor .ProseMirror .note-link-card--removable .note-link-card__link {
+    padding-right: var(--spacing-lumen-tap-touch);
+  }
 }
 .note-editor .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);

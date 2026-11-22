@@ -76,7 +76,7 @@ export function DailyMonthCalendar({
   };
 
   const navButton =
-    "inline-flex size-8 shrink-0 items-center justify-center rounded-lumen-sm text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text max-md:size-11";
+    "inline-flex size-8 shrink-0 items-center justify-center rounded-lumen-sm text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text max-md:size-lumen-tap-touch";
 
   return (
     <section aria-label={label} className={cn("flex flex-col", className)}>

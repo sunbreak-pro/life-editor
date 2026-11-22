@@ -81,8 +81,13 @@ describe("TodoStatusCheckbox", () => {
 
   it("keeps the phone minimum touch target", () => {
     renderCheckbox("NOT_STARTED");
-    // mobile-scope.md: 44px is the floor for anything a thumb aims at.
-    expect(screen.getByRole("checkbox").className).toContain("min-h-11");
+    // mobile-scope.md: the icon-only floor below `md` (#2673), 2.75rem above.
+    expect(screen.getByRole("checkbox")).toHaveClass(
+      "min-h-11",
+      "min-w-11",
+      "max-md:min-h-lumen-tap-touch",
+      "max-md:min-w-lumen-tap-touch",
+    );
   });
 
   /*

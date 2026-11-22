@@ -255,7 +255,7 @@ export function TagQuickEditPopover({
             <div
               role="group"
               aria-label={labels.colorLabel}
-              className="flex flex-wrap items-center gap-2 p-0.5"
+              className="flex flex-wrap items-center gap-2 p-0.5 max-md:gap-0"
             >
               <button
                 type="button"
@@ -282,13 +282,25 @@ export function TagQuickEditPopover({
                     title={swatch}
                     onClick={() => drafts.edit(tag.id, { color: swatch })}
                     className={cn(
-                      "h-6 w-6 rounded-full max-md:h-11 max-md:w-11",
-                      active &&
-                        "ring-2 ring-lumen-text ring-offset-2 ring-offset-lumen-bg",
+                      "flex h-6 w-6 items-center justify-center rounded-full max-md:size-lumen-tap-touch",
                       FOCUS_RING_TIGHT,
                     )}
-                    style={{ backgroundColor: swatch }}
-                  />
+                  >
+                    {/* The colour is a dot inside the button, as in
+                        TagHubEditBlock (#2499): with the gap closed on a phone
+                        (#2673), floor-sized discs would touch and the selected
+                        one's ring would run over its neighbours. */}
+                    <span
+                      aria-hidden
+                      data-swatch-dot=""
+                      className={cn(
+                        "h-6 w-6 shrink-0 rounded-full",
+                        active &&
+                          "ring-2 ring-lumen-text ring-offset-2 ring-offset-lumen-bg",
+                      )}
+                      style={{ backgroundColor: swatch }}
+                    />
+                  </button>
                 );
               })}
             </div>

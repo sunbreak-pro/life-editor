@@ -9,7 +9,7 @@ import { NoteDetailPanel, TagPill } from "../src/components";
  * jsdom has no layout, so what is pinned is what the browser is asked for:
  * the narrow title field is a textarea capped at two lines, the stuck header
  * reports itself (an IntersectionObserver stub stands in for the scroll), and
- * a tag chip's X takes the 44px square below the breakpoint.
+ * a tag chip's X takes the touch-floor square below the breakpoint.
  */
 
 const LABELS = {
@@ -156,7 +156,7 @@ describe("Stuck note header edge (#2291 item 6)", () => {
 });
 
 describe("Tag chip remove X on narrow (#2291 item 2)", () => {
-  it('takes the 44px square below the breakpoint only with touch="narrow"', () => {
+  it('takes the touch-floor square below the breakpoint only with touch="narrow"', () => {
     render(
       <TagPill
         name="Work"
@@ -167,10 +167,10 @@ describe("Tag chip remove X on narrow (#2291 item 2)", () => {
       />,
     );
     const x = screen.getByRole("button", { name: "Remove Work" });
-    expect(x.className).toContain("max-md:min-h-11");
-    expect(x.className).toContain("max-md:min-w-11");
+    expect(x.className).toContain("max-md:min-h-lumen-tap-touch");
+    expect(x.className).toContain("max-md:min-w-lumen-tap-touch");
     // Not the always-on square, so Desktop chips keep their size.
-    expect(x.className.split(" ")).not.toContain("min-h-11");
+    expect(x.className.split(" ")).not.toContain("min-h-lumen-tap-touch");
   });
 });
 

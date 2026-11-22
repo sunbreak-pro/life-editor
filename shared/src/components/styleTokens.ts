@@ -66,6 +66,19 @@ export const TAP_TARGET =
   "inline-flex items-center justify-center min-h-lumen-tap-min min-w-lumen-tap-min";
 
 /**
+ * Narrow-only floor for an icon-only control (#2673).
+ *
+ * The size is one token, `--spacing-lumen-tap-touch` in styles/tokens.css, so
+ * no call site writes the number. Labelled buttons, rows and fields do NOT use
+ * this: they keep `max-md:min-h-11`. Two of these side by side also close
+ * their gap below `md` (`max-md:gap-0`) — each box is already a finger wide,
+ * so the gap is air the row can give back, and at zero the boxes meet without
+ * overlapping.
+ */
+export const ICON_TAP_NARROW =
+  "max-md:min-h-lumen-tap-touch max-md:min-w-lumen-tap-touch";
+
+/**
  * Narrow-only 44px floor for a control whose PAINTED size is a mouse size
  * (#1562).
  *
@@ -81,7 +94,7 @@ export const TAP_TARGET =
  * property from `height`, so it wins outright.
  *
  * Height only. Every consumer is a labelled button that is already wider than
- * 44px; an icon-only control needs `max-md:min-w-11` beside this.
+ * 44px; an icon-only control takes ICON_TAP_NARROW instead.
  */
 export const CARD_BTN_TAP = "max-md:min-h-11";
 
@@ -102,8 +115,8 @@ export const CARD_BTN_TAP = "max-md:min-h-11";
  * than the ~6px it overhangs) and unsafe on a control that sits flush against
  * something tappable — check the surroundings before reusing it.
  *
- * BottomSheet's close button solves the same problem the other way (a 44px box
- * pulled back with negative margins). Use that when the control is alone in
+ * BottomSheet's close button solves the same problem the other way (a full-size
+ * box pulled back with negative margins). Use that when the control is alone in
  * its row; use this when several sit side by side and their heights are what
  * set the row's height.
  */

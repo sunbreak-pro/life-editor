@@ -82,13 +82,13 @@ describe("Tag chip X on narrow (#2474)", () => {
     return screen.getByRole("button", { name: `Remove ${size}` });
   }
 
-  it("ends the sm pill's 44px square inside the pill, not past it", () => {
+  it("ends the sm pill's touch square inside the pill, not past it", () => {
     const x = removeButton("sm");
     // The sm pill's right padding is px-2, so -mr-2 cancels it exactly.
     expect(classesOf(x)).toContain("max-md:-mr-2");
     expect(classesOf(x)).not.toContain("max-md:-mr-2.5");
-    expect(classesOf(x)).toContain("max-md:min-h-11");
-    expect(classesOf(x)).toContain("max-md:min-w-11");
+    expect(classesOf(x)).toContain("max-md:min-h-lumen-tap-touch");
+    expect(classesOf(x)).toContain("max-md:min-w-lumen-tap-touch");
   });
 
   it("keeps the md pill's margin, which already matches its px-2.5", () => {

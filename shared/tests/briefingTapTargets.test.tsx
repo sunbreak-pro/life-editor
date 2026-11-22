@@ -10,7 +10,8 @@ import {
 import { EVENING_LABELS, emptyEveningBlocks } from "./helpers/eveningFixtures";
 
 /*
- * #1559 — the 44px touch floor on the BRIEFING lane's own controls.
+ * #1559 — the touch floor on the BRIEFING lane's own controls. Since #2673 the
+ * icon-only ones read the shared 40px token; the labelled ones keep 2.75rem.
  *
  * The 390px audit (#1512) measured three targets on the papers themselves: the
  * 夕刊 mood stars at 35×35, the「今日のスケジュールに追加」+ at 31.5 tall, and a
@@ -119,7 +120,7 @@ function renderEvening(mood: number | null) {
   );
 }
 
-describe("#1559 — the briefing papers' own controls meet the 44px floor", () => {
+describe("#1559 — the briefing papers' own controls meet the touch floor", () => {
   it("floors all five 夕刊 mood stars, filled and empty alike", () => {
     // mood=2 so the row renders BOTH className branches: the floor lives in a
     // shared base and a copy-paste that only reached one branch would leave
@@ -127,14 +128,16 @@ describe("#1559 — the briefing papers' own controls meet the 44px floor", () =
     renderEvening(2);
     for (const n of [1, 2, 3, 4, 5]) {
       const star = screen.getByRole("button", { name: `Mood ${n}/5` });
-      expect(star).toHaveClass("max-md:min-h-11", "max-md:min-w-11");
+      expect(star).toHaveClass("max-md:min-h-lumen-tap-touch", "max-md:min-w-lumen-tap-touch");
       // Without centring the glyph would sit against the box's leading edge
       // as soon as the box is wider than the 26px star.
       expect(star).toHaveClass("inline-flex", "items-center", "justify-center");
       // Desktop: the painted 34px box (26px glyph in p-1) is untouched.
       expect(star).toHaveClass("p-1");
-      expect(star).not.toHaveClass("min-h-11");
-      expect(star).not.toHaveClass("min-w-11");
+      expect(star).not.toHaveClass("min-h-lumen-tap-touch");
+      expect(star).not.toHaveClass("min-w-lumen-tap-touch");
+      // #2673: on a phone the five boxes touch; Desktop keeps the gap.
+      expect(star.parentElement).toHaveClass("gap-1.5", "max-md:gap-0");
     }
   });
 
@@ -143,14 +146,15 @@ describe("#1559 — the briefing papers' own controls meet the 44px floor", () =
     for (const name of [LABELS.addEvent, LABELS.addTodo]) {
       const add = screen.getByRole("button", { name });
       // Width grows the box — a heading has slack the label was not using.
-      expect(add).toHaveClass("max-md:min-w-11", "justify-center");
-      // Height does NOT: TAP_TARGET_TALL hangs an invisible 44px ::after over
-      // a box that stays 26px tall, so the hairline under the headings holds.
+      expect(add).toHaveClass("max-md:min-w-lumen-tap-touch", "justify-center");
+      // Height does NOT: TAP_TARGET_TALL hangs an invisible ::after over a box
+      // that stays 26px tall, so the hairline under the headings holds.
       expect(add).toHaveClass("relative", "after:h-11", "after:inset-x-0");
+      expect(add).toHaveClass("max-md:after:h-lumen-tap-touch");
       // Desktop: the 26×26 box #623 chose, unchanged in both directions.
       expect(add).toHaveClass("p-1.5");
-      expect(add).not.toHaveClass("min-h-11");
-      expect(add).not.toHaveClass("min-w-11");
+      expect(add).not.toHaveClass("min-h-lumen-tap-touch");
+      expect(add).not.toHaveClass("min-w-lumen-tap-touch");
     }
   });
 
@@ -168,13 +172,13 @@ describe("#1559 — the briefing papers' own controls meet the 44px floor", () =
     const btn = screen.getByRole("button", {
       name: `${LABELS.edit}: ${LABELS.jumpToTodos}`,
     });
-    expect(btn).toHaveClass("max-md:min-h-11", "max-md:min-w-11");
+    expect(btn).toHaveClass("max-md:min-h-lumen-tap-touch", "max-md:min-w-lumen-tap-touch");
     expect(btn).toHaveClass("justify-center");
     expect(btn).not.toHaveClass("after:h-11");
     // Desktop: same padding and type step as before the floor.
     expect(btn).toHaveClass("px-1.5", "py-1", "text-xs");
-    expect(btn).not.toHaveClass("min-h-11");
-    expect(btn).not.toHaveClass("min-w-11");
+    expect(btn).not.toHaveClass("min-h-lumen-tap-touch");
+    expect(btn).not.toHaveClass("min-w-lumen-tap-touch");
     // #1514: the word stays hidden below the rows' `@md`.
     expect(btn.querySelector("span")).toHaveClass("hidden", "@md:inline");
   });

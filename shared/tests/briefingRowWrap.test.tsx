@@ -13,13 +13,13 @@ import {
  * The 390px audit measured a 343px row spent as 時刻 63 + タイトル 69 +
  * Routine タグ 69 + 操作 101 + gap 40. Only the title carries `min-w-0`, so it
  * is the only thing that shrinks: a five-character event title broke over two
- * lines and a 22-character todo over three. The 101px belongs to the 44px
+ * lines and a 22-character todo over three. The 101px belongs to the touch
  * touch floor #1559 bought, which this change keeps — it moves the cluster to
  * its own line below `md` instead of shrinking it back.
  *
  * jsdom has no layout (CLAUDE.md §7.1), so nothing here re-measures anything.
  * Every assertion pins the CLASS CONTRACT that produces the wrap, the same way
- * briefingTapTargets.test.tsx pins the one that produces the 44px box.
+ * briefingTapTargets.test.tsx pins the one that produces the touch box.
  */
 
 const LABELS: BriefingLabels = {
@@ -206,17 +206,18 @@ describe("#2182 — the narrow carryover row wraps its action too", () => {
       .closest("button");
     if (title === null) throw new Error("no title button");
     const cluster = clusterOf(`${LABELS.edit}: ${LABELS.jumpToTodos}`);
-    // Layout answers the container. Only the 44px tap floor stays a viewport
-    // rule on the button itself: it is for a finger, not for a narrow panel.
+    // Layout answers the container. Only what is for a finger, not for a narrow
+    // panel, stays a viewport rule: the button's touch floor, and the gap that
+    // closes between two of them (#2673).
     expect(viewportGated(row)).toEqual([]);
     expect(viewportGated(title)).toEqual([]);
-    expect(viewportGated(cluster)).toEqual([]);
+    expect(viewportGated(cluster)).toEqual(["max-md:gap-0"]);
     const button = screen.getByRole("button", {
       name: `${LABELS.edit}: ${LABELS.jumpToTodos}`,
     });
     expect(viewportGated(button)).toEqual([
-      "max-md:min-h-11",
-      "max-md:min-w-11",
+      "max-md:min-h-lumen-tap-touch",
+      "max-md:min-w-lumen-tap-touch",
     ]);
   });
 });

@@ -200,14 +200,14 @@ describe("NoteTagFilterPanel — the count and the clear (#2059)", () => {
 });
 
 /*
- * #1560's 44px floor, carried over from the chips: every control here is drawn
+ * #1560's touch floor, carried over from the chips: every control here is drawn
  * in the narrow drawer too. `max-md:` and never a bare floor, so the Desktop
  * sidebar keeps its mouse sizes.
  */
 describe("NoteTagFilterPanel — narrow touch targets (#2059 / #1560)", () => {
   beforeEach(cleanup);
 
-  it("floors the button, every option and the clear at 44px on narrow only", () => {
+  it("floors the button, every option and the clear on narrow only", () => {
     renderPanel(optionsOf(2), ["t-a"]);
     fireEvent.click(toggleButton());
 
@@ -215,11 +215,14 @@ describe("NoteTagFilterPanel — narrow touch targets (#2059 / #1560)", () => {
       .getAllByRole("button")
       .filter((b) => b.hasAttribute("aria-pressed"));
     const clear = screen.getByRole("button", { name: "Clear" });
-    for (const el of [toggleButton(), ...options, clear]) {
+    for (const el of [toggleButton(), ...options]) {
       expect(el.classList.contains("max-md:min-h-11")).toBe(true);
       expect(el.classList.contains("min-h-11")).toBe(false);
     }
-    // The clear is an icon with no label — too NARROW to aim at as well.
-    expect(clear.classList.contains("max-md:min-w-11")).toBe(true);
+    // The clear is an icon with no label — too NARROW to aim at as well, and
+    // it takes the icon-only floor (#2673).
+    expect(clear.classList.contains("max-md:min-h-lumen-tap-touch")).toBe(true);
+    expect(clear.classList.contains("max-md:min-w-lumen-tap-touch")).toBe(true);
+    expect(clear.classList.contains("min-h-lumen-tap-touch")).toBe(false);
   });
 });

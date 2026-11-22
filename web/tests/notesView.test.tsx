@@ -1206,8 +1206,8 @@ describe("NotesView — the default list (#2061)", () => {
         name: "materials.notes.backToList",
       });
       expect(document.activeElement).toBe(back);
-      expect(back.classList.contains("max-md:min-h-11")).toBe(true);
-      expect(back.classList.contains("max-md:min-w-11")).toBe(true);
+      expect(back.classList.contains("max-md:min-h-lumen-tap-touch")).toBe(true);
+      expect(back.classList.contains("max-md:min-w-lumen-tap-touch")).toBe(true);
     });
 
     it("goes back to the list and to 'Other items'", () => {

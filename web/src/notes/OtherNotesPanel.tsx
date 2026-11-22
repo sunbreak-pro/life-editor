@@ -97,7 +97,7 @@ export function OtherNotesList({
             onClick={onDismiss}
             aria-label={dismissLabel}
             className={cn(
-              "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary hover:bg-lumen-hover max-md:min-h-11 max-md:min-w-11",
+              "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary hover:bg-lumen-hover max-md:min-h-lumen-tap-touch max-md:min-w-lumen-tap-touch",
               FOCUS_RING,
             )}
           >
@@ -117,7 +117,7 @@ export function OtherNotesList({
             onClick={onDismiss}
             aria-label={dismissLabel}
             className={cn(
-              "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-tertiary hover:bg-lumen-hover hover:text-lumen-text-secondary max-md:min-h-11 max-md:min-w-11",
+              "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-tertiary hover:bg-lumen-hover hover:text-lumen-text-secondary max-md:min-h-lumen-tap-touch max-md:min-w-lumen-tap-touch",
               FOCUS_RING,
             )}
           >

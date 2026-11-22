@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { cn } from "../cn";
 import { Menu, MenuItem } from "../Menu";
-import { FOCUS_RING } from "../styleTokens";
+import { FOCUS_RING, ICON_TAP_NARROW } from "../styleTokens";
 import { isImeComposing } from "../../utils/imeGuard";
 
 /*
@@ -62,7 +62,7 @@ const MENU_ITEM_TAP_FLOOR = "max-md:min-h-11";
  * border off. The header row aligns to the top from md up, so the actions
  * centre on the title's first line even when the tags wrap under it. Keep
  * these in step with the title classes. It is a floor, not a height: below the
- * breakpoint the 44px kebab hit box (#1840) is taller and wins.
+ * breakpoint the kebab's hit box (#1840) is taller and wins.
  */
 const ACTIONS_LINE_BOX = {
   main: "min-h-[calc(1.5625rem+0.25rem)]",
@@ -711,7 +711,7 @@ export function NoteDetailPanel({
                   // #1840: 26px draws at 32 with the icon-only floor, which is a
                   // mouse target. The drawn box stays as it is and the HIT box
                   // grows, so the header does not change shape on Desktop.
-                  "max-md:min-h-11 max-md:min-w-11",
+                  ICON_TAP_NARROW,
                   FOCUS_RING,
                 )}
               >

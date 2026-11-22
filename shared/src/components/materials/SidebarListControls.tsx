@@ -124,8 +124,8 @@ export function SidebarListControls({
     activeMode?.label ?? sortLabel,
     activeDirection?.label ?? "",
   );
-  // On narrow the field matches the square button's height, so the two read
-  // as one line.
+  // On narrow the field keeps its 2.75rem; the square button beside it is the
+  // smaller icon-only floor (#2673), centred on it.
   const searchSlot =
     search ??
     (filter ? (
@@ -163,9 +163,9 @@ export function SidebarListControls({
           title={summary}
           className={cn(
             "flex h-8 w-full items-center gap-1.5 rounded-lumen-md border px-2.5 text-[12.5px] max-md:text-sm",
-            // #1975's 44px floor on narrow, as the square the button becomes
-            // there; Desktop keeps h-8 for the mouse.
-            "max-md:h-11 max-md:min-h-11 max-md:w-11 max-md:shrink-0 max-md:justify-center max-md:px-0",
+            // #1975's floor on narrow, as the icon-only square the button
+            // becomes there (#2673); Desktop keeps h-8 for the mouse.
+            "max-md:size-lumen-tap-touch max-md:shrink-0 max-md:justify-center max-md:px-0",
             "transition-colors",
             open
               ? "border-lumen-accent bg-lumen-accent-subtle text-lumen-accent"

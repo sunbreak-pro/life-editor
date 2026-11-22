@@ -81,7 +81,7 @@ describe("#1560 — the note kebab's rows meet the 44px touch floor", () => {
  * floor in tokens.css, which is a mouse target. The DRAWN box stays as it is
  * and the HIT box grows, so the detail header does not change shape on Desktop.
  */
-describe("#1840 — the note detail kebab meets the 44px touch floor", () => {
+describe("#1840 — the note detail kebab meets the icon-only touch floor", () => {
   function kebab(): HTMLElement {
     render(
       <NoteDetailPanel
@@ -98,13 +98,13 @@ describe("#1840 — the note detail kebab meets the 44px touch floor", () => {
   }
 
   it("floors the trigger on narrow", () => {
-    expect(kebab()).toHaveClass("max-md:min-h-11", "max-md:min-w-11");
+    expect(kebab()).toHaveClass("max-md:min-h-lumen-tap-touch", "max-md:min-w-lumen-tap-touch");
   });
 
   it("keeps the drawn box at its mouse size", () => {
     const trigger = kebab();
     expect(trigger).toHaveClass("h-[26px]", "w-[26px]");
-    expect(trigger.classList.contains("min-h-11")).toBe(false);
+    expect(trigger.classList.contains("min-h-lumen-tap-touch")).toBe(false);
   });
 });
 
@@ -112,10 +112,10 @@ describe("#1840 — the note detail kebab meets the 44px touch floor", () => {
  * #1975 — the sort row of the narrow Notes drawer (and the Daily list, which
  * mounts the same component). #1840 floored the rows and the bin; these two
  * were still 36 at 390px wide. Since #2577 the two are one button that opens
- * a chip panel; on narrow the button is a 2.75rem square and the chips keep
- * the same floor.
+ * a chip panel; on narrow the button is an icon-only square at the 40px token
+ * (#2673), and the chips, which have labels, keep 2.75rem.
  */
-describe("#1975 — the sidebar sort controls meet the 44px touch floor", () => {
+describe("#1975 — the sidebar sort controls meet the touch floor", () => {
   function controls(): { trigger: HTMLElement; chips: HTMLElement[] } {
     render(
       <SidebarListControls
@@ -145,13 +145,9 @@ describe("#1975 — the sidebar sort controls meet the 44px touch floor", () => 
     };
   }
 
-  it("draws the button as a 44px square on narrow", () => {
+  it("draws the button as a floor-sized square on narrow", () => {
     const { trigger } = controls();
-    expect(trigger).toHaveClass(
-      "max-md:min-h-11",
-      "max-md:h-11",
-      "max-md:w-11",
-    );
+    expect(trigger).toHaveClass("max-md:size-lumen-tap-touch");
   });
 
   it("floors every chip on narrow", () => {

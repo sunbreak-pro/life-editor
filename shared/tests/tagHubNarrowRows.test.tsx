@@ -153,7 +153,7 @@ describe("TagHubItemGroups — narrow rows give the title the width (#2498)", ()
     const menu = within(r).getByRole("button", {
       name: "Ship the release notes for the autumn update: Item actions",
     });
-    expect(menu.className).toContain("size-11");
+    expect(menu.className).toContain("size-lumen-tap-touch");
     // A phone has no hover: the chevron is drawn, not hover-revealed.
     const chevron = rowButton?.querySelector("svg.lucide-chevron-right");
     expect(chevron).not.toBeNull();
