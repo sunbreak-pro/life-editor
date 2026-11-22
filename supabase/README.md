@@ -357,9 +357,9 @@ Supabase stores **one body per template type** and does not pick a
 language per user (the app does not record the user's language in
 `user_metadata` either). So only one of `ja/` / `en/` can be live at a
 time: **`ja/` is the live one** (D-20260926-web-2 = A), matching the
-author and the current distribution users. `en/` is kept for when
-English-speaking users join; choosing the language per user would need a
-code change and is re-decided then. If you edit a template in the
+author, who is the only user. `en/` is kept so the English wording can be
+made live in its place; choosing the language per user would need a code
+change. If you edit a template in the
 Dashboard, update the copy here in the same PR-sized change so the two do
 not drift.
 

@@ -10,7 +10,7 @@ topics: [feature-removal, settings, export]
 refs: ["#2716", "#2759", "docs/reports/2026-11-16-feature-inventory-for-removal.html", "https://claude.ai/artifact/7XVyuwdr2WXwxcRHmZiLiv"]
 supersedes: []
 superseded-by: []
-implemented-by: []
+implemented-by: ["#2786"]
 promoted-to: null
 ---
 

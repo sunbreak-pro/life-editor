@@ -15,8 +15,8 @@ import { resolveTagIcon, TAG_ICON_CHOICES } from "../src/components/tagIcon";
  *
  * Nothing else notices a regression here: re-introducing the registry keeps
  * types, lint and every other suite green while the initial download silently
- * grows back. Same failure mode the Analytics guard exists for
- * (analyticsTabsLightweight.test.ts).
+ * grows back. Same failure mode the recharts guard exists for
+ * (briefingVizLazy.test.ts).
  */
 
 const here = dirname(fileURLToPath(import.meta.url));

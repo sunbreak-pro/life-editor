@@ -27,7 +27,7 @@
 ### Boundary
 
 - やる:
-  - **紙面表示（Step 1 出荷済み）**: 今日の約束（= ScheduleItem）・今日のタスク（= TodoNode）・持ち越し・フォーカス・AI 講評の各ブロック（列挙の出典 = briefing-loop §1。実装上の全ブロック構成は `BriefingView.tsx` が正 — Analytics 3 ウィジェットを移入した視覚ゾーンを含む）。2026-10 から、今日の約束と今日のタスクは時刻ごとに並べる 1 つの表になり（#2223）、持ち越しは右の詳細パネルの「きのうまでの自分」の下へ移った（#2285・`shared/src/components/briefing/BriefingSidePanels.tsx`）
+  - **紙面表示（Step 1 出荷済み）**: 今日の約束（= ScheduleItem）・今日のタスク（= TodoNode）・持ち越し・フォーカス・AI 講評の各ブロック（列挙の出典 = briefing-loop §1。実装上の全ブロック構成は `BriefingView.tsx` が正 — 右の詳細パネルの「きのうまでの自分」の Todo 完了の推移を含む）。2026-10 から、今日の約束と今日のタスクは時刻ごとに並べる 1 つの表になり（#2223）、持ち越しは右の詳細パネルの「きのうまでの自分」の下へ移った（#2285・`shared/src/components/briefing/BriefingSidePanels.tsx`）
   - **朝刊の講評の読み方（2026-10〜）**: 列 `dailies_payload.morning_comment` を先に読み、列が無い日だけ下の本文の規約で読む。読む関数は `shared/src/components/briefing/dailyMorning.ts` の `readMorningRecord`（講評と、古い日の宣言の文章を返す）。MCP の `write_briefing` も列に書き、本文には書かない（D-20261007-briefing-1）
   - **朝刊の目標（#2106 → #2286）**: 紙面のブロックは今年・今月・今週を 1 行ずつ並べる要約で、各行に最初の目標・「その他 N」・期間の進み具合を出す（`shared/src/components/briefing/MorningGoalsBlock.tsx`）。見る・足す・Todo をつなぐ・直すは、ブロックの「目標」ボタンから開くパネルで行う（`MorningGoalsPanel.tsx`。Desktop は中央のダイアログ、Mobile は下からのシート）。今日の Todo の行には、つながった目標の印が出る。いちばん上には前の晩の「明日の自分へ」が出る。期間が終わって未達の目標は、紙面に「終わった期間の目標が N 件あります」の 1 行を出し、パネルの先頭のカードで「持ち越す / やめる / 達成にする」を 1 つずつ聞く。1 期間の件数に上限はない（#2366）。目標ノートから目標へ移す 1 回きりの処理（`goalNoteMigration.ts`）は、ノートに残る行が終わった期間のものだけになって何も移さなくなったので、#2757 で消した。保存先・達成の判定は計画書 §設計 が正
   - **朝刊の保存規約（`extractBriefing`。2026-10 からは列の無い古い日の読み口）**: TipTap JSON の `heading` ノード（レベル不問）でテキストが「朝刊」/「Briefing」（大文字小文字不問・trim 後完全一致）のセクションを抽出。段落 1 = フォーカス行・段落 2 以降 = AI 講評。次の heading（テキスト不問）でセクション終了。content が欠落・パース不能・セクション無しは `null` → 紙面は空状態表示
@@ -58,7 +58,7 @@
 
 - DB Tables: `goals_payload` / `goal_todo_links`（目標）と `dailies_payload` の `morning_comment` / `evening_published_at` / `evening_notes`（2026-10〜）。夕刊の文章と気分は今も `dailies_payload.content_json` 内の見出しセクション
 - 読み取り: ScheduleItem（今日の約束）/ TodoNode（今日のタスク・持ち越し）/ タスクツリー（視覚ゾーンの完了推移。連続記録と作業・休憩の割合は #2717 で外し、`timer_sessions` は読まない）/ WikiTagsUnified リンク（タスク行の purposes）
-- 他機能: Daily（朝刊・夕刊の保存先）/ Schedule（閲覧責務の移譲元）/ Todos / Analytics（視覚ゾーンのウィジェット移入元 — tier-3 凍結中）/ MCP Server（Step 2 の書き込み経路）
+- 他機能: Daily（朝刊・夕刊の保存先）/ Schedule（閲覧責務の移譲元）/ Todos / MCP Server（Step 2 の書き込み経路）
 - 子計画: `2026-07-14-schedule-redesign.md`（「組む」）/ `2026-07-16-loop-friction-fixes.md`（F-1 / F-2 / F-6 — COMPLETED・`archive/` 移動済）
 
 ### Known Issues / Tech Debt

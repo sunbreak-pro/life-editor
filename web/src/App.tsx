@@ -251,7 +251,7 @@ function App() {
         setSessionUnreachable(false);
         clearRecovery();
         // #2331: a sign-out from anywhere (another tab, an expired refresh
-        // token, account deletion) leaves no lists of this user on the device.
+        // token) leaves no lists of this user on the device.
         const previous = lastUserIdRef.current;
         lastUserIdRef.current = null;
         if (previous !== null) void forgetDomainSnapshots(previous);

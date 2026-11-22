@@ -7,10 +7,10 @@
  * is the whole defence, and since #919 put the password screens inside the app
  * the floor those screens show IS the effective policy.
  *
- * It lives here rather than as a default baked into each card because four
- * surfaces have to agree on it — the sign-up field, the recovery reset card,
- * Settings' account card, and the client-side check that runs before Supabase
- * is called — and the en / ja helper lines have to quote the same figure.
+ * It lives here rather than as a default baked into each card because three
+ * surfaces have to agree on it — the recovery reset card, Settings' account
+ * card, and the client-side check that runs before Supabase is called — and
+ * the en / ja helper lines have to quote the same figure.
  * Writing "12" into the catalog would be a second copy that nothing forces to
  * match, so those strings interpolate `{{min}}` and are handed this constant.
  *

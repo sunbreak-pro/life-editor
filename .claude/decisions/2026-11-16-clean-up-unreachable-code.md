@@ -10,7 +10,7 @@ topics: [feature-removal, cleanup, dead-code]
 refs: ["#2716", "#2757", "#2758", "docs/reports/2026-11-16-feature-inventory-for-removal.html", "https://claude.ai/artifact/7XVyuwdr2WXwxcRHmZiLiv"]
 supersedes: []
 superseded-by: []
-implemented-by: []
+implemented-by: ["#2765", "#2787"]
 promoted-to: null
 ---
 
