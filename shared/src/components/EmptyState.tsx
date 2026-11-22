@@ -7,8 +7,12 @@ export interface EmptyStateProps {
   icon?: ReactNode;
   /** Already-translated single-line message (§6.4). */
   message: string;
-  /** Optional accent call-to-action, rendered with the primary Button (sm). */
-  cta?: { label: string; onClick: () => void };
+  /**
+   * Optional accent call-to-action, rendered with the primary Button (sm).
+   * `ariaLabel` is the spoken name when it must differ from the visible
+   * `label`; omitted, the visible label is the name.
+   */
+  cta?: { label: string; ariaLabel?: string; onClick: () => void };
   className?: string;
 }
 
@@ -38,7 +42,12 @@ export function EmptyState({ icon, message, cta, className }: EmptyStateProps) {
         {message}
       </p>
       {cta && (
-        <Button variant="primary" size="sm" onClick={cta.onClick}>
+        <Button
+          variant="primary"
+          size="sm"
+          aria-label={cta.ariaLabel}
+          onClick={cta.onClick}
+        >
           {cta.label}
         </Button>
       )}

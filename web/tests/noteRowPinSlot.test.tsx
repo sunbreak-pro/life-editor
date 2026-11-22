@@ -125,6 +125,7 @@ const LIST_LABELS: NotesSidebarListLabels = {
   searchEmpty: "No match",
   bodySearchFailed: "Body search failed",
   addCta: "Add",
+  addAria: "Add note",
   collapseGroup: "Collapse",
   expandGroup: "Expand",
   deleteNote: "Delete",

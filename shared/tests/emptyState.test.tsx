@@ -36,4 +36,29 @@ describe("EmptyState", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add one" }));
     expect(onClick).toHaveBeenCalledTimes(1);
   });
+
+  // #2806: the spoken name can differ from the visible text; omitted, the
+  // visible text is the name.
+  it("names the CTA by ariaLabel while the visible text stays", () => {
+    render(
+      <EmptyState
+        message="Empty"
+        cta={{ label: "Note", ariaLabel: "Create note", onClick: () => {} }}
+      />,
+    );
+    const btn = screen.getByRole("button", { name: "Create note" });
+    expect(btn.textContent).toBe("Note");
+    expect(screen.queryByRole("button", { name: "Note" })).toBeNull();
+  });
+
+  it("names the CTA by its visible text when ariaLabel is omitted", () => {
+    render(
+      <EmptyState
+        message="Empty"
+        cta={{ label: "Add one", onClick: () => {} }}
+      />,
+    );
+    const btn = screen.getByRole("button", { name: "Add one" });
+    expect(btn.hasAttribute("aria-label")).toBe(false);
+  });
 });

@@ -522,14 +522,15 @@ describe("NotesView — desktop (wide)", () => {
     // #1372: TWO add entries, not three. The main content's is the toolbar
     // pill alone; the third used to sit in the centred empty state, saying the
     // same thing a few centimetres under the pill. The side list keeps its own.
-    // #2793: the two entries no longer share a name. The pill is spoken as
-    // the action; the list's CTA keeps the visible label.
+    // #2793 / #2806: both entries are spoken as the action; neither answers to
+    // the bare visible label, which is the tab's name.
     expect(
       screen.getAllByRole("button", { name: "materials.notes.addAria" }).length,
-    ).toBe(1);
+    ).toBe(2);
     expect(
-      screen.getAllByRole("button", { name: "materials.notes.addCta" }).length,
-    ).toBe(1);
+      screen.queryAllByRole("button", { name: "materials.notes.addCta" })
+        .length,
+    ).toBe(0);
     fireEvent.click(
       screen.getAllByRole("button", { name: "materials.notes.addAria" })[0],
     );
@@ -697,13 +698,16 @@ describe("NotesView — what goes in the right sidebar (#2390)", () => {
     render(<NotesView />);
 
     const panel = within(screen.getByTestId("right-sidebar-portal"));
-    panel.getByRole("button", { name: "materials.notes.addCta" });
+    // #2806: the list's CTA keeps the visible label but is spoken as the action.
+    const cta = panel.getByRole("button", { name: "materials.notes.addAria" });
+    expect(cta.textContent).toBe("materials.notes.addCta");
     expect(
       screen.getAllByRole("button", { name: "materials.notes.addAria" }).length,
-    ).toBe(1);
+    ).toBe(2);
     expect(
-      screen.getAllByRole("button", { name: "materials.notes.addCta" }).length,
-    ).toBe(1);
+      screen.queryAllByRole("button", { name: "materials.notes.addCta" })
+        .length,
+    ).toBe(0);
   });
 });
 
