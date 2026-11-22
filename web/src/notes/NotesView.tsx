@@ -542,6 +542,7 @@ export function NotesView({
     searchEmpty: t("materials.notes.searchEmpty"),
     bodySearchFailed: t("materials.notes.bodySearchFailed"),
     addCta: t("materials.notes.addCta"),
+    addAria: t("materials.notes.addAria"),
     collapseGroup: t("materials.notes.collapseGroup"),
     expandGroup: t("materials.notes.expandGroup"),
   };

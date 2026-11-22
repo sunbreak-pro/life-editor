@@ -75,6 +75,8 @@ export interface NotesSidebarListLabels {
   /** The body search failed; only title matches are shown (#1972). */
   bodySearchFailed: string;
   addCta: string;
+  /** The empty list's create button's spoken name; its text stays `addCta` (#2806). */
+  addAria: string;
   collapseGroup: string;
   expandGroup: string;
   deleteNote: string;
@@ -523,7 +525,11 @@ export function NotesSidebarList({
           <EmptyState
             icon={<FileText aria-hidden />}
             message={labels.empty}
-            cta={{ label: labels.addCta, onClick: onCreateNote }}
+            cta={{
+              label: labels.addCta,
+              ariaLabel: labels.addAria,
+              onClick: onCreateNote,
+            }}
           />
         ) : othersInline ? (
           /* #2061, narrow: "Other items" replaces the list inside the drawer,
