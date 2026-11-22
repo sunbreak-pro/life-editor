@@ -1012,6 +1012,7 @@
     "detail": {
       "breakdownHeading": "種類別の内訳（{{name}}）",
       "recentHeading": "最近タグを付けたもの",
+      "recentUpdated": "{{date}} 更新",
       "recentUntaggedHeading": "最近更新したもの",
       "recentEmpty": "このタグが付いたアイテムはまだありません。"
     },
@@ -1035,6 +1036,7 @@
     "row": {
       "noDate": "日付なし",
       "allDay": "終日",
+      "dailyTitle": "{{date}}（{{weekday}}）",
       "repeats": "繰り返し",
       "done": "完了",
       "statusFailed": "Todo の状態を保存できませんでした。通信を確認してください。"

@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { useEffect, useRef, type JSX } from "react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   render,
   screen,
@@ -9,9 +10,12 @@ import {
 } from "@testing-library/react";
 import {
   ItemPanelProvider,
+  RightSidebarProvider,
   WikiTagsUnifiedProvider,
+  i18n,
   resetConnectSelection,
   useItemPanelContext,
+  useRightSidebarContext,
   type DataService,
 } from "@life-editor/shared";
 import { ConnectScreen } from "../src/connect/ConnectScreen";
@@ -141,6 +145,17 @@ function PanelRequestProbe() {
   );
 }
 
+/** Stands in for the shell's right panel, as connectScreen.test.tsx does. */
+function PanelWell(): JSX.Element {
+  const { setPortalTarget } = useRightSidebarContext();
+  const ref = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    setPortalTarget(ref.current);
+    return () => setPortalTarget(null);
+  }, [setPortalTarget]);
+  return <aside aria-label="Details" ref={ref} />;
+}
+
 async function renderWork(
   ds: DataService = makeDS(),
   tagLabel = "Work: 8 items",
@@ -149,15 +164,23 @@ async function renderWork(
   const { wrapper: SyncWrapper } = createBumpableSync();
   render(
     <SyncWrapper>
-      <ItemPanelProvider>
-        <WikiTagsUnifiedProvider dataService={ds}>
-          <ConnectScreen dataService={ds} onNavigateToItem={onNavigateToItem} />
-        </WikiTagsUnifiedProvider>
-        <PanelRequestProbe />
-      </ItemPanelProvider>
+      <RightSidebarProvider>
+        <ItemPanelProvider>
+          <WikiTagsUnifiedProvider dataService={ds}>
+            <ConnectScreen
+              dataService={ds}
+              onNavigateToItem={onNavigateToItem}
+            />
+          </WikiTagsUnifiedProvider>
+          <PanelRequestProbe />
+        </ItemPanelProvider>
+        <PanelWell />
+      </RightSidebarProvider>
     </SyncWrapper>,
   );
-  await waitFor(() => screen.getByRole("list", { name: "Tags" }));
+  await waitFor(() =>
+    screen.getByRole("list", { name: i18n.t("connect.listLabel") }),
+  );
   fireEvent.click(screen.getByRole("button", { name: tagLabel }));
   return { ds, onNavigateToItem };
 }
@@ -224,15 +247,22 @@ describe("ConnectScreen rows — frames and the left edge (#2224)", () => {
     expect(leftEdge("event-1").textContent).toContain("8/29");
     expect(leftEdge("event-1").textContent).toContain("09:00");
     expect(leftEdge("event-allday").textContent).toContain("All day");
-    // A repeat carries the repeat glyph; a one-off does not.
-    expect(leftEdge("event-rep").querySelector("svg")).not.toBeNull();
-    expect(leftEdge("event-1").querySelector("svg")).toBeNull();
+    // The column is text only (#2601): the glyphs stand right of it.
+    expect(leftEdge("event-rep").querySelector("svg")).toBeNull();
     // A note: when it was last updated.
     expect(leftEdge("note-1").textContent).toContain("8/27");
     expect(leftEdge("note-1").textContent).toContain("14:05");
-    // A daily: its date only, with its icon.
+    // A daily: its date only.
     expect(leftEdge("daily-2026-08-26").textContent).toContain("8/26");
-    expect(leftEdge("daily-2026-08-26").querySelector("svg")).not.toBeNull();
+  });
+
+  it("marks a repeat with a glyph left of its title (#2601)", async () => {
+    await renderWork();
+    const title = within(row("event-rep")).getByTitle("Review");
+    expect(title.firstElementChild?.hasAttribute("data-taghub-repeat")).toBe(
+      true,
+    );
+    expect(row("event-1").querySelector("[data-taghub-repeat]")).toBeNull();
   });
 
   it("shows no date at the right of a row any more", async () => {
@@ -255,6 +285,129 @@ describe("ConnectScreen rows — frames and the left edge (#2224)", () => {
     await renderWork();
     expect(rowIds("task")).toEqual(["task-done", "task-open", "task-undated"]);
     expect(rowIds("event")).toEqual(["event-allday", "event-1", "event-rep"]);
+  });
+});
+
+/*
+ * #2601 — the details the prototype still differed in. The year decides how a
+ * date reads, so the clock is held inside the fixtures' own year.
+ */
+describe("ConnectScreen rows — the prototype's details (#2601)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date(2026, 8, 1, 12) });
+  });
+  afterEach(async () => {
+    vi.useRealTimers();
+    // Unmounted first, or the language change re-renders outside act().
+    cleanup();
+    await i18n.changeLanguage("en");
+  });
+
+  it("heads a frame with the kind's icon box, a bold name and a count pill", async () => {
+    await renderWork();
+    const frame = document.querySelector('[data-taghub-group="task"]');
+    const heading = frame?.querySelector("h3");
+    if (!heading) throw new Error("no heading");
+    const [box, name, pill] = [...heading.children];
+    expect(box.getAttribute("data-taghub-kind")).toBe("task");
+    expect(box.querySelector("svg")).not.toBeNull();
+    expect(name.textContent).toBe("Todo");
+    expect(name.className).toContain("font-bold");
+    expect(pill.textContent).toBe("3");
+    expect([...pill.classList]).toEqual(
+      expect.arrayContaining(["ml-auto", "min-w-6", "border", "rounded-full"]),
+    );
+  });
+
+  it("stacks the bare day over the time, beside the kind's icon box", async () => {
+    await renderWork();
+    const lines = (id: string) =>
+      [...leftEdge(id).children].map((line) => line.textContent);
+    expect(lines("task-open")).toEqual(["8/29", "09:30"]);
+    expect(lines("task-undated")).toEqual(["No date"]);
+    expect(lines("event-allday")).toEqual(["8/28", "All day"]);
+    expect(lines("event-rep")).toEqual(["8/30", "18:00"]);
+    expect(lines("daily-2026-08-26")).toEqual(["8/26"]);
+    expect(
+      ["task-open", "event-1", "note-1", "daily-2026-08-26"].map((id) =>
+        row(id)
+          .querySelector("[data-taghub-kind]")
+          ?.getAttribute("data-taghub-kind"),
+      ),
+    ).toEqual(["task", "event", "note", "daily"]);
+  });
+
+  it("says the year of a day outside this one, short enough for the column", async () => {
+    vi.setSystemTime(new Date(2027, 0, 5, 12));
+    await renderWork();
+    expect(leftEdge("event-1").textContent).toContain("8/29/26");
+    within(row("daily-2026-08-26")).getByTitle("Wed, August 26, 2026");
+  });
+
+  it("names a daily by its month, day and weekday", async () => {
+    await renderWork();
+    within(row("daily-2026-08-26")).getByTitle("Wed, August 26");
+  });
+
+  it("words the dates in Japanese", async () => {
+    await i18n.changeLanguage("ja");
+    await renderWork(makeDS(), "Work: 8 件");
+    within(row("daily-2026-08-26")).getByTitle("8月26日（水）");
+    expect(leftEdge("daily-2026-08-26").textContent).toBe("8/26");
+    expect(leftEdge("task-open").textContent).toBe("8/2909:30");
+  });
+
+  it("ends each recent row of the right panel in its kind's short date", async () => {
+    const recentDates = (region: string) =>
+      Object.fromEntries(
+        within(
+          within(
+            screen.getByRole("complementary", { name: "Details" }),
+          ).getByRole("region", { name: region }),
+        )
+          .getAllByRole("button")
+          .map((button) => [
+            button.querySelector("[title]:not([role])")?.textContent,
+            button.querySelector("[data-recent-date]")?.textContent ?? null,
+          ]),
+      );
+    const ids = [
+      "task-open",
+      "event-1",
+      "event-allday",
+      "note-1",
+      "daily-2026-08-26",
+    ];
+    const ds = () =>
+      makeDS({
+        listAllTagAssignments: vi.fn().mockResolvedValue(
+          ids.map((itemId, i) => ({
+            id: `a-${i}`,
+            itemId,
+            tagId: "t-work",
+            isDeleted: false,
+          })),
+        ),
+      });
+
+    await renderWork(ds(), "Work: 5 items");
+    expect(recentDates("Recently tagged")).toEqual({
+      "Draft the PR": "8/29",
+      Standup: "8/29 09:00",
+      Offsite: "8/28",
+      "Migration notes": "Updated 8/27",
+      "Wed, August 26": null,
+    });
+
+    cleanup();
+    resetConnectSelection();
+    await i18n.changeLanguage("ja");
+    await renderWork(ds(), "Work: 5 件");
+    expect(recentDates("最近タグを付けたもの")).toMatchObject({
+      Standup: "8/29 09:00",
+      "Migration notes": "8/27 更新",
+      "8月26日（水）": null,
+    });
   });
 });
 
@@ -290,7 +443,14 @@ describe("ConnectScreen rows — done todos and the round checkbox (#2224)", () 
     await renderWork();
     const done = within(row("task-done"));
     expect(done.getByTitle("Ship it").className).toContain("line-through");
-    done.getByText("Done");
+    // #2601 — a green pill.
+    expect([...done.getByText("Done").classList]).toEqual(
+      expect.arrayContaining([
+        "rounded-full",
+        "bg-lumen-success-subtle",
+        "text-lumen-success",
+      ]),
+    );
     expect(
       done
         .getByRole("checkbox", { name: "Ship it — Status: Done" })
