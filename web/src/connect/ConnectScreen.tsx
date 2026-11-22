@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
+import { ExternalLink, Network, X } from "lucide-react";
 import {
   buildTagHubModel,
   ConfirmDialog,
@@ -106,7 +107,7 @@ import { useConnectTagIntent } from "./useConnectTagIntent";
  * MOBILE (#1646). The narrow layout is the same three things one screen at a
  * time: the tag list, a tag's items, and the relations — which have no side
  * panel to live in, so they come up as a bottom sheet. Every row menu is a
- * sheet too (the rail's four actions, an item's two), and the one-action
+ * sheet too (the rail's actions, an item's three), and the one-action
  * sheets show the edit block cut down to the field they named.
  *
  * EDITING IN PLACE (#2224). A right-click (a long press on a phone) on a todo
@@ -935,7 +936,7 @@ export function ConnectScreen({
 
   /*
    * The narrow row menus (#1646). Which item's sheet is open is host state,
-   * because its two actions both write (unassign) or move the selection.
+   * because its actions write (unassign), move the selection or leave.
    */
   const [sheetItem, setSheetItem] = useState<TagHubItem | null>(null);
   const removeTagFromItem = useCallback(
@@ -1202,9 +1203,9 @@ export function ConnectScreen({
         }
       />
 
-      {/* The narrow row's "…" (M3): read what it relates to, or take this
-          tag off it. Neither is destructive enough for the danger tint — the
-          brief says so for the second one explicitly. */}
+      {/* The narrow row's "…" (M3): leave for the item, read what it relates
+          to, or take this tag off it. The last one is tinted since #2629: the
+          prototype overrides the brief, which had left it untinted. */}
       <TagHubActionSheet
         open={!isWide && sheetItem !== null}
         onClose={() => setSheetItem(null)}
@@ -1214,13 +1215,23 @@ export function ConnectScreen({
           sheetItem
             ? [
                 {
+                  label: t(`connect.mobile.goToItem.${sheetItem.role}`),
+                  icon: <ExternalLink size={16} />,
+                  onSelect: () => handleOpenItem(sheetItem),
+                },
+                {
                   label: t("connect.mobile.seeRelations"),
+                  icon: <Network size={16} />,
                   onSelect: () => selectItem(sheetItem.id),
                 },
                 ...(selectedTag && !selectedTag.isUntagged
                   ? [
                       {
-                        label: t("connect.mobile.removeThisTag"),
+                        label: t("connect.mobile.removeTag", {
+                          name: selectedTag.name,
+                        }),
+                        icon: <X size={16} />,
+                        danger: true,
                         onSelect: () => removeTagFromItem(sheetItem),
                       },
                     ]

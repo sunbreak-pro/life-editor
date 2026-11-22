@@ -1071,9 +1071,15 @@
       "writeFailed": "The link could not be saved. Check your connection."
     },
     "mobile": {
+      "goToItem": {
+        "task": "Go to this todo",
+        "event": "Go to this event",
+        "note": "Go to this note",
+        "daily": "Go to this daily"
+      },
       "itemMenu": "{{title}}: Item actions",
       "relationsSheet": "Related: {{title}}",
-      "removeThisTag": "Remove this tag",
+      "removeTag": "Remove “{{name}}” from this item",
       "seeRelations": "See what it relates to"
     },
     "sheetClose": "Close",

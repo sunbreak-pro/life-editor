@@ -1060,9 +1060,15 @@
       "writeFailed": "リンクを保存できませんでした。通信を確認してください。"
     },
     "mobile": {
+      "goToItem": {
+        "task": "この Todo へ移動する",
+        "event": "この予定へ移動する",
+        "note": "このノートへ移動する",
+        "daily": "このデイリーへ移動する"
+      },
       "itemMenu": "「{{title}}」の操作",
       "relationsSheet": "関連: {{title}}",
-      "removeThisTag": "このタグを外す",
+      "removeTag": "このアイテムから「{{name}}」を外す",
       "seeRelations": "関連を見る"
     },
     "sheetClose": "閉じる",
