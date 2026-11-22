@@ -10,7 +10,7 @@ topics: [mobile, dialog, layout]
 refs: ["#2808", "#2811", "#2814", "2026-11-21-restore-equal-width-add-dialog-buttons"]
 supersedes: []
 superseded-by: []
-implemented-by: []
+implemented-by: ["#2816"]
 promoted-to: null
 ---
 
