@@ -1113,6 +1113,34 @@ describe("ScheduleOverlays — the repeat scope dialog (#279)", () => {
     renderOverlays({ scope: { request: null } });
     expect(screen.queryByText("scheduleScreen.editScopeTitle")).toBeNull();
   });
+
+  it.each([
+    ["edit", "scheduleScreen.save", "bg-lumen-accent"],
+    ["delete", "scheduleScreen.delete", "bg-lumen-danger"],
+  ] as const)(
+    "confirms a %s request with its own word and colour (#2567)",
+    (mode, key, fill) => {
+      renderOverlays({ scope: { request: { mode } } });
+      screen.getByRole("radiogroup", {
+        name: "scheduleScreen.scopeDescription",
+      });
+      const confirm = screen.getByRole("button", { name: key });
+      expect(confirm.className.split(" ")).toContain(fill);
+    },
+  );
+
+  it("hands the scope to the host on the confirm press only (#2567)", () => {
+    const { props } = renderOverlays({ scope: { request: { mode: "edit" } } });
+    fireEvent.click(
+      screen.getByRole("radio", { name: "scheduleScreen.scopeThisAndFuture" }),
+    );
+    expect(props.scope.onChoose).not.toHaveBeenCalled();
+    fireEvent.click(
+      screen.getByRole("button", { name: "scheduleScreen.save" }),
+    );
+    expect(props.scope.onChoose).toHaveBeenCalledTimes(1);
+    expect(props.scope.onChoose).toHaveBeenCalledWith("future");
+  });
 });
 
 /*
