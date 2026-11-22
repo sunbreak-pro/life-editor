@@ -746,9 +746,7 @@ export function ConnectScreen({
       recentHeading: t("connect.detail.recentHeading"),
       recentUntaggedHeading: t("connect.detail.recentUntaggedHeading"),
       recentEmpty: t("connect.detail.recentEmpty"),
-      // The panel says 「予定」 as the Schedule section does (#2409), where
-      // `itemRole.event` is 「イベント」. In `en` the two are the same word.
-      roles: { ...labels.roles, event: t("connect.detail.kindEvent") },
+      roles: labels.roles,
     }),
     [t, labels.roles, selectedTag?.name],
   );

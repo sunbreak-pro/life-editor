@@ -285,8 +285,8 @@ export function ScheduleOverlays({
   const [notePickerOpen, setNotePickerOpen] = useState(false);
 
   // #2397: the kind badge at the head of both bubbles. The Schedule's own
-  // words (「予定」/「Todo」, the ones the add dialog's type switch uses), not
-  // itemRole's 「イベント」.
+  // words, the ones the add dialog's type switch uses, so the badge and the
+  // switch cannot drift apart.
   const kindLabels = {
     event: t("scheduleScreen.typeEvent"),
     task: t("scheduleScreen.typeTodo"),
