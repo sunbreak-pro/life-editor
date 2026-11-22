@@ -142,18 +142,28 @@ const editorHasFocus = (): boolean =>
 // ---- Editor card (shared between Desktop / Mobile, size via props) --------
 
 /*
- * The card clips its children (overflow-hidden keeps the scrolling editor
- * inside the rounded corners), and the header kebab's <Menu> is NOT portalled
- * — it hangs below the trigger INSIDE this box. With min-h-0 the flex column
- * squeezed a short day's card under the evening card until the menu's lower
- * row (delete) was cut off and unclickable (#1679). The floor is about twice
- * the open menu's reach (header pt-4 + 28px trigger + 2 rows ≈ 122px), so a
- * third row still fits. Both widths share it: narrow draws the kebab outside
- * the card, but an editor that short is also hard to type into. It replaces
- * min-h-0 rather than joining it — `cn` does not merge, so two min-h classes
- * would resolve by stylesheet order, not by argument order.
+ * The box clips its children (overflow-hidden), and the header kebab's <Menu>
+ * is NOT portalled — it hangs below the trigger INSIDE this box. With min-h-0
+ * the flex column squeezed a short day's box under the evening card until the
+ * menu's lower row (delete) was cut off and unclickable (#1679). The floor is
+ * about twice the open menu's reach (header pt-4 + 28px trigger + 2 rows ≈
+ * 122px), so a third row still fits. Both widths share it: narrow draws the
+ * kebab outside the box, but an editor that short is also hard to type into.
+ * It replaces min-h-0 rather than joining it — `cn` does not merge, so two
+ * min-h classes would resolve by stylesheet order, not by argument order.
  */
 export const DAILY_EDITOR_CARD_MIN_HEIGHT = "min-h-60";
+
+/*
+ * #2661: the body draws no card, so its text lines up with the page gutter.
+ * The box still clips, and a box exactly as wide as the text would cut the
+ * focus rings at its edges: it reaches out over the gutter (BLEED) and its
+ * rows pad the same amount back in (INSET). Gutter tokens rather than rem
+ * steps, so a large root font size cannot push the box past the fixed-px
+ * gutter.
+ */
+const EDITOR_BLEED = "-mx-lumen-gutter md:-mx-lumen-gutter-wide";
+const EDITOR_INSET = "px-lumen-gutter md:px-lumen-gutter-wide";
 
 function EditorCard({
   dateLabel,
@@ -208,11 +218,12 @@ function EditorCard({
     <div
       data-testid="daily-editor-card"
       className={cn(
-        "flex flex-1 flex-col overflow-hidden rounded-lumen-lg border border-lumen-border bg-lumen-bg-secondary shadow-lumen-sm",
+        "flex flex-1 flex-col overflow-hidden",
+        EDITOR_BLEED,
         DAILY_EDITOR_CARD_MIN_HEIGHT,
       )}
     >
-      <div className="flex items-start gap-2.5 px-5 pb-1 pt-4">
+      <div className={cn("flex items-start gap-2.5 pb-1 pt-4", EDITOR_INSET)}>
         <h1 className={cn("flex-1", dateClassName)}>{dateLabel}</h1>
         {savedLabel != null && (
           <span className="pt-1.5 text-[11.5px] text-lumen-text-tertiary">
@@ -223,7 +234,7 @@ function EditorCard({
       </div>
       {/* Same band as the Notes body: outside the document, so nothing
           mid-upload can reach the autosave (D-20260902-materials-1 = B). */}
-      <div className="px-5">
+      <div className={EDITOR_INSET}>
         <AttachmentUploadStatus
           fileName={uploadingFile}
           uploadingLabel={uploadingLabel}
@@ -238,10 +249,8 @@ function EditorCard({
       {bodyPending ? (
         <div
           data-testid="daily-body-pending"
-          className="min-h-0 flex-1 px-5 pb-5 pt-1"
+          className={cn("min-h-0 flex-1 pb-5 pt-1", EDITOR_INSET)}
         >
-          {/* Rows in the hover tone: the card itself is bg-secondary, the
-              colour SkeletonList draws its rows in. */}
           <div aria-hidden="true" className="flex flex-col gap-2">
             {[0, 1, 2].map((i) => (
               <div
@@ -269,7 +278,10 @@ function EditorCard({
             onNavigateToItem={onNavigateToItem}
             onResolvedLinkInserted={onResolvedLinkInserted}
             attachments={attachments}
-            className="daily-editor min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-1"
+            className={cn(
+              "daily-editor min-h-0 flex-1 overflow-y-auto pb-5 pt-1",
+              EDITOR_INSET,
+            )}
           />
         </div>
       )}
