@@ -497,7 +497,7 @@ describe("GoalTreeView — +, edit and delete on a goal row (#2367)", () => {
     expect(row.querySelector("[data-goal-row-more]")).toBeNull();
   });
 
-  it("ends an unselected row in one always-shown 44px … on a phone (#2488 / #2611)", () => {
+  it("ends an unselected row in one always-shown 40px … on a phone (#2488 / #2611 / #2672)", () => {
     setNarrow();
     renderTree({
       onRenameGoal: vi.fn(),
@@ -516,7 +516,7 @@ describe("GoalTreeView — +, edit and delete on a goal row (#2367)", () => {
       name: "More actions: Run 3 times",
     });
     expect(more.className).not.toContain("opacity-0");
-    expect(more.className.split(/\s+/)).toContain("size-11");
+    expect(more.className.split(/\s+/)).toContain("size-(--goal-tree-toggle)");
     expect(more.getAttribute("aria-expanded")).toBe("false");
     expect(more.querySelector("svg")?.getAttribute("class")).toContain(
       "lucide-ellipsis",
@@ -916,7 +916,7 @@ describe("GoalTreeView — a todo row's name, pencil and bin (#2388)", () => {
       screen.queryByRole("button", { name: "Delete todo: 5 km jog" }),
     ).toBeNull();
     const more = screen.getByRole("button", { name: "More actions: 5 km jog" });
-    expect(more.className.split(/\s+/)).toContain("size-11");
+    expect(more.className.split(/\s+/)).toContain("size-(--goal-tree-toggle)");
 
     fireEvent.click(more);
     expect(more.getAttribute("aria-expanded")).toBe("true");
@@ -1211,7 +1211,7 @@ describe("GoalTreeView — a goal's title keeps its room on a phone (#2487)", ()
     setNarrow();
     renderTree({ onRenameGoal: vi.fn(), rowActions: actions() });
     const row = rowOf("Run 3 times");
-    // One 44px target leaves the title its room, so the row need not wrap.
+    // One 40px target leaves the title its room, so the row need not wrap.
     expect(classesOf(row)).not.toContain("max-md:flex-wrap");
     const more = within(row).getByRole("button", {
       name: "More actions: Run 3 times",
