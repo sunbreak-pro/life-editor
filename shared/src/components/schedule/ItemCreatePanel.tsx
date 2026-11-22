@@ -658,7 +658,8 @@ const DISABLED_OUTLINE_BTN = "disabled:cursor-not-allowed disabled:opacity-50";
 // 「追加して詳細へ」 needs 110px, so its last character wraps to a second line.
 // The button grows to fit because `min-h-11` is only a floor; a fixed `h-11`
 // would clip the second line. Owner-accepted 2026-11-21 (replaces the
-// width-by-label choice made in #2427).
+// width-by-label choice made in #2427). The footer row stretches its items, so
+// the other two buttons grow with the wrapped one (#2814).
 const PRIMARY_BTN = `flex-1 rounded-lumen-md bg-lumen-accent py-2 text-center text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover max-md:min-h-11 ${FOCUS_RING_ON_ACCENT} ${DISABLED_FILLED_BTN}`;
 const SECONDARY_BTN = `flex-1 rounded-lumen-md border border-lumen-border-strong py-2 text-center text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11 ${DISABLED_OUTLINE_BTN}`;
 // Cancel writes nothing, so it takes neither the fill nor the outline — only
@@ -1863,8 +1864,11 @@ export function ItemCreatePanel({
         </div>
         {/* The footer acts on the active tab; opening the note section leaves it
             alone. #2406: Cancel / Add and edit / Add, in the proposal's order,
-            on both tabs — the submit at the end the eye finishes on. */}
-        <div className="flex items-center gap-2">
+            on both tabs — the submit at the end the eye finishes on. #2814:
+            `items-stretch` so a wrapped submit pulls the other two up to its
+            height instead of standing taller alone; a native button keeps its
+            label vertically centred however tall it grows. */}
+        <div className="flex items-stretch gap-2">
           {onCancel && labels.cancel && (
             <button type="button" onClick={onCancel} className={CANCEL_BTN}>
               {labels.cancel}
