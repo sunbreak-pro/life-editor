@@ -726,10 +726,15 @@ export function ScheduleOverlays({
             scope.request?.mode === "delete"
               ? t("scheduleScreen.deleteScopeTitle")
               : t("scheduleScreen.editScopeTitle"),
+          description: t("scheduleScreen.scopeDescription"),
           thisOnly: t("scheduleScreen.scopeThisOnly"),
           thisAndFuture: t("scheduleScreen.scopeThisAndFuture"),
           all: t("scheduleScreen.scopeAll"),
           cancel: t("scheduleScreen.scopeCancel"),
+          confirm:
+            scope.request?.mode === "delete"
+              ? t("scheduleScreen.delete")
+              : t("scheduleScreen.save"),
           // #1801: only the DELETE side splits the series and hands its tags
           // to the survivors. The edit side propagates a patch and takes
           // nothing away, so the warning would be false there.

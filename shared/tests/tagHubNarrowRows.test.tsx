@@ -4,8 +4,8 @@ import { TagHubItemGroups, type TagHubGroup } from "../src/components";
 import { TAG_HUB_LABELS as LABELS, formatCount } from "./tagHubLabels";
 
 /*
- * #2498 — on a 390px phone the row's fixed 4.5rem day column, the Done chip
- * and the hidden chevron left a todo's title 37px: three letters.
+ * #2498 — on a 390px phone the row's fixed day column, the Done chip and the
+ * hidden chevron left a todo's title 37px: three letters.
  *
  * jsdom has no layout (CLAUDE.md §7.1), so the fix is pinned as STRUCTURE:
  * on narrow the day and the Done chip sit in a line under the title, inside
@@ -30,6 +30,19 @@ const GROUPS: TagHubGroup[] = [
     ],
   },
   {
+    role: "event",
+    items: [
+      {
+        id: "event-rep",
+        role: "event",
+        title: "Weekly review",
+        dayKey: "2026-08-30",
+        time: "18:00",
+        repeats: true,
+      },
+    ],
+  },
+  {
     role: "note",
     items: [
       {
@@ -44,14 +57,19 @@ const GROUPS: TagHubGroup[] = [
   },
 ];
 
-function renderRows(wide: boolean) {
-  render(
+function renderRows(
+  wide: boolean,
+  selection?: { selecting: boolean; checkedIds: ReadonlySet<string> },
+) {
+  return render(
     <TagHubItemGroups
       groups={GROUPS}
       onOpenItem={vi.fn()}
       formatCount={formatCount}
       wide={wide}
       labels={LABELS}
+      onToggleChecked={selection ? vi.fn() : undefined}
+      {...selection}
       onItemMenu={wide ? undefined : vi.fn()}
       formatItemMenu={(title) => `${title}: Item actions`}
       onSelectItem={wide ? vi.fn() : undefined}
@@ -90,7 +108,7 @@ describe("TagHubItemGroups — narrow rows give the title the width (#2498)", ()
       // Inside the title's column, under the title — not a column of its own.
       expect(titleColumn(id).contains(when)).toBe(true);
       expect(when.closest("[data-taghub-meta]")).not.toBeNull();
-      expect(when.className).not.toContain("w-[4.5rem]");
+      expect(when.className).not.toMatch(/(^| )w-\[/);
       // The title comes first in its column.
       expect(titleColumn(id).firstElementChild?.getAttribute("title")).toBe(
         GROUPS.flatMap((g) => g.items).find((i) => i.id === id)!.title,
@@ -107,6 +125,16 @@ describe("TagHubItemGroups — narrow rows give the title the width (#2498)", ()
     expect(within(titleColumn("note-1")).getByText("What moved where")).toBe(
       within(row("note-1")).getByText("What moved where"),
     );
+  });
+
+  it("leaves the kind box and the title's repeat glyph to wide (#2601)", () => {
+    renderRows(false);
+    expect(row("event-rep").querySelector("[data-taghub-kind]")).toBeNull();
+    expect(row("event-rep").querySelector("[data-taghub-repeat]")).toBeNull();
+    // A phone keeps the repeat beside the time, on the line under the title.
+    expect(
+      row("event-rep").querySelector("[data-taghub-meta] .lucide-repeat"),
+    ).not.toBeNull();
   });
 
   it("moves the Done chip into that line too", () => {
@@ -137,16 +165,50 @@ describe("TagHubItemGroups — narrow rows give the title the width (#2498)", ()
   });
 });
 
-describe("TagHubItemGroups — wide rows are unchanged (#2498)", () => {
+describe("TagHubItemGroups — room under the narrow selection bar (#2601)", () => {
+  const reserved = (
+    wide: boolean,
+    selecting: boolean,
+    checkedIds: ReadonlySet<string>,
+  ) => {
+    const { container, unmount } = renderRows(wide, { selecting, checkedIds });
+    const has = container.firstElementChild!.className.includes("pb-40");
+    unmount();
+    return has;
+  };
+
+  it("leaves it only while the bar is up, on narrow", () => {
+    // The bar is a card pinned over the list, so without the room the last
+    // rows could never be scrolled out from under it.
+    expect(reserved(false, true, new Set(["note-1"]))).toBe(true);
+    expect(reserved(false, true, new Set())).toBe(false);
+    expect(reserved(false, false, new Set(["note-1"]))).toBe(false);
+    // Wide stacks the bar in the tag rail, over nothing.
+    expect(reserved(true, true, new Set(["note-1"]))).toBe(false);
+  });
+});
+
+describe("TagHubItemGroups — wide rows keep their own left edge (#2498)", () => {
   it("keeps the fixed day column at the left edge", () => {
     renderRows(true);
     for (const id of ["task-done", "task-undated", "note-1"]) {
       const when = row(id).querySelector("[data-taghub-when]");
       if (!when) throw new Error(`no day on ${id}`);
-      expect(when.className).toContain("w-[4.5rem]");
+      expect(when.className).toContain("w-[3.25rem]");
       expect(titleColumn(id).contains(when)).toBe(false);
     }
     expect(document.querySelector("[data-taghub-meta]")).toBeNull();
+  });
+
+  it("stands the kind box between the day column and the title (#2601)", () => {
+    renderRows(true);
+    for (const id of ["task-done", "task-undated", "event-rep", "note-1"]) {
+      const box = row(id).querySelector("[data-taghub-kind]");
+      expect(box?.previousElementSibling?.hasAttribute("data-taghub-when")).toBe(
+        true,
+      );
+      expect(box?.nextElementSibling).toBe(titleColumn(id));
+    }
   });
 
   it("keeps the Done chip right of the title", () => {

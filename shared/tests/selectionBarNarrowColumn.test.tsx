@@ -22,8 +22,9 @@ import {
  *
  * #1732: with the right panel open the items pane is 590px, and the bar broke
  * two ways — English wrapped a button's label onto a second line and it spilled
- * out of the pill, Japanese truncated "2 件を選択中" to "2 …". Nothing in the
- * bar may shrink or wrap.
+ * out of the pill, Japanese truncated "2 件を選択中" to "2 …". No label in the
+ * bar may shrink or wrap; whole buttons flow onto further lines instead
+ * (#2601 — the strip used to scroll sideways and cut the last one in half).
  *
  * #1733: a bottom-anchored toast stack sat on top of the Mobile tab bar and
  * hid its labels.
@@ -63,7 +64,7 @@ const LABELS: TagHubSelectionBarLabels = {
   },
 };
 
-function renderBar() {
+function renderBar(layout: "row" | "rail" = "row") {
   render(
     <TagHubSelectionBar
       count={2}
@@ -77,6 +78,7 @@ function renderBar() {
       onMove={vi.fn()}
       onClear={vi.fn()}
       labels={LABELS}
+      layout={layout}
     />,
   );
   return screen.getByRole("toolbar", { name: "Selected items" });
@@ -111,18 +113,63 @@ describe("TagHubSelectionBar — a narrow items column (#1732)", () => {
     }
   });
 
-  it("scrolls sideways rather than squeezing anything", () => {
-    expect(renderBar()).toHaveClass("overflow-x-auto");
+  it("flows its buttons onto further lines, under the count (#2601)", () => {
+    const bar = renderBar();
+    expect(bar).not.toHaveClass("overflow-x-auto");
+    // A fixed height would clip the second line of buttons.
+    expect(bar.className).not.toMatch(/(^| )h-/);
+
+    const actions = bar.querySelector("[data-taghub-selection-actions]");
+    if (!(actions instanceof HTMLElement)) throw new Error("no actions");
+    expect(actions).toHaveClass("flex-wrap");
+    expect(within(actions).getAllByRole("button")).toHaveLength(3);
+
+    const top = actions.previousElementSibling;
+    if (!(top instanceof HTMLElement)) throw new Error("no top line");
+    within(top).getByText("2 件を選択中");
+    within(top).getByRole("button", { name: "Clear selection" });
   });
 });
 
+describe("TagHubSelectionBar — three writes, one weight (#2601)", () => {
+  it.each(["row", "rail"] as const)(
+    "orders add, move, remove and leads each with its glyph (%s)",
+    (layout) => {
+      const bar = renderBar(layout);
+      const writes = within(bar)
+        .getAllByRole("button")
+        .filter((button) => button.textContent !== "Clear selection");
+      expect(writes.map((button) => button.textContent)).toEqual([
+        "Add a tag",
+        "Move to another tag",
+        "Remove this tag",
+      ]);
+      // One glyph each, before the label — and no chevron after it.
+      expect(
+        writes.map((button) =>
+          [...button.querySelectorAll("svg")].map(
+            (svg) => [...svg.classList].filter((c) => c !== "lucide")[0],
+          ),
+        ),
+      ).toEqual([["lucide-tag"], ["lucide-arrow-right-left"], ["lucide-x"]]);
+      for (const button of writes) {
+        expect(button.firstElementChild?.tagName).toBe("svg");
+        expect(button).toHaveClass("bg-lumen-bg-secondary", "border");
+        expect(button).not.toHaveClass("bg-lumen-accent");
+        // The 44px floor (#1561) holds on every one.
+        expect(button).toHaveClass("max-md:min-h-11");
+      }
+    },
+  );
+});
+
 describe("TagHubSelectionBar — the choosers escape the bar (#1845)", () => {
-  // The bar scrolls sideways, which makes it clip vertically too: a chooser
-  // opened inside it showed as a 2px sliver. Both must live outside the bar.
+  // The bar used to scroll sideways, which made it clip vertically too: a
+  // chooser opened inside it showed as a 2px sliver. Both must live outside.
   it.each([
     ["Add a tag", "Add a tag to the selection"],
     ["Move to another tag", "Move the selection to a tag"],
-  ])("opens %s outside the scrolling toolbar", (trigger, title) => {
+  ])("opens %s outside the toolbar", (trigger, title) => {
     const bar = renderBar();
     fireEvent.click(within(bar).getByRole("button", { name: trigger }));
 
