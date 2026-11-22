@@ -224,3 +224,6 @@
 - D-20261102-sched-5: **A**（不揃いのままにする。回答が付かないまま PR #2450 が放置時の形で merge 済みだったため、2026-11-21 に chat-main が事後記録）
 - 2026-11-21-restore-equal-width-add-dialog-buttons: **B**（スマホの追加ダイアログのフッターの送信ボタンを等幅に戻す。D-20261102-sched-5 の事後記録の A を置き換える。実装は #2808。2026-11-21 チャットの AskUserQuestion で回答・chat-main が記録）
 - 2026-11-22-align-add-dialog-footer-heights: **B**（スマホの追加ダイアログのフッターで、3 つのボタンの高さを items-stretch でそろえる。実装は #2814。2026-11-22 チャットの AskUserQuestion で回答・chat-main が記録）
+- 2026-11-22-goal-tree-indent-17px: **A**（スマホの目標と Todo の木の字下げを 17px、押せる範囲を 40px にする。実装は #2672。2026-11-22 チャットの AskUserQuestion で回答・chat-main が記録）
+- 2026-11-22-icon-buttons-40px: **A**（アイコンだけのボタンを 40px にし、文字のある行は今のまま。実装は #2673。同上）
+- 2026-11-22-mobile-note-create-in-top-bar: **A**（ノートの作成ボタンを上のバーの右端に置く。実装は #2795、#2673 のあと。同上）
