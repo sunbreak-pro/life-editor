@@ -655,9 +655,10 @@ const DISABLED_OUTLINE_BTN = "disabled:cursor-not-allowed disabled:opacity-50";
 // phone (rules/frontend.md §Gotchas); Desktop keeps the `py-2` height.
 // Both submits stay an equal split (`flex-1`, no `max-md:basis-auto`) so the pair
 // reads as one row of the same-size targets. At 375px that is 103px each, and
-// 「追加して詳細へ」 needs 110px, so its last character wraps to a second line;
-// `max-md:min-h-11` keeps the wrapped label inside the button. Owner-accepted
-// 2026-11-21 (replaces the width-by-label choice made in #2427).
+// 「追加して詳細へ」 needs 110px, so its last character wraps to a second line.
+// The button grows to fit because `min-h-11` is only a floor; a fixed `h-11`
+// would clip the second line. Owner-accepted 2026-11-21 (replaces the
+// width-by-label choice made in #2427).
 const PRIMARY_BTN = `flex-1 rounded-lumen-md bg-lumen-accent py-2 text-center text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover max-md:min-h-11 ${FOCUS_RING_ON_ACCENT} ${DISABLED_FILLED_BTN}`;
 const SECONDARY_BTN = `flex-1 rounded-lumen-md border border-lumen-border-strong py-2 text-center text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11 ${DISABLED_OUTLINE_BTN}`;
 // Cancel writes nothing, so it takes neither the fill nor the outline — only

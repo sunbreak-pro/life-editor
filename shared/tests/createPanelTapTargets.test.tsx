@@ -227,7 +227,7 @@ describe("the add dialog's floor on a phone (#2427)", () => {
 
   it("splits the footer's two submits equally on a phone", () => {
     // Equal width wins over fitting the label: at 375px each is 103px, so
-    // 「追加して詳細へ」 may wrap, and the 44px floor keeps it inside the button.
+    // 「追加して詳細へ」 may wrap; `min-h-11` is a floor, so the button grows.
     renderPanel();
     for (const name of ["Add and edit", "Add"]) {
       const button = screen.getByRole("button", { name });
