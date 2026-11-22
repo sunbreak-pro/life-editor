@@ -227,13 +227,24 @@ describe("the add dialog's floor on a phone (#2427)", () => {
 
   it("splits the footer's two submits equally on a phone", () => {
     // Equal width wins over fitting the label: at 375px each is 103px, so
-    // 「追加して詳細へ」 may wrap; `min-h-11` is a floor, so the button grows.
+    // 「追加して詳細へ」 may wrap; `min-h-11` is a floor, so it grows, and the
+    // stretched footer row grows the other buttons with it (#2814).
     renderPanel();
     for (const name of ["Add and edit", "Add"]) {
       const button = screen.getByRole("button", { name });
       expect(button).toHaveClass("flex-1", "max-md:min-h-11");
       expect(button).not.toHaveClass("max-md:basis-auto");
     }
+  });
+
+  it("stretches the footer row so its buttons share one height (#2814)", () => {
+    renderPanel();
+    const row = screen.getByRole("button", { name: "Add" }).parentElement;
+    expect(row).toBe(
+      screen.getByRole("button", { name: "Add and edit" }).parentElement,
+    );
+    expect(row).toHaveClass("flex", "items-stretch");
+    expect(row).not.toHaveClass("items-center");
   });
 });
 
