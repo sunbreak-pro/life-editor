@@ -53,17 +53,20 @@ afterEach(() => {
 
 describe("NoteDetailPanel sticky header (#2058)", () => {
   it.each([
-    ["main (wide)", "main" as const],
-    ["sidebar (narrow)", "sidebar" as const],
-  ])("pins the title, tags and links on %s, body outside", (_, variant) => {
+    // "main" sits on the page itself (#2661), "sidebar" on its own card.
+    ["main (wide)", "main" as const, "bg-lumen-bg"],
+    ["sidebar (narrow)", "sidebar" as const, "bg-lumen-bg-secondary"],
+  ])("pins the title, tags and links on %s, body outside", (_, variant, bg) => {
     renderPanel({ variant, stickyHeader: true });
     const header = screen.getByTestId("note-detail-header");
 
     expect(header.className).toContain("sticky");
     expect(header.className).toContain("top-0");
-    // Opaque card token — the body slides UNDER it, never shows through (§5).
-    expect(header.className).toContain("bg-lumen-bg-secondary");
-    expect(header.className).not.toMatch(/bg-\S*\/\d+/);
+    // The opaque token of the ground it sits on, and no other fill — the body
+    // slides UNDER it, never shows through (§5).
+    expect(
+      header.className.split(/\s+/).filter((c) => c.startsWith("bg-")),
+    ).toEqual([bg]);
     // Above the body's own sticky table toolbar (z-10).
     expect(header.className).toContain("z-20");
 
@@ -99,6 +102,21 @@ describe("NoteDetailPanel sticky header (#2058)", () => {
       within(header).getByTestId("note-detail-divider"),
     );
     expect(within(header).queryByRole("toolbar")).toBeNull();
+  });
+
+  it("stretches the main header across the page gutter, not past it (#2661)", () => {
+    renderPanel({ variant: "main", stickyHeader: true });
+    const classes = screen
+      .getByTestId("note-detail-header")
+      .className.split(/\s+/);
+
+    // The gutter's own token both ways: a rem step would outgrow the fixed-px
+    // gutter under a large root font size and scroll the page sideways.
+    expect(classes).toEqual(
+      expect.arrayContaining(["-mx-lumen-gutter-wide", "px-lumen-gutter-wide"]),
+    );
+    // No card padding above it to pull up into.
+    expect(classes.filter((c) => c.startsWith("-mt-"))).toEqual([]);
   });
 
   it("leaves the sidebar variant's header un-stuck without the opt-in", () => {

@@ -30,7 +30,7 @@ import { isImeComposing } from "../../utils/imeGuard";
  * rich-text editor + tag UI arrive as ReactNode slots (TipTap / WikiTags are
  * web dependencies and must not be pulled into shared), and all
  * copy is already-translated props (§6.4 — no useTranslation here). lumen-*
- * tokens only; the card surface is opaque (§5).
+ * tokens only; a surface that paints one is opaque (§5).
  *
  * The lock / password gate is the host's concern — it wraps the injected
  * `contentEditor` with its own blur-and-unlock overlay before passing it in,
@@ -412,10 +412,10 @@ export interface NoteDetailPanelProps {
   contentEditor?: ReactNode;
   /**
    * Surface treatment. "sidebar" (default) is the compact card the Notes tab
-   * pushes into the rightSidebar. "main" is the larger centered editor surface
-   * (opaque lumen-surface, roomier padding, taller content floor) used when the
-   * detail is the tab's main content. Additive — omitting it keeps the original
-   * sidebar look, so existing callers are unaffected.
+   * pushes into the rightSidebar. "main" is the larger editor surface (no card
+   * since #2661: it is written straight onto the page, with a taller content
+   * floor) used when the detail is the tab's main content. Additive — omitting
+   * it keeps the original sidebar look, so existing callers are unaffected.
    */
   variant?: "sidebar" | "main";
   /**
@@ -433,21 +433,27 @@ export interface NoteDetailPanelProps {
  * #2058 — the sticky header's own box, per variant.
  *
  * The negative side margins + matching padding stretch the header's opaque
- * background across the card's padding, so a stuck header covers the body
+ * background past the text on both sides, so a stuck header covers the body
  * edge to edge instead of leaving a strip of scrolled text visible beside it.
- * The small negative top margin + matching padding does the same upward: once
- * stuck, the title gets a few px of breathing room from the scroller's edge.
- * It is kept below the card's corner radius (main: 20px padding, -8px → 12px
- * from the inner edge vs a 12px radius; sidebar: 12px, -4px → 8px vs 8px), so
- * the square header never paints over the card's rounded top corners. Each
- * pair nets to zero, so at rest the layout is the pre-#2058 one.
+ * "sidebar" stretches across its card's padding. "main" has no card (#2661),
+ * so it stretches across the page gutter instead: the same token PageContainer
+ * pads with, because a rem step could outgrow that fixed 24px under a large
+ * root font size and give the page a sideways scroll.
  *
- * The background is the card's own opaque token (§5 — no transparency), so at
- * rest the header is indistinguishable from the card, and z-20 sits above the
- * body's own sticky table toolbar (z-10).
+ * The top padding gives a stuck title a few px of breathing room from the
+ * scroller's edge. "sidebar" takes it back with a negative margin, kept below
+ * the card's corner radius (12px padding, -4px → 8px vs an 8px radius) so the
+ * square header never paints over the rounded top corners. "main" keeps it at
+ * rest too: with no card padding above, a negative margin would pull the
+ * header up against the "+ Note" row.
+ *
+ * The background is the opaque token of whatever the header sits on (§5 — no
+ * transparency): the page for "main", the card for "sidebar". So at rest the
+ * header is indistinguishable from it, and z-20 sits above the body's own
+ * sticky table toolbar (z-10).
  */
 const STICKY_HEADER_BOX = {
-  main: "sticky top-0 z-20 -mx-5 -mt-2 bg-lumen-bg-secondary px-5 pt-2",
+  main: "sticky top-0 z-20 -mx-lumen-gutter-wide bg-lumen-bg px-lumen-gutter-wide pt-2",
   sidebar: "sticky top-0 z-20 -mx-3 -mt-1 bg-lumen-bg-secondary px-3 pt-1",
 } as const;
 
@@ -534,9 +540,9 @@ export function NoteDetailPanel({
 
   /*
    * #2291 — whether the header is stuck right now, so it can show where it
-   * ends: at rest it is the card's own colour with a 1.13:1 rule under it, and
+   * ends: at rest it is the panel's own colour with a 1.13:1 rule under it, and
    * once the body slides beneath it the two read as one surface. A 1px
-   * sentinel at the card's top is watched against whatever scrolls the panel;
+   * sentinel at the panel's top is watched against whatever scrolls the panel;
    * once it has gone past that box's top edge, the header is pinned. Absent
    * IntersectionObserver (jsdom) the header simply never reports stuck.
    */
@@ -568,12 +574,13 @@ export function NoteDetailPanel({
   return (
     <div
       className={cn(
-        "flex flex-col border border-lumen-border",
-        // The stuck-header sentinel below is positioned against the card.
+        "flex flex-col",
+        // The stuck-header sentinel below is positioned against the panel.
         stickyHeader && "relative",
+        // #2661: "main" draws no card. Its text lines up with the page gutter.
         isMain
-          ? "gap-4 rounded-lumen-lg bg-lumen-bg-secondary p-5 shadow-lumen-sm"
-          : "gap-3 rounded-lumen-md bg-lumen-bg-secondary p-3",
+          ? "gap-4"
+          : "gap-3 rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary p-3",
         className,
       )}
       style={rootStyle}
@@ -586,7 +593,7 @@ export function NoteDetailPanel({
         />
       )}
       {/* Header — the title and tag row and the rule under it, as one block so
-          it can stick (#2058). Its gap repeats the card's, so with
+          it can stick (#2058). Its gap repeats the panel's, so with
           `stickyHeader` off the rows sit exactly where they did before the
           block existed. */}
       <div

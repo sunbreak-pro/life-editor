@@ -689,6 +689,24 @@ describe("DailyView — the actions kebab", () => {
     expect(classes).not.toContain("min-h-0");
   });
 
+  // #2661 — the body is written straight onto the page.
+  it.each([
+    ["desktop", true],
+    ["mobile", false],
+  ])("draws no card around the body (%s)", (_, wide) => {
+    state.isWide = wide;
+    render(<DailyView />);
+
+    const classes = screen
+      .getByTestId("daily-editor-card")
+      .className.split(" ");
+    expect(
+      classes.filter((c) => /^(border|shadow|bg|rounded)(-|$)/.test(c)),
+    ).toEqual([]);
+    // The clip that keeps the editor scrolling inside the box stays.
+    expect(classes).toContain("overflow-hidden");
+  });
+
   it("asks before it deletes the open day (#1838)", async () => {
     render(<DailyView />);
 

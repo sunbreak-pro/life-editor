@@ -346,11 +346,13 @@ describe("NoteDetailPanel", () => {
     const sidebarRoot = container.firstElementChild as HTMLElement;
     expect(sidebarRoot.className).toContain("bg-lumen-bg-secondary");
     expect(sidebarRoot.className).not.toContain("bg-lumen-surface");
+    expect(sidebarRoot.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(["border", "border-lumen-border", "p-3"]),
+    );
 
-    // variant="main" = the larger opaque editor surface. Both variants now use
-    // the opaque bg-lumen-bg-secondary (the old bg-lumen-surface token is
-    // undefined and fell transparent, §5 — 2026-07-19 fix); main is instead
-    // distinguished by its lg radius, roomier padding, and the drop shadow.
+    // variant="main" = written straight onto the page (#2661): no line, no
+    // shadow, no fill, no corners, and no padding of its own, so the text
+    // lines up with the page gutter.
     rerender(
       <NoteDetailPanel
         noteId="note-a"
@@ -364,11 +366,11 @@ describe("NoteDetailPanel", () => {
       />,
     );
     const mainRoot = container.firstElementChild as HTMLElement;
-    expect(mainRoot.className).toContain("bg-lumen-bg-secondary");
-    expect(mainRoot.className).toContain("shadow-lumen-sm");
-    expect(mainRoot.className).toContain("rounded-lumen-lg");
-    // Never the undefined token that silently falls transparent (§5).
-    expect(mainRoot.className).not.toContain("bg-lumen-surface");
+    expect(
+      mainRoot.className
+        .split(/\s+/)
+        .filter((c) => /^(border|shadow|bg|rounded|p[xytrbl]?)(-|$)/.test(c)),
+    ).toEqual([]);
   });
 
   it("omits the tag and content sections when their slots are absent", () => {
