@@ -560,7 +560,7 @@ Life Editor の全 UI を en / ja で切替可能にする。Settings からい�
 ## Feature: Apps（拡張アプリの台帳）
 
 **Tier**: 2
-**Status**: ✗RETIRED（2026-11-16 #2720 で削除。拡張アプリを使わないと決めたため（2026-11-12 こうだいさんの決定・A 案）。Apps セクション・Analytics の記録タブ・記録の道具・窓口の Worker をまとめて消した。DB の表 `app_records` / `extension_apps` / `record_views` は残し、読むのはデータの書き出しだけ。以下の本文は履歴として保持 → CLAUDE.md §8）
+**Status**: ✗RETIRED（2026-11-16 #2720 で削除。拡張アプリを使わないと決めたため（2026-11-12 こうだいさんの決定・A 案）。Apps セクション・Analytics の記録タブ・記録の道具・窓口の Worker をまとめて消した。DB の表 `app_records` / `extension_apps` / `record_views` は残した。読むコードも書くコードも無い（最後に読んでいたデータの書き出しは #2759 で消した）。以下の本文は履歴として保持 → CLAUDE.md §8）
 **Owner Provider/Module**: `shared/src/components/Apps/` + `web/src/apps/AppsScreen.tsx`（データは `shared/src/services/SupabaseAppRecordsService.ts`）。いずれも #2720 で削除済み
 **MCP Coverage**: —（旧 `list_extension_apps` と、記録の `create_record` / `list_records` / `delete_record` は #2720 で削除。`get_today_context` / `get_week_context` の記録の要約も外した）
 **Supports Value Prop**: 補助（Briefing ループの「分析」の材料を太くする拡張アプリの入口 = [`D-20261008-main-1`](../../decisions/D-20261008-main-1.md)）

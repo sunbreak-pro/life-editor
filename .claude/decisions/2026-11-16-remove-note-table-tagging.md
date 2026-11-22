@@ -10,7 +10,7 @@ topics: [feature-removal, notes, tags, mcp]
 refs: ["#2716", "#2761", "#2094", "docs/reports/2026-11-16-feature-inventory-for-removal.html", "https://claude.ai/artifact/7XVyuwdr2WXwxcRHmZiLiv"]
 supersedes: []
 superseded-by: []
-implemented-by: []
+implemented-by: ["#2796", "#2802"]
 promoted-to: null
 ---
 

@@ -10,7 +10,7 @@ topics: [feature-removal, mobile, platform]
 refs: ["#2716", "#2760", "D-20260807-main-1", "docs/reports/2026-11-16-feature-inventory-for-removal.html", "https://claude.ai/artifact/7XVyuwdr2WXwxcRHmZiLiv"]
 supersedes: ["decisions/D-20260807-main-1.md のうち、ネイティブ殻を併存させる部分"]
 superseded-by: []
-implemented-by: []
+implemented-by: ["#2789"]
 promoted-to: null
 ---
 

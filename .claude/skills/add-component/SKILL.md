@@ -40,7 +40,7 @@ export function MyPanel({ title, actionLabel, onAction }: Props) {
 - **DataService はコールバック注入**。部品や hook の中で `getDataService()` を直接呼ばない
 - `shared/src/components/index.ts` に export を足す（画面層はここから import する）
 
-サブディレクトリを持つ領域（`Analytics/` `briefing/` `items/` `materials/` `schedule/` など）は、その領域の部品ならそちらへ。
+サブディレクトリを持つ領域（`briefing/` `items/` `materials/` `schedule/` など）は、その領域の部品ならそちらへ。
 
 ## 2. Context / Provider（Pattern A = 3 ファイル）
 
@@ -75,7 +75,7 @@ export const useFooContext = createContextHook(FooContext, "useFooContext");
 
 `Record<SectionId, …>` なので、registry に足して descriptor 行が無い間は**コンパイルが通らない**。これが「2 箇所で済む」の担保になっている。`MainScreen.tsx` は section id で分岐しないので触らない。
 
-body が重い（Notes / Analytics 級）なら `web/src/lazySections.ts` で `lazy()` する。同じファイルの `SECTION_CHUNK_LOADERS` にも同じ specifier を並べる — **片方だけ直すと守りのテスト（`web/tests/lazySectionChunks.test.ts`）が落ちる**。
+body が重い（Notes 級）なら `web/src/lazySections.ts` で `lazy()` する。同じファイルの `SECTION_CHUNK_LOADERS` にも同じ specifier を並べる — **片方だけ直すと守りのテスト（`web/tests/lazySectionChunks.test.ts`）が落ちる**。
 
 ## 4. データを読む部品を作ったら
 

@@ -508,7 +508,7 @@ export function SettingsScreen({
   const passwordForm = usePasswordUpdate(passwordMessages);
 
   /*
-   * The DataService for the Trash body (#1293) and the export card (#1988). Settings is a HOST, so calling
+   * The DataService for the Trash body (#1293). Settings is a HOST, so calling
    * the singleton here is allowed (§6.4) — but `getDataService()` THROWS
    * SYNCHRONOUSLY when the app has no Supabase credentials, which is exactly
    * where the shape suites run. Catching it into `null` keeps that throw from

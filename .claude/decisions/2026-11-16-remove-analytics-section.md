@@ -10,7 +10,7 @@ topics: [feature-removal, analytics, sections]
 refs: ["#2716", "#2754", "#2717", "#2720", "docs/requirements/tier-3-experimental.md", "docs/reports/2026-11-16-feature-inventory-for-removal.html", "https://claude.ai/artifact/7XVyuwdr2WXwxcRHmZiLiv"]
 supersedes: []
 superseded-by: []
-implemented-by: []
+implemented-by: ["#2779"]
 promoted-to: null
 ---
 
