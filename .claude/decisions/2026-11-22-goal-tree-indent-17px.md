@@ -10,7 +10,7 @@ topics: [mobile, connect, layout]
 refs: ["#2672", "#2673"]
 supersedes: []
 superseded-by: []
-implemented-by: []
+implemented-by: ["#2826"]
 promoted-to: null
 ---
 
