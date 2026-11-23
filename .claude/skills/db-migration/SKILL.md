@@ -103,4 +103,12 @@ supabase migration list              # Remote の列が空なのが今回の分�
 
 ## Step 6: 引き渡し
 
-PR 本文に **「この migration は未適用。merge 前 / 後に `supabase db push` が要る」**と明記する。書かないと、コードだけ main に入って DB が追いつかない状態が無言で生まれる。
+**順番は「db push → 確認 → merge」**。先に merge すると、次の Web の配布で、まだ無い表を購読するコードが本番に出て、同期が止まる（#2268 の実例）。
+
+1. こうだいさんが `supabase db push` を打つ（Step 5.5 の確認のあと。worktree で書いた DDL は、その worktree のフォルダで打つ）。
+2. `supabase migration list` で、今回のファイルの Remote の列が埋まったことを確かめる（読み取りだけなので Claude Code が行ってよい）。
+3. 確かめた結果を PR のコメントに残してから、merge する。
+
+PR 本文には、次の定型文を入れる。書かないと、コードだけ main に入って DB が追いつかない状態が、だれにも見えないまま生まれる。
+
+> この migration は未適用です。merge の前に、こうだいさんの `supabase db push` と、`supabase migration list` での確認が要ります。db push の前に merge しないでください。
