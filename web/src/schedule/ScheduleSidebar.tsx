@@ -532,7 +532,7 @@ export function ScheduleSidebar({
           aria-pressed={filter.activeCount > 0}
           onClick={() => setFilterOpen((open) => !open)}
           className={cn(
-            // #2477: the day row's 44px floor (DAY_STEP_BTN) on a phone.
+            // #2477: the day row's touch floor on a phone; a labelled button keeps 2.75rem (#2673).
             "flex h-7 w-full items-center justify-start gap-1.5 rounded-lumen-md border px-2 text-xs font-medium transition-colors max-md:min-h-11 max-md:min-w-11",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
             filter.activeCount > 0

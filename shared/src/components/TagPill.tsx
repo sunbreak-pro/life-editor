@@ -41,7 +41,7 @@ export interface TagPillProps {
   removeLabel?: string;
   size?: "sm" | "md";
   /**
-   * Give the remove X a 44px square (#2054). Only the narrow Work tag row
+   * Give the remove X the narrow icon touch square (#2054, 40px since #2673). Only the narrow Work tag row
    * passes it: the default stays the icon-only floor so Desktop pills keep
    * their size. The negative margins let the square overhang the pill instead
    * of making the pill itself 44px tall. `"narrow"` (#2291) gives it the same

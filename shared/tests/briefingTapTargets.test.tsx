@@ -182,4 +182,12 @@ describe("#1559 — the briefing papers' own controls meet the touch floor", () 
     // #1514: the word stays hidden below the rows' `@md`.
     expect(btn.querySelector("span")).toHaveClass("hidden", "@md:inline");
   });
+
+  // #2673: the checkbox drops to 40px on a phone, so the title keeps the
+  // row line at 2.75rem instead of borrowing its height from the checkbox.
+  it("keeps a carryover row 2.75rem tall on a phone through its title", () => {
+    renderMorning();
+    const title = screen.getByRole("button", { name: "Old todo" });
+    expect(title).toHaveClass("max-md:min-h-11");
+  });
 });

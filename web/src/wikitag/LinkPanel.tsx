@@ -92,7 +92,7 @@ import { useLinkChipPopover } from "./useLinkChipPopover";
  *     it the only one: the prototype's "+" popover only adds, so the "linked"
  *     list under the candidates went away.
  *   - The row reaches Mobile. Below the breakpoint the chips are 2.25rem with a
- *     44px hit area (the `::after` in LINK_CHIP_BOX), and they scroll sideways
+ *     40px box (the tap-touch token) that is its own hit area, and they scroll sideways
  *     so the row stays one line, as the tag chips do. The popover hangs from the
  *     header row there, because right-aligned to the "+" it could run off the
  *     left edge. Related stays Desktop only, as it was: the phone row has no

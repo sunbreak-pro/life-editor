@@ -478,7 +478,7 @@ export function TrashView({
             aria-label={group.title}
             className="flex flex-col gap-2"
           >
-            <div className="flex items-center gap-2 px-0.5">
+            <div className="flex items-center gap-2 px-0.5 max-md:min-h-11">
               {/* #1562: this was pinned `wide`, so the bulk checkbox stayed a
                   24px box on a phone while the ROW checkboxes below it were
                   already 44. Same control, same list — the header one just
@@ -609,7 +609,7 @@ export function TrashView({
                         {/* The name owns line one; the controls sit under it,
                             pushed to the right edge the delete button used to
                             hold on its own. */}
-                        <div className="flex min-w-0 items-center gap-2">
+                        <div className="flex min-w-0 items-center gap-2 max-md:min-h-11">
                           {selectBox}
                           {name}
                         </div>

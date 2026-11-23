@@ -20,7 +20,7 @@ import { useRightSidebarContext } from "../hooks/useRightSidebarContext";
  *                        covers this button, so there is no open state for it
  *                        to reflect (the variant name is kept to avoid churn
  *                        at the call sites).
- *                        Floored to the 44px touch target (#1512). It used to
+ *                        Floored to the narrow icon touch target (#1512, 40px since #2673). It used to
  *                        be a 2rem box carrying TAP_TARGET_TALL, which bought
  *                        the height but not the WIDTH — inset-x-0 holds that
  *                        pseudo-element to the control's own 2rem, so a thumb

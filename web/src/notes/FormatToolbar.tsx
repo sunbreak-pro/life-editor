@@ -103,7 +103,7 @@ interface FormatAction {
 
 /*
  * #2288: a little smaller than the first cut (16 / 28px). Below the
- * breakpoint the box stays at the 44px touch floor (#1512); only the icon in
+ * breakpoint the box stays at the icon touch floor (#1512, 40px since #2673); only the icon in
  * it shrinks.
  */
 const ICON_SIZE = 14;
