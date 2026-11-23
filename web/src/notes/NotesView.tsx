@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { Editor } from "@tiptap/core";
 import { FileText } from "lucide-react";
 import {
@@ -9,7 +16,6 @@ import {
   useRightSidebarContext,
   RightSidebarPortal,
   EmptyState,
-  ExcerptListItem,
   SkeletonList,
   AddPill,
   TemplateSavedPanel,
@@ -121,6 +127,102 @@ interface NotesViewProps {
   onConsumePendingSelect?: () => void;
   /** Open a tag on Connect's tag screen (#2395). Absent → no such button. */
   onOpenTag?: (tagId: string) => void;
+}
+
+/**
+ * "Updated today 14:05" / "Updated 11/3" in the device's time zone — the same
+ * wording the side list's rows use (#2576), so a note reads the same in both
+ * places. Kept here rather than imported because NotesSidebarList's formatter
+ * is module-private (#2626).
+ */
+function formatRecentUpdated(
+  iso: string,
+  now: Date,
+  labels: {
+    updatedToday: (time: string) => string;
+    updatedOn: (date: string) => string;
+  },
+): string | undefined {
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) return undefined;
+  const sameDay =
+    at.getFullYear() === now.getFullYear() &&
+    at.getMonth() === now.getMonth() &&
+    at.getDate() === now.getDate();
+  if (sameDay) {
+    const hh = String(at.getHours()).padStart(2, "0");
+    const mm = String(at.getMinutes()).padStart(2, "0");
+    return labels.updatedToday(`${hh}:${mm}`);
+  }
+  return labels.updatedOn(`${at.getMonth() + 1}/${at.getDate()}`);
+}
+
+/**
+ * One "recently opened" card in the empty main area (#2626): title, excerpt,
+ * updated stamp. Not ExcerptListItem: that row names its button by ALL of its
+ * text, so a screen reader would read the whole excerpt as the button's name.
+ * Labelled by the title and described by the rest, as the side list's rows are.
+ */
+function RecentNoteCard({
+  title,
+  excerpt,
+  updated,
+  onSelect,
+}: {
+  title: string;
+  excerpt?: string;
+  updated?: string;
+  onSelect: () => void;
+}): React.JSX.Element {
+  const id = useId();
+  const titleId = `${id}-title`;
+  const detailsId = `${id}-details`;
+  const hasDetails = Boolean(excerpt) || updated !== undefined;
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-labelledby={titleId}
+      aria-describedby={hasDetails ? detailsId : undefined}
+      className={cn(
+        "flex w-full items-start gap-2.5 rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary px-3 py-2 text-left transition-colors",
+        "hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className="mt-0.5 shrink-0 text-lumen-text-tertiary"
+      >
+        <FileText aria-hidden />
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span
+          id={titleId}
+          className="truncate text-sm font-semibold text-lumen-text"
+        >
+          {title}
+        </span>
+        <span id={detailsId} className="contents">
+          {excerpt && (
+            <span
+              data-testid="recent-note-excerpt"
+              className="truncate text-xs text-lumen-text-secondary"
+            >
+              {excerpt}
+            </span>
+          )}
+          {updated !== undefined && (
+            <span
+              data-testid="recent-note-updated"
+              className="text-[11px] tabular-nums text-lumen-text-tertiary"
+            >
+              {updated}
+            </span>
+          )}
+        </span>
+      </span>
+    </button>
+  );
 }
 
 export function NotesView({
@@ -334,6 +436,13 @@ export function NotesView({
   // it walks at most RECENT_NOTES_LIMIT ids and only the empty state reads it.
   const recentNoteIds = useRecentNoteIds();
   const recentNotes = resolveRecentNotes(recentNoteIds, listNotes);
+  // #2626: the cards' "updated" line. `now` per render, as the side list does,
+  // so "today" follows the clock whenever the screen redraws.
+  const recentNow = new Date();
+  const recentUpdatedLabels = {
+    updatedToday: (time: string) => t("materials.notes.updatedToday", { time }),
+    updatedOn: (date: string) => t("materials.notes.updatedOn", { date }),
+  };
 
   // Picking from the list fills the MAIN editor. On wide the list is a pinned
   // column and stays put; on narrow it is the modal drawer, so choosing a note
@@ -886,10 +995,22 @@ export function NotesView({
                 <ul className="flex flex-col gap-1.5">
                   {recentNotes.map((note) => (
                     <li key={note.id}>
-                      <ExcerptListItem
+                      <RecentNoteCard
                         title={note.title || t("materials.notes.untitled")}
-                        leading={<FileText aria-hidden />}
-                        onClick={() => handleSelectNote(note.id)}
+                        // A locked note's body is not shown anywhere until it
+                        // is unlocked, the excerpt included — checked here too
+                        // because the excerpt map can predate the lock.
+                        excerpt={
+                          note.hasPassword
+                            ? undefined
+                            : excerpts.get(note.id) || undefined
+                        }
+                        updated={formatRecentUpdated(
+                          note.updatedAt,
+                          recentNow,
+                          recentUpdatedLabels,
+                        )}
+                        onSelect={() => handleSelectNote(note.id)}
                       />
                     </li>
                   ))}

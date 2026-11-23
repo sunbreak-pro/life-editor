@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   render,
   screen,
@@ -248,6 +248,21 @@ function tagFilterButton(): HTMLElement {
   });
 }
 
+/**
+ * The recently opened cards' titles, in order. Read through each button's
+ * `aria-labelledby` because the card's text also holds the excerpt and the
+ * updated stamp (#2626).
+ */
+function recentCardTitles(recent: HTMLElement): (string | null | undefined)[] {
+  return within(recent)
+    .getAllByRole("button")
+    .map(
+      (b) =>
+        document.getElementById(b.getAttribute("aria-labelledby") ?? "")
+          ?.textContent,
+    );
+}
+
 /** Opens the tag filter panel if it is shut, and returns it (#2059). */
 function openTagFilter(): HTMLElement {
   const button = tagFilterButton();
@@ -375,7 +390,9 @@ describe("NotesView — desktop (wide)", () => {
 
     expect(screen.queryByTestId("editor")).toBeNull();
     expect(
-      screen.getByRole("button", { name: "materials.notes.password.unlockCta" }),
+      screen.getByRole("button", {
+        name: "materials.notes.password.unlockCta",
+      }),
     ).toBeTruthy();
     expect(
       (screen.getByLabelText("notesView.detailTitle") as HTMLInputElement)
@@ -571,8 +588,101 @@ describe("NotesView — desktop (wide)", () => {
     });
     // Newest first — "recently opened", so the order is the store's, not the
     // notes array's.
-    const rows = within(recent).getAllByRole("button");
-    expect(rows.map((r) => r.textContent)).toEqual(["Beta", "Alpha"]);
+    expect(recentCardTitles(recent)).toEqual(["Beta", "Alpha"]);
+  });
+
+  /*
+   * #2626 — each candidate is a card: title, excerpt, updated stamp. The order
+   * stays the open history's (D-20260828-materials-1), even when it runs
+   * against the notes' own update times.
+   */
+  describe("the recently opened cards (#2626)", () => {
+    // Only Date is faked: the excerpt read is scheduled on a real setTimeout.
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date(2026, 7, 20, 12, 0));
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    const TODAY = new Date(2026, 7, 20, 9, 5).toISOString();
+    const EARLIER = new Date(2026, 7, 3, 18, 30).toISOString();
+
+    function renderWithExcerpts(): void {
+      render(
+        <NotesView
+          dataService={stubDataService({
+            listNoteTemplatesUnified: async () => [],
+            listNoteExcerptsUnified: async () => [
+              { id: "note-a", excerpt: "Alpha body first line" },
+              { id: "note-b", excerpt: "Beta body first line" },
+            ],
+          })}
+        />,
+      );
+    }
+
+    it("shows each card's excerpt and updated stamp, in open order", async () => {
+      state.notes = [
+        { ...ALPHA, updatedAt: TODAY },
+        { ...BETA, updatedAt: EARLIER },
+      ];
+      // Beta opened last although Alpha was updated later.
+      recordNoteOpened("note-a");
+      recordNoteOpened("note-b");
+      renderWithExcerpts();
+
+      const recent = screen.getByRole("navigation", {
+        name: "materials.notes.recentHeading",
+      });
+      await within(recent).findByText("Beta body first line");
+      expect(recentCardTitles(recent)).toEqual(["Beta", "Alpha"]);
+
+      const [betaCard, alphaCard] = within(recent).getAllByRole("button");
+      within(alphaCard).getByText("Alpha body first line");
+      within(alphaCard).getByText("materials.notes.updatedToday|09:05");
+      within(betaCard).getByText("materials.notes.updatedOn|8/3");
+    });
+
+    it("names the card by its title and describes it by the rest", async () => {
+      state.notes = [{ ...ALPHA, updatedAt: TODAY }];
+      recordNoteOpened("note-a");
+      renderWithExcerpts();
+
+      const recent = screen.getByRole("navigation", {
+        name: "materials.notes.recentHeading",
+      });
+      await within(recent).findByText("Alpha body first line");
+      const card = within(recent).getByRole("button", {
+        name: "Alpha",
+        // A regex: jsdom has no CSS, so whether the two lines are joined by a
+        // space is not this test's business.
+        description:
+          /^Alpha body first line\s*materials\.notes\.updatedToday\|09:05$/,
+      });
+      fireEvent.click(card);
+      expect(state.setSelectedNoteId).toHaveBeenCalledExactlyOnceWith("note-a");
+    });
+
+    it("leaves the excerpt off a locked note but keeps its stamp", async () => {
+      state.notes = [
+        { ...ALPHA, updatedAt: TODAY },
+        { ...BETA, updatedAt: EARLIER, hasPassword: true },
+      ];
+      recordNoteOpened("note-a");
+      recordNoteOpened("note-b");
+      renderWithExcerpts();
+
+      const recent = screen.getByRole("navigation", {
+        name: "materials.notes.recentHeading",
+      });
+      await within(recent).findByText("Alpha body first line");
+      const [betaCard] = within(recent).getAllByRole("button");
+      expect(within(betaCard).queryByTestId("recent-note-excerpt")).toBeNull();
+      expect(within(recent).queryByText("Beta body first line")).toBeNull();
+      within(betaCard).getByText("materials.notes.updatedOn|8/3");
+    });
   });
 
   it("opens the note a candidate row names", () => {
@@ -595,8 +705,7 @@ describe("NotesView — desktop (wide)", () => {
     const recent = screen.getByRole("navigation", {
       name: "materials.notes.recentHeading",
     });
-    const rows = within(recent).getAllByRole("button");
-    expect(rows.map((r) => r.textContent)).toEqual(["Alpha"]);
+    expect(recentCardTitles(recent)).toEqual(["Alpha"]);
   });
 
   it("falls back to the plain empty state with no history", () => {
