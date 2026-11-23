@@ -91,6 +91,8 @@ export function useGoalTreeLabels(todayKey: string): {
       addUnderTooltip: t("connect.goals.addUnderTooltip"),
       editTooltip: t("connect.goals.editTooltip"),
       deleteTooltip: t("connect.goals.deleteTooltip"),
+      formatMoreActions: (title) => t("connect.goals.moreActions", { title }),
+      editTodoChip: t("connect.goals.editTodoChip"),
       formatEdit: (title) => t("connect.goals.edit", { title }),
       formatAddUnder: (title) => t("connect.goals.addUnder", { title }),
       formatDelete: (title) => t("connect.goals.delete", { title }),

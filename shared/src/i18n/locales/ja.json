@@ -1155,6 +1155,8 @@
       "addUnderTooltip": "下に追加",
       "editTooltip": "名前を編集",
       "deleteTooltip": "削除",
+      "moreActions": "その他の操作: {{title}}",
+      "editTodoChip": "編集",
       "edit": "目標を編集: {{title}}",
       "addUnder": "下に追加: {{title}}",
       "delete": "目標を削除: {{title}}",

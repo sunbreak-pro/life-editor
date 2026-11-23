@@ -1173,6 +1173,8 @@
       "addUnderTooltip": "Add below",
       "editTooltip": "Rename",
       "deleteTooltip": "Delete",
+      "moreActions": "More actions: {{title}}",
+      "editTodoChip": "Edit",
       "edit": "Edit goal: {{title}}",
       "addUnder": "Add under: {{title}}",
       "delete": "Delete goal: {{title}}",
