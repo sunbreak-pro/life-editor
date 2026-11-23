@@ -249,6 +249,8 @@ describe("#1562 — the trash controls", () => {
       .getByRole("checkbox", { name: "Select all Todos" })
       .closest("label");
     expect(group).toHaveClass("min-h-11", "min-w-11");
+    // A phone takes the icon-only floor over it (#2673).
+    expect(group).toHaveClass("max-md:min-h-lumen-tap-touch", "max-md:min-w-lumen-tap-touch");
     expect(group).not.toHaveClass("h-6");
   });
 
@@ -356,7 +358,7 @@ describe("#1562 — the tag editor, now inside the Connect hub (#1643)", () => {
       name: TAG_HUB_LABELS.edit.iconLabel,
     });
     for (const cell of strip.children) {
-      expect(cell).toHaveClass("max-md:h-11", "max-md:w-11");
+      expect(cell).toHaveClass("max-md:size-lumen-tap-touch");
     }
     expect(
       screen.getByRole("button", { name: TAG_HUB_LABELS.edit.iconMore }),
@@ -368,9 +370,9 @@ describe("#1562 — the tag editor, now inside the Connect hub (#1643)", () => {
     const menu = screen.getByRole("button", {
       name: `work: ${TAG_HUB_LABELS.rowMenu}`,
     });
-    // Painted at 44 rather than floored: on narrow there is no hover to reveal
-    // it with, so the control is full size from the start (M2).
-    expect(menu).toHaveClass("h-11", "w-full");
+    // Painted at the floor rather than floored: on narrow there is no hover to
+    // reveal it with, so the control is full size from the start (M2).
+    expect(menu).toHaveClass("h-lumen-tap-touch", "w-full");
   });
 
   it("floors the narrow-only back link", () => {
@@ -378,8 +380,8 @@ describe("#1562 — the tag editor, now inside the Connect hub (#1643)", () => {
     renderHub({ wide: false });
 
     expect(screen.getByRole("button", { name: TAG_HUB_LABELS.back })).toHaveClass(
-      "min-h-11",
-      "min-w-11",
+      "min-h-lumen-tap-touch",
+      "min-w-lumen-tap-touch",
     );
   });
 

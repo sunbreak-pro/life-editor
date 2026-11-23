@@ -207,7 +207,7 @@ export function Modal({
             type="button"
             onClick={onClose}
             aria-label={closeLabel}
-            className="absolute right-2 top-2 flex size-8 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:size-11"
+            className="absolute right-2 top-2 flex size-8 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:size-lumen-tap-touch"
           >
             <X aria-hidden className="size-4" />
           </button>
@@ -224,7 +224,7 @@ export function Modal({
               // BODY rows asked to run edge to edge.
               padded ? null : "px-5 pt-5",
               // Keeps a long title from running under the close button.
-              closeLabel ? "pr-10 max-md:pr-12" : null,
+              closeLabel ? "pr-10" : null,
             )}
           >
             {titleIcon}

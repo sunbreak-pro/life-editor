@@ -181,16 +181,16 @@ export function MobileDrawer({
          * press on it from also reaching the scrim, the focus trap still
          * cycles through it, and it rides along with the swipe transform.
          *
-         * 44px floor (#1512) and ml-2 fit the 15vw the panel's max-w-[85vw]
-         * always leaves free: 52px of the 54px on a 360px phone. The top
-         * offset clears the notch the same way the panel's own padding does.
+         * The icon-only floor (#1512, #2673) and ml-2 fit the 15vw the panel's
+         * max-w-[85vw] always leaves free: 49px of the 54px on a 360px phone.
+         * The top offset clears the notch the same way the panel's own padding does.
          */}
         <button
           ref={closeRef}
           type="button"
           onClick={requestClose}
           aria-label={closeLabel}
-          className="absolute left-full top-[calc(env(safe-area-inset-top)+0.75rem)] ml-2 grid min-h-11 min-w-11 place-items-center rounded-full border border-lumen-border bg-lumen-bg text-lumen-text-secondary shadow-lumen-md transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+          className="absolute left-full top-[calc(env(safe-area-inset-top)+0.75rem)] ml-2 grid min-h-lumen-tap-touch min-w-lumen-tap-touch place-items-center rounded-full border border-lumen-border bg-lumen-bg text-lumen-text-secondary shadow-lumen-md transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
         >
           <X size={18} aria-hidden="true" />
         </button>

@@ -26,8 +26,8 @@ import {
  * #2391 took the title and the X off the chip: it is a square with its kind's
  * icon now, named for the title. #2630 took the "linked" list out of the "+"
  * popover, so a link comes off from the chip's panel only.
- * jsdom has no layout, so what the design measures (the sizes, the 44px hit
- * area) is pinned as the classes that produce it.
+ * jsdom has no layout, so what the design measures (the sizes, the touch
+ * floor) is pinned as the classes that produce it.
  *
  * #2392 made the chip open a panel instead of the item, so a link is followed
  * from the panel's button here. What the panel itself does is
@@ -650,7 +650,7 @@ describe("LinkPanel — icon-only chips (#2391)", () => {
     expect(glyphOf(chip)).toContain("text-lumen-text-secondary");
   });
 
-  it("sizes the squares 1.5rem, and 2.25rem with a 44px area on narrow", async () => {
+  it("sizes the squares 1.5rem, and at the touch floor on narrow", async () => {
     const chip = await renderRow();
     const add = screen.getByRole("button", {
       name: i18n.t("materials.links.add"),
@@ -658,8 +658,9 @@ describe("LinkPanel — icon-only chips (#2391)", () => {
 
     for (const square of [chip, add]) {
       expect(square.className).toContain("size-6");
-      expect(square.className).toContain("max-md:size-9");
-      expect(square.className).toContain("max-md:after:size-11");
+      expect(square.className).toContain("max-md:size-lumen-tap-touch");
+      // #2673: the box is the hit area, so touching chips never overlap.
+      expect(square.className).not.toContain("after:");
       expect(square.className).toContain("rounded-lumen-sm");
       // The icon-only floor in tokens.css would lift 1.5rem to 1.75rem.
       expect(square.className.split(" ")).toContain("min-h-0");
@@ -678,6 +679,7 @@ describe("LinkPanel — icon-only chips (#2391)", () => {
     // The chip's own box sits between it and the strip (#2392).
     const strip = chip.parentElement?.parentElement as HTMLElement;
     expect(strip.className).toContain("max-md:overflow-x-auto");
+    expect(strip.className).toContain("max-md:gap-0");
     expect(strip.contains(add)).toBe(false);
   });
 

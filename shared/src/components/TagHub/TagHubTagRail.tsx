@@ -489,7 +489,7 @@ function TagHubRailRow({
 
         {/* The slot is reserved on a row with no "…" too (the untagged
             bucket), so its count lines up with the others. */}
-        <div className={cn("relative flex shrink-0", wide ? "w-7" : "w-11")}>
+        <div className={cn("relative flex shrink-0", wide ? "w-7" : "w-lumen-tap-touch")}>
           {hasMenu && (
             <>
               <button
@@ -504,7 +504,7 @@ function TagHubRailRow({
                   "transition-colors hover:text-lumen-text",
                   FOCUS_RING_TIGHT,
                   // Always painted (#2409, which retired D2's reveal on hover).
-                  wide ? "h-7" : "h-11",
+                  wide ? "h-7" : "h-lumen-tap-touch",
                 )}
               >
                 <MoreHorizontal size={16} aria-hidden />

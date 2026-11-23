@@ -293,14 +293,16 @@ describe("TagFilterPanel — the saved groups", () => {
     screen.getByText("No groups yet.");
   });
 
-  it("gives every row control a 44px floor on narrow (#1512)", () => {
+  it("gives every row control its touch floor on narrow (#1512)", () => {
     renderPanel({ groups: [group()] });
     expect(row().className).toContain("max-md:min-h-11");
     for (const name of ["Edit Weekdays", "Delete Weekdays"]) {
       expect(screen.getByRole("button", { name }).className).toContain(
-        "max-md:size-11",
+        "max-md:size-lumen-tap-touch",
       );
     }
+    // #2673: the two icons touch on a phone; an opened editor keeps its gap.
+    expect(row().closest("li")).toHaveClass("gap-1", "max-md:gap-x-0");
   });
 });
 

@@ -3,6 +3,7 @@ import { Link2, Pencil, Trash2 } from "lucide-react";
 import { cn } from "../cn";
 import { Button } from "../Button";
 import { Input } from "../Input";
+import { ICON_TAP_NARROW } from "../styleTokens";
 import { TodoStatusCheckbox, toggledTodoStatus } from "../TodoStatusCheckbox";
 import type { Goal, GoalPeriodKind } from "../../types/goal";
 import type { TodoStatus } from "../../types/todoTree";
@@ -106,13 +107,13 @@ const SUB_HEADING = "mb-1.5 text-xs font-medium text-lumen-text-tertiary";
 /**
  * A linked todo's pencil, drawn as the tree's todo-row icons are
  * (GoalTreeView's TODO_ROW_ICON): on hover or focus on desktop, always on a
- * phone, with a 44px target there. Copied, not imported, because a component
+ * phone, with the icon-only floor there. Copied, not imported, because a component
  * module may export only components (react-refresh).
  */
 const TODO_ROW_ICON = cn(
   "ml-0.5 grid shrink-0 place-items-center rounded-lumen-sm text-lumen-text-tertiary transition-[color,background-color,opacity] hover:bg-lumen-hover hover:text-lumen-text",
   "focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
-  "max-md:min-h-11 max-md:min-w-11",
+  ICON_TAP_NARROW,
   "opacity-0 group-hover/todo:opacity-100 group-focus-within/todo:opacity-100 max-md:opacity-100",
 );
 

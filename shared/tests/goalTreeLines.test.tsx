@@ -184,10 +184,9 @@ describe("GoalTreeView hierarchy lines (#2282)", () => {
     expect(root.className).not.toContain(
       `[${TOGGLE_VAR}:calc(var(--spacing)*6)]`,
     );
-    // Narrow is 40px at every phone text size, not a --spacing step, which is
-    // 45px or 40.5px at the 18px root (#2672).
+    // Narrow reads the phone's icon-only floor (#2672, one token since #2673).
     expect(root.className).toContain(
-      `max-md:[${TOGGLE_VAR}:max(40px,var(--spacing-lumen-tap-min))]`,
+      `max-md:[${TOGGLE_VAR}:var(--spacing-lumen-tap-touch)]`,
     );
 
     const toggles = screen.getAllByRole("button", { name: /^Collapse: / });
@@ -387,8 +386,8 @@ describe("GoalTreeView progress (#2606)", () => {
 describe("GoalTreeView — a phone row's … opens its chips (#2611)", () => {
   /*
    * jsdom has no layout, so the sizes are pinned as the classes that set them:
-   * the arrow's own 40px on the "…", the checkbox and the row (#2672), and the
-   * 44px min-h-11 on every chip.
+   * the arrow's own size on the "…" and the row (#2672), the same token on the
+   * checkbox (#2673), and the 44px min-h-11 on every chip.
    */
   afterEach(() => {
     Reflect.deleteProperty(window, "matchMedia");
@@ -488,7 +487,7 @@ describe("GoalTreeView — a phone row's … opens its chips (#2611)", () => {
     expect(classesOf(chips[1] as HTMLElement)).toContain("text-lumen-danger");
   });
 
-  it("draws a phone's rows at the arrow's 40px, not the 44px floor (#2672)", () => {
+  it("draws a phone's rows at the arrow's size, not the 2.75rem floor (#2672)", () => {
     setNarrow();
     renderWithActions();
     const floor = `max-md:min-h-(${TOGGLE_VAR})`;
@@ -497,11 +496,11 @@ describe("GoalTreeView — a phone row's … opens its chips (#2611)", () => {
       expect(row).toContain(floor);
       expect(row).not.toContain("max-md:min-h-11");
     }
-    // The shared checkbox's own 44px would hold the row up, so it is overridden
-    // below 768px only.
+    // The shared checkbox brings the same token itself (#2673), below 768px
+    // only, so it never holds the row up.
     const box = classesOf(screen.getByRole("checkbox", { name: /^5 km jog/ }));
-    expect(box).toContain(floor);
-    expect(box).toContain(`max-md:min-w-(${TOGGLE_VAR})`);
+    expect(box).toContain("max-md:min-h-lumen-tap-touch");
+    expect(box).toContain("max-md:min-w-lumen-tap-touch");
     expect(box).toContain("min-h-11");
   });
 

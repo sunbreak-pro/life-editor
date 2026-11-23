@@ -110,10 +110,10 @@ describe("FormatToolbar (#2060)", () => {
     // The divider inserts; it has no on / off state to report.
     expect(button("Insert divider").hasAttribute("aria-pressed")).toBe(false);
     // #2288: a 24px box and a 14px icon on Desktop; below the breakpoint the
-    // box keeps the 44px touch floor (#1512).
+    // box keeps the icon-only touch floor (#1512, #2673).
     for (const b of buttons) {
-      expect(b.classList.contains("max-md:min-h-11")).toBe(true);
-      expect(b.classList.contains("max-md:min-w-11")).toBe(true);
+      expect(b.classList.contains("max-md:min-h-lumen-tap-touch")).toBe(true);
+      expect(b.classList.contains("max-md:min-w-lumen-tap-touch")).toBe(true);
       expect(b.classList.contains("h-6")).toBe(true);
       expect(b.classList.contains("w-6")).toBe(true);
       expect(b.querySelector("svg")?.getAttribute("width")).toBe("14");

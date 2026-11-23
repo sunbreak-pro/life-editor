@@ -1,5 +1,6 @@
 import { X } from "lucide-react";
 import { cn } from "./cn";
+import { ICON_TAP_NARROW } from "./styleTokens";
 import { TagHeadingIcon } from "./TagHeadingIcon";
 
 /*
@@ -40,7 +41,7 @@ export interface TagPillProps {
   removeLabel?: string;
   size?: "sm" | "md";
   /**
-   * Give the remove X a 44px square (#2054). Only the narrow Work tag row
+   * Give the remove X the narrow icon touch square (#2054, 40px since #2673). Only the narrow Work tag row
    * passes it: the default stays the icon-only floor so Desktop pills keep
    * their size. The negative margins let the square overhang the pill instead
    * of making the pill itself 44px tall. `"narrow"` (#2291) gives it the same
@@ -87,14 +88,15 @@ export function TagPill({
           className={cn(
             "rounded-lumen-sm text-lumen-text-secondary hover:text-lumen-danger focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent",
             touch === true &&
-              "-my-3 -mr-2.5 inline-flex min-h-11 min-w-11 items-center justify-center",
+              "-my-2 -mr-2.5 inline-flex min-h-lumen-tap-touch min-w-lumen-tap-touch items-center justify-center",
             // #2474: the right margin cancels the pill's own right padding
             // and no more, so the square ends inside the pill's border. At
             // `-mr-2.5` an sm pill's square ran past it, into the gap before
             // the next control and past the end of a scrolling chip strip.
             touch === "narrow" &&
               cn(
-                "max-md:-my-3 max-md:inline-flex max-md:min-h-11 max-md:min-w-11 max-md:items-center max-md:justify-center",
+                "max-md:-my-2 max-md:inline-flex max-md:items-center max-md:justify-center",
+                ICON_TAP_NARROW,
                 size === "sm" ? "max-md:-mr-2" : "max-md:-mr-2.5",
               ),
           )}

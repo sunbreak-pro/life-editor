@@ -417,7 +417,12 @@ export function TagHubItemGroups({
                   data-taghub-row={item.id}
                   {...pressHandlers(item)}
                   className={cn(
-                    "group/row relative flex items-center gap-1 rounded-lumen-sm",
+                    "group/row relative flex items-center rounded-lumen-sm",
+                    // #2673 — on narrow the select box, the checkbox and the
+                    // "…" touch: each is a finger wide on its own, and the
+                    // title's own padding keeps it off them. One gap class or
+                    // the other — `cn` does not merge.
+                    wide ? "gap-1" : "gap-0",
                     // The tint plus the 2px bar (D9), so neither a checked
                     // row nor the selected one is told apart by colour alone.
                     marked && "bg-lumen-accent-subtle",
@@ -436,7 +441,7 @@ export function TagHubItemGroups({
                       label={formatSelectItem?.(item.title) ?? item.title}
                       // The box is 16px; the press target is not (#1561).
                       // One size class or the other — `cn` does not merge.
-                      className={wide ? "ml-1 size-7" : "size-11"}
+                      className={wide ? "ml-1 size-7" : "size-lumen-tap-touch"}
                     />
                   )}
                   {item.role === "task" && onToggleTodoStatus && (
@@ -575,13 +580,13 @@ export function TagHubItemGroups({
                   </button>
                   {onItemMenu && (
                     // M3 — narrow has no hover to reveal anything with, so the
-                    // row's actions sit on a 44px button of their own.
+                    // row's actions sit on a floor-sized button of their own.
                     <button
                       type="button"
                       onClick={() => onItemMenu(item)}
                       aria-label={formatItemMenu?.(item.title) ?? item.title}
                       className={cn(
-                        "grid size-11 shrink-0 place-items-center rounded-lumen-sm text-lumen-text-secondary",
+                        "grid size-lumen-tap-touch shrink-0 place-items-center rounded-lumen-sm text-lumen-text-secondary",
                         "transition-colors hover:bg-lumen-hover hover:text-lumen-text",
                         FOCUS_RING_TIGHT,
                       )}

@@ -103,7 +103,7 @@ interface FormatAction {
 
 /*
  * #2288: a little smaller than the first cut (16 / 28px). Below the
- * breakpoint the box stays at the 44px touch floor (#1512); only the icon in
+ * breakpoint the box stays at the icon touch floor (#1512, 40px since #2673); only the icon in
  * it shrinks.
  */
 const ICON_SIZE = 14;
@@ -231,10 +231,9 @@ export function FormatToolbar({
       role="toolbar"
       aria-label={labels.label}
       data-format-toolbar=""
-      // #2308: below the breakpoint the seven 44px boxes sit edge to edge.
-      // With the gaps the bar was 384px at the default 18px root and ran 2px
-      // past a 390px screen; without them it is 357.5px. `flex-wrap` takes a
-      // larger Settings font step onto a second row instead of off the side.
+      // #2308: below the breakpoint the seven floor-sized boxes sit edge to
+      // edge; with the gaps the bar ran past a 390px screen. `flex-wrap` takes
+      // a larger Settings font step onto a second row instead of off the side.
       className="flex items-center gap-1 max-md:flex-wrap max-md:gap-0"
     >
       {ACTIONS.map((action, i) => {
@@ -275,8 +274,8 @@ export function FormatToolbar({
               }}
               className={cn(
                 "inline-grid h-6 w-6 place-items-center rounded-lumen-sm transition-colors",
-                // The 44px touch floor below the app's breakpoint (#1512).
-                "max-md:min-h-11 max-md:min-w-11",
+                // The icon-only floor below the app's breakpoint (#1512, #2673).
+                "max-md:min-h-lumen-tap-touch max-md:min-w-lumen-tap-touch",
                 pressed
                   ? "bg-lumen-accent-subtle text-lumen-accent"
                   : "text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",

@@ -1395,8 +1395,8 @@ describe("ScheduleOverlays — the tag filter panel's frame (#2142)", () => {
     });
     const close = screen.getByRole("button", { name: "common.close" });
     expect(dialog.contains(close)).toBe(true);
-    // A 44px floor on narrow (#1512).
-    expect(close.className).toContain("max-md:size-11");
+    // The icon-only floor on narrow (#1512, #2673).
+    expect(close.className).toContain("max-md:size-lumen-tap-touch");
     fireEvent.click(close);
     expect(onClose).toHaveBeenCalledTimes(1);
   });

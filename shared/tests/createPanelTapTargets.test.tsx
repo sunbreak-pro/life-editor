@@ -15,7 +15,8 @@ import { goalsForTodoPicker } from "../src/components/briefing/goalLinkPreview";
 import { SAMPLE_GOALS, sampleState } from "./fixtures/goalLinkState";
 
 /*
- * #2427 — the add dialog's 44px floor on a phone. #2414 gave it to the footer
+ * #2427 — the add dialog's touch floor on a phone (an icon-only × takes the
+ * 40px token since #2673). #2414 gave it to the footer
  * and the all-day check; this covers every other control the Issue names.
  *
  * jsdom has no layout (CLAUDE.md §7.1), so these pin the CLASS CONTRACT that
@@ -181,8 +182,8 @@ describe("the add dialog's floor on a phone (#2427)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add a tag" }));
     fireEvent.click(screen.getByRole("option", { name: "Work" }));
     const remove = screen.getByRole("button", { name: "Remove tag Work" });
-    expect(remove).toHaveClass("size-5", "max-md:size-11", "shrink-0");
-    expect(remove).not.toHaveClass("size-11");
+    expect(remove).toHaveClass("size-5", "max-md:size-lumen-tap-touch", "shrink-0");
+    expect(remove).not.toHaveClass("size-lumen-tap-touch");
   });
 
   it("floors the three note buttons and the new-note fields", () => {
@@ -209,8 +210,8 @@ describe("the add dialog's floor on a phone (#2427)", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Stage note" }));
     const remove = screen.getByRole("button", { name: "Remove Minutes" });
-    expect(remove).toHaveClass("size-5", "max-md:size-11", "shrink-0");
-    expect(remove).not.toHaveClass("size-11");
+    expect(remove).toHaveClass("size-5", "max-md:size-lumen-tap-touch", "shrink-0");
+    expect(remove).not.toHaveClass("size-lumen-tap-touch");
   });
 
   it("leaves the date row wrapping, so the taller fields cannot widen it", () => {

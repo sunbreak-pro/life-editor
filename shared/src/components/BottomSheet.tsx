@@ -150,7 +150,7 @@ export function BottomSheet({
       aria-label={closeLabel}
       {...DIALOG_AUTOFOCUS_SKIP}
       className={cn(
-        "-my-2.5 grid size-11 shrink-0 place-items-center rounded-full",
+        "-my-1.5 grid size-lumen-tap-touch shrink-0 place-items-center rounded-full",
         backArrow ? "-ml-2" : "-mr-2",
         "text-lumen-text-secondary transition-colors",
         "hover:bg-lumen-hover hover:text-lumen-text",
@@ -283,7 +283,7 @@ export function BottomSheet({
              * with its own Cancel, #2660) removes the button, and with
              * `hideTitle` the row.
              *
-             * The button carries a 44px touch target (mobile-scope floor) but
+             * The button carries the phone's icon-only floor (mobile-scope) but
              * pulls it back into the panel's own padding with negative margins, so
              * the row keeps the ~24px height every sheet had before and no header
              * shifts. `truncate` on the heading is what keeps a long title from

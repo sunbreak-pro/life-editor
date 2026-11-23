@@ -12,7 +12,7 @@ import {
 import type { TodoNode, TodoStatus } from "../../types/todoTree";
 import { tagFaceStyle } from "../../utils/scheduleTagColor";
 import { SkeletonList } from "../SkeletonList";
-import { TAP_TARGET_TALL } from "../styleTokens";
+import { ICON_TAP_NARROW, TAP_TARGET_TALL } from "../styleTokens";
 import { TagHeadingIcon } from "../TagHeadingIcon";
 import { TodoStatusCheckbox } from "../TodoStatusCheckbox";
 import type { ExtractedBriefing } from "./extractBriefing";
@@ -355,19 +355,20 @@ export function BlockHead({
  * exactly where `RowActions` puts the row actions below it — the straight
  * column down the right edge was the only thing that margin bought.
  *
- * The 44px floor (#1559) is bought in two different ways on purpose, because
- * the two directions cost different things:
+ * The touch floor (#1559, the icon-only one since #2673) is bought in two
+ * different ways on purpose, because the two directions cost different things:
  *
- *   WIDTH  — `max-md:min-w-11` grows the box. A heading is one short kicker
- *            and a control, so the 18px comes out of slack the h3 was never
- *            using, and the icon lands 22px from the right edge — the same
- *            place the row actions below now centre theirs, so the straight
- *            column the comment above describes is preserved.
- *   HEIGHT — `TAP_TARGET_TALL` instead of `min-h-11`, so the painted box stays
- *            26px tall and the rule below it still does not move. The 9px it
- *            overhangs at each end lands in the section's own `py-5` above and
- *            in `BlockHead`'s 12px `mb-3` below, clearing the first row's own
- *            target by 3px — the check that token's doc-comment asks for.
+ *   WIDTH  — `max-md:min-w-lumen-tap-touch` grows the box. A heading is one
+ *            short kicker and a control, so the extra comes out of slack the
+ *            h3 was never using, and the icon lands in the middle of the same
+ *            box the row actions below use, so the straight column the comment
+ *            above describes is preserved.
+ *   HEIGHT — `TAP_TARGET_TALL` instead of a min-height, so the painted box
+ *            stays 26px tall and the rule below it still does not move. The
+ *            7px it overhangs at each end on a phone lands in the section's
+ *            own `py-5` above and in `BlockHead`'s 12px `mb-3` below, clear of
+ *            the first row's own target — the check that token's doc-comment
+ *            asks for.
  */
 function BlockHeadAddButton({
   onClick,
@@ -382,7 +383,7 @@ function BlockHeadAddButton({
       onClick={onClick}
       aria-label={label}
       title={label}
-      className={`-my-1 flex flex-shrink-0 items-center justify-center self-center rounded-lumen-sm p-1.5 text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-briefing-shu focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-w-11 ${TAP_TARGET_TALL}`}
+      className={`-my-1 flex flex-shrink-0 items-center justify-center self-center rounded-lumen-sm p-1.5 text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-briefing-shu focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-w-lumen-tap-touch ${TAP_TARGET_TALL} max-md:after:h-lumen-tap-touch`}
     >
       <Plus size={14} aria-hidden="true" />
     </button>
@@ -440,7 +441,7 @@ export function RowActions({
   children: ReactNode;
 }): React.JSX.Element {
   return (
-    <div className="-my-1 ml-auto flex flex-shrink-0 items-center gap-0.5 self-center @max-md:w-full @max-md:justify-end">
+    <div className="-my-1 ml-auto flex flex-shrink-0 items-center gap-0.5 self-center max-md:gap-0 @max-md:w-full @max-md:justify-end">
       {children}
     </div>
   );
@@ -461,17 +462,17 @@ export function RowActions({
  * `gap-1` is `@md:` too: with the label hidden it would be 4px of dead space
  * between the icon and the button's right padding.
  *
- * The 44px floor stays a VIEWPORT rule: it is for a finger, and a narrow panel
+ * The touch floor stays a VIEWPORT rule: it is for a finger, and a narrow panel
  * on a Desktop is still worked with a pointer.
  *
- * `max-md:min-h-11 max-md:min-w-11` is the 44px floor (#1559), and it grows the
- * BOX rather than hanging an invisible `::after` over it the way the heading's
- * 「+」does. These two sit `gap-0.5` apart: an extension wide enough to reach
- * 44px would reach across its neighbour, so a tap meant for 編集 could answer
- * 削除 — and 削除 is the last button on the paper that may fire by accident.
+ * ICON_TAP_NARROW is the touch floor (#1559, the icon-only one since #2673),
+ * and it grows the BOX rather than hanging an invisible `::after` over it the
+ * way the heading's 「+」does. Neighbours in the cluster touch on a phone: an
+ * extension past the box would reach across the next one, so a tap meant for
+ * 編集 could answer 削除 — and 削除 is the last button on the paper that may
+ * fire by accident.
  *
- * Height is free (every row that draws these is already 44px tall, held there
- * by its own checkbox or by `min-h-11`). Width was not: the pair goes from 58px
+ * Height is free: below `@md` the cluster has a line of its own. Width was not: the pair goes from 58px
  * to 90px, and while the cluster shared a line with the title that came
  * straight off the title — 32px on top of what #1514 had just won back, which
  * is what #1820 measured as a five-character title on two lines. The width is
@@ -484,8 +485,7 @@ export function RowActions({
  * utilities for one property are settled by Tailwind's emit order rather than
  * by call order (rules/frontend.md §Gotchas).
  */
-const ROW_ACTION_BASE =
-  "flex items-center justify-center whitespace-nowrap px-1.5 py-1 text-xs transition-colors max-md:min-h-11 max-md:min-w-11 @md:gap-1";
+const ROW_ACTION_BASE = `flex items-center justify-center whitespace-nowrap px-1.5 py-1 text-xs transition-colors ${ICON_TAP_NARROW} @md:gap-1`;
 
 /**
  * The action's word —「編集」/「削除」— printed beside its icon on a screen wide
@@ -915,6 +915,13 @@ function EventCell({
   );
 }
 
+/*
+ * Where a todo's title starts: the checkbox's box plus the row's `gap-1`. The
+ * box is 2.75rem on Desktop and the icon-only floor on a phone (#2673).
+ */
+const TODO_TITLE_INDENT =
+  "ml-12 max-md:ml-[calc(var(--spacing-lumen-tap-touch)+var(--spacing))]";
+
 /**
  * A todo in its cell. The round mark at the head toggles it done — the same
  * control the carryover rows draw — and the title opens its editor (#2223:
@@ -933,7 +940,10 @@ function TodoCell({
 }) {
   return (
     <li data-briefing-todo={todo.id} className="py-0.5">
-      <div className="flex items-center gap-1">
+      {/* The row keeps its 2.75rem on a phone, where the checkbox is the
+          smaller icon-only floor (#2673): the time beside it is centred in a
+          box of that height. */}
+      <div className="flex items-center gap-1 max-md:min-h-11">
         {/* `itemName` is the row's own title (#1486): a column of checkboxes
             that only say「ステータス: 未着手」cannot be told apart. 朱 rather
             than the app accent, as on the carryover rows and 夕刊. */}
@@ -958,11 +968,11 @@ function TodoCell({
         </button>
       </div>
       {/* The goals it serves (#2106), then the notes it links (◈). Hung
-          under the title, past the checkbox (`min-w-11` + `gap-1`). */}
+          under the title, past the checkbox (TODO_TITLE_INDENT). */}
       {todo.goals !== undefined && todo.goals.length > 0 && (
         <p
           data-briefing-goals=""
-          className="ml-12 flex items-center gap-1 text-xs text-lumen-text-secondary"
+          className={`${TODO_TITLE_INDENT} flex items-center gap-1 text-xs text-lumen-text-secondary`}
         >
           <Target size={12} aria-hidden="true" className="shrink-0" />
           <span className="sr-only">{labels.goalMark}</span>
@@ -972,7 +982,7 @@ function TodoCell({
       {todo.purposes.length > 0 && (
         <p
           data-briefing-purposes=""
-          className="ml-12 text-xs font-semibold text-lumen-briefing-kohaku"
+          className={`${TODO_TITLE_INDENT} text-xs font-semibold text-lumen-briefing-kohaku`}
         >
           ◈ {todo.purposes.join(" ・ ")}
         </p>

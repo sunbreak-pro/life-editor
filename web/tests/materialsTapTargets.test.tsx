@@ -140,8 +140,8 @@ describe("#1560 — the tag filter meets the 44px touch floor", () => {
   it("also floors the clear button ACROSS — it is a glyph with no label", () => {
     renderFilter(["t-a"]);
     const clear = screen.getByRole("button", { name: "Clear" });
-    expect(clear.classList.contains("max-md:min-h-11")).toBe(true);
-    expect(clear.classList.contains("max-md:min-w-11")).toBe(true);
+    expect(clear.classList.contains("max-md:min-h-lumen-tap-touch")).toBe(true);
+    expect(clear.classList.contains("max-md:min-w-lumen-tap-touch")).toBe(true);
   });
 
   it("leaves the DESKTOP controls at their mouse size", () => {
@@ -185,8 +185,8 @@ describe("#1840 — the row's delete button is visible where it is tappable", ()
 
   it("is a thumb-sized target where it is shown", () => {
     const bin = deleteButton();
-    expect(bin.classList.contains("max-md:min-h-11")).toBe(true);
-    expect(bin.classList.contains("max-md:min-w-11")).toBe(true);
+    expect(bin.classList.contains("max-md:min-h-lumen-tap-touch")).toBe(true);
+    expect(bin.classList.contains("max-md:min-w-lumen-tap-touch")).toBe(true);
   });
 
   it("leaves the DESKTOP row exactly as it was", () => {
@@ -195,8 +195,8 @@ describe("#1840 — the row's delete button is visible where it is tappable", ()
     expect(bin.classList.contains("opacity-0")).toBe(true);
     expect(bin.classList.contains("group-hover:opacity-100")).toBe(true);
     expect(bin.classList.contains("opacity-100")).toBe(false);
-    expect(bin.classList.contains("min-h-11")).toBe(false);
-    expect(bin.classList.contains("min-w-11")).toBe(false);
+    expect(bin.classList.contains("min-h-lumen-tap-touch")).toBe(false);
+    expect(bin.classList.contains("min-w-lumen-tap-touch")).toBe(false);
   });
 });
 
@@ -210,7 +210,7 @@ describe("#1840 — the row's delete button is visible where it is tappable", ()
  */
 const { wrapper: SyncWrapper } = createBumpableSync();
 
-describe("#1840 — the tag picker's + meets the 44px touch floor", () => {
+describe("#1840 — the tag picker's + meets the touch floor", () => {
   async function plusButton(): Promise<HTMLElement> {
     const ds = stubDataService({
       listAllWikiTagsUnified: async () => [],
@@ -230,6 +230,7 @@ describe("#1840 — the tag picker's + meets the 44px touch floor", () => {
   }
 
   it("floors it both ways on narrow", async () => {
+    // No tag on yet, so the button shows its name: the labelled floor (#2673).
     const plus = await plusButton();
     expect(plus.classList.contains("max-md:min-h-11")).toBe(true);
     expect(plus.classList.contains("max-md:min-w-11")).toBe(true);

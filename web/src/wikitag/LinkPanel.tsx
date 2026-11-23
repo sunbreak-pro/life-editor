@@ -92,7 +92,7 @@ import { useLinkChipPopover } from "./useLinkChipPopover";
  *     it the only one: the prototype's "+" popover only adds, so the "linked"
  *     list under the candidates went away.
  *   - The row reaches Mobile. Below the breakpoint the chips are 2.25rem with a
- *     44px hit area (the `::after` in LINK_CHIP_BOX), and they scroll sideways
+ *     40px box (the tap-touch token) that is its own hit area, and they scroll sideways
  *     so the row stays one line, as the tag chips do. The popover hangs from the
  *     header row there, because right-aligned to the "+" it could run off the
  *     left edge. Related stays Desktop only, as it was: the phone row has no
@@ -179,16 +179,15 @@ const DELETED_LINK_VISUAL = {
 };
 
 /*
- * The square both the chips and the "+" are drawn on: 1.5rem, or 2.25rem with a
- * 44px hit area below the breakpoint.
+ * The square both the chips and the "+" are drawn on: 1.5rem, or the icon-only
+ * floor below the breakpoint (#2673), where a row of them closes its gap. The
+ * box is the hit area, so touching neighbours never overlap.
  *
- * The hit area is an `::after` rather than a bigger box so a row of them keeps
- * the design's size; the strip's narrow gap is what keeps two neighbours' areas
- * from overlapping. `min-h-0 min-w-0` undo the 1.75rem floor tokens.css gives
+ * `min-h-0 min-w-0` undo the 1.75rem floor tokens.css gives
  * every icon-only button, which would otherwise win over the 1.5rem here.
  */
 const LINK_CHIP_BOX =
-  "relative inline-flex size-6 min-h-0 min-w-0 shrink-0 items-center justify-center rounded-lumen-sm max-md:size-9 max-md:after:absolute max-md:after:left-1/2 max-md:after:top-1/2 max-md:after:size-11 max-md:after:-translate-x-1/2 max-md:after:-translate-y-1/2 max-md:after:content-['']";
+  "relative inline-flex size-6 min-h-0 min-w-0 shrink-0 items-center justify-center rounded-lumen-sm max-md:size-lumen-tap-touch";
 
 const LINK_CHIP_ICON = "size-lumen-icon-sm max-md:size-lumen-icon-md";
 
@@ -731,7 +730,7 @@ export function LinkPanel({
       {/* Same strip as the tag chips (TagPicker `singleRow`): nothing of its
           own at Desktop, one sideways-scrolling line below the breakpoint. The
           popovers stay outside it, where its overflow cannot clip them. */}
-      <span className="contents max-md:flex max-md:min-h-11 max-md:min-w-0 max-md:items-center max-md:gap-2 max-md:overflow-x-auto max-md:overflow-y-hidden max-md:px-1">
+      <span className="contents max-md:flex max-md:min-h-11 max-md:min-w-0 max-md:items-center max-md:gap-0 max-md:overflow-x-auto max-md:overflow-y-hidden max-md:px-1">
         {!loading && linked.map(renderChip)}
       </span>
 

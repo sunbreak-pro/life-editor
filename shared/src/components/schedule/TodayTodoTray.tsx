@@ -12,6 +12,7 @@ import {
 import type { TodoStatus } from "../../types/todoTree";
 import { isImeComposing } from "../../utils/imeGuard";
 import { cn } from "../cn";
+import { ICON_TAP_NARROW } from "../styleTokens";
 import { TodoStatusCheckbox } from "../TodoStatusCheckbox";
 import type { StatusLabelSet } from "../todoStatusVisuals";
 import { setTodoDragData } from "./todoCalendarDrag";
@@ -276,8 +277,8 @@ const HOVER_REVEAL =
   "opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100";
 
 /*
- * The 44px touch floor for the per-row icon buttons (#1558, the schedule half
- * of #1512). `max-md:` because ONE component draws both instances: the same
+ * The icon-only touch floor for the per-row buttons (#1558, the schedule half
+ * of #1512; the shared token since #2673). `max-md:` because ONE component draws both instances: the same
  * row is a Desktop sidebar row and a phone drawer row, and an unprefixed floor
  * would grow the mouse-sized buttons too.
  *
@@ -287,20 +288,34 @@ const HOVER_REVEAL =
  * `size-6` box without racing it.
  *
  * The BOX grows rather than a TAP_TARGET_TALL ::after being hung over it: the
- * two buttons sit gap-2 apart at the end of one row, so hit areas widened past
- * their own boxes would reach over each other and the wrong one would answer
- * the tap (the caveat TAP_TARGET_TALL's own doc-comment asks callers to check).
- * Growing the boxes costs the row no height — the leading <TodoStatusCheckbox>
- * is already 44px tall — only width, which the title gives up to `truncate`.
+ * buttons touch at the end of one row, so hit areas widened past their own
+ * boxes would reach over each other and the wrong one would answer the tap
+ * (the caveat TAP_TARGET_TALL's own doc-comment asks callers to check).
+ * Growing the boxes costs the row no height — the title's button is taller —
+ * only width, which the title gives up to `truncate`.
  */
-const NARROW_TAP_FLOOR = "max-md:min-h-11 max-md:min-w-11";
+const NARROW_TAP_FLOOR = ICON_TAP_NARROW;
+
+/*
+ * A row's icon buttons side by side. Below `md` the gap closes (#2673): each
+ * box is already a finger wide, and the title needs the width more.
+ */
+const ROW_BUTTONS = "flex shrink-0 items-center max-md:gap-0";
+
+/*
+ * The second line's start, under the title: the leading checkbox plus the
+ * row's gap-2. The checkbox is 2.75rem on Desktop, the icon-only floor on a
+ * phone.
+ */
+const UNDER_TITLE =
+  "pl-13 max-md:pl-[calc(var(--spacing-lumen-tap-touch)+var(--spacing)*2)]";
 
 /*
  * The title on a phone (#2477): two lines instead of one, and the button
  * around it is 44px tall.
  *
- * The drawer leaves the title what the leading checkbox and the two 44px
- * buttons after it do not take, which measured 113px at 390px — five or six
+ * The drawer leaves the title what the leading checkbox and the two buttons
+ * after it do not take, which measured 113px at 390px — five or six
  * characters before the ellipsis, and ONE on an "other" row whose "9/5 14:00"
  * sat on the same line. None of the three can shrink below the touch floor,
  * so the title gets a second line rather than more width: two lines of that
@@ -554,7 +569,7 @@ function TodoRow({
           {!metaLine && time}
         </button>
         {rowActions && (
-          <div className="flex shrink-0 items-center gap-0.5">
+          <div className={cn(ROW_BUTTONS, "gap-0.5")}>
             {onMoveOut && moveOutLabel && (
               <RowActionButton
                 icon={ArrowDownToLine}
@@ -580,48 +595,57 @@ function TodoRow({
             )}
           </div>
         )}
-        {!rowActions && onMoveOut && moveOutLabel && (
-          <button
-            type="button"
-            aria-label={moveOutLabel}
-            title={moveOutLabel}
-            onClick={() => onMoveOut(row.id)}
-            className={cn(
-              "flex size-6 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
-              NARROW_TAP_FLOOR,
-              hoverActions && HOVER_REVEAL,
-              FOCUS,
-            )}
-          >
-            <CalendarMinus aria-hidden className="size-3.5" />
-          </button>
-        )}
-        {!rowActions && onDelete && deleteLabel && (
-          <button
-            type="button"
-            aria-label={deleteLabel}
-            title={deleteLabel}
-            onClick={() => onDelete(row.id)}
-            className={cn(
-              "flex size-6 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-danger",
-              NARROW_TAP_FLOOR,
-              FOCUS,
-            )}
-          >
-            <Trash2 aria-hidden className="size-3.5" />
-          </button>
-        )}
+        {!rowActions &&
+          ((onMoveOut && moveOutLabel) || (onDelete && deleteLabel)) && (
+            <div className={cn(ROW_BUTTONS, "gap-2")}>
+              {onMoveOut && moveOutLabel && (
+                <button
+                  type="button"
+                  aria-label={moveOutLabel}
+                  title={moveOutLabel}
+                  onClick={() => onMoveOut(row.id)}
+                  className={cn(
+                    "flex size-6 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+                    NARROW_TAP_FLOOR,
+                    hoverActions && HOVER_REVEAL,
+                    FOCUS,
+                  )}
+                >
+                  <CalendarMinus aria-hidden className="size-3.5" />
+                </button>
+              )}
+              {onDelete && deleteLabel && (
+                <button
+                  type="button"
+                  aria-label={deleteLabel}
+                  title={deleteLabel}
+                  onClick={() => onDelete(row.id)}
+                  className={cn(
+                    "flex size-6 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-danger",
+                    NARROW_TAP_FLOOR,
+                    FOCUS,
+                  )}
+                >
+                  <Trash2 aria-hidden className="size-3.5" />
+                </button>
+              )}
+            </div>
+          )}
       </div>
-      {/* Leading control + gap-2, so the extra aligns with the title: pl-13 =
-          the 44px checkbox plus the row's gap. One value since #1368 — before
-          it, the two branches led with two differently sized boxes. */}
+      {/* One value since #1368 — before it, the two branches led with two
+          differently sized boxes. */}
       {metaLine ? (
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 pl-13 pb-1.5">
+        <div
+          className={cn(
+            "flex flex-wrap items-center gap-x-2 gap-y-0.5 pb-1.5",
+            UNDER_TITLE,
+          )}
+        >
           {time}
           {extra}
         </div>
       ) : (
-        extra && <div className="pl-13 pb-1.5">{extra}</div>
+        extra && <div className={cn("pb-1.5", UNDER_TITLE)}>{extra}</div>
       )}
     </li>
   );
@@ -823,7 +847,7 @@ export function TodayTodoTray({
                       : undefined
                   }
                   className={cn(
-                    "group flex items-center gap-2 border-b border-lumen-border",
+                    "group flex items-center gap-2 border-b border-lumen-border max-md:min-h-11",
                     draggableAddable && "cursor-grab active:cursor-grabbing",
                   )}
                 >
@@ -920,7 +944,7 @@ export function TodayTodoTray({
                         )}
                   </div>
                   {rowActions && (
-                    <div className="flex shrink-0 items-center gap-0.5">
+                    <div className={cn(ROW_BUTTONS, "gap-0.5")}>
                       <RowActionButton
                         icon={ArrowUpToLine}
                         label={labels.addAction}
@@ -947,49 +971,48 @@ export function TodayTodoTray({
                     </div>
                   )}
                   {!rowActions && (
-                    <button
-                      type="button"
-                      aria-label={labels.addAction}
-                      title={labels.addAction}
-                      onClick={() => onAddCandidate(a.id)}
-                      className={cn(
-                        "group/add flex size-6 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:text-lumen-text",
-                        NARROW_TAP_FLOOR,
-                        hoverActions && HOVER_REVEAL,
-                        FOCUS,
-                      )}
-                    >
-                      {/* #2010: the bordered square is painted here, not on the
-                      button. The button still grows to 44px on narrow (the
-                      floor above), but a border drawn on THAT box turned a 16px
-                      "+" into a 44px frame of padding. The square keeps the
-                      Desktop size on both layouts; the tap area around it is
-                      the button's, as before. */}
-                      <span className="flex size-6 items-center justify-center rounded-lumen-md border border-lumen-border-strong transition-colors group-hover/add:bg-lumen-hover">
-                        <Plus aria-hidden className="size-4" />
-                      </span>
-                    </button>
-                  )}
-                  {/* #1627: to the right of the +, the same soft delete today's
-                    rows carry (always visible, like theirs). */}
-                  {!rowActions &&
-                    addableControls &&
-                    onDelete &&
-                    labels.delete && (
+                    <div className={cn(ROW_BUTTONS, "gap-2")}>
                       <button
                         type="button"
-                        aria-label={labels.delete}
-                        title={labels.delete}
-                        onClick={() => onDelete(a.id)}
+                        aria-label={labels.addAction}
+                        title={labels.addAction}
+                        onClick={() => onAddCandidate(a.id)}
                         className={cn(
-                          "flex size-6 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-danger",
+                          "group/add flex size-6 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:text-lumen-text",
                           NARROW_TAP_FLOOR,
+                          hoverActions && HOVER_REVEAL,
                           FOCUS,
                         )}
                       >
-                        <Trash2 aria-hidden className="size-3.5" />
+                        {/* #2010: the bordered square is painted here, not on
+                          the button. The button still grows to the touch floor
+                          on narrow, but a border drawn on THAT box turned a
+                          16px "+" into a frame of padding. The square keeps
+                          the Desktop size on both layouts; the tap area around
+                          it is the button's, as before. */}
+                        <span className="flex size-6 items-center justify-center rounded-lumen-md border border-lumen-border-strong transition-colors group-hover/add:bg-lumen-hover">
+                          <Plus aria-hidden className="size-4" />
+                        </span>
                       </button>
-                    )}
+                      {/* #1627: to the right of the +, the same soft delete
+                        today's rows carry (always visible, like theirs). */}
+                      {addableControls && onDelete && labels.delete && (
+                        <button
+                          type="button"
+                          aria-label={labels.delete}
+                          title={labels.delete}
+                          onClick={() => onDelete(a.id)}
+                          className={cn(
+                            "flex size-6 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-danger",
+                            NARROW_TAP_FLOOR,
+                            FOCUS,
+                          )}
+                        >
+                          <Trash2 aria-hidden className="size-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>

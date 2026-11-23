@@ -26,9 +26,11 @@ export interface PasswordFieldProps extends Omit<
 /*
  * Password input with a built-in show/hide toggle + helper text (Auth
  * design). Visibility is view-only state, so it lives here; the value
- * stays controlled by the host. Touch-first sizes (48px input / 44px
- * toggle) compacting from md up (40px / 28px); 16px font below md so
- * iOS does not zoom on focus. The design's focus affordance is the
+ * stays controlled by the host. Touch-first sizes (48px input / the
+ * icon-only floor for the toggle) compacting from md up (40px / 28px);
+ * 16px font below md so iOS does not zoom on focus. The toggle is centred
+ * on the input rather than offset from its top, because the floor is px
+ * and the input's height is rem. The design's focus affordance is the
  * accent border (not a ring), mirroring the Auth field spec. Pure
  * presentation: labels injected already-translated (§6.4), lumen-*
  * tokens only (§5).
@@ -73,12 +75,12 @@ export function PasswordField({
           disabled={disabled}
           onClick={() => setVisible((v) => !v)}
           className={cn(
-            "absolute right-0.5 top-0.5 grid h-11 w-11 place-items-center",
+            "absolute right-1.5 top-1/2 grid size-lumen-tap-touch -translate-y-1/2 place-items-center",
             "rounded-lumen-sm text-lumen-text-tertiary transition-colors",
             "hover:bg-lumen-hover hover:text-lumen-text-secondary",
             "focus-visible:outline-none focus-visible:ring-2",
             "focus-visible:ring-lumen-accent disabled:cursor-not-allowed",
-            "md:right-1.5 md:top-1.5 md:h-7 md:w-7",
+            "md:size-7",
           )}
         >
           <ToggleIcon aria-hidden className="h-4 w-4" />

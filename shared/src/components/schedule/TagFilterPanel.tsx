@@ -161,8 +161,8 @@ const OUTLINE_BUTTON = cn(
   FOCUS_RING_TIGHT,
 );
 
-/* A row's icon button: 32px on wide, the 44px floor on narrow (#1512). */
-const ROW_ICON = "shrink-0 max-md:size-11";
+/* A row's icon button: 32px on wide, the icon-only floor on narrow (#2673). */
+const ROW_ICON = "shrink-0 max-md:size-lumen-tap-touch";
 
 function TagCheckRow({
   tag,
@@ -455,7 +455,10 @@ export function TagFilterPanel({
               const empty = group.tagNames.length === 0;
               const editing = editingGroupId === group.id;
               return (
-                <li key={group.id} className="flex flex-wrap items-center gap-1">
+                <li
+                  key={group.id}
+                  className="flex flex-wrap items-center gap-1 max-md:gap-x-0"
+                >
                   {/* The row IS the apply: one press narrows the grid to the
                       group, and the lit row takes it off again (#2142's
                       Release, folded into the same press). */}

@@ -231,15 +231,15 @@ export interface ScheduleSidebarTodoDay {
 
 /**
  * The ‹ / › buttons on the Todo tab's day row (#2281): a 1.75rem box on
- * Desktop, a 44px box on a phone (rules/frontend.md §Gotchas — the floor is
- * per call site and narrow-only).
+ * Desktop, the icon-only floor on a phone (rules/frontend.md §Gotchas — the
+ * floor is per call site and narrow-only).
  *
  * #2568 outlines them. The border is painted on DAY_STEP_FACE inside rather
- * than on the button, for #2010's reason: on a phone the button grows to
- * 44px, and a border on THAT box would be a 44px frame around a small arrow.
+ * than on the button, for #2010's reason: on a phone the button grows to the
+ * floor, and a border on THAT box would be a wide frame around a small arrow.
  */
 const DAY_STEP_BTN =
-  "group/step flex size-7 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11 max-md:min-w-11";
+  "group/step flex size-7 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-lumen-tap-touch max-md:min-w-lumen-tap-touch";
 const DAY_STEP_FACE =
   "flex size-7 items-center justify-center rounded-lumen-md border border-lumen-border-strong transition-colors group-hover/step:bg-lumen-hover";
 
@@ -532,7 +532,7 @@ export function ScheduleSidebar({
           aria-pressed={filter.activeCount > 0}
           onClick={() => setFilterOpen((open) => !open)}
           className={cn(
-            // #2477: the day row's 44px floor (DAY_STEP_BTN) on a phone.
+            // #2477: the day row's touch floor on a phone; a labelled button keeps 2.75rem (#2673).
             "flex h-7 w-full items-center justify-start gap-1.5 rounded-lumen-md border px-2 text-xs font-medium transition-colors max-md:min-h-11 max-md:min-w-11",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
             filter.activeCount > 0

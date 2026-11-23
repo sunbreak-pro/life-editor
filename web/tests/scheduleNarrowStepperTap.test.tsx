@@ -4,7 +4,7 @@ import { CalendarNarrowLayout } from "../src/schedule/CalendarNarrowLayout";
 import type { CalendarNarrowLayoutProps } from "../src/schedule/CalendarNarrowLayout";
 
 /*
- * #1558 — the narrow month steppers' 44px touch floor (the schedule half of
+ * #1558 — the narrow month steppers' touch floor (the schedule half of
  * #1512, whose shared-chrome part landed in shared/tests/sharedTapTargets).
  *
  * jsdom has no layout (CLAUDE.md §7.1), so the 36×36 the audit measured cannot
@@ -54,14 +54,14 @@ describe("#1832 — the narrow month header's Today button", () => {
   });
 });
 
-describe("#1558 — the narrow month steppers meet the 44px touch floor", () => {
+describe("#1558 — the narrow month steppers meet the touch floor", () => {
   it.each(["scheduleScreen.prev", "scheduleScreen.next"])(
     "floors %s in both directions",
     (name) => {
       render(<CalendarNarrowLayout {...props} />);
       const cls = screen.getByRole("button", { name }).className;
-      expect(cls).toContain("min-h-11");
-      expect(cls).toContain("min-w-11");
+      expect(cls).toContain("min-h-lumen-tap-touch");
+      expect(cls).toContain("min-w-lumen-tap-touch");
       // The painted box is untouched — only the hit area grew.
       expect(cls).toContain("size-8");
     },

@@ -329,12 +329,16 @@ describe("GoalPickerField — the chip form (#2401)", () => {
     expect(screen.getByText(LABELS.previewHeading)).toBeInTheDocument();
   });
 
-  it("gives the × and the add button a 44px floor below the breakpoint", () => {
+  it("gives the × and the add button their floors below the breakpoint", () => {
     renderChips(["w-book"]);
-    for (const name of ["「本を 1 冊読み切る」を外す", "目標につなぐ"]) {
-      expect(screen.getByRole("button", { name }).className).toContain(
-        "max-md:min-h-11",
-      );
-    }
+    // The × is icon-only (#2673); the add button has a label.
+    const remove = screen.getByRole("button", {
+      name: "「本を 1 冊読み切る」を外す",
+    });
+    expect(remove).toHaveClass("max-md:min-h-lumen-tap-touch", "max-md:min-w-lumen-tap-touch");
+    const add = screen.getByRole("button", { name: "目標につなぐ" });
+    expect(add).toHaveClass("max-md:min-h-11");
+    // Wrapped chips sit far enough apart that two × never overlap.
+    expect(add.parentElement).toHaveClass("max-md:gap-y-3");
   });
 });

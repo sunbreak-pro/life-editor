@@ -932,7 +932,7 @@ function NotePicker({
           onClick={onClose}
           aria-label={labels.notePickerClose}
           className={cn(
-            "flex size-7 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text max-md:size-11",
+            "flex size-7 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text max-md:size-lumen-tap-touch",
             FOCUS_RING_TIGHT,
           )}
         >
@@ -1037,7 +1037,7 @@ function TagField({
               aria-label={pool.labels.remove(tag.name)}
               onClick={() => toggle(id)}
               className={cn(
-                "flex size-5 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text max-md:size-11",
+                "flex size-5 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text max-md:size-lumen-tap-touch",
                 FOCUS_RING_TIGHT,
               )}
             >
@@ -1851,7 +1851,7 @@ export function ItemCreatePanel({
                     aria-label={labels.removeNote(chip.title)}
                     onClick={() => unstageNote(chip.key)}
                     className={cn(
-                      "flex size-5 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text max-md:size-11",
+                      "flex size-5 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text max-md:size-lumen-tap-touch",
                       FOCUS_RING_TIGHT,
                     )}
                   >

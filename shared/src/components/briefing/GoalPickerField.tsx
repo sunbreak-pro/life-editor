@@ -7,7 +7,7 @@ import {
 } from "../../utils/goalAchievement";
 import { cn } from "../cn";
 import { SelectCheckboxMark } from "../SelectCheckbox";
-import { FIELD_LABEL, FOCUS_RING_TIGHT } from "../styleTokens";
+import { FIELD_LABEL, FOCUS_RING_TIGHT, ICON_TAP_NARROW } from "../styleTokens";
 import {
   applyGoalLinkEdit,
   goalProgressOf,
@@ -181,7 +181,9 @@ export function GoalPickerField({
         titles={lostTitles}
       />
       {chips && (
-        <div className="flex flex-wrap items-center gap-1.5">
+        // The × is taller than its chip, so on a phone the lines sit far enough
+        // apart that two chips' × never overlap (#2673).
+        <div className="flex flex-wrap items-center gap-1.5 max-md:gap-y-3">
           {goals
             .filter((goal) => selected.has(goal.id))
             .map((goal) => (
@@ -202,7 +204,8 @@ export function GoalPickerField({
                   }}
                   aria-label={chips.formatRemove(goal.title)}
                   className={cn(
-                    "shrink-0 rounded-lumen-sm text-lumen-text-secondary hover:text-lumen-danger max-md:-my-3 max-md:-mr-2 max-md:inline-flex max-md:min-h-11 max-md:min-w-11 max-md:items-center max-md:justify-center",
+                    "shrink-0 rounded-lumen-sm text-lumen-text-secondary hover:text-lumen-danger max-md:-my-2 max-md:-mr-2 max-md:inline-flex max-md:items-center max-md:justify-center",
+                    ICON_TAP_NARROW,
                     FOCUS_RING_TIGHT,
                   )}
                 >

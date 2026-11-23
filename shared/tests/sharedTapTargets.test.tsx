@@ -11,7 +11,8 @@ import {
 import { RightSidebarProvider } from "../src/context";
 
 /*
- * #1512 — the 44px touch floor on the SHARED mobile chrome.
+ * #1512 — the touch floor on the SHARED mobile chrome. Since #2673 an icon-only
+ * control reads one 40px token; a labelled one keeps 2.75rem.
  *
  * The audit that filed the issue measured `getBoundingClientRect()` at 390px
  * width. jsdom has no layout (CLAUDE.md §7.1), so nothing here can re-measure
@@ -26,10 +27,10 @@ import { RightSidebarProvider } from "../src/context";
  * section shares.
  *
  * Two floors, because the components divide into two kinds:
- *   `min-h-11 min-w-11`            — the control renders ONLY on narrow.
- *   `max-md:min-h-11 …`            — one component draws both the Desktop and
- *                                    the narrow instance, so the floor has to
- *                                    be conditional or Desktop grows with it.
+ *   `min-h-lumen-tap-touch …`        — the control renders ONLY on narrow.
+ *   `max-md:min-h-lumen-tap-touch …` — one component draws both the Desktop and
+ *                                      the narrow instance, so the floor has to
+ *                                      be conditional or Desktop grows with it.
  * `min-*` and never `h-11`, because `cn` is a plain string join: two utilities
  * for one property are settled by Tailwind's emit order, not by call order
  * (rules/frontend.md §Gotchas, #830).
@@ -52,14 +53,14 @@ function renderToggle(variant: "panel" | "hamburger") {
   );
 }
 
-describe("#1512 — shared narrow chrome meets the 44px touch floor", () => {
+describe("#1512 — shared narrow chrome meets the touch floor", () => {
   it("floors the drawer hamburger in BOTH directions", () => {
     renderToggle("hamburger");
     const btn = screen.getByRole("button", { name: "Open details" });
-    expect(btn).toHaveClass("min-h-11");
+    expect(btn).toHaveClass("min-h-lumen-tap-touch");
     // The half the old TAP_TARGET_TALL could not buy: its `inset-x-0` held the
     // hit area to the control's own width, so the target stayed 36px wide.
-    expect(btn).toHaveClass("min-w-11");
+    expect(btn).toHaveClass("min-w-lumen-tap-touch");
     // And the pseudo-element is gone rather than left doubling the box.
     expect(btn).not.toHaveClass("after:h-11");
   });
@@ -68,7 +69,7 @@ describe("#1512 — shared narrow chrome meets the 44px touch floor", () => {
     renderToggle("panel");
     const btn = screen.getByRole("button", { name: "Open details" });
     expect(btn).toHaveClass("h-7", "w-7");
-    expect(btn).not.toHaveClass("min-h-11");
+    expect(btn).not.toHaveClass("min-h-lumen-tap-touch");
   });
 
   it("floors the mobile drawer's close button", () => {
@@ -90,7 +91,7 @@ describe("#1512 — shared narrow chrome meets the 44px touch floor", () => {
     // Unconditional: MobileDrawer is the only component that draws this button
     // (#1284 took the Desktop one; #2279 moved it out of the dropped header).
     const close = screen.getByRole("button", { name: "Close details" });
-    expect(close).toHaveClass("min-h-11", "min-w-11");
+    expect(close).toHaveClass("min-h-lumen-tap-touch", "min-w-lumen-tap-touch");
     expect(close).not.toHaveClass("h-7");
   });
 
@@ -107,11 +108,13 @@ describe("#1512 — shared narrow chrome meets the 44px touch floor", () => {
     );
     for (const name of ["Undo", "Redo"]) {
       const btn = screen.getByRole("button", { name });
-      expect(btn).toHaveClass("max-md:min-h-11", "max-md:min-w-11");
+      expect(btn).toHaveClass("max-md:min-h-lumen-tap-touch", "max-md:min-w-lumen-tap-touch");
       // Unprefixed floors would grow the Desktop header row too.
-      expect(btn).not.toHaveClass("min-h-11");
+      expect(btn).not.toHaveClass("min-h-lumen-tap-touch");
       // The painted mouse-size box is unchanged.
       expect(btn).toHaveClass("size-8");
+      // #2673: the pair touches on a phone, and only there.
+      expect(btn.parentElement).toHaveClass("gap-0.5", "max-md:gap-0");
     }
   });
 

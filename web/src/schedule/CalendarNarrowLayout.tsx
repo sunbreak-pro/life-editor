@@ -75,18 +75,18 @@ import type { ScheduleCopy } from "./scheduleCopy";
  */
 
 /*
- * The month steppers. `min-h-11 min-w-11` is the 44px touch floor (#1558, the
- * schedule half of #1512): the painted box stays `size-8`, and the floor lifts
- * only the HIT area — a `min-*` rather than a second `size-*`, because `cn` is
- * a plain string join and two utilities for one property are settled by
- * Tailwind's emit order, not by call order (rules/frontend.md §Gotchas, #830).
+ * The month steppers. The `min-*` pair is the icon-only touch floor (#1558, the
+ * schedule half of #1512; the shared token since #2673): a `min-*` rather than
+ * a second `size-*`, because `cn` is a plain string join and two utilities for
+ * one property are settled by Tailwind's emit order, not by call order
+ * (rules/frontend.md §Gotchas, #830).
  *
  * Unprefixed rather than `max-md:`, because this whole component renders only
  * under `!isWide` (CalendarTab's fold, WIDE_BREAKPOINT_PX = 768). Desktop's own
  * steppers are CalendarDesktopLayout's toolbar and are not this string.
  */
 const ICON_BTN =
-  "flex size-8 min-h-11 min-w-11 items-center justify-center rounded-lumen-md border border-lumen-border-strong text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
+  "flex size-8 min-h-lumen-tap-touch min-w-lumen-tap-touch items-center justify-center rounded-lumen-md border border-lumen-border-strong text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
 
 /**
  * The tag filter's entry on narrow (#2079). Desktop has had one in its toolbar
@@ -195,37 +195,40 @@ export function CalendarNarrowLayout({
           <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-lumen-text">
             {header.periodLabel}
           </h2>
-          {header.filter && (
-            <button
-              type="button"
-              // The count rides the NAME, as on Desktop's toolbar: the badge
-              // is aria-hidden, so a screen reader hears the sentence once.
-              aria-label={header.filter.label}
-              aria-pressed={header.filter.active}
-              onClick={header.filter.onOpen}
-              className={cn(
-                ICON_BTN,
-                // `relative` so the badge hangs off this button's corner.
-                "relative",
-                header.filter.active &&
-                  "border-lumen-accent bg-lumen-accent-subtle text-lumen-accent hover:text-lumen-accent",
-              )}
-            >
-              <ListFilter aria-hidden className="size-4" />
-              {header.filter.count > 0 && (
-                <span
-                  aria-hidden
-                  data-filter-count={header.filter.count}
-                  // ScheduleToolbar's badge: opaque accent (§5), tabular
-                  // digits, a 1rem floor so a single digit stays a circle.
-                  className="absolute -bottom-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-lumen-accent px-1 text-[0.625rem] font-semibold leading-none text-lumen-on-accent tabular-nums"
-                >
-                  {header.filter.count}
-                </span>
-              )}
-            </button>
-          )}
-          <div className="flex gap-1">
+          {/* #2673: the three touch — each is a finger wide on its own, so
+              the gap between them was only air. */}
+          <div className="flex">
+            {header.filter && (
+              <button
+                type="button"
+                // The count rides the NAME, as on Desktop's toolbar: the badge
+                // is aria-hidden, so a screen reader hears the sentence once.
+                aria-label={header.filter.label}
+                aria-pressed={header.filter.active}
+                onClick={header.filter.onOpen}
+                className={cn(
+                  ICON_BTN,
+                  // `relative` so the badge hangs off this button's corner.
+                  "relative",
+                  header.filter.active &&
+                    "border-lumen-accent bg-lumen-accent-subtle text-lumen-accent hover:text-lumen-accent",
+                )}
+              >
+                <ListFilter aria-hidden className="size-4" />
+                {header.filter.count > 0 && (
+                  <span
+                    aria-hidden
+                    data-filter-count={header.filter.count}
+                    // ScheduleToolbar's badge: opaque accent (§5), tabular
+                    // digits, a 1rem floor so a single digit stays a circle.
+                    // It hangs over the stepper beside it, so it takes no press.
+                    className="pointer-events-none absolute -bottom-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-lumen-accent px-1 text-[0.625rem] font-semibold leading-none text-lumen-on-accent tabular-nums"
+                  >
+                    {header.filter.count}
+                  </span>
+                )}
+              </button>
+            )}
             <button
               type="button"
               aria-label={t("scheduleScreen.prev")}

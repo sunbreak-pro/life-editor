@@ -1,5 +1,6 @@
 import { Undo2, Redo2 } from "lucide-react";
 import { cn } from "./cn";
+import { ICON_TAP_NARROW } from "./styleTokens";
 
 /*
  * UndoRedoButtons (Issue #304) — the header undo/redo control pair. Pure
@@ -20,8 +21,8 @@ export interface UndoRedoButtonsProps {
 }
 
 /*
- * `max-md:min-h-11 max-md:min-w-11` — the 44px touch floor, below the app's
- * single breakpoint only (#1512).
+ * ICON_TAP_NARROW — the phone's icon-only floor, below the app's single
+ * breakpoint only (#1512, #2673).
  *
  * Conditional because this ONE component draws both pairs: the Desktop header
  * row (web/src/HeaderUndoRedo.tsx) and the narrow header row, where the audit
@@ -29,9 +30,9 @@ export interface UndoRedoButtonsProps {
  * thumb, so the floor has to be the narrow branch's alone.
  *
  * Growing the BOX, not hanging a pseudo-element over it the way
- * TAP_TARGET_TALL does: these two sit `gap-0.5` apart, so a hit area wide
- * enough to matter would reach across onto its neighbour — and Undo landing on
- * Redo is worse than either being small. That is the surrounding-check the
+ * TAP_TARGET_TALL does: these two touch on a phone, so a hit area wider than
+ * the box would reach across onto its neighbour — and Undo landing on Redo is
+ * worse than either being small. That is the surrounding-check the
  * TAP_TARGET_TALL doc-comment asks for, coming out the other way.
  *
  * min-* rather than max-md:size-11 because `cn`/plain strings do not resolve
@@ -53,8 +54,7 @@ export interface UndoRedoButtonsProps {
  * glyph steps down to the tertiary text token; the box keeps its full
  * `border-strong` outline, which is what tells the user the control is there.
  */
-const BTN =
-  "flex size-8 max-md:min-h-11 max-md:min-w-11 items-center justify-center rounded-lumen-md border border-lumen-border-strong text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent disabled:cursor-not-allowed disabled:text-lumen-text-tertiary disabled:hover:bg-transparent disabled:hover:text-lumen-text-tertiary";
+const BTN = `${ICON_TAP_NARROW} flex size-8 items-center justify-center rounded-lumen-md border border-lumen-border-strong text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent disabled:cursor-not-allowed disabled:text-lumen-text-tertiary disabled:hover:bg-transparent disabled:hover:text-lumen-text-tertiary`;
 
 /*
  * Press without taking focus (#1690).
@@ -81,7 +81,7 @@ export function UndoRedoButtons({
   className,
 }: UndoRedoButtonsProps) {
   return (
-    <div className={cn("flex items-center gap-0.5", className)}>
+    <div className={cn("flex items-center gap-0.5 max-md:gap-0", className)}>
       <button
         type="button"
         onClick={onUndo}

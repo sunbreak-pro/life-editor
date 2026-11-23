@@ -242,9 +242,12 @@ describe("NoteDetailPanel narrow title row (#2467)", () => {
     expect(classes(tagRow)).toEqual(
       expect.arrayContaining(["max-md:order-last", "max-md:w-full"]),
     );
-    // The kebab keeps its 44px hit box on narrow (#1840).
+    // The kebab keeps its touch-floor hit box on narrow (#1840, #2673).
     expect(classes(kebab)).toEqual(
-      expect.arrayContaining(["max-md:min-h-11", "max-md:min-w-11"]),
+      expect.arrayContaining([
+        "max-md:min-h-lumen-tap-touch",
+        "max-md:min-w-lumen-tap-touch",
+      ]),
     );
   });
 

@@ -484,8 +484,8 @@ function TodoDetailFields({
                 }
               }
               label={statusLabel}
-              // The 44px target stays; the margin keeps the row its height.
-              className="-my-2.5 -ml-2.5"
+              // The full target stays; the margin keeps the row its height.
+              className="-my-2.5 -ml-2.5 max-md:-my-1.5 max-md:-ml-1.5"
             />
             <span aria-hidden className="text-sm text-lumen-text">
               {statusText}

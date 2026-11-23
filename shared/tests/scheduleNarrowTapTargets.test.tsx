@@ -61,7 +61,7 @@ function renderTray() {
   );
 }
 
-describe("#1558 — the tray's row buttons meet the 44px floor on narrow only", () => {
+describe("#1558 — the tray's row buttons meet the touch floor on narrow only", () => {
   it.each([
     ["delete todo"],
     ["move out of today"],
@@ -69,11 +69,32 @@ describe("#1558 — the tray's row buttons meet the 44px floor on narrow only", 
   ])("floors %s in both directions", (name) => {
     renderTray();
     const btn = screen.getByLabelText(name);
-    expect(btn).toHaveClass("max-md:min-h-11", "max-md:min-w-11");
+    expect(btn).toHaveClass("max-md:min-h-lumen-tap-touch", "max-md:min-w-lumen-tap-touch");
     // Unprefixed floors would grow the Desktop sidebar's rows too.
-    expect(btn).not.toHaveClass("min-h-11");
+    expect(btn).not.toHaveClass("min-h-lumen-tap-touch");
     // The painted mouse-size box is unchanged.
     expect(btn).toHaveClass("size-6");
+    // #2673: side by side they touch on a phone, and only there.
+    expect(btn.parentElement).toHaveClass("gap-2", "max-md:gap-0");
+  });
+
+  it("starts the second line under the title at both checkbox sizes (#2673)", () => {
+    render(
+      <TodayTodoTray
+        {...rows}
+        onToggleComplete={noop}
+        onOpenTodo={noop}
+        onAddCandidate={noop}
+        renderRowExtra={() => <span data-testid="extra">goal</span>}
+        labels={labels}
+      />,
+    );
+    for (const extra of screen.getAllByTestId("extra")) {
+      expect(extra.parentElement).toHaveClass(
+        "pl-13",
+        "max-md:pl-[calc(var(--spacing-lumen-tap-touch)+var(--spacing)*2)]",
+      );
+    }
   });
 });
 
@@ -100,8 +121,9 @@ describe("#2408 — the Desktop cluster's buttons carry the same floor", () => {
         />,
       );
       const btn = screen.getByLabelText(name);
-      expect(btn).toHaveClass("max-md:min-h-11", "max-md:min-w-11", "size-6");
-      expect(btn).not.toHaveClass("min-h-11");
+      expect(btn).toHaveClass("max-md:min-h-lumen-tap-touch", "max-md:min-w-lumen-tap-touch", "size-6");
+      expect(btn).not.toHaveClass("min-h-lumen-tap-touch");
+      expect(btn.parentElement).toHaveClass("gap-0.5", "max-md:gap-0");
     },
   );
 });
@@ -124,7 +146,7 @@ describe("#1515 — the title button is allowed to shrink", () => {
 /*
  * #2477 — the drawer's titles read 1 to 5 characters before the ellipsis.
  *
- * The checkbox and the two trailing buttons are all at the 44px floor, so the
+ * The checkbox and the two trailing buttons are all at the touch floor, so the
  * title cannot be given more width on the title's line. It gets a second line
  * on narrow instead, its button reaches 44px, and an "other" row's
  * "9/5 14:00" moves under the title rather than taking the line from it. The

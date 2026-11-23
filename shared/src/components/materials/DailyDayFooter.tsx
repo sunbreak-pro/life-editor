@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Star } from "lucide-react";
 import { cn } from "../cn";
-import { FOCUS_RING_TIGHT } from "../styleTokens";
+import { FOCUS_RING_TIGHT, ICON_TAP_NARROW } from "../styleTokens";
 
 /*
  * The strip under the Daily body (#2123, D-20261006-main-7): the day's mood
@@ -52,8 +52,7 @@ export interface DailyDayFooterProps {
   className?: string;
 }
 
-const MOOD_STAR_BUTTON =
-  "inline-flex items-center justify-center rounded-lumen-sm p-0.5 transition-colors duration-150 max-md:min-h-11 max-md:min-w-11";
+const MOOD_STAR_BUTTON = `inline-flex items-center justify-center rounded-lumen-sm p-0.5 transition-colors duration-150 ${ICON_TAP_NARROW}`;
 
 export function DailyDayFooter({
   mood,
@@ -74,15 +73,15 @@ export function DailyDayFooter({
         className,
       )}
     >
-      {/* flex-wrap: five 44px stars do not fit one line under a large root
-          font size, and a second line is still reachable (#1722). */}
+      {/* flex-wrap: five stars may not fit one line under a large root font
+          size, and a second line is still reachable (#1722). */}
       <div
         role="group"
         aria-label={labels.moodGroup}
         // On the group, not each star: crossing the 2px gap between two stars
         // must not drop the preview back to the stored mood for a frame.
         onPointerLeave={() => setHovered(null)}
-        className="flex flex-wrap items-center gap-0.5"
+        className="flex flex-wrap items-center gap-0.5 max-md:gap-0"
       >
         {[1, 2, 3, 4, 5].map((n) => {
           const filled = lit !== null && n <= lit;

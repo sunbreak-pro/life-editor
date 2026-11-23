@@ -1,6 +1,6 @@
 import type { TodoStatus } from "../types/todoTree";
 import { cn } from "./cn";
-import { FOCUS_RING_TIGHT } from "./styleTokens";
+import { FOCUS_RING_TIGHT, ICON_TAP_NARROW } from "./styleTokens";
 import {
   STATUS_ICON,
   statusLabel,
@@ -108,8 +108,10 @@ export function TodoStatusCheckbox({
       aria-label={name}
       title={statusText}
       className={cn(
-        // min-h-11 / min-w-11 = 44px, the touch-target floor (mobile-scope.md).
+        // Desktop keeps its 2.75rem box. The phone takes the icon-only floor
+        // (#2673): a max-md: rule is emitted after the base one, so it wins.
         "flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lumen-md transition-colors",
+        ICON_TAP_NARROW,
         FOCUS_RING_TIGHT,
         done ? accentClassName : "text-lumen-text-secondary",
         className,

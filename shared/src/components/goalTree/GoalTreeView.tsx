@@ -26,6 +26,7 @@ import { EmptyState } from "../EmptyState";
 import { IconButton } from "../IconButton";
 import { Input } from "../Input";
 import { SkeletonList } from "../SkeletonList";
+import { ICON_TAP_NARROW } from "../styleTokens";
 import { TodoStatusCheckbox, toggledTodoStatus } from "../TodoStatusCheckbox";
 import type { StatusLabelSet } from "../todoStatusVisuals";
 import type { Goal, GoalDateRange, GoalPeriodKind } from "../../types/goal";
@@ -295,7 +296,7 @@ export interface GoalTreeDragHandlers {
 
 const ROW_BUTTON_SHAPE = cn(
   "flex min-w-0 flex-1 items-center gap-2 rounded-lumen-sm px-2 py-1.5 text-left",
-  // A phone row is the arrow's 40px, not the 44px of other screens (#2672).
+  // A phone row is the arrow's height, not the 2.75rem of other screens (#2672).
   "transition-colors max-md:min-h-(--goal-tree-toggle)",
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
 );
@@ -328,14 +329,12 @@ const ADD_PERIOD_KINDS: readonly GoalPeriodKind[] = [
  * while the grip-carrying arrows stayed on it. At the floor every arrow is
  * the variable's width.
  *
- * Narrow is 40px (#2672), and the row, the checkbox and the "…" read it too.
- * In px because a finger does not shrink with the font setting: no --spacing
- * step is 40px at the default 18px root, and a rem would leave 31px at the
- * phone's smallest text. Past a 22.8px root the tap floor is wider than 40px
- * and lifts the one-icon arrows, so the variable follows it there.
+ * Narrow is the phone's icon-only floor (#2672, the shared token since #2673),
+ * and the row and the "…" read it too; the checkbox takes the same token
+ * itself.
  */
 const TREE_TOGGLE_SIZE =
-  "[--goal-tree-toggle:var(--spacing-lumen-tap-min)] max-md:[--goal-tree-toggle:max(40px,var(--spacing-lumen-tap-min))]";
+  "[--goal-tree-toggle:var(--spacing-lumen-tap-min)] max-md:[--goal-tree-toggle:var(--spacing-lumen-tap-touch)]";
 
 /** The arrow's column, kept on rows without one so titles line up. */
 const BRANCH_TOGGLE =
@@ -344,7 +343,7 @@ const BRANCH_TOGGLE =
 /*
  * Narrow's indent is short of the parent's arrow centre, so the line runs
  * inside the left edge of the arrows and checkboxes below it: it lets a press
- * through, or it would cut a 1px gap in their 40px.
+ * through, or it would cut a 1px gap in their targets.
  */
 const TREE_LINE =
   "pointer-events-none absolute inset-y-0 left-[calc(var(--goal-tree-toggle)_/_2_-_0.5px)] w-px bg-lumen-border";
@@ -353,7 +352,7 @@ const TREE_LINE =
  * Wide: past the line by the old gap, so a child's arrow never sits on it.
  * Narrow: 17px a level and no longer tied to the arrow's width, which took
  * 38px a level from the third level's title (#2672). The line stays clear of
- * the child's glyph, which is centred in its 40px.
+ * the child's glyph, which is centred in its box.
  */
 const TREE_INDENT =
   "pl-[calc(var(--goal-tree-toggle)_/_2_+_var(--spacing)_*_3)] max-md:pl-[17px]";
@@ -580,9 +579,6 @@ function TodoRow({
         labels={labels.statusLabels}
         label={labels.status}
         itemName={todo.title}
-        // Over the shared 44px, which would keep the row above 40px. A
-        // max-md: rule comes after the base one, so it wins without a merge.
-        className="max-md:min-h-(--goal-tree-toggle) max-md:min-w-(--goal-tree-toggle)"
       />
       <button
         type="button"
@@ -687,7 +683,7 @@ interface RowMenu {
 }
 
 /*
- * The "…" at a phone row's right end (#2611). Always shown and 40px square
+ * The "…" at a phone row's right end (#2611). Always shown and a full square
  * (#2672): #2488's icons were hidden until a hover a phone never sends, and
  * #2487's three took the title's room. One target leaves the title its line.
  */
@@ -797,13 +793,13 @@ interface AddingUnder extends EditingRow {
 
 /**
  * The icons at a goal row's right end on desktop: on hover, on focus, or
- * selected. A phone draws the "…" instead (#2611); the 44px floor stays for
+ * selected. A phone draws the "…" instead (#2611); the touch floor stays for
  * the add field's ×, which a phone does show.
  */
 const ROW_ICON = cn(
   "ml-0.5 grid shrink-0 place-items-center rounded-lumen-sm text-lumen-text-tertiary transition-[color,background-color,opacity] hover:bg-lumen-hover hover:text-lumen-text",
   "focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
-  "max-md:min-h-11 max-md:min-w-11",
+  ICON_TAP_NARROW,
 );
 
 /** Desktop only: the box is not drawn, and the icons sit in the row's line. */
@@ -1647,7 +1643,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
                 label={labels.cancel}
                 icon={<X size={14} aria-hidden />}
                 onClick={closeAdd}
-                className={cn(KEEP_LABEL, "max-md:min-h-11 max-md:min-w-11")}
+                className={cn(KEEP_LABEL, ICON_TAP_NARROW)}
               />
             </div>
             {/* Below 768px each control takes its own line, so the placeholder

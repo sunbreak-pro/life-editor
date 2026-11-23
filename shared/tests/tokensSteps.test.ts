@@ -1,10 +1,11 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /*
- * #2036 — the spacing, icon-size and motion steps in tokens.css.
+ * #2036 — the spacing, icon-size and motion steps in tokens.css, and the touch
+ * floor of #2673.
  *
  * jsdom runs no animations and resolves no custom properties (same constraint
  * as the #887 token test), so what is pinned is the declarations:
@@ -70,6 +71,31 @@ describe("motion steps (#2036)", () => {
 describe("spacing steps (#2036)", () => {
   it.each([1, 2, 3, 4, 6])("--spacing-lumen-%i is that many 4px", (n) => {
     expect(decl(`--spacing-lumen-${n}`)).toBe(`${n * 4}px`);
+  });
+});
+
+describe("the phone's icon-only floor (#2673)", () => {
+  it("is 40px, and the rem floor once that is the wider", () => {
+    expect(decl("--spacing-lumen-tap-touch")).toBe(
+      "max(40px, var(--spacing-lumen-tap-min))",
+    );
+  });
+
+  it("leaves the Desktop floor where it was", () => {
+    expect(decl("--spacing-lumen-tap-min")).toBe("1.75rem");
+  });
+
+  it("is written in tokens.css and nowhere else", () => {
+    const srcs = ["../src", "../../web/src"].flatMap((dir) =>
+      readdirSync(join(here, dir), { recursive: true, encoding: "utf8" })
+        .filter((file) => /\.(tsx?|css)$/.test(file))
+        .map((file) => join(here, dir, file)),
+    );
+    expect(srcs.length).toBeGreaterThan(100);
+    const copies = srcs.filter((file) =>
+      /max\(\s*40px/.test(readFileSync(file, "utf8")),
+    );
+    expect(copies).toEqual([join(here, "../src/styles/tokens.css")]);
   });
 });
 

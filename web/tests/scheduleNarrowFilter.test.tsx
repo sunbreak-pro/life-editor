@@ -10,7 +10,7 @@ import type {
  * #2079 — the tag filter's entry in narrow's month header. Desktop has had it
  * in the toolbar since #1173 / #1639; on a phone there was no way to open the
  * panel at all. The button opens the same panel (the host's setter), lights
- * while a filter is on, carries the count, and meets the 44px touch floor.
+ * while a filter is on, carries the count, and meets the touch floor.
  */
 
 vi.mock("@life-editor/shared", async (importOriginal) => ({
@@ -56,11 +56,20 @@ describe("#2079 — narrow's tag filter button", () => {
     expect(onOpen).toHaveBeenCalledTimes(1);
   });
 
-  it("meets the 44px touch floor", () => {
+  it("meets the touch floor, and touches the steppers (#2673)", () => {
     renderWith();
-    const cls = screen.getByRole("button", { name: "Filter by tag" }).className;
-    expect(cls).toContain("min-h-11");
-    expect(cls).toContain("min-w-11");
+    const filter = screen.getByRole("button", { name: "Filter by tag" });
+    expect(filter.className).toContain("min-h-lumen-tap-touch");
+    expect(filter.className).toContain("min-w-lumen-tap-touch");
+    const group = filter.parentElement as HTMLElement;
+    expect(group.className).not.toMatch(/\bgap-/);
+    expect(group.querySelectorAll("button")).toHaveLength(3);
+  });
+
+  it("lets a press through the badge, which hangs over the stepper (#2673)", () => {
+    renderWith({ active: true, count: 2 });
+    const badge = document.querySelector("[data-filter-count]");
+    expect(badge?.className).toContain("pointer-events-none");
   });
 
   it("is off and badge-less with no filter", () => {

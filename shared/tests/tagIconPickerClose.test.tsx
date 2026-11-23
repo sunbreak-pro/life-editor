@@ -18,7 +18,7 @@ import { TAG_HUB_LABELS } from "./tagHubLabels";
  * jsdom has no layout (CLAUDE.md §7.1), so where the button lands is checked in
  * a real browser. What is pinned here is structure: the button exists, it sits
  * on the panel itself (outside the scrolling body, beside the heading), it is
- * 44px under 768px by class, and it closes only the panel.
+ * the touch floor under 768px by class, and it closes only the panel.
  */
 
 const LABELS = {
@@ -76,12 +76,12 @@ describe("TagIconPicker — the panel has a close button (#2500)", () => {
     expect(dialog.querySelector("h2")?.textContent).toBe(LABELS.iconLabel);
   });
 
-  it("is a 44px target under 768px and 32px on Desktop", () => {
+  it("is a floor-sized target under 768px and 32px on Desktop", () => {
     render(<Picker />);
     openPanel();
 
     const classes = classesOf(closeButton());
-    expect(classes).toContain("max-md:size-11");
+    expect(classes).toContain("max-md:size-lumen-tap-touch");
     expect(classes).toContain("size-8");
   });
 
