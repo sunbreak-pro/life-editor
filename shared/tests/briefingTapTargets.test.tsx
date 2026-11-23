@@ -188,6 +188,6 @@ describe("#1559 — the briefing papers' own controls meet the touch floor", () 
   it("keeps a carryover row 2.75rem tall on a phone through its title", () => {
     renderMorning();
     const title = screen.getByRole("button", { name: "Old todo" });
-    expect(title).toHaveClass("max-md:min-h-11");
+    expect(title).toHaveClass("@max-md:min-h-11");
   });
 });

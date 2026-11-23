@@ -118,7 +118,7 @@ export function BriefingCarryoverPanel({
             <button
               type="button"
               onClick={() => onToggleTodo(item.id)}
-              className="min-w-0 text-left @max-md:flex-1 max-md:min-h-11"
+              className="min-w-0 text-left @max-md:flex-1 @max-md:min-h-11"
             >
               <span className={item.completed ? "line-through" : undefined}>
                 {item.title}
