@@ -990,7 +990,8 @@
     "editTagMenu": "タグを編集する",
     "deleteTag": "タグを削除",
     "editTag": "このタグを編集",
-    "deleteConfirm": "タグ「{{name}}」を削除しますか？付けているアイテムからも外れます。",
+    "deleteTagConfirm": "削除",
+    "deleteConfirm": "「{{name}}」を削除します。付いていたアイテムからは外れます。",
     "unsavedSwitchConfirm": "このタグに未保存の変更があります。破棄して別のタグを開きますか？",
     "edit": {
       "nameLabel": "名前",

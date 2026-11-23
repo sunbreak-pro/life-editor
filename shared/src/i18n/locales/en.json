@@ -999,7 +999,8 @@
     "editTagMenu": "Edit tag",
     "deleteTag": "Delete tag",
     "editTag": "Edit this tag",
-    "deleteConfirm": "Delete the tag “{{name}}”? It is removed from every item carrying it.",
+    "deleteTagConfirm": "Delete",
+    "deleteConfirm": "“{{name}}” will be deleted. It is removed from every item carrying it.",
     "unsavedSwitchConfirm": "This tag has unsaved changes. Discard them and open another tag?",
     "edit": {
       "nameLabel": "Name",

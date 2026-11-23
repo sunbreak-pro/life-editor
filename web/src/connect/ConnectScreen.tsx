@@ -665,8 +665,10 @@ export function ConnectScreen({
       const tag = wiki.allTags.find((row) => row.id === tagId);
       void (async () => {
         const ok = await askConfirm({
+          title: t("connect.deleteTag"),
           message: t("connect.deleteConfirm", { name: tag?.name ?? "" }),
-          confirmLabel: t("connect.deleteTag"),
+          // Not `connect.deleteTag`: that key also names the row menu's item.
+          confirmLabel: t("connect.deleteTagConfirm"),
           cancelLabel: t("common.cancel"),
           danger: true,
         });
@@ -1317,10 +1319,12 @@ export function ConnectScreen({
       {confirmRequest && (
         <ConfirmDialog
           open
+          title={confirmRequest.title}
           message={confirmRequest.message}
           confirmLabel={confirmRequest.confirmLabel}
           cancelLabel={confirmRequest.cancelLabel}
           danger={confirmRequest.danger}
+          closeLabel={t("common.close")}
           onConfirm={() => resolveConfirm(true)}
           onCancel={() => resolveConfirm(false)}
         />
