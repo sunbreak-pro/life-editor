@@ -1143,6 +1143,7 @@
       "period": "{{kind}} · {{key}}",
       "pickHint": "目標を選ぶと、ここに詳細が出ます",
       "sheetTitle": "目標: {{title}}",
+      "linkSave": "つなぐ",
       "writeFailed": "目標を保存できませんでした。通信を確認して、もう一度操作してください。",
       "expand": "開く: {{title}}",
       "collapse": "閉じる: {{title}}",
