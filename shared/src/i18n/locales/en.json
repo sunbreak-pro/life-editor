@@ -356,6 +356,7 @@
         "setTitle": "Set note password",
         "removeTitle": "Remove note password",
         "verifyTitle": "Unlock note",
+        "unlockCta": "Unlock",
         "passwordLabel": "Password",
         "currentPasswordLabel": "Current password",
         "confirmPasswordLabel": "Confirm password",

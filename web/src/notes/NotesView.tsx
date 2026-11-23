@@ -588,6 +588,7 @@ export function NotesView({
     delete: t("materials.notes.deleteNote"),
     moreActions: t("notesView.moreActions"),
     lockedHint: t("materials.notes.lockedHint"),
+    unlockLabel: t("materials.notes.password.unlockCta"),
     registerTemplate: t("materials.templates.menuEntry"),
     applyTemplate: t("materials.templates.applyMenuEntry"),
     setPassword: t("materials.notes.password.setEntry"),
