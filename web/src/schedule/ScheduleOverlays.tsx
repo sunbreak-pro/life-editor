@@ -672,6 +672,11 @@ export function ScheduleOverlays({
    * day is an input now, not a printed label). The anchor day is the stand-in;
    * it is never the day a user sees, because a sheet only ever opens with a
    * panel behind it.
+   *
+   * #2624: on Mobile the sheet opens short (type, title, day, times) and goes
+   * on to this same full panel only from its 「追加して詳細へ」. That second
+   * step lives inside <QuickCaptureSheet>, so this host still opens and
+   * closes one frame.
    */
   /*
    * #2406: the footer's Cancel is the frame's own close, on both frames. It

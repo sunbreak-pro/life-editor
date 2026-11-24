@@ -287,6 +287,17 @@ export interface ItemCreatePanelInitial {
   end?: string;
   /** Seeds the item-title field. Default empty. */
   title?: string;
+  /**
+   * #2624: seeds the type tab. Default `event`. The Mobile quick-capture
+   * sheet hands its own choice over when the user goes on to this panel, so
+   * a todo typed there arrives on the todo tab.
+   */
+  type?: ItemCreateType;
+  /**
+   * #2624: seeds the all-day check. Default off. The quick sheet's todo has
+   * a day and no time, which this panel spells as an all-day todo.
+   */
+  isAllDay?: boolean;
 }
 
 /**
@@ -1155,6 +1166,8 @@ export function ItemCreatePanel({
     start: initialStart = "09:00",
     end: initialEnd = "10:00",
     title: initialTitle = "",
+    type: initialType = "event",
+    isAllDay: initialAllDay = false,
   } = initial;
   const {
     todos: existingTodos,
@@ -1174,12 +1187,12 @@ export function ItemCreatePanel({
     onCopyEventAndOpen,
     onCreateMemoNote,
   } = handlers;
-  const [type, setType] = useState<ItemCreateType>("event");
+  const [type, setType] = useState<ItemCreateType>(initialType);
   const [title, setTitle] = useState(initialTitle);
   const [date, setDate] = useState(initialDate);
   const [start, setStart] = useState(initialStart);
   const [end, setEnd] = useState(initialEnd);
-  const [allDay, setAllDay] = useState(false);
+  const [allDay, setAllDay] = useState(initialAllDay);
   // #2406: the repeat draft — null is "no repeat", the field's first choice.
   const [repeatDraft, setRepeatDraft] = useState<RepeatDraft | null>(null);
 
