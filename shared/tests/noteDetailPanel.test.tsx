@@ -330,7 +330,7 @@ describe("NoteDetailPanel", () => {
     expect(onDelete).toHaveBeenCalledWith("note-a");
   });
 
-  it("defaults to the sidebar surface and switches to the main surface via variant", () => {
+  it("draws no card on either variant (#2661, #2583)", () => {
     const { container, rerender } = render(
       <NoteDetailPanel
         noteId="note-a"
@@ -342,17 +342,18 @@ describe("NoteDetailPanel", () => {
         {...LABELS}
       />,
     );
-    // Default (variant omitted) = the compact sidebar card.
-    const sidebarRoot = container.firstElementChild as HTMLElement;
-    expect(sidebarRoot.className).toContain("bg-lumen-bg-secondary");
-    expect(sidebarRoot.className).not.toContain("bg-lumen-surface");
-    expect(sidebarRoot.className.split(/\s+/)).toEqual(
-      expect.arrayContaining(["border", "border-lumen-border", "p-3"]),
-    );
+    const cardClasses = (el: HTMLElement): string[] =>
+      el.className
+        .split(/\s+/)
+        .filter((c) => /^(border|shadow|bg|rounded|p[xytrbl]?)(-|$)/.test(c));
 
-    // variant="main" = written straight onto the page (#2661): no line, no
-    // shadow, no fill, no corners, and no padding of its own, so the text
-    // lines up with the page gutter.
+    // Default (variant omitted) = the phone's compact sizing, written straight
+    // onto the page since #2583: no line, no shadow, no fill, no corners, and
+    // no padding of its own, so the text lines up with the column's gutter.
+    const sidebarRoot = container.firstElementChild as HTMLElement;
+    expect(cardClasses(sidebarRoot)).toEqual([]);
+
+    // variant="main" = the same on Desktop (#2661).
     rerender(
       <NoteDetailPanel
         noteId="note-a"
@@ -366,11 +367,7 @@ describe("NoteDetailPanel", () => {
       />,
     );
     const mainRoot = container.firstElementChild as HTMLElement;
-    expect(
-      mainRoot.className
-        .split(/\s+/)
-        .filter((c) => /^(border|shadow|bg|rounded|p[xytrbl]?)(-|$)/.test(c)),
-    ).toEqual([]);
+    expect(cardClasses(mainRoot)).toEqual([]);
   });
 
   it("omits the tag and content sections when their slots are absent", () => {

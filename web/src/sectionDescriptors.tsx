@@ -240,6 +240,8 @@ export const SECTION_DESCRIPTORS: Readonly<
    * old flat sections (§6.2); only the addressing changed (section+tab).
    */
   materials: {
+    // Stays "wide": the Notes and Daily tabs share this descriptor, so the open
+    // note's 46rem column is capped inside NotesView instead (#2583).
     width: "wide",
     // Narrow: the section box owns its height and each tab scrolls inside it
     // (NotesView's main column and DailyView's narrow branch are both written

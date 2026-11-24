@@ -53,9 +53,9 @@ afterEach(() => {
 
 describe("NoteDetailPanel sticky header (#2058)", () => {
   it.each([
-    // "main" sits on the page itself (#2661), "sidebar" on its own card.
+    // Both sit on the page itself (#2661 for "main", #2583 for "sidebar").
     ["main (wide)", "main" as const, "bg-lumen-bg"],
-    ["sidebar (narrow)", "sidebar" as const, "bg-lumen-bg-secondary"],
+    ["sidebar (narrow)", "sidebar" as const, "bg-lumen-bg"],
   ])("pins the title, tags and links on %s, body outside", (_, variant, bg) => {
     renderPanel({ variant, stickyHeader: true });
     const header = screen.getByTestId("note-detail-header");
@@ -104,20 +104,29 @@ describe("NoteDetailPanel sticky header (#2058)", () => {
     expect(within(header).queryByRole("toolbar")).toBeNull();
   });
 
-  it("stretches the main header across the page gutter, not past it (#2661)", () => {
-    renderPanel({ variant: "main", stickyHeader: true });
-    const classes = screen
-      .getByTestId("note-detail-header")
-      .className.split(/\s+/);
+  it.each([
+    // PageContainer's Desktop gutter (#2661).
+    ["main", "main" as const, "lumen-gutter-wide"],
+    // The phone column's gutter, which NotesView pads with (#2583).
+    ["sidebar", "sidebar" as const, "lumen-gutter"],
+  ])(
+    "stretches the %s header across the page gutter, not past it",
+    (_, variant, gutter) => {
+      renderPanel({ variant, stickyHeader: true });
+      const classes = screen
+        .getByTestId("note-detail-header")
+        .className.split(/\s+/);
 
-    // The gutter's own token both ways: a rem step would outgrow the fixed-px
-    // gutter under a large root font size and scroll the page sideways.
-    expect(classes).toEqual(
-      expect.arrayContaining(["-mx-lumen-gutter-wide", "px-lumen-gutter-wide"]),
-    );
-    // No card padding above it to pull up into.
-    expect(classes.filter((c) => c.startsWith("-mt-"))).toEqual([]);
-  });
+      // The gutter's own token both ways: a rem step would outgrow the
+      // fixed-px gutter under a large root font size and scroll the page
+      // sideways.
+      expect(classes).toEqual(
+        expect.arrayContaining([`-mx-${gutter}`, `px-${gutter}`]),
+      );
+      // No card padding above it to pull up into.
+      expect(classes.filter((c) => c.startsWith("-mt-"))).toEqual([]);
+    },
+  );
 
   it("leaves the sidebar variant's header un-stuck without the opt-in", () => {
     const { container } = renderPanel();
@@ -125,7 +134,7 @@ describe("NoteDetailPanel sticky header (#2058)", () => {
 
     expect(header.className).not.toContain("sticky");
     expect(header.className).not.toMatch(/-m[xt]-/);
-    // Same gap as the card, so the rows sit where they did before #2058.
+    // Same gap as the panel, so the rows sit where they did before #2058.
     expect(header.className).toContain("gap-3");
     const root = container.firstElementChild as HTMLElement;
     expect(root.className).toContain("gap-3");
