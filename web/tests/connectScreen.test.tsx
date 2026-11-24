@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
+  act,
   render,
   screen,
   fireEvent,
@@ -454,6 +455,95 @@ describe("ConnectScreen — opening on the first tag (#2628)", () => {
     } finally {
       Reflect.deleteProperty(window, "matchMedia");
     }
+  });
+});
+
+/*
+ * The failed first read and the empty hub (#2604). A read that never landed
+ * used to leave the hub looking empty, which says "no tags yet" about data
+ * that was never read.
+ */
+describe("ConnectScreen — a failed read and an empty hub (#2604)", () => {
+  function renderBare(ds: DataService) {
+    const { wrapper: SyncWrapper } = createBumpableSync();
+    render(
+      <SyncWrapper>
+        <WikiTagsUnifiedProvider dataService={ds}>
+          <ConnectScreen dataService={ds} onNavigateToItem={vi.fn()} />
+        </WikiTagsUnifiedProvider>
+      </SyncWrapper>,
+    );
+  }
+
+  it("shows the danger card instead of an empty hub, and reads again on Retry", async () => {
+    const fetchTodoTree = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("network down"))
+      .mockResolvedValue([
+        { id: "task-1", title: "Draft the PR", updatedAt: "2026-08-28" },
+      ]);
+    const ds = makeDS({ fetchTodoTree });
+    renderBare(ds);
+
+    const card = await screen.findByRole("alert");
+    within(card).getByText("Could not load the tags");
+    expect(screen.queryByRole("list", { name: "Tags" })).toBeNull();
+    expect(screen.queryByText("No tags or items yet.")).toBeNull();
+    expect(fetchTodoTree).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(within(card).getByRole("button", { name: "Retry" }));
+
+    await waitFor(() => screen.getByRole("list", { name: "Tags" }));
+    expect(fetchTodoTree).toHaveBeenCalledTimes(2);
+    expect(ds.fetchEvents).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("keeps the rows on screen when a later read fails", async () => {
+    const { wrapper: SyncWrapper, sync } = createBumpableSync();
+    const fetchTodoTree = vi
+      .fn()
+      .mockResolvedValueOnce([
+        { id: "task-1", title: "Draft the PR", updatedAt: "2026-08-28" },
+      ])
+      .mockRejectedValue(new Error("network down"));
+    const ds = makeDS({ fetchTodoTree });
+    render(
+      <SyncWrapper>
+        <WikiTagsUnifiedProvider dataService={ds}>
+          <ConnectScreen dataService={ds} onNavigateToItem={vi.fn()} />
+        </WikiTagsUnifiedProvider>
+      </SyncWrapper>,
+    );
+    await waitFor(() => screen.getByRole("list", { name: "Tags" }));
+
+    act(() => sync.bump("todos"));
+    await waitFor(() => expect(fetchTodoTree).toHaveBeenCalledTimes(2));
+    screen.getByRole("list", { name: "Tags" });
+    expect(screen.queryByText("Could not load the tags")).toBeNull();
+  });
+
+  it("guides an empty hub from the items pane only, and its button starts a name", async () => {
+    const none = vi.fn().mockResolvedValue([]);
+    renderBare(
+      makeDS({
+        fetchTodoTree: none,
+        fetchEvents: none,
+        listNotesUnified: none,
+        listDailiesUnified: none,
+        listAllWikiTagsUnified: none,
+        listAllTagAssignments: none,
+      }),
+    );
+
+    await screen.findByText("No tags or items yet.");
+    expect(screen.getAllByText("No tags or items yet.")).toHaveLength(1);
+    // #2628's first-tag pick has nothing to open, so the guide stays.
+    expect(screen.queryByRole("heading", { level: 2 })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Add a tag" }));
+    expect(document.activeElement).toBe(
+      screen.getByLabelText("Enter a tag name"),
+    );
   });
 });
 

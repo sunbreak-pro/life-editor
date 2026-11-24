@@ -1000,6 +1000,7 @@
     "createFailed": "Couldn't create the tag. Try again.",
     "emptyAction": "Add a tag",
     "loading": "Loading tags",
+    "loadFailed": "Could not load the tags",
     "rowMenu": "Tag actions",
     "editTagMenu": "Edit tag",
     "deleteTag": "Delete tag",

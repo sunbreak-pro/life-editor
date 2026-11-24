@@ -83,6 +83,11 @@ export interface TagHubTagRailProps {
   isLoading?: boolean;
   labels: TagHubLabels;
   /**
+   * What the list area holds when there is nothing at all — no tag and no
+   * item (#2604). Omit it and the area stays blank above the add row.
+   */
+  emptyState?: ReactNode;
+  /**
    * Drawn just above the add row (#2224) — the Desktop bulk bar, so checking
    * a row never moves the items pane it sits in.
    */
@@ -106,6 +111,7 @@ export function TagHubTagRail({
   wide,
   isLoading = false,
   labels,
+  emptyState,
   footer,
 }: TagHubTagRailProps) {
   // Collapsed by default: these are the tags you are NOT reading (D4).
@@ -223,9 +229,10 @@ export function TagHubTagRail({
             <SkeletonList rows={6} rowHeight={38} gap={2} />
           </div>
         ) : tags.length === 0 && unusedTags.length === 0 ? (
-          <p className="px-1 py-6 text-center text-sm text-lumen-text-tertiary">
-            {labels.empty}
-          </p>
+          // #2604 — the "nothing yet" guide is drawn once, by the view: in the
+          // items pane on wide (so the rail would only repeat it) and here on
+          // narrow, where this list is the only pane.
+          (emptyState ?? null)
         ) : visibleTags.length === 0 && visibleUnusedTags.length === 0 ? (
           // Left on narrow (#2600): the rule and the add row follow it at the
           // left edge, so a centred line floated apart from both.

@@ -30,6 +30,7 @@ import {
   useTranslation,
   useWikiTagsUnifiedContext,
   getConnectItemSelection,
+  LoadErrorCard,
   logServiceError,
   getConnectTagSelection,
   setConnectItemSelection,
@@ -271,45 +272,58 @@ export function ConnectScreen({
   const syncVersion = useSyncDomains("todos", "schedule", "notes", "dailies");
 
   const [sources, setSources] = useState<ConnectSources>(EMPTY_SOURCES);
+  // The error card's "Retry" (#2604): a new anchor restarts the load below.
+  const [reloadTick, setReloadTick] = useState(0);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
-  const { isLoading: sourcesLoading } = useDomainLoad<ConnectSources>({
-    domain: "Connect tag hub",
-    dataService,
-    version: syncVersion,
-    // Editing an item elsewhere must not blank the hub back to its skeleton;
-    // the rows are already on screen and a refetch only corrects them.
-    refetchReportsLoading: false,
-    load: async (service) => {
-      const [todos, events, notes, dailies, routines, noteExcerpts] =
-        await Promise.all([
-          service.fetchTodoTree(),
-          service.fetchEvents(),
-          service.listNotesUnified(),
-          service.listDailiesUnified(),
-          service.fetchAllRoutines(),
-          // An excerpt is a second line under a title (#2224): a failed read
-          // leaves the notes without one instead of the hub without rows.
-          service.listNoteExcerptsUnified().catch((error: unknown) => {
-            logServiceError(
-              "Connect tag hub",
-              "listNoteExcerptsUnified",
-              error,
-            );
-            return [];
-          }),
-        ]);
-      return {
-        todos,
-        events,
-        notes,
-        dailies,
-        routines,
-        noteExcerpts,
-      };
-    },
-    apply: setSources,
-    fallbackMessage: "Failed to load the tag hub",
-  });
+  const { isLoading: sourcesLoading, error: sourcesError } =
+    useDomainLoad<ConnectSources>({
+      domain: "Connect tag hub",
+      dataService,
+      version: syncVersion,
+      anchor: reloadTick,
+      // Editing an item elsewhere must not blank the hub back to its skeleton;
+      // the rows are already on screen and a refetch only corrects them. Until
+      // one read has landed there is nothing on screen to keep, so a retry
+      // reports its wait and the card's button can say it is working.
+      refetchReportsLoading: !hasLoaded,
+      load: async (service) => {
+        const [todos, events, notes, dailies, routines, noteExcerpts] =
+          await Promise.all([
+            service.fetchTodoTree(),
+            service.fetchEvents(),
+            service.listNotesUnified(),
+            service.listDailiesUnified(),
+            service.fetchAllRoutines(),
+            // An excerpt is a second line under a title (#2224): a failed read
+            // leaves the notes without one instead of the hub without rows.
+            service.listNoteExcerptsUnified().catch((error: unknown) => {
+              logServiceError(
+                "Connect tag hub",
+                "listNoteExcerptsUnified",
+                error,
+              );
+              return [];
+            }),
+          ]);
+        return {
+          todos,
+          events,
+          notes,
+          dailies,
+          routines,
+          noteExcerpts,
+        };
+      },
+      apply: (next) => {
+        setSources(next);
+        setHasLoaded(true);
+      },
+      fallbackMessage: "Failed to load the tag hub",
+    });
+  // Only when nothing ever arrived (GoalsTodosScreen's rule): after one good
+  // read, a failed refetch keeps the last rows on screen.
+  const loadFailed = sourcesError !== null && !hasLoaded;
 
   /*
    * Todo ticks still being written (#2224), painted over every read until
@@ -487,6 +501,17 @@ export function ConnectScreen({
   );
 
   const isLoading = sourcesLoading || wiki.loading;
+
+  const retryLoad = useCallback(() => {
+    setReloadTick((n) => n + 1);
+    // The tag cache is read by the Provider, not by the load above, so a
+    // failure that took both down would otherwise come back with no tags.
+    if (wiki.error !== null) {
+      wiki.refresh().catch((error: unknown) => {
+        logServiceError("Connect tag hub", "refresh tags", error);
+      });
+    }
+  }, [wiki]);
 
   const labels = useMemo<TagHubLabels>(
     () => ({
@@ -823,7 +848,7 @@ export function ConnectScreen({
   );
 
   useFirstTagOnWide({
-    ready: !isLoading,
+    ready: !isLoading && !loadFailed,
     wide: isWide,
     tags: model.tags,
     hasOpenTag: selectedTag !== null,
@@ -1148,7 +1173,7 @@ export function ConnectScreen({
 
   return (
     <>
-      {selectedItem && relations ? (
+      {loadFailed ? null : selectedItem && relations ? (
         <RightSidebarPortal>
           <RelationPanel
             item={selectedItem}
@@ -1176,97 +1201,110 @@ export function ConnectScreen({
           />
         </RightSidebarPortal>
       ) : null}
-      <TagHubView
-        model={model}
-        selectedTagId={selectedTagId}
-        onSelectTag={selectTag}
-        query={query}
-        onQueryChange={setQuery}
-        onOpenItem={handleOpenItem}
-        formatCount={formatCount}
-        formatUnusedTags={formatUnusedTags}
-        wide={isWide}
-        // The tags come from the Provider and the items from the load above;
-        // either still in flight means the hub cannot yet tell "empty" from
-        // "not read yet", which is the flash this prevents.
-        isLoading={isLoading}
-        labels={labels}
-        editOpen={editOpen}
-        onToggleEdit={() => {
-          setEditOpen((v) => !v);
-          setEditFocusName(false);
-        }}
-        onEditTag={openEditOn}
-        editFocusName={editFocusName}
-        edits={drafts.editsFor(selectedTagId ?? "")}
-        editDirty={selectedTagId ? drafts.isDirty(selectedTagId) : false}
-        onEditChange={editSelected}
-        onEditDrop={dropEdit}
-        onEditSave={() => void saveSelected()}
-        onEditCancel={() => {
-          // Cancel means the same as answering "discard" (#740): the draft
-          // must not be waiting when the block is opened again.
-          if (selectedTagId) drafts.discard(selectedTagId);
-          setEditOpen(false);
-          setEditFocusName(false);
-        }}
-        editError={editErrorFor(selectedTagId)}
-        onDeleteTag={requestDelete}
-        onCreateTag={createTag}
-        // Bulk selection, behind the header's "Select" (#2224).
-        selecting={selecting}
-        onToggleSelecting={toggleSelecting}
-        checkedItemIds={checkedIds}
-        onToggleItemChecked={toggleChecked}
-        formatDay={dates.rowDay}
-        onToggleTodoStatus={setTodoStatus}
-        onItemContextMenu={editItem}
-        formatSelectItem={(title) =>
-          t("connect.selection.selectItem", { title })
-        }
-        // Row click = select, chevron / double click = leave — Desktop only.
-        // A phone screen has one pane, so a tap still opens the item (M3).
-        activeItemId={isWide ? selectedItemId : null}
-        onSelectItem={isWide ? handleSelectItem : undefined}
-        formatOpenItem={(title) => t("connect.relations.openRow", { title })}
-        // M3 — the narrow row's own actions button.
-        onItemMenu={isWide ? undefined : setSheetItem}
-        formatItemMenu={(title) => t("connect.mobile.itemMenu", { title })}
-        selectionBar={
-          selecting && selectedTag && checkedIds.size > 0 ? (
-            <TagHubSelectionBar
-              layout={isWide ? "rail" : "row"}
-              count={checkedIds.size}
-              formatSelected={(count) =>
-                t("connect.selection.selected", { count })
-              }
-              tags={pickableTags}
-              currentTagId={selectedTag.id}
-              canRemove={!selectedTag.isUntagged}
-              busy={bulkBusy}
-              onAssign={(tagId) =>
-                void runBulk((ids) => wiki.bulkAssign(ids, tagId))
-              }
-              onCreateAndAssign={(name) =>
-                void runBulk(async (ids) => {
-                  const created = await wiki.createTag(name);
-                  return wiki.bulkAssign(ids, created.id);
-                })
-              }
-              onRemove={() =>
-                void runBulk((ids) => wiki.bulkUnassign(ids, selectedTag.id))
-              }
-              onMove={(tagId) =>
-                void runBulk((ids) =>
-                  wiki.moveItemsToTag(ids, selectedTag.id, tagId),
-                )
-              }
-              onClear={clearChecked}
-              labels={selectionLabels}
-            />
-          ) : null
-        }
-      />
+      {loadFailed ? (
+        // #2604 — the first read failed, so there is no hub to draw: an empty
+        // one would read as "no tags yet", which is not what happened.
+        <div className="p-4">
+          <LoadErrorCard
+            message={t("connect.loadFailed")}
+            retryLabel={t("common.retry")}
+            onRetry={retryLoad}
+            retrying={sourcesLoading}
+          />
+        </div>
+      ) : (
+        <TagHubView
+          model={model}
+          selectedTagId={selectedTagId}
+          onSelectTag={selectTag}
+          query={query}
+          onQueryChange={setQuery}
+          onOpenItem={handleOpenItem}
+          formatCount={formatCount}
+          formatUnusedTags={formatUnusedTags}
+          wide={isWide}
+          // The tags come from the Provider and the items from the load above;
+          // either still in flight means the hub cannot yet tell "empty" from
+          // "not read yet", which is the flash this prevents.
+          isLoading={isLoading}
+          labels={labels}
+          editOpen={editOpen}
+          onToggleEdit={() => {
+            setEditOpen((v) => !v);
+            setEditFocusName(false);
+          }}
+          onEditTag={openEditOn}
+          editFocusName={editFocusName}
+          edits={drafts.editsFor(selectedTagId ?? "")}
+          editDirty={selectedTagId ? drafts.isDirty(selectedTagId) : false}
+          onEditChange={editSelected}
+          onEditDrop={dropEdit}
+          onEditSave={() => void saveSelected()}
+          onEditCancel={() => {
+            // Cancel means the same as answering "discard" (#740): the draft
+            // must not be waiting when the block is opened again.
+            if (selectedTagId) drafts.discard(selectedTagId);
+            setEditOpen(false);
+            setEditFocusName(false);
+          }}
+          editError={editErrorFor(selectedTagId)}
+          onDeleteTag={requestDelete}
+          onCreateTag={createTag}
+          // Bulk selection, behind the header's "Select" (#2224).
+          selecting={selecting}
+          onToggleSelecting={toggleSelecting}
+          checkedItemIds={checkedIds}
+          onToggleItemChecked={toggleChecked}
+          formatDay={dates.rowDay}
+          onToggleTodoStatus={setTodoStatus}
+          onItemContextMenu={editItem}
+          formatSelectItem={(title) =>
+            t("connect.selection.selectItem", { title })
+          }
+          // Row click = select, chevron / double click = leave — Desktop only.
+          // A phone screen has one pane, so a tap still opens the item (M3).
+          activeItemId={isWide ? selectedItemId : null}
+          onSelectItem={isWide ? handleSelectItem : undefined}
+          formatOpenItem={(title) => t("connect.relations.openRow", { title })}
+          // M3 — the narrow row's own actions button.
+          onItemMenu={isWide ? undefined : setSheetItem}
+          formatItemMenu={(title) => t("connect.mobile.itemMenu", { title })}
+          selectionBar={
+            selecting && selectedTag && checkedIds.size > 0 ? (
+              <TagHubSelectionBar
+                layout={isWide ? "rail" : "row"}
+                count={checkedIds.size}
+                formatSelected={(count) =>
+                  t("connect.selection.selected", { count })
+                }
+                tags={pickableTags}
+                currentTagId={selectedTag.id}
+                canRemove={!selectedTag.isUntagged}
+                busy={bulkBusy}
+                onAssign={(tagId) =>
+                  void runBulk((ids) => wiki.bulkAssign(ids, tagId))
+                }
+                onCreateAndAssign={(name) =>
+                  void runBulk(async (ids) => {
+                    const created = await wiki.createTag(name);
+                    return wiki.bulkAssign(ids, created.id);
+                  })
+                }
+                onRemove={() =>
+                  void runBulk((ids) => wiki.bulkUnassign(ids, selectedTag.id))
+                }
+                onMove={(tagId) =>
+                  void runBulk((ids) =>
+                    wiki.moveItemsToTag(ids, selectedTag.id, tagId),
+                  )
+                }
+                onClear={clearChecked}
+                labels={selectionLabels}
+              />
+            ) : null
+          }
+        />
+      )}
 
       {/* The narrow row's "…" (M3): leave for the item, read what it relates
           to, or take this tag off it. The last one is tinted since #2629: the

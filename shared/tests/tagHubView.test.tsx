@@ -87,6 +87,14 @@ const MODEL = buildTagHubModel({
   untaggedName: "Untagged",
 });
 
+/** No tag and no item — the hub's "nothing yet" state (D15). */
+const EMPTY_MODEL = buildTagHubModel({
+  tags: [],
+  assignments: [],
+  items: [],
+  untaggedName: "Untagged",
+});
+
 function renderHub(
   over: Partial<React.ComponentProps<typeof TagHubView>> = {},
 ) {
@@ -191,10 +199,31 @@ describe("TagHubView — the rail", () => {
         untaggedName: "Untagged",
       }),
     });
-    expect(screen.getAllByText("No tags or items yet.").length).toBeGreaterThan(
-      0,
-    );
+    screen.getByText("No tags or items yet.");
     expect(screen.queryByLabelText("Filter tags by name")).toBeNull();
+  });
+
+  /*
+   * #2604 — the guide is drawn once. Wide used to say it in the rail AND in
+   * the items pane; the pane keeps it, since that is where its button is.
+   */
+  it("says the hub is empty in one place on wide — the items pane", () => {
+    renderHub({ model: EMPTY_MODEL, onCreateTag: vi.fn() });
+    const guides = screen.getAllByText("No tags or items yet.");
+    expect(guides).toHaveLength(1);
+    expect(guides[0].closest("[data-taghub-items]")).not.toBeNull();
+    expect(screen.getAllByRole("button", { name: "Add a tag" })).toHaveLength(
+      1,
+    );
+  });
+
+  it("says it once on narrow too, where the tag list is the only pane", () => {
+    renderHub({ model: EMPTY_MODEL, onCreateTag: vi.fn(), wide: false });
+    expect(screen.getAllByText("No tags or items yet.")).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Add a tag" }));
+    expect(document.activeElement).toBe(
+      screen.getByLabelText("Enter a tag name"),
+    );
   });
 });
 
