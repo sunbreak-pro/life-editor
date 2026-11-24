@@ -459,10 +459,15 @@ export function NotesSidebarList({
           that opens the tag panel in place, where it used to be a chip row
           drawn at all times; each option is still a heading to show. The
           panel's heading and clear text are static copy, read here like the
-          sort panel's (#2577). */}
+          sort panel's (#2577). On narrow the chips are back as an always-on
+          row (#2578), so a thumb filters without opening anything first.
+          `othersPresentation` is the host's one wide / narrow switch this
+          list receives, so it picks the layout too rather than a second prop
+          that could disagree with it. */}
       {showTagFilter && (
         <div>
           <NoteTagFilterPanel
+            layout={othersPresentation === "inline" ? "row" : "panel"}
             options={tagFilterOptions}
             value={tagFilters}
             onToggle={handleToggleTagFilter}
