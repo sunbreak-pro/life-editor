@@ -149,8 +149,10 @@ vi.mock("../src/notes/RichTextEditor", () => ({
     onResolvedLinkInserted,
     loadLinkTargets,
     attachments,
+    placeholder,
   }: {
     noteId: string;
+    placeholder?: string;
     initialContent?: string;
     onUpdate?: (content: string) => void;
     onDirty?: () => void;
@@ -163,6 +165,7 @@ vi.mock("../src/notes/RichTextEditor", () => ({
       data-link-pool={loadLinkTargets === undefined ? "off" : "on"}
       data-attach={attachments === undefined ? "off" : "on"}
       data-initial-content={initialContent ?? ""}
+      data-placeholder={placeholder ?? ""}
     >
       {noteId}
       <button
@@ -282,6 +285,40 @@ describe("DailyView — the open day", () => {
 
     expect(screen.queryByText("materials.daily.saved")).toBeNull();
     expect(screen.queryByText("materials.daily.unsaved")).toBeNull();
+  });
+});
+
+/*
+ * #2592 — "Write about today" over a past day's empty body names the wrong
+ * day, so every day but today gets its own placeholder.
+ */
+describe("DailyView — the empty body's placeholder (#2592)", () => {
+  it("speaks of today on today", async () => {
+    state.selectedDate = TODAY;
+    render(<DailyView />);
+
+    expect(
+      (await screen.findByTestId("editor")).getAttribute("data-placeholder"),
+    ).toBe("materials.daily.placeholder");
+  });
+
+  it("speaks of this day on a past day with no entry", async () => {
+    state.selectedDate = LONG_AGO;
+    render(<DailyView />);
+
+    expect(
+      (await screen.findByTestId("editor")).getAttribute("data-placeholder"),
+    ).toBe("materials.daily.placeholderOtherDay");
+  });
+
+  it("speaks of this day on mobile too", async () => {
+    state.isWide = false;
+    state.selectedDate = YESTERDAY;
+    render(<DailyView />);
+
+    expect(
+      (await screen.findByTestId("editor")).getAttribute("data-placeholder"),
+    ).toBe("materials.daily.placeholderOtherDay");
   });
 });
 
