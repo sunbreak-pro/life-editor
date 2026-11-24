@@ -775,6 +775,8 @@ describe("Morning paper goals (#2106)", () => {
     fireEvent.click(
       within(dialog).getByRole("checkbox", { name: /資料を作る/ }),
     );
+    // The shared "Save": only Connect's dialog renames it "Link" (#2613).
+    expect(within(dialog).queryByRole("button", { name: "Link" })).toBeNull();
     fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
 
     await waitFor(() =>

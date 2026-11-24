@@ -904,7 +904,7 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     panel().getByRole("heading", { name: "Linked todos 0" });
   });
 
-  it("links a todo from the goal's panel and goes back to the panel (#2410)", async () => {
+  it("links a todo in a centred dialog, leaving the panel as it was (#2410 / #2613)", async () => {
     const linkGoalTodo = vi.fn(async (goalId: string, todoId: string) =>
       link(goalId, todoId),
     );
@@ -914,14 +914,34 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     fireEvent.click(goalRow("Finish one book"));
     fireEvent.click(panel().getByRole("button", { name: "Link todos" }));
 
-    const screenRegion = within(panel().getByRole("region", { name: "Link todos" }));
+    const dialog = screen.getByRole("dialog", { name: "Link todos" });
+    // Not in the right panel, which keeps the goal's details behind it.
+    expect(
+      screen.getByRole("complementary", { name: "Details" }).contains(dialog),
+    ).toBe(false);
+    panel().getByRole("textbox", { name: "Goal title" });
+    const screenRegion = within(dialog);
     expect(screenRegion.queryByRole("textbox", { name: "Goal title" })).toBeNull();
+    // The dialog's title says "Link todos" once; the goal is its subtitle.
+    expect(screenRegion.getAllByText("Link todos")).toHaveLength(1);
+    screenRegion.getByRole("region", { name: "Finish one book" });
+    // Narrowed by the search, then picked from the list.
+    fireEvent.change(screenRegion.getByRole("textbox", { name: "Search todos" }), {
+      target: { value: "residence" },
+    });
+    expect(
+      within(screenRegion.getByRole("list", { name: "Todos to link" }))
+        .getAllByRole("checkbox")
+        .map((row) => row.textContent),
+    ).toEqual([expect.stringContaining("Pick up the residence certificate")]);
     fireEvent.click(
       screenRegion.getByRole("checkbox", {
         name: /Pick up the residence certificate/,
       }),
     );
-    fireEvent.click(screenRegion.getByRole("button", { name: "Save" }));
+    // "Link" here; the shared "Save" stays the morning paper's.
+    expect(screenRegion.queryByRole("button", { name: "Save" })).toBeNull();
+    fireEvent.click(screenRegion.getByRole("button", { name: "Link" }));
     await waitFor(() =>
       expect(linkGoalTodo).toHaveBeenCalledWith("w3", "l1"),
     );
@@ -937,12 +957,13 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     );
     await waitFor(() =>
       expect(
-        (screenRegion.getByRole("button", { name: "Save" }) as HTMLButtonElement)
+        (screenRegion.getByRole("button", { name: "Link" }) as HTMLButtonElement)
           .disabled,
       ).toBe(true),
     );
 
     fireEvent.click(screenRegion.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog", { name: "Link todos" })).toBeNull();
     panel().getByRole("textbox", { name: "Goal title" });
   });
 
@@ -980,7 +1001,7 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     );
     fireEvent.click(goalRow("Finish one book"));
     fireEvent.click(panel().getByRole("button", { name: "Link todos" }));
-    const region = within(panel().getByRole("region", { name: "Link todos" }));
+    const region = within(screen.getByRole("dialog", { name: "Link todos" }));
     const checked = (name: RegExp) =>
       region.getByRole("checkbox", { name }).getAttribute("aria-checked");
     fireEvent.click(
@@ -994,7 +1015,7 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     // lands, and comes back with neither link while the save is under way.
     act(() => sync.bump("goals"));
     await waitFor(() => expect(fetchGoalTodoLinks).toHaveBeenCalledTimes(2));
-    fireEvent.click(region.getByRole("button", { name: "Save" }));
+    fireEvent.click(region.getByRole("button", { name: "Link" }));
     await waitFor(() => expect(linkGoalTodo).toHaveBeenCalledTimes(2));
     await act(async () => releaseStale());
 
@@ -1004,7 +1025,7 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     await waitFor(() => expect(fetchGoalTodoLinks).toHaveBeenCalledTimes(3));
     await waitFor(() =>
       expect(
-        (region.getByRole("button", { name: "Save" }) as HTMLButtonElement)
+        (region.getByRole("button", { name: "Link" }) as HTMLButtonElement)
           .disabled,
       ).toBe(true),
     );
@@ -1021,9 +1042,9 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     const { panel } = await renderTab(makeDS({ unlinkGoalTodo }));
     fireEvent.click(goalRow("Run 3 times"));
     fireEvent.click(panel().getByRole("button", { name: "Link todos" }));
-    const region = within(panel().getByRole("region", { name: "Link todos" }));
+    const region = within(screen.getByRole("dialog", { name: "Link todos" }));
     fireEvent.click(region.getByRole("checkbox", { name: /Long run/ }));
-    fireEvent.click(region.getByRole("button", { name: "Save" }));
+    fireEvent.click(region.getByRole("button", { name: "Link" }));
     await waitFor(() =>
       expect(unlinkGoalTodo).toHaveBeenCalledWith("w2", "t7"),
     );
@@ -1034,35 +1055,71 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     const { panel } = await renderTab(makeDS({ linkGoalTodo }));
     fireEvent.click(goalRow("Finish one book"));
     fireEvent.click(panel().getByRole("button", { name: "Link todos" }));
-    const region = within(panel().getByRole("region", { name: "Link todos" }));
+    const region = within(screen.getByRole("dialog", { name: "Link todos" }));
     const row = () =>
       region.getByRole("checkbox", {
         name: /Pick up the residence certificate/,
       });
     fireEvent.click(row());
-    fireEvent.click(region.getByRole("button", { name: "Save" }));
+    fireEvent.click(region.getByRole("button", { name: "Link" }));
     await waitFor(() => region.getByRole("alert"));
     expect(row().getAttribute("aria-checked")).toBe("true");
   });
 
-  it("leaves the linking screen when another goal is picked", async () => {
+  it("closes the linking dialog on Esc and drops the unsaved picks (#2613)", async () => {
+    const linkGoalTodo = vi.fn();
+    const { panel } = await renderTab(makeDS({ linkGoalTodo }));
+    fireEvent.click(goalRow("Finish one book"));
+    const openDialog = () => {
+      fireEvent.click(panel().getByRole("button", { name: "Link todos" }));
+      return within(screen.getByRole("dialog", { name: "Link todos" }));
+    };
+    const row = (dialog: ReturnType<typeof openDialog>) =>
+      dialog.getByRole("checkbox", { name: /Pick up the residence certificate/ });
+    const first = openDialog();
+    fireEvent.click(row(first));
+    expect(row(first).getAttribute("aria-checked")).toBe("true");
+
+    fireEvent.keyDown(document.activeElement ?? document, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Link todos" })).toBeNull();
+    panel().getByRole("textbox", { name: "Goal title" });
+    expect(linkGoalTodo).not.toHaveBeenCalled();
+    // Opened again, it starts from what is saved, as after the cancel button.
+    expect(row(openDialog()).getAttribute("aria-checked")).toBe("false");
+  });
+
+  it("closes the linking dialog on a press outside it (#2613)", async () => {
     const { panel } = await renderTab();
     fireEvent.click(goalRow("Finish one book"));
     fireEvent.click(panel().getByRole("button", { name: "Link todos" }));
-    fireEvent.click(goalRow("Run 3 times"));
-    expect(panel().queryByRole("region", { name: "Link todos" })).toBeNull();
+    const dialog = screen.getByRole("dialog", { name: "Link todos" });
+    // A press inside does not close it.
+    fireEvent.mouseDown(dialog);
+    screen.getByRole("dialog", { name: "Link todos" });
+    // The backdrop is the dialog's own frame.
+    fireEvent.mouseDown(dialog.parentElement as HTMLElement);
+    expect(screen.queryByRole("dialog", { name: "Link todos" })).toBeNull();
     panel().getByRole("textbox", { name: "Goal title" });
   });
 
-  it("opens the linking screen in the sheet on a phone", async () => {
+  it("opens the linking dialog over the sheet on a phone, which keeps the goal (#2613)", async () => {
     setNarrow();
     await renderTab();
     fireEvent.click(goalRow("Finish one book"));
-    const sheet = within(
-      screen.getByRole("dialog", { name: "Goal: Finish one book" }),
-    );
+    const sheetDialog = screen.getByRole("dialog", {
+      name: "Goal: Finish one book",
+    });
+    const sheet = within(sheetDialog);
     fireEvent.click(sheet.getByRole("button", { name: "Link todos" }));
-    sheet.getByRole("region", { name: "Link todos" });
+    const dialog = screen.getByRole("dialog", { name: "Link todos" });
+    expect(sheetDialog.contains(dialog)).toBe(false);
+    within(dialog).getByRole("button", { name: "Link" });
+    sheet.getByRole("textbox", { name: "Goal title" });
+
+    // Esc belongs to the dialog on top: the sheet stays open under it.
+    fireEvent.keyDown(document.activeElement ?? document, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Link todos" })).toBeNull();
+    screen.getByRole("dialog", { name: "Goal: Finish one book" });
   });
 
   it("renames a goal from the tree's edit icon with the panel's write (#2283 / #2367)", async () => {

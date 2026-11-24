@@ -1161,6 +1161,7 @@
       "period": "{{kind}} · {{key}}",
       "pickHint": "Pick a goal to see its details here",
       "sheetTitle": "Goal: {{title}}",
+      "linkSave": "Link",
       "writeFailed": "Could not save the goal. Check your connection and try again.",
       "expand": "Expand: {{title}}",
       "collapse": "Collapse: {{title}}",

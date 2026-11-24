@@ -12,6 +12,7 @@ import {
   GoalTodoLinkScreen,
   GoalTreeArrangePanel,
   GoalTreeView,
+  Modal,
   RightSidebarPortal,
   arrangeGoalTree,
   buildGoalDeleteTree,
@@ -78,8 +79,10 @@ import { useGoalTreeLabels } from "./useGoalTreeLabels";
  * on a phone the tree draws no grip, so the panel keeps its parent select there
  * (#2410); wide, the panel's goal above is only a link.
  *
- * "Link todos" in the panel swaps it for the shared linking screen (#2109), in
- * the same right panel or sheet, until its cancel button or another goal.
+ * "Link todos" in the panel opens the shared linking screen (#2109) in a
+ * centred dialog over the tab at every width (#2613), so the panel or sheet
+ * behind it keeps the goal's details. Cancel, Esc and the backdrop all close
+ * it, and an unsaved pick goes with it, as the cancel button always did.
  */
 
 interface GoalsTodosScreenProps {
@@ -243,7 +246,7 @@ export function GoalsTodosScreen({
   const selectedNode = selectedGoalId
     ? (model.byId.get(selectedGoalId) ?? null)
     : null;
-  // The goal whose panel is showing the linking screen instead.
+  // The goal whose linking dialog is open.
   const [linkingGoalId, setLinkingGoalId] = useState<string | null>(null);
   const rightSidebar = useRightSidebarOptional();
   const selectGoal = useCallback(
@@ -673,21 +676,45 @@ export function GoalsTodosScreen({
     [write, dataService, model, deleteGoal],
   );
 
-  const panel = !selectedNode ? null : linkingGoalId ===
-    selectedNode.goal.id ? (
-    <GoalTodoLinkScreen
-      key={selectedNode.goal.id}
-      goalId={selectedNode.goal.id}
-      state={linkState}
-      todos={linkTodoOptions}
-      onSave={(diff) => saveLinks(selectedNode.goal.id, diff)}
-      onClose={() => setLinkingGoalId(null)}
-      labels={{
-        ...linkLabels,
-        periodLabel: formatGoalPeriod(selectedNode.goal, detailLabels),
-      }}
-    />
-  ) : (
+  const closeLinkDialog = (): void => setLinkingGoalId(null);
+  const linkingNode =
+    selectedNode && linkingGoalId === selectedNode.goal.id
+      ? selectedNode
+      : null;
+  /*
+   * A sibling of the panel and the sheet, never inside them: React bubbles a
+   * portal's events through its JSX parent, so a press in this dialog would
+   * otherwise also run the sheet's handlers underneath.
+   */
+  const linkDialog = linkingNode && (
+    <Modal
+      open
+      onClose={closeLinkDialog}
+      title={linkLabels.heading}
+      // The preview grows the screen; the buttons must stay on screen.
+      fitViewport
+    >
+      <GoalTodoLinkScreen
+        key={linkingNode.goal.id}
+        goalId={linkingNode.goal.id}
+        state={linkState}
+        todos={linkTodoOptions}
+        onSave={(diff) => saveLinks(linkingNode.goal.id, diff)}
+        onClose={closeLinkDialog}
+        // The dialog's title says "Link todos"; the screen's own header then
+        // reads as its subtitle, the goal's period and name.
+        headingShown={false}
+        labels={{
+          ...linkLabels,
+          // Here only: the morning paper's screen keeps the shared "Save".
+          save: t("connect.goals.linkSave"),
+          periodLabel: formatGoalPeriod(linkingNode.goal, detailLabels),
+        }}
+      />
+    </Modal>
+  );
+
+  const panel = !selectedNode ? null : (
     <GoalDetailPanel
       // The title too: renamed from the tree's pencil (#2283), the panel's
       // field would keep the old name and write it back on its next blur.
@@ -805,6 +832,7 @@ export function GoalsTodosScreen({
           {arrangePanel}
         </BottomSheet>
       )}
+      {linkDialog}
       {deleteTree && (
         <GoalDeleteDialog
           tree={deleteTree}
