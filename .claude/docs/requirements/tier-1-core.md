@@ -70,7 +70,7 @@
 ### Future Enhancements
 
 - ~~Step 4: 宣言（intentions）— 朝刊で今日の宣言 → 夕刊・翌朝刊で講評の 1 往復~~ → 2026-10 に退役。往復は「明日の自分へ」と目標が担う（D-20260928-briefing-4）
-- Step 5: 定時自動化（経路候補 = briefing-loop Risks。アプリ内ボタンは後続候補 — 技術検証 = `2026-07-16-briefing-headless-claude-prototype.md`）
+- Step 5: 定時自動化（経路候補 = briefing-loop Risks。アプリ内ボタンは後続候補）
 
 ### Related Plans
 
@@ -78,7 +78,6 @@
 - COMPLETED: `archive/2026-10-03-briefing-goals-redesign.md`（目標と Todo をつなぐ作り直し。2026-11-03 に実画面の確認 = Step 12 が済んで archive 移動）
 - COMPLETED: `archive/2026-07-14-schedule-redesign.md`（2026-08-10 #591 で archive 移動）
 - COMPLETED: `archive/2026-07-16-loop-friction-fixes.md`（2026-07-19 archive 移動）
-- REFERENCE: `docs/vision/plans/2026-07-16-briefing-headless-claude-prototype.md`（ボタン起動の技術検証記録）
 
 ---
 
