@@ -1282,6 +1282,43 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     );
   });
 
+  it("asks what to add over a goal's choices, and says Enter in each field (#2609)", async () => {
+    await renderTab();
+    const tree = within(screen.getByRole("region", { name: "Goal tree" }));
+    fireEvent.click(
+      tree.getByRole("button", { name: "Add under: Run 10 km in 60 min" }),
+    );
+    const choices = within(
+      tree.getByRole("group", { name: "What do you want to add?" }),
+    );
+    tree.getByText("What do you want to add?");
+    choices.getByRole("button", { name: "Todo" });
+    choices.getByRole("button", { name: "This month's goal" });
+    fireEvent.click(choices.getByRole("button", { name: "This week's goal" }));
+    expect(
+      tree
+        .getByRole("textbox", {
+          name: "Add under: Run 10 km in 60 min — This week's goal",
+        })
+        .getAttribute("placeholder"),
+    ).toBe("Write where you want to get, then press Enter");
+    fireEvent.click(tree.getByRole("button", { name: "Cancel" }));
+
+    // A week's + goes straight to the todo field.
+    fireEvent.click(
+      tree.getByRole("button", {
+        name: "Add under: Get the proposal approved",
+      }),
+    );
+    expect(
+      tree
+        .getByRole("textbox", {
+          name: "Add under: Get the proposal approved — Todo",
+        })
+        .getAttribute("placeholder"),
+    ).toBe("Write what to do, then press Enter");
+  });
+
   it("links a todo to the year it was added under", async () => {
     const createTodo = vi.fn().mockResolvedValue(TODOS[0]);
     const linkGoalTodo = vi.fn().mockResolvedValue(undefined);
@@ -1713,6 +1750,64 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     expect(ds.createGoal).not.toHaveBeenCalled();
     // Ready for the next one.
     await waitFor(() => expect((field as HTMLInputElement).value).toBe(""));
+  });
+
+  it("gives the loose todo field its own placeholder and a × that closes it, adding nothing (#2609)", async () => {
+    const createTodo = vi.fn().mockResolvedValue(TODOS[0]);
+    await renderTab(makeDS({ createTodo }));
+    const loose = within(
+      screen.getByRole("region", { name: "Todos not linked to a goal" }),
+    );
+    const open = loose.getByRole("button", {
+      name: "Add a todo not linked to a goal",
+    });
+    // A bordered small button while closed.
+    expect(open.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(["border", "border-lumen-border"]),
+    );
+    // The heading row has a line under it.
+    const heading = open.closest("[data-goal-group-heading]") as HTMLElement;
+    expect(heading.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(["border-b", "border-lumen-border"]),
+    );
+
+    fireEvent.click(open);
+    const field = loose.getByRole("textbox", {
+      name: "Add a todo not linked to a goal",
+    });
+    expect(field.getAttribute("placeholder")).toBe(
+      "Write a todo, then press Enter",
+    );
+    fireEvent.change(field, { target: { value: "Buy stamps" } });
+    const close = loose.getByRole("button", { name: "Cancel" });
+    expect(close.className).toContain("max-md:min-h-lumen-tap-touch");
+    fireEvent.click(close);
+    expect(
+      loose.queryByRole("textbox", { name: "Add a todo not linked to a goal" }),
+    ).toBeNull();
+    expect(document.activeElement).toBe(open);
+    expect(createTodo).not.toHaveBeenCalled();
+  });
+
+  it("says so when no todo is outside a goal (#2609)", async () => {
+    await renderTab(makeDS({ fetchTodoTree: vi.fn().mockResolvedValue([]) }));
+    const loose = within(
+      screen.getByRole("region", { name: "Todos not linked to a goal" }),
+    );
+    loose.getByText("No todos are outside a goal");
+    // "+ Todo" stays reachable over the line.
+    loose.getByRole("button", { name: "Add a todo not linked to a goal" });
+  });
+
+  it("draws no empty line while a todo is outside a goal (#2609)", async () => {
+    await renderTab();
+    const loose = within(
+      screen.getByRole("region", { name: "Todos not linked to a goal" }),
+    );
+    loose.getByRole("button", {
+      name: "Edit: Pick up the residence certificate",
+    });
+    expect(loose.queryByText("No todos are outside a goal")).toBeNull();
   });
 
   it("keeps the pick-a-goal hint out of the phone's sort and filter sheet (#2398)", async () => {

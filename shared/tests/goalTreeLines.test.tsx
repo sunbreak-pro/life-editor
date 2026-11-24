@@ -574,3 +574,106 @@ describe("GoalTreeView — a phone row's … opens its chips (#2611)", () => {
     screen.getByRole("button", { name: "Open 5 km jog" });
   });
 });
+
+describe("GoalTreeView — the add-below row names its kind with an icon (#2609)", () => {
+  function renderWithAdd(labels: GoalTreeLabels = LABELS): void {
+    render(
+      <GoalTreeView
+        model={model()}
+        isLoading={false}
+        selectedGoalId={null}
+        onSelectGoal={vi.fn()}
+        onCreateGoal={vi.fn().mockResolvedValue(true)}
+        onCreateLooseTodo={vi.fn().mockResolvedValue(true)}
+        onSetTodoStatus={vi.fn()}
+        onOpenTodo={vi.fn()}
+        rowActions={{
+          onAddTodo: vi.fn().mockResolvedValue(true),
+          onAddChildGoal: vi.fn().mockResolvedValue(true),
+          onDelete: vi.fn(),
+        }}
+        labels={labels}
+      />,
+    );
+  }
+
+  const PROMPT_LABELS: GoalTreeLabels = {
+    ...LABELS,
+    addUnderPrompt: "What do you want to add?",
+    addChildGoalPlaceholder: "Write the goal, then Enter",
+  };
+
+  const addUnderYear = (): HTMLElement =>
+    screen.getByRole("button", { name: "Add under: Run 10 km" });
+
+  /** The badge of the open add-below field. */
+  const badge = (): HTMLElement => {
+    const row = screen.getByRole("textbox", { name: /^Add under/ })
+      .parentElement as HTMLElement;
+    const found = row.querySelector("[data-goal-add-badge]");
+    if (!(found instanceof HTMLElement)) throw new Error("no badge");
+    return found;
+  };
+
+  it("leads the choices with the question, each choice carrying its kind's icon", () => {
+    renderWithAdd(PROMPT_LABELS);
+    fireEvent.click(addUnderYear());
+    const choices = within(
+      screen.getByRole("group", { name: "What do you want to add?" }),
+    );
+    const todo = choices.getByRole("button", { name: "Todo" });
+    const month = choices.getByRole("button", { name: "This month goal" });
+    const week = choices.getByRole("button", { name: "This week goal" });
+    // A box for the todo, a target for a goal; no "+" on either any more.
+    expect(todo.querySelector("svg")?.getAttribute("class")).not.toContain(
+      "lucide-target",
+    );
+    expect(todo.querySelector("svg")?.getAttribute("class")).not.toContain(
+      "lucide-plus",
+    );
+    for (const goal of [month, week]) {
+      expect(goal.querySelector("svg")?.getAttribute("class")).toContain(
+        "lucide-target",
+      );
+    }
+    choices.getByRole("button", { name: "Cancel" });
+  });
+
+  it("puts the kind's icon in the field's badge, hidden from screen readers", () => {
+    renderWithAdd(PROMPT_LABELS);
+    fireEvent.click(addUnderYear());
+    fireEvent.click(screen.getByRole("button", { name: "Todo" }));
+    const todoIcon = badge().querySelector("svg");
+    expect(todoIcon).not.toBeNull();
+    expect(todoIcon?.getAttribute("aria-hidden")).toBe("true");
+    expect(todoIcon?.getAttribute("class")).not.toContain("lucide-target");
+    expect(badge().textContent).toBe("Todo");
+    fireEvent.keyDown(screen.getByRole("textbox", { name: /^Add under/ }), {
+      key: "Escape",
+    });
+
+    fireEvent.click(addUnderYear());
+    fireEvent.click(screen.getByRole("button", { name: "This week goal" }));
+    expect(badge().querySelector("svg")?.getAttribute("class")).toContain(
+      "lucide-target",
+    );
+    expect(badge().textContent).toBe("This week goal");
+    expect(
+      screen
+        .getByRole("textbox", { name: /^Add under/ })
+        .getAttribute("placeholder"),
+    ).toBe("Write the goal, then Enter");
+  });
+
+  it("keeps the choices bare, and the add card's placeholder, for a host without the copy", () => {
+    renderWithAdd();
+    fireEvent.click(addUnderYear());
+    expect(document.querySelector("[data-goal-add-prompt]")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "This week goal" }));
+    expect(
+      screen
+        .getByRole("textbox", { name: /^Add under/ })
+        .getAttribute("placeholder"),
+    ).toBe(LABELS.addPlaceholder);
+  });
+});
