@@ -1014,6 +1014,87 @@ describe("ScheduleOverlays — the creation surface picks a frame by width", () 
 });
 
 /*
+ * #2624 — Mobile's 「＋ 追加」 opens the short 「クイック追加」 sheet first, and
+ * the full-screen add page only from its 「追加して詳細へ」, with what was
+ * typed. Desktop keeps its one dialog.
+ */
+describe("ScheduleOverlays — Mobile opens the short add sheet first (#2624)", () => {
+  const PANEL = { date: "2026-08-16", start: "13:00", end: "14:00" };
+  const createDialog = () =>
+    screen.getByRole("dialog", { name: "scheduleScreen.addItem" });
+  const dateField = () =>
+    createDialog().querySelector('input[type="date"]') as HTMLInputElement;
+
+  it("opens the short sheet on Mobile, not the full page", () => {
+    renderOverlays({ isWide: false, create: { panel: PANEL } });
+    expect(createDialog().querySelector("[data-quick-capture]")).not.toBeNull();
+    expect(createDialog().className).not.toContain("h-full");
+    expect(screen.queryByText("attachNote")).toBeNull();
+    expect(dateField().value).toBe(PANEL.date);
+  });
+
+  it("keeps the one full dialog on Desktop", () => {
+    renderOverlays({ isWide: true, create: { panel: PANEL } });
+    expect(createDialog().querySelector("[data-quick-capture]")).toBeNull();
+    screen.getByText("attachNote");
+  });
+
+  it("adds from the short sheet through the host's own handler", () => {
+    const { props } = renderOverlays({
+      isWide: false,
+      create: { panel: PANEL },
+    });
+    fireEvent.change(screen.getByLabelText("title"), {
+      target: { value: "歯医者" },
+    });
+    fireEvent.click(screen.getByText("addEvent"));
+    expect(props.create.handlers.onSubmitEvent).toHaveBeenCalledWith(
+      "歯医者",
+      { date: PANEL.date, start: "13:00", end: "14:00", isAllDay: false },
+      [],
+    );
+  });
+
+  it("goes on to the full page with the typed title and the slot", () => {
+    const { props } = renderOverlays({
+      isWide: false,
+      create: { panel: PANEL },
+    });
+    fireEvent.change(screen.getByLabelText("title"), {
+      target: { value: "歯医者" },
+    });
+    fireEvent.click(screen.getByText("addEventAndOpen"));
+    expect(createDialog().className).toContain("h-full");
+    expect(createDialog().querySelector("[data-quick-capture]")).toBeNull();
+    screen.getByText("attachNote");
+    expect((screen.getByLabelText("title") as HTMLInputElement).value).toBe(
+      "歯医者",
+    );
+    expect(dateField().value).toBe(PANEL.date);
+    expect(props.create.handlers.onSubmitEvent).not.toHaveBeenCalled();
+    expect(props.create.handlers.onSubmitEventAndOpen).not.toHaveBeenCalled();
+  });
+
+  it("starts the next opening on the short sheet again", () => {
+    const view = renderOverlays({ isWide: false, create: { panel: PANEL } });
+    fireEvent.click(screen.getByText("addEventAndOpen"));
+    view.rerender(
+      <ScheduleOverlays
+        {...view.props}
+        create={{ ...view.props.create, panel: null }}
+      />,
+    );
+    view.rerender(
+      <ScheduleOverlays
+        {...view.props}
+        create={{ ...view.props.create, panel: PANEL }}
+      />,
+    );
+    expect(createDialog().querySelector("[data-quick-capture]")).not.toBeNull();
+  });
+});
+
+/*
  * #2396 — the create panel's note picker, per frame. Desktop sets it beside
  * the form and widens the overlay for it (a 20rem panel hung off a 512px
  * dialog runs off a narrow screen); Mobile raises a second sheet over the
@@ -1030,6 +1111,10 @@ describe("ScheduleOverlays — the create panel's note picker (#2396)", () => {
     ],
   };
   const openPicker = () => {
+    // #2624: Mobile reaches the note row from the short sheet's
+    // 「追加して詳細へ」. Desktop has no short sheet to pass.
+    if (document.querySelector("[data-quick-capture]"))
+      fireEvent.click(screen.getByText("addEventAndOpen"));
     fireEvent.click(screen.getByText("attachNote"));
     fireEvent.click(screen.getByText("noteSourceExisting"));
   };
