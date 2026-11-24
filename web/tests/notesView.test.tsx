@@ -263,10 +263,18 @@ function recentCardTitles(recent: HTMLElement): (string | null | undefined)[] {
     );
 }
 
-/** Opens the tag filter panel if it is shut, and returns it (#2059). */
+/**
+ * Opens the tag filter panel if it is shut, and returns it (#2059). On narrow
+ * the chips are an always-on row with no button (#2578), so it is returned as
+ * it is.
+ */
 function openTagFilter(): HTMLElement {
-  const button = tagFilterButton();
-  if (button.getAttribute("aria-expanded") !== "true") fireEvent.click(button);
+  const button = screen.queryByRole("button", {
+    name: /^materials\.notes\.tagFilter(Label|Selected)/,
+  });
+  if (button && button.getAttribute("aria-expanded") !== "true") {
+    fireEvent.click(button);
+  }
   return screen.getByRole("group", { name: "materials.notes.tagFilterPanel" });
 }
 
@@ -993,53 +1001,45 @@ describe("NotesView — multi-select tag filter (#1288)", () => {
  * #2059 — the chip row became a button that opens a tag panel inside the
  * sidebar. Same filter underneath (multi-select, OR, the untagged bucket
  * included); what changed is that it costs one row until it is asked for.
- * Both widths, because the list is the same component in the push-in sidebar
- * and in the narrow drawer (#876).
+ * Wide only since #2578: narrow draws the chips as an always-on row instead,
+ * pinned in the next describe.
  */
 describe("NotesView — the tag filter button and panel (#2059)", () => {
-  it.each([true, false])(
-    "draws a shut button over the unfiltered list (isWide=%s)",
-    (isWide) => {
-      state.isWide = isWide;
-      render(<NotesView />);
+  it("draws a shut button over the unfiltered list", () => {
+    render(<NotesView />);
 
-      const button = tagFilterButton();
-      expect(button.getAttribute("aria-expanded")).toBe("false");
-      expect(
-        screen.queryByRole("group", { name: "materials.notes.tagFilterPanel" }),
-      ).toBeNull();
-      // Nothing selected: every note is listed (flat since #2061).
-      screen.getByText("Alpha");
-      screen.getByText("Beta");
-    },
-  );
+    const button = tagFilterButton();
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+    expect(
+      screen.queryByRole("group", { name: "materials.notes.tagFilterPanel" }),
+    ).toBeNull();
+    // Nothing selected: every note is listed (flat since #2061).
+    screen.getByText("Alpha");
+    screen.getByText("Beta");
+  });
 
-  it.each([true, false])(
-    "filters from the panel, counts on the button, and clears back (isWide=%s)",
-    (isWide) => {
-      state.isWide = isWide;
-      render(<NotesView />);
+  it("filters from the panel, counts on the button, and clears back", () => {
+    render(<NotesView />);
 
-      // The untagged bucket is an option like any tag.
-      within(openTagFilter()).getByRole("button", {
-        name: /materials\.notes\.untagged/,
-      });
-      fireEvent.click(filterOption("Work"));
+    // The untagged bucket is an option like any tag.
+    within(openTagFilter()).getByRole("button", {
+      name: /materials\.notes\.untagged/,
+    });
+    fireEvent.click(filterOption("Work"));
 
-      expect(screen.queryByText("Beta")).toBeNull();
-      screen.getByText("Alpha");
-      expect(filterOption("Work").getAttribute("aria-pressed")).toBe("true");
-      expect(tagFilterButton().getAttribute("aria-label")).toBe(
-        "materials.notes.tagFilterSelected|1",
-      );
+    expect(screen.queryByText("Beta")).toBeNull();
+    screen.getByText("Alpha");
+    expect(filterOption("Work").getAttribute("aria-pressed")).toBe("true");
+    expect(tagFilterButton().getAttribute("aria-label")).toBe(
+      "materials.notes.tagFilterSelected|1",
+    );
 
-      fireEvent.click(screen.getByLabelText("materials.notes.tagFilterClear"));
+    fireEvent.click(screen.getByLabelText("materials.notes.tagFilterClear"));
 
-      screen.getByText("Alpha");
-      screen.getByText("Beta");
-      expect(tagFilterButton().getAttribute("aria-label")).toBeNull();
-    },
-  );
+    screen.getByText("Alpha");
+    screen.getByText("Beta");
+    expect(tagFilterButton().getAttribute("aria-label")).toBeNull();
+  });
 
   it("closes on Esc, keeps the filter on, and hands the focus back", () => {
     render(<NotesView />);
@@ -1055,6 +1055,70 @@ describe("NotesView — the tag filter button and panel (#2059)", () => {
     expect(document.activeElement).toBe(tagFilterButton());
     // Closing the panel is not clearing the filter.
     expect(screen.queryByText("Beta")).toBeNull();
+  });
+});
+
+/*
+ * #2578 — on narrow the tag filter is an always-on chip row above the list,
+ * "All" first, with no button to open: a thumb filters in one tap. These run
+ * through NotesView so the host's wide / narrow switch is what picks the row.
+ */
+describe("NotesView — the narrow tag chip row (#2578)", () => {
+  beforeEach(() => {
+    state.isWide = false;
+  });
+
+  const chipRow = (): HTMLElement =>
+    screen.getByRole("group", { name: "materials.notes.tagFilterPanel" });
+  const chip = (name: string): HTMLElement => {
+    const found = within(chipRow())
+      .getAllByRole("button")
+      .find((b) => b.textContent?.startsWith(name));
+    if (!found) throw new Error(`no chip named ${name}`);
+    return found;
+  };
+  const pressed = (name: string): string | null =>
+    chip(name).getAttribute("aria-pressed");
+  const ALL = "materials.notes.tagFilterAll";
+  const UNTAGGED = "materials.notes.untagged";
+
+  it("shows the chips without a button, with All on", () => {
+    render(<NotesView />);
+
+    expect(
+      screen.queryByRole("button", {
+        name: /^materials\.notes\.tagFilter(Label|Selected)/,
+      }),
+    ).toBeNull();
+    const labels = within(chipRow())
+      .getAllByRole("button")
+      .map((b) => b.textContent ?? "");
+    expect(labels[0]).toBe(ALL);
+    expect(labels.some((l) => l.startsWith("Work"))).toBe(true);
+    expect(labels.some((l) => l.startsWith(UNTAGGED))).toBe(true);
+    expect(pressed(ALL)).toBe("true");
+    screen.getByText("Alpha");
+    screen.getByText("Beta");
+  });
+
+  it("filters on a tap, takes several, and All clears back", () => {
+    render(<NotesView />);
+
+    fireEvent.click(chip("Work"));
+    expect(screen.queryByText("Beta")).toBeNull();
+    screen.getByText("Alpha");
+    expect(pressed("Work")).toBe("true");
+    expect(pressed(ALL)).toBe("false");
+
+    // Multi-select, OR, as on wide.
+    fireEvent.click(chip(UNTAGGED));
+    screen.getByText("Alpha");
+    screen.getByText("Beta");
+
+    fireEvent.click(chip(ALL));
+    expect(pressed("Work")).toBe("false");
+    expect(pressed(UNTAGGED)).toBe("false");
+    expect(pressed(ALL)).toBe("true");
   });
 });
 

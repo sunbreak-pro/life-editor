@@ -5,9 +5,10 @@ import {
   useState,
   type KeyboardEvent,
   type MouseEvent,
+  type ReactElement,
   type ReactNode,
 } from "react";
-import { Check, ChevronDown, ListFilter, X } from "lucide-react";
+import { Filter, X } from "lucide-react";
 import { cn, FOCUS_RING } from "@life-editor/shared";
 
 /*
@@ -22,6 +23,17 @@ import { cn, FOCUS_RING } from "@life-editor/shared";
  * own. #2061 makes the tag-grouped list something you reach through this
  * filter rather than the default, which is the other reason it needs a
  * dedicated, named entry.
+ *
+ * CHIPS, NOT ROWS (#2578). The panel used to give each tag a full-width row,
+ * so a vault with many tags made it tall. Pills that wrap fit several tags on
+ * one line, the same shape as the sort panel's chips (#2577) beside it. The
+ * per-tag note count went with the rows: the prototype draws none, and the
+ * grouped list the filter switches to counts each heading anyway.
+ *
+ * TWO LAYOUTS. `panel` is the button + disclosure above. `row` is the narrow
+ * one: the same chips as an always-visible, sideways-scrolling strip that
+ * starts with "All", so a thumb filters without opening anything first. The
+ * host picks the layout; this component does not read the viewport.
  *
  * INLINE, NOT A POPOVER. The panel opens in the sidebar's own flow, directly
  * under the button. The list lives in two containers — the push-in rightSidebar
@@ -44,20 +56,27 @@ export interface NoteTagFilterOption {
   id: string;
   /** Already-translated label (§6.4). */
   label: string;
+  /** Not drawn since #2578; kept so the host's option shape stays one type. */
   count: number;
   /** Leading glyph — the tag's own icon, tinted with its colour (#1365). */
   icon?: ReactNode;
 }
 
 export interface NoteTagFilterPanelLabels {
-  /** The button's visible label ("Filter by tag"). */
+  /** The button's visible label ("Tags"). */
   button: string;
   /** The button's accessible name while `count` tags are selected. */
   buttonSelected: (count: number) => string;
-  /** Accessible name for the panel of options. */
+  /** Accessible name for the group of options. */
   panel: string;
-  /** Action label for the clear button. */
+  /** Accessible name of the clear button. */
   clear: string;
+  /** The panel's visible heading ("Filter by tag"); none is drawn without it. */
+  heading?: string;
+  /** The clear button's visible text; falls back to `clear`. */
+  clearText?: string;
+  /** The `row` layout's leading chip ("All"); it is left out without it. */
+  all?: string;
 }
 
 export interface NoteTagFilterPanelProps {
@@ -75,6 +94,8 @@ export interface NoteTagFilterPanelProps {
    */
   onOptionContextMenu?: (id: string, event: MouseEvent) => void;
   labels: NoteTagFilterPanelLabels;
+  /** `panel` (button + disclosure, the default) or the narrow `row`. */
+  layout?: "panel" | "row";
 }
 
 export function NoteTagFilterPanel({
@@ -84,7 +105,8 @@ export function NoteTagFilterPanel({
   onClear,
   onOptionContextMenu,
   labels,
-}: NoteTagFilterPanelProps) {
+  layout = "panel",
+}: NoteTagFilterPanelProps): ReactElement {
   /*
    * Open / closed is local and starts closed: it answers "I am choosing tags
    * right now", not a lasting preference. The SELECTION is the host's, so
@@ -96,10 +118,47 @@ export function NoteTagFilterPanel({
   const selected = useMemo(() => new Set(value), [value]);
   const count = value.length;
 
+  const chips = options.map((option) => (
+    <TagChip
+      key={option.id}
+      pressed={selected.has(option.id)}
+      onClick={() => onToggle(option.id)}
+      onContextMenu={
+        onOptionContextMenu
+          ? (e) => onOptionContextMenu(option.id, e)
+          : undefined
+      }
+      icon={option.icon}
+    >
+      {option.label}
+    </TagChip>
+  ));
+
+  if (layout === "row") {
+    return (
+      <div
+        role="group"
+        aria-label={labels.panel}
+        // One line that scrolls sideways rather than wraps: on a phone the
+        // strip sits above the list and must not grow with the tag count.
+        className="flex gap-1.5 overflow-x-auto pb-0.5"
+      >
+        {labels.all != null && (
+          // "All" is the clear, drawn as the chip that is on while nothing
+          // is, so the strip always has exactly one way back.
+          <TagChip pressed={count === 0} onClick={onClear}>
+            {labels.all}
+          </TagChip>
+        )}
+        {chips}
+      </div>
+    );
+  }
+
   // Esc closes from anywhere in the disclosure and puts the focus back on the
   // button that opened it, so a keyboard user is never left on a control that
   // just disappeared. No IME guard: nothing in here takes text input.
-  const handleKeyDown = (event: KeyboardEvent) => {
+  const handleKeyDown = (event: KeyboardEvent): void => {
     if (event.key !== "Escape" || !open) return;
     event.preventDefault();
     event.stopPropagation();
@@ -109,127 +168,118 @@ export function NoteTagFilterPanel({
 
   return (
     <div className="flex flex-col gap-1.5" onKeyDown={handleKeyDown}>
-      <div className="flex items-center gap-1">
-        <button
-          ref={buttonRef}
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
-          aria-controls={panelId}
-          // The visible badge is a bare number; the name says what it counts.
-          aria-label={count > 0 ? labels.buttonSelected(count) : undefined}
-          className={cn(
-            // #1560's narrow floor, the same `max-md:` contract the chips had:
-            // Desktop keeps its mouse size.
-            "inline-flex h-7 items-center gap-1.5 rounded-lumen-md border px-2 text-xs transition-colors max-md:min-h-11",
-            count > 0
-              ? "border-lumen-accent bg-lumen-accent-subtle font-semibold text-lumen-accent"
-              : "border-lumen-border bg-lumen-bg text-lumen-text-secondary hover:bg-lumen-hover",
-            FOCUS_RING,
-          )}
-        >
-          <ListFilter size={13} aria-hidden />
-          <span>{labels.button}</span>
-          {count > 0 && (
-            <span
-              aria-hidden
-              className="rounded-lumen-full bg-lumen-accent px-1.5 text-[10.5px] font-semibold tabular-nums text-lumen-on-accent"
-            >
-              {count}
-            </span>
-          )}
-          <ChevronDown
-            size={12}
-            aria-hidden
-            className={cn("transition-transform", open && "rotate-180")}
-          />
-        </button>
-
-        {/* Only with something to clear (as the chip row did): an always-
-            present control that does nothing most of the time is one more
-            thing to read past. Beside the button rather than inside the panel
-            so the filter can be dropped without opening it again. */}
-        {count > 0 && (
-          <button
-            type="button"
-            onClick={onClear}
-            aria-label={labels.clear}
-            title={labels.clear}
-            className={cn(
-              // An icon with no label is the one control here that is also too
-              // NARROW to aim at, hence the width floor as well (#1560); it
-              // takes the icon-only floor, not the labelled button's (#2673).
-              "inline-flex h-7 items-center justify-center rounded-lumen-md px-1.5 text-lumen-text-tertiary hover:bg-lumen-hover hover:text-lumen-text-secondary max-md:min-h-lumen-tap-touch max-md:min-w-lumen-tap-touch",
-              FOCUS_RING,
-            )}
-          >
-            <X size={13} aria-hidden />
-          </button>
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-controls={panelId}
+        // The visible badge is a bare number; the name says what it counts.
+        aria-label={count > 0 ? labels.buttonSelected(count) : undefined}
+        title={labels.heading}
+        className={cn(
+          // #1560's narrow floor, the same `max-md:` contract the chips had:
+          // Desktop keeps its mouse size.
+          "inline-flex h-7 items-center gap-1.5 self-start rounded-lumen-md border px-2 text-xs transition-colors max-md:min-h-11",
+          count > 0
+            ? "border-lumen-accent bg-lumen-accent-subtle font-semibold text-lumen-accent"
+            : "border-lumen-border bg-lumen-bg text-lumen-text-secondary hover:bg-lumen-hover",
+          FOCUS_RING,
         )}
-      </div>
+      >
+        <Filter size={13} aria-hidden />
+        <span>{labels.button}</span>
+        {count > 0 && (
+          <span
+            aria-hidden
+            className="rounded-lumen-full bg-lumen-accent px-1.5 text-[10.5px] font-semibold tabular-nums text-lumen-on-accent"
+          >
+            {count}
+          </span>
+        )}
+      </button>
 
       {/* Always in the tree, `hidden` while closed, so `aria-controls` points
-          at something that exists in both states. */}
+          at something that exists in both states. The display class is only
+          set while open so it cannot outrank the `hidden` attribute. */}
       <div
         id={panelId}
         role="group"
         aria-label={labels.panel}
         hidden={!open}
-        className="max-h-64 overflow-y-auto rounded-lumen-md border border-lumen-border bg-lumen-bg p-1"
+        className={cn(
+          open && "flex flex-col gap-2",
+          "max-h-64 overflow-y-auto rounded-lumen-md border border-lumen-border bg-lumen-bg p-2",
+        )}
       >
-        <ul className="flex flex-col gap-px">
-          {options.map((option) => {
-            const active = selected.has(option.id);
-            return (
-              <li key={option.id}>
-                <button
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => onToggle(option.id)}
-                  onContextMenu={
-                    onOptionContextMenu
-                      ? (e) => onOptionContextMenu(option.id, e)
-                      : undefined
-                  }
-                  className={cn(
-                    "flex h-8 w-full items-center gap-2 rounded-lumen-md px-2 text-left text-xs transition-colors max-md:min-h-11",
-                    active
-                      ? "bg-lumen-accent-subtle font-semibold text-lumen-accent"
-                      : "text-lumen-text-secondary hover:bg-lumen-hover",
-                    FOCUS_RING,
-                  )}
-                >
-                  {/* The check is the second cue next to the fill, so the
-                        state does not rest on colour alone. Its box is always
-                        drawn so the labels line up whether or not it shows. */}
-                  <span
-                    aria-hidden
-                    className="flex w-3.5 shrink-0 items-center justify-center"
-                  >
-                    {active && <Check size={13} />}
-                  </span>
-                  {option.icon != null && (
-                    <span aria-hidden="true" className="inline-flex">
-                      {option.icon}
-                    </span>
-                  )}
-                  <span className="min-w-0 flex-1 truncate">
-                    {option.label}
-                  </span>
-                  <span
-                    className={cn(
-                      "shrink-0 tabular-nums",
-                      active ? "text-lumen-accent" : "text-lumen-text-tertiary",
-                    )}
-                  >
-                    {option.count}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+        {labels.heading != null && (
+          <span
+            className="text-[11px] font-semibold text-lumen-text-tertiary"
+          >
+            {labels.heading}
+          </span>
+        )}
+        <div className="flex flex-wrap gap-1.5">{chips}</div>
+
+        {/* Only with something to clear: an always-present control that does
+            nothing most of the time is one more thing to read past. */}
+        {count > 0 && (
+          <button
+            type="button"
+            onClick={onClear}
+            aria-label={labels.clear}
+            className={cn(
+              "inline-flex h-7 items-center gap-1 self-start rounded-lumen-md px-1.5 text-xs text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
+              // The narrow floor in both directions (#1560), on the tap-touch
+              // token the icon-only controls share (#2673).
+              "max-md:min-h-lumen-tap-touch max-md:min-w-lumen-tap-touch",
+              FOCUS_RING,
+            )}
+          >
+            <X size={13} aria-hidden />
+            <span>{labels.clearText ?? labels.clear}</span>
+          </button>
+        )}
       </div>
     </div>
+  );
+}
+
+function TagChip({
+  pressed,
+  onClick,
+  onContextMenu,
+  icon,
+  children,
+}: {
+  pressed: boolean;
+  onClick: () => void;
+  onContextMenu?: (event: MouseEvent) => void;
+  icon?: ReactNode;
+  children: ReactNode;
+}): ReactElement {
+  return (
+    <button
+      type="button"
+      aria-pressed={pressed}
+      onClick={onClick}
+      onContextMenu={onContextMenu}
+      className={cn(
+        "inline-flex h-7 max-w-full shrink-0 items-center gap-1.5 rounded-lumen-full border px-2.5 text-xs transition-colors max-md:min-h-11",
+        // The bold weight is the second cue next to the accent border, so the
+        // state does not rest on colour alone (as the sort chips, #2577).
+        pressed
+          ? "border-lumen-accent font-semibold text-lumen-accent"
+          : "border-lumen-border text-lumen-text-secondary hover:bg-lumen-hover",
+        FOCUS_RING,
+      )}
+    >
+      {icon != null && (
+        <span aria-hidden="true" className="inline-flex shrink-0">
+          {icon}
+        </span>
+      )}
+      <span className="min-w-0 truncate">{children}</span>
+    </button>
   );
 }
