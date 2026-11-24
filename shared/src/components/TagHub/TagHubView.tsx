@@ -205,6 +205,27 @@ export function TagHubView({
     onToggleEdit != null &&
     onEditChange != null;
 
+  /*
+   * Nothing at all — no tag and no item (D15). The guide is drawn in ONE place
+   * (#2604): the items pane on wide, the rail's list on narrow, where the tag
+   * list is the only pane. Both copies used to show at once on wide.
+   */
+  const nothingYet = model.tags.length === 0 && model.unusedTags.length === 0;
+  const emptyGuide = (
+    <EmptyState
+      icon={<Tags />}
+      message={labels.empty}
+      cta={
+        onCreateTag
+          ? {
+              label: labels.emptyAction,
+              onClick: () => addFieldRef.current?.focus(),
+            }
+          : undefined
+      }
+    />
+  );
+
   const rail = (
     <TagHubTagRail
       tags={model.tags}
@@ -223,6 +244,7 @@ export function TagHubView({
       wide={wide}
       isLoading={isLoading}
       labels={labels}
+      emptyState={wide ? undefined : emptyGuide}
       // #2224 — the Desktop bulk bar sits here, above the add row.
       footer={wide && selected ? selectionBar : undefined}
     />
@@ -331,27 +353,13 @@ export function TagHubView({
             <SkeletonList rows={6} />
           </div>
         ) : selected === null ? (
-          <EmptyState
-            icon={<Tags />}
-            message={
-              model.tags.length === 0 && model.unusedTags.length === 0
-                ? labels.empty
-                : labels.selectHint
-            }
-            cta={
-              // The empty hub's one way forward (D15). Offered only when there
-              // is genuinely nothing — with tags on the rail, "pick one" is the
-              // instruction, and a button would compete with it.
-              model.tags.length === 0 &&
-              model.unusedTags.length === 0 &&
-              onCreateTag
-                ? {
-                    label: labels.emptyAction,
-                    onClick: () => addFieldRef.current?.focus(),
-                  }
-                : undefined
-            }
-          />
+          // The add button belongs to the empty hub only: with tags on the
+          // rail, "pick one" is the instruction, and a button would compete.
+          nothingYet ? (
+            emptyGuide
+          ) : (
+            <EmptyState icon={<Tags />} message={labels.selectHint} />
+          )
         ) : (
           <>
             {editable && editOpen && (
