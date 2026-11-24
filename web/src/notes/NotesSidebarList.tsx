@@ -457,7 +457,9 @@ export function NotesSidebarList({
 
       {/* Tag filter (#369, multi-select since #1288). Since #2059 a button
           that opens the tag panel in place, where it used to be a chip row
-          drawn at all times; each option is still a heading to show. */}
+          drawn at all times; each option is still a heading to show. The
+          panel's heading and clear text are static copy, read here like the
+          sort panel's (#2577). */}
       {showTagFilter && (
         <div>
           <NoteTagFilterPanel
@@ -471,6 +473,9 @@ export function NotesSidebarList({
               buttonSelected: labels.tagFilterSelected,
               panel: labels.tagFilterPanel,
               clear: labels.clearTagFilter,
+              heading: t("materials.notes.tagFilterHeading"),
+              clearText: t("materials.notes.tagFilterClearShort"),
+              all: t("materials.notes.tagFilterAll"),
             }}
           />
         </div>

@@ -1,5 +1,12 @@
+import { useState, type ReactElement } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  cleanup,
+  within,
+} from "@testing-library/react";
 import {
   NoteTagFilterPanel,
   type NoteTagFilterOption,
@@ -186,16 +193,149 @@ describe("NoteTagFilterPanel — the count and the clear (#2059)", () => {
     expect(screen.queryByRole("button", { name: "Clear" })).toBeNull();
   });
 
-  it("says how many are selected and offers a clear, with the panel shut", () => {
+  it("says how many are selected with the panel shut, and clears from the panel", () => {
     const { onClear } = renderPanel(optionsOf(3), ["t-a", "t-c"]);
 
     expect(toggleButton().getAttribute("aria-label")).toBe(
       "Filter by tag, 2 selected",
     );
     expect(toggleButton().textContent).toContain("2");
+    // The clear lives in the panel since #2578, not beside the button.
+    expect(screen.queryByRole("button", { name: "Clear" })).toBeNull();
 
+    fireEvent.click(toggleButton());
     fireEvent.click(screen.getByRole("button", { name: "Clear" }));
     expect(onClear).toHaveBeenCalledOnce();
+  });
+});
+
+/** A host that owns the selection, so picks add up and the clear empties it. */
+function Harness({
+  layout,
+  options = optionsOf(3),
+}: {
+  layout?: "panel" | "row";
+  options?: NoteTagFilterOption[];
+}): ReactElement {
+  const [value, setValue] = useState<string[]>([]);
+  return (
+    <NoteTagFilterPanel
+      options={options}
+      value={value}
+      onToggle={(id) =>
+        setValue((v) => (v.includes(id) ? v.filter((x) => x !== id) : [...v, id]))
+      }
+      onClear={() => setValue([])}
+      labels={{
+        ...LABELS,
+        heading: "Filter tags",
+        clearText: "Clear filter",
+        all: "All",
+      }}
+      layout={layout}
+    />
+  );
+}
+
+const pressedLabels = () =>
+  screen.getAllByRole("button", { pressed: true }).map((b) => b.textContent);
+
+describe("NoteTagFilterPanel — chips in the panel (#2578)", () => {
+  beforeEach(cleanup);
+
+  it("wraps the options as pills under a heading, with no per-tag count", () => {
+    renderPanel([
+      { id: "t-a", label: "tag-a", count: 7 },
+      { id: "t-b", label: "tag-b", count: 12 },
+    ]);
+    fireEvent.click(toggleButton());
+
+    const panel = screen.getByRole("group", { name: "Tags to show" });
+    const chips = within(panel).getAllByRole("button", { pressed: false });
+    expect(chips.map((c) => c.textContent)).toEqual(["tag-a", "tag-b"]);
+    for (const chip of chips) {
+      expect(chip.classList.contains("rounded-lumen-full")).toBe(true);
+    }
+    expect(chips[0].parentElement?.classList.contains("flex-wrap")).toBe(true);
+  });
+
+  it("draws the heading it is given", () => {
+    render(<Harness />);
+    fireEvent.click(toggleButton());
+
+    within(screen.getByRole("group", { name: "Tags to show" })).getByText(
+      "Filter tags",
+    );
+  });
+
+  it("picks several chips, rings them in accent, and the clear drops them all", () => {
+    render(<Harness />);
+    fireEvent.click(toggleButton());
+    // Nothing to clear yet.
+    expect(screen.queryByRole("button", { name: "Clear" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "tag-a" }));
+    fireEvent.click(screen.getByRole("button", { name: "tag-c" }));
+
+    expect(pressedLabels()).toEqual(["tag-a", "tag-c"]);
+    const on = screen.getByRole("button", { name: "tag-a" });
+    const off = screen.getByRole("button", { name: "tag-b" });
+    expect(on.classList.contains("border-lumen-accent")).toBe(true);
+    expect(off.classList.contains("border-lumen-accent")).toBe(false);
+    expect(toggleButton().getAttribute("aria-label")).toBe(
+      "Filter by tag, 2 selected",
+    );
+
+    const clear = screen.getByRole("button", { name: "Clear" });
+    expect(clear.textContent).toBe("Clear filter");
+    fireEvent.click(clear);
+
+    expect(screen.queryAllByRole("button", { pressed: true })).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: "Clear" })).toBeNull();
+    expect(toggleButton().getAttribute("aria-label")).toBeNull();
+  });
+});
+
+describe("NoteTagFilterPanel — the narrow row (#2578)", () => {
+  beforeEach(cleanup);
+
+  it("draws the chips at once, with no button to open them", () => {
+    render(<Harness layout="row" />);
+
+    expect(screen.queryByRole("button", { name: /^Filter by tag/ })).toBeNull();
+    expect(
+      screen.getAllByRole("button").some((b) => b.hasAttribute("aria-expanded")),
+    ).toBe(false);
+    const row = screen.getByRole("group", { name: "Tags to show" });
+    expect(
+      within(row)
+        .getAllByRole("button")
+        .map((b) => b.textContent),
+    ).toEqual(["All", "tag-a", "tag-b", "tag-c"]);
+    // One line that scrolls sideways instead of wrapping.
+    expect(row.classList.contains("overflow-x-auto")).toBe(true);
+    expect(row.classList.contains("flex-wrap")).toBe(false);
+  });
+
+  it("filters on a tap, and 'All' is on only while nothing is", () => {
+    render(<Harness layout="row" />);
+    expect(pressedLabels()).toEqual(["All"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "tag-b" }));
+    fireEvent.click(screen.getByRole("button", { name: "tag-c" }));
+    expect(pressedLabels()).toEqual(["tag-b", "tag-c"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "All" }));
+    expect(pressedLabels()).toEqual(["All"]);
+  });
+
+  it("floors every chip at the narrow touch size only", () => {
+    render(<Harness layout="row" />);
+
+    for (const chip of screen.getAllByRole("button")) {
+      expect(chip.classList.contains("max-md:min-h-11")).toBe(true);
+      expect(chip.classList.contains("min-h-11")).toBe(false);
+    }
   });
 });
 
