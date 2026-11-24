@@ -850,112 +850,119 @@ export function NotesView({
         </span>
       </div>
       {selected ? (
-        <NoteDetailSurface
-          // Page-level sizing on Desktop; narrow keeps the compact heading the
-          // retired sheet used, which is what a phone column has room for.
-          variant={isWide ? "main" : undefined}
-          note={selected}
-          labels={detailLabels}
-          locked={bodyGated}
-          // #2060: null while the gate is up — no editor is mounted then —
-          // which leaves the header's formatting bar switched off.
-          bodyEditor={bodyGated ? null : bodyEditor}
-          onUnlock={password.requestUnlock}
-          onTitleCommit={(id, title) => notes.updateNote(id, { title })}
-          // #1842 — only for the note "+" just made, and only until the field
-          // says it has the focus.
-          autoFocusTitle={focusTitleNoteId === selected.id}
-          onTitleAutoFocused={() => setFocusTitleNoteId(null)}
-          onTogglePin={notes.togglePin}
-          onDelete={handleDeleteNote}
-          offlineReason={
-            offlineReason ??
-            (selected.createdOffline ? unsentReason : undefined)
-          }
-          // #1179: the kebab entry, wired only when there is a DataService to
-          // write templates through — the same condition the "[[" pool has.
-          //
-          // A password-gated note is left OUT of it. The lock covers the body
-          // (#526) and registering would copy that body into a surface the
-          // lock does not reach, so the entry is absent exactly while the
-          // gate is up rather than shipping a way around it.
-          onRegisterTemplate={
-            dataService && !bodyGated ? handleRegisterTemplate : undefined
-          }
-          // #1181: same DataService condition, plus the password gate. The
-          // lock covers the body (#526) and applying REPLACES the body, so
-          // offering it while the gate is up would let a note be overwritten
-          // by someone who cannot see what they are overwriting.
-          onApplyTemplate={
-            dataService && !bodyGated ? templateApply.begin : undefined
-          }
-          // #1843 / D-20260922-materials-1 = A: the way in to the lock, back in
-          // the kebab. The surface shows "set" or "remove" from hasPassword;
-          // "remove" stays offered while the gate is up because the dialog
-          // asks for the current password before anything changes.
-          onSetPassword={password.requestSet}
-          onRemovePassword={password.requestRemove}
-          onTagContextMenu={headerTagEdit.onTagContextMenu}
-          onTagLongPress={headerTagEdit.onTagLongPress}
-          // The note's item links, beside the tags (#884 — they were a
-          // rightSidebar disclosure until that Issue), at both widths since
-          // #2391. A locked note shows none: which items it links to is part
-          // of what the password covers, and the chips would name them.
-          linksSlot={
-            bodyGated ? undefined : (
-              <LinkPanel
-                itemId={selected.id}
-                resolveTitle={linking.resolveTitle}
-                // The same cross-role pool the body's "[[" menu searches, so
-                // both pickers offer the same items — and the panel can name a
-                // Todo / Daily target instead of an id fragment (#749).
-                loadTargets={linking.loadLinkTargets}
-                previews={linking.linkPreviews}
-                // Chip clicks reuse the "[[" navigation route (#475): the shell
-                // switches section + tab and hands the target id to the view.
-                onNavigateToItem={onNavigateToItem}
-                // #1172: which day this note belongs to, for the "that day's
-                // daily" relation. Derived here because only the host knows
-                // what a NOTE's day is (the day it was written), and through
-                // dateKeyOfInstant rather than a slice — the stored string is
-                // UTC, so slicing it reads the wrong calendar day in JST
-                // before 09:00 (#413).
-                relatedDailyDate={
-                  dateKeyOfInstant(selected.createdAt) ?? undefined
-                }
-              />
-            )
-          }
-          contentEditor={
-            bodyGated ? (
-              // Nothing to render: the body was never fetched (#1763). A
-              // spacer keeps the unlock CTA — which LockedBodyGate draws over
-              // its children — a readable size instead of a 0px strip.
-              <div className="min-h-48" />
-            ) : (
-              <div>
-                <AttachmentUploadStatus
-                  fileName={uploadingFile}
-                  uploadingLabel={t("attachment.uploading")}
-                />
-                <NoteBodyEditor
-                  note={selected}
-                  linking={linking}
-                  remountToken={bodyEpoch}
-                  attachments={attachments}
-                  onEditorChange={setBodyEditor}
+        // #2583: the open note is one centred 46rem column on the page, a
+        // reading line length. It is capped here, not in the section
+        // descriptor, because the Daily tab shares that descriptor. rem, so
+        // the measure follows the font-size setting; on a phone the cap is
+        // wider than the screen and only the gutter is left. The bottom
+        // padding gives the end of the body room above the screen's edge.
+        <div className="mx-auto w-full max-w-[46rem] pb-6">
+          <NoteDetailSurface
+            // Page-level sizing on Desktop; narrow keeps the compact heading the
+            // retired sheet used, which is what a phone column has room for.
+            variant={isWide ? "main" : undefined}
+            note={selected}
+            labels={detailLabels}
+            locked={bodyGated}
+            // #2060: null while the gate is up — no editor is mounted then —
+            // which leaves the header's formatting bar switched off.
+            bodyEditor={bodyGated ? null : bodyEditor}
+            onUnlock={password.requestUnlock}
+            onTitleCommit={(id, title) => notes.updateNote(id, { title })}
+            // #1842 — only for the note "+" just made, and only until the field
+            // says it has the focus.
+            autoFocusTitle={focusTitleNoteId === selected.id}
+            onTitleAutoFocused={() => setFocusTitleNoteId(null)}
+            onTogglePin={notes.togglePin}
+            onDelete={handleDeleteNote}
+            offlineReason={
+              offlineReason ??
+              (selected.createdOffline ? unsentReason : undefined)
+            }
+            // #1179: the kebab entry, wired only when there is a DataService to
+            // write templates through — the same condition the "[[" pool has.
+            //
+            // A password-gated note is left OUT of it. The lock covers the body
+            // (#526) and registering would copy that body into a surface the
+            // lock does not reach, so the entry is absent exactly while the
+            // gate is up rather than shipping a way around it.
+            onRegisterTemplate={
+              dataService && !bodyGated ? handleRegisterTemplate : undefined
+            }
+            // #1181: same DataService condition, plus the password gate. The
+            // lock covers the body (#526) and applying REPLACES the body, so
+            // offering it while the gate is up would let a note be overwritten
+            // by someone who cannot see what they are overwriting.
+            onApplyTemplate={
+              dataService && !bodyGated ? templateApply.begin : undefined
+            }
+            // #1843 / D-20260922-materials-1 = A: the way in to the lock, back in
+            // the kebab. The surface shows "set" or "remove" from hasPassword;
+            // "remove" stays offered while the gate is up because the dialog
+            // asks for the current password before anything changes.
+            onSetPassword={password.requestSet}
+            onRemovePassword={password.requestRemove}
+            onTagContextMenu={headerTagEdit.onTagContextMenu}
+            onTagLongPress={headerTagEdit.onTagLongPress}
+            // The note's item links, beside the tags (#884 — they were a
+            // rightSidebar disclosure until that Issue), at both widths since
+            // #2391. A locked note shows none: which items it links to is part
+            // of what the password covers, and the chips would name them.
+            linksSlot={
+              bodyGated ? undefined : (
+                <LinkPanel
+                  itemId={selected.id}
+                  resolveTitle={linking.resolveTitle}
+                  // The same cross-role pool the body's "[[" menu searches, so
+                  // both pickers offer the same items — and the panel can name a
+                  // Todo / Daily target instead of an id fragment (#749).
+                  loadTargets={linking.loadLinkTargets}
+                  previews={linking.linkPreviews}
+                  // Chip clicks reuse the "[[" navigation route (#475): the shell
+                  // switches section + tab and hands the target id to the view.
                   onNavigateToItem={onNavigateToItem}
-                  // #2057: saves against the version the body opened at.
-                  bodySync={notes}
-                  // Borderless — sit flush inside the detail card so the note
-                  // body reads as a single clean surface, matching the Daily
-                  // editor card (2026-07-18: align Notes formatting to Daily).
-                  className="pt-1"
+                  // #1172: which day this note belongs to, for the "that day's
+                  // daily" relation. Derived here because only the host knows
+                  // what a NOTE's day is (the day it was written), and through
+                  // dateKeyOfInstant rather than a slice — the stored string is
+                  // UTC, so slicing it reads the wrong calendar day in JST
+                  // before 09:00 (#413).
+                  relatedDailyDate={
+                    dateKeyOfInstant(selected.createdAt) ?? undefined
+                  }
                 />
-              </div>
-            )
-          }
-        />
+              )
+            }
+            contentEditor={
+              bodyGated ? (
+                // Nothing to render: the body was never fetched (#1763). A
+                // spacer keeps the unlock CTA — which LockedBodyGate draws over
+                // its children — a readable size instead of a 0px strip.
+                <div className="min-h-48" />
+              ) : (
+                <div>
+                  <AttachmentUploadStatus
+                    fileName={uploadingFile}
+                    uploadingLabel={t("attachment.uploading")}
+                  />
+                  <NoteBodyEditor
+                    note={selected}
+                    linking={linking}
+                    remountToken={bodyEpoch}
+                    attachments={attachments}
+                    onEditorChange={setBodyEditor}
+                    onNavigateToItem={onNavigateToItem}
+                    // #2057: saves against the version the body opened at.
+                    bodySync={notes}
+                    // Borderless, so the title and the body read as one surface
+                    // on the page, as the Daily body does (#2661, #2583).
+                    className="pt-1"
+                  />
+                </div>
+              )
+            }
+          />
+        </div>
       ) : (
         <div className="flex min-h-[50vh] items-center justify-center">
           {/* #1149: "select a note or create a new one" used to be the whole
@@ -1033,7 +1040,9 @@ export function NotesView({
         ref={measureMainColumn}
         className={cn(
           "flex min-h-0 flex-1 flex-col",
-          !isWide && "overflow-y-auto px-4",
+          // The gutter token, so the note's sticky header can stretch across
+          // exactly this padding (NoteDetailPanel STICKY_HEADER_BOX).
+          !isWide && "overflow-y-auto px-lumen-gutter",
         )}
       >
         {mainContent}

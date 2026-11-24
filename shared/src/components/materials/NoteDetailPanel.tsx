@@ -411,11 +411,10 @@ export interface NoteDetailPanelProps {
   /** Host-injected rich-text editor (host wires key={noteId} for remount). */
   contentEditor?: ReactNode;
   /**
-   * Surface treatment. "sidebar" (default) is the compact card the Notes tab
-   * pushes into the rightSidebar. "main" is the larger editor surface (no card
-   * since #2661: it is written straight onto the page, with a taller content
-   * floor) used when the detail is the tab's main content. Additive — omitting
-   * it keeps the original sidebar look, so existing callers are unaffected.
+   * Surface treatment. Neither variant draws a card: both are written straight
+   * onto the page (#2661 for "main", #2583 for "sidebar"). "main" is the
+   * Desktop editor, with the page-level title and a taller content floor.
+   * "sidebar" (default) is the compact sizing the phone column has room for.
    */
   variant?: "sidebar" | "main";
   /**
@@ -435,26 +434,25 @@ export interface NoteDetailPanelProps {
  * The negative side margins + matching padding stretch the header's opaque
  * background past the text on both sides, so a stuck header covers the body
  * edge to edge instead of leaving a strip of scrolled text visible beside it.
- * "sidebar" stretches across its card's padding. "main" has no card (#2661),
- * so it stretches across the page gutter instead: the same token PageContainer
- * pads with, because a rem step could outgrow that fixed 24px under a large
- * root font size and give the page a sideways scroll.
+ * Neither variant has a card (#2661, #2583), so each stretches across the
+ * page gutter it sits in: "main" across PageContainer's Desktop gutter,
+ * "sidebar" across the phone column's, which NotesView pads with the narrow
+ * gutter token. Gutter tokens rather than rem steps, because a rem step could
+ * outgrow the fixed-px gutter under a large root font size and give the page a
+ * sideways scroll.
  *
  * The top padding gives a stuck title a few px of breathing room from the
- * scroller's edge. "sidebar" takes it back with a negative margin, kept below
- * the card's corner radius (12px padding, -4px → 8px vs an 8px radius) so the
- * square header never paints over the rounded top corners. "main" keeps it at
- * rest too: with no card padding above, a negative margin would pull the
- * header up against the "+ Note" row.
+ * scroller's edge, and it stays at rest too: with no card padding above, a
+ * negative margin would pull the header up against the "+ Note" row.
  *
- * The background is the opaque token of whatever the header sits on (§5 — no
- * transparency): the page for "main", the card for "sidebar". So at rest the
- * header is indistinguishable from it, and z-20 sits above the body's own
- * sticky table toolbar (z-10).
+ * The background is the page's opaque token (§5 — no transparency), so at
+ * rest the header is indistinguishable from the ground under it, and z-20
+ * sits above the body's own sticky table toolbar (z-10).
  */
 const STICKY_HEADER_BOX = {
   main: "sticky top-0 z-20 -mx-lumen-gutter-wide bg-lumen-bg px-lumen-gutter-wide pt-2",
-  sidebar: "sticky top-0 z-20 -mx-3 -mt-1 bg-lumen-bg-secondary px-3 pt-1",
+  sidebar:
+    "sticky top-0 z-20 -mx-lumen-gutter bg-lumen-bg px-lumen-gutter pt-1",
 } as const;
 
 /** The nearest ancestor that scrolls vertically; null → the viewport. */
@@ -577,10 +575,9 @@ export function NoteDetailPanel({
         "flex flex-col",
         // The stuck-header sentinel below is positioned against the panel.
         stickyHeader && "relative",
-        // #2661: "main" draws no card. Its text lines up with the page gutter.
-        isMain
-          ? "gap-4"
-          : "gap-3 rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary p-3",
+        // No card at either width (#2661, #2583): the text lines up with the
+        // page gutter.
+        isMain ? "gap-4" : "gap-3",
         className,
       )}
       style={rootStyle}

@@ -103,7 +103,7 @@ describe("Stuck note header edge (#2291 item 6)", () => {
 
   const rect = (top: number) => ({ top }) as DOMRectReadOnly;
 
-  it("draws a shadow and the stronger rule once the card's top has scrolled past", () => {
+  it("draws a shadow and the stronger rule once the panel's top has scrolled past", () => {
     const io = stubObserver();
     renderPanel({ stickyHeader: true });
     const header = screen.getByTestId("note-detail-header");
@@ -137,7 +137,7 @@ describe("Stuck note header edge (#2291 item 6)", () => {
     expect(header.hasAttribute("data-stuck")).toBe(false);
   });
 
-  it("is not stuck when the card is out of view below, not above", () => {
+  it("is not stuck when the panel is out of view below, not above", () => {
     const io = stubObserver();
     renderPanel({ stickyHeader: true });
     act(() =>
