@@ -7,6 +7,7 @@ import {
   type Ref,
 } from "react";
 import {
+  CheckSquare,
   ChevronDown,
   ChevronRight,
   GripVertical,
@@ -60,8 +61,9 @@ import { canDropOn, type GoalTreeDragSource } from "./goalTreeDrag";
  * #2225). While a filter is on, a line over the tree names it with a reset
  * button, and a filter that leaves nothing says so in one line. A goal with
  * anything under it carries an open / close arrow, all open at first. The
- * loose-todo group's heading has "+ Todo", which creates a todo linked to no
- * goal.
+ * loose-todo group's heading has a bordered "+ Todo", which opens a field for a
+ * todo linked to no goal, closed again by its × or Esc (#2609). A line runs
+ * under that heading, and with no such todo one line says so.
  *
  * Desktop drag (#2226), only when the host passes `drag`: a goal's open /
  * close arrow turns into a grip while the row is hovered — press to fold,
@@ -178,7 +180,25 @@ export interface GoalTreeLabels {
   addTodo: string;
   /** The add button's and the field's spoken name. */
   addTodoLabel: string;
+  /** "Write what to do, then Enter" — the todo field a goal row's "+" opens. */
   addTodoPlaceholder: string;
+  /**
+   * The loose group's field (#2609). Optional so that a host without the copy
+   * keeps building: the field then says `addTodoPlaceholder`.
+   */
+  looseTodoPlaceholder?: string;
+  /** Said in the loose group when no todo is outside a goal (#2609). */
+  looseEmpty?: string;
+  /**
+   * "What do you want to add?" — leads the choices a goal row's "+" opens
+   * (#2609). Absent, the choices stand alone.
+   */
+  addUnderPrompt?: string;
+  /**
+   * The goal field a goal row's "+" opens (#2609). Absent, it says
+   * `addPlaceholder`, the add card's.
+   */
+  addChildGoalPlaceholder?: string;
   /** The grip's tooltip. */
   dragToMove: string;
   /** "Edit goal: Run 3 times" — the edit icon's spoken name. */
@@ -875,6 +895,11 @@ function GoalTitleEditor({
  * goal of each shorter period (a week offers only the todo, so it skips the
  * choice), then one field with a badge saying what it adds. Enter or the
  * button adds and closes, opening the goal if it was closed; Esc or the × closes.
+ *
+ * As in the prototype (#2609), the choices follow a "What do you want to
+ * add?" and carry their kind's icon — a box for the todo, a target for a
+ * goal — and the badge keeps that icon, so the field still says which one
+ * was picked.
  */
 function AddUnderGoal({
   goal,
@@ -895,16 +920,31 @@ function AddUnderGoal({
 }): React.JSX.Element {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const promptId = useId();
   const childLabel = (kind: GoalPeriodKind): string =>
     labels.formatChildGoal(labels.periods[kind]);
   if (step === "choose") {
+    const prompt = labels.addUnderPrompt;
     return (
-      <div className="flex flex-wrap items-center gap-2 py-1 pl-(--goal-tree-toggle)">
+      <div
+        role={prompt ? "group" : undefined}
+        aria-labelledby={prompt ? promptId : undefined}
+        className="flex flex-wrap items-center gap-2 py-1 pl-(--goal-tree-toggle)"
+      >
+        {prompt && (
+          <span
+            id={promptId}
+            data-goal-add-prompt
+            className="shrink-0 whitespace-nowrap text-xs text-lumen-text-secondary"
+          >
+            {prompt}
+          </span>
+        )}
         <Button
           size="sm"
           variant="secondary"
           onClick={() => onStep("todo")}
-          leadingIcon={<Plus size={14} aria-hidden />}
+          leadingIcon={<CheckSquare size={14} aria-hidden />}
           className="shrink-0 whitespace-nowrap max-md:min-h-11"
         >
           {labels.addTodo}
@@ -915,7 +955,7 @@ function AddUnderGoal({
             size="sm"
             variant="secondary"
             onClick={() => onStep(kind)}
-            leadingIcon={<Plus size={14} aria-hidden />}
+            leadingIcon={<Target size={14} aria-hidden />}
             className="shrink-0 whitespace-nowrap max-md:min-h-11"
           >
             {childLabel(kind)}
@@ -933,8 +973,11 @@ function AddUnderGoal({
     );
   }
   const placeholder =
-    step === "todo" ? labels.addTodoPlaceholder : labels.addPlaceholder;
+    step === "todo"
+      ? labels.addTodoPlaceholder
+      : (labels.addChildGoalPlaceholder ?? labels.addPlaceholder);
   const badge = step === "todo" ? labels.addTodo : childLabel(step);
+  const BadgeIcon = step === "todo" ? CheckSquare : Target;
   const submit = (): void => {
     const title = draft.trim();
     if (!title || busy) return;
@@ -954,8 +997,9 @@ function AddUnderGoal({
     <div className="flex items-center gap-2 py-1 pl-(--goal-tree-toggle) max-md:flex-wrap">
       <span
         data-goal-add-badge
-        className="shrink-0 whitespace-nowrap rounded-full border border-lumen-border px-2 py-0.5 text-xs text-lumen-briefing-kohaku"
+        className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-lumen-border px-2 py-0.5 text-xs text-lumen-briefing-kohaku"
       >
+        <BadgeIcon size={12} aria-hidden />
         {badge}
       </span>
       <Input
@@ -1383,17 +1427,26 @@ function BranchList({
 function Group({
   heading,
   action,
+  divided = false,
   children,
 }: {
   heading: string;
   /** Sits at the heading's right end. */
   action?: ReactNode;
+  /** A line under the heading row, as the loose group has (#2609). */
+  divided?: boolean;
   children: ReactNode;
 }): React.JSX.Element {
   return (
     <section aria-label={heading}>
       {action ? (
-        <div className="mb-1.5 flex items-center justify-between gap-2">
+        <div
+          data-goal-group-heading
+          className={cn(
+            "mb-1.5 flex items-center justify-between gap-2",
+            divided && "border-b border-lumen-border pb-1.5",
+          )}
+        >
           <h3 className="text-xs font-medium text-lumen-text-tertiary">
             {heading}
           </h3>
@@ -1428,6 +1481,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
   const [addingTodo, setAddingTodo] = useState(false);
   const [todoDraft, setTodoDraft] = useState("");
   const [todoBusy, setTodoBusy] = useState(false);
+  const looseAddButton = useRef<HTMLButtonElement>(null);
   /*
    * The source lives in a ref for the event handlers and in state for the
    * paint. The state is set a tick late: Chromium may cancel a drag whose
@@ -1517,6 +1571,11 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
       setTodoBusy(false);
       if (ok) setTodoDraft("");
     });
+  };
+  // Closing unmounts the field that held the focus, so it goes back to "+ Todo".
+  const closeTodo = (): void => {
+    setAddingTodo(false);
+    looseAddButton.current?.focus();
   };
 
   const endDrag = (): void => {
@@ -1821,15 +1880,23 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
       {(model.looseTodos.length > 0 || hasGoals) && (
         <Group
           heading={labels.looseHeading}
+          divided
           action={
             <Button
+              ref={looseAddButton}
               size="sm"
               variant={addingTodo ? "primary" : "ghost"}
               onClick={() => setAddingTodo(!addingTodo)}
               aria-expanded={addingTodo}
               aria-label={labels.addTodoLabel}
               leadingIcon={<Plus size={14} aria-hidden />}
-              className={cn(KEEP_LABEL, "max-md:min-h-11")}
+              // Bordered while closed, so it reads as a button and not as
+              // part of the heading (#2609); open, the fill says so.
+              className={cn(
+                KEEP_LABEL,
+                "border max-md:min-h-11",
+                addingTodo ? "border-transparent" : "border-lumen-border",
+              )}
             >
               {labels.addTodo}
             </Button>
@@ -1844,9 +1911,11 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
                 onKeyDown={(e) => {
                   if (isImeComposing(e)) return;
                   if (e.key === "Enter") submitTodo();
-                  if (e.key === "Escape") setAddingTodo(false);
+                  if (e.key === "Escape") closeTodo();
                 }}
-                placeholder={labels.addTodoPlaceholder}
+                placeholder={
+                  labels.looseTodoPlaceholder ?? labels.addTodoPlaceholder
+                }
                 aria-label={labels.addTodoLabel}
                 className="min-w-0 max-md:text-base"
               />
@@ -1860,7 +1929,21 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
               >
                 {labels.add}
               </Button>
+              <button
+                type="button"
+                onClick={closeTodo}
+                aria-label={labels.cancel}
+                title={labels.cancel}
+                className={ROW_ICON}
+              >
+                <X size={14} aria-hidden />
+              </button>
             </div>
+          )}
+          {model.looseTodos.length === 0 && labels.looseEmpty && (
+            <p className="px-2 py-1.5 text-xs text-lumen-text-tertiary">
+              {labels.looseEmpty}
+            </p>
           )}
           <ul>
             {model.looseTodos.map((todo) => (
