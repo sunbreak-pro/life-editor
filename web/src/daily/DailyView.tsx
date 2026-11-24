@@ -949,6 +949,13 @@ export function DailyView({
     [dailies],
   );
 
+  // "Write about today" reads wrong over a past (or future) day (#2592).
+  const bodyPlaceholder = t(
+    selectedDate === todayIso
+      ? "materials.daily.placeholder"
+      : "materials.daily.placeholderOtherDay",
+  );
+
   // "今日へ" accent CTA — jump the selection to today.
   const toTodayButton = (
     <button
@@ -1238,7 +1245,7 @@ export function DailyView({
             onEditorBlur={handleEditorBlur}
             onUpdate={handleEditorUpdate}
             onDirty={markDirty}
-            placeholder={t("materials.daily.placeholder")}
+            placeholder={bodyPlaceholder}
             loadLinkTargets={loadLinkTargets}
             onNavigateToItem={onNavigateToItem}
             onResolvedLinkInserted={handleResolvedLinkInserted}
@@ -1275,7 +1282,7 @@ export function DailyView({
           onEditorBlur={handleEditorBlur}
           onUpdate={handleEditorUpdate}
           onDirty={markDirty}
-          placeholder={t("materials.daily.placeholder")}
+          placeholder={bodyPlaceholder}
           loadLinkTargets={loadLinkTargets}
           onNavigateToItem={onNavigateToItem}
           onResolvedLinkInserted={handleResolvedLinkInserted}
