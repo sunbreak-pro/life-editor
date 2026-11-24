@@ -100,6 +100,26 @@ function makeDS(over: Partial<Record<keyof DataService, unknown>> = {}) {
 }
 
 /*
+ * Two used tags (#2628): the daily moves from Work to Idle, so the rail reads
+ * Idle, Work, Untagged and its first tag is not the one the base fixture uses.
+ */
+function makeTwoTagDS() {
+  return makeDS({
+    listAllTagAssignments: vi
+      .fn()
+      .mockResolvedValue([
+        ...ASSIGNMENTS.filter((row) => row.id !== "a-4"),
+        {
+          id: "a-6",
+          itemId: "daily-2026-08-29",
+          tagId: "t-idle",
+          isDeleted: false,
+        },
+      ]),
+  });
+}
+
+/*
  * A tagged repeat (#1631): the tag is on the SERIES, the days are occurrences
  * carrying `routineId`. Dates sit far either side of the real "today" so the
  * "next occurrence" pick is deterministic without freezing the clock.
@@ -294,10 +314,7 @@ describe("ConnectScreen", () => {
 
   it("puts the selected tag's breakdown and recent rows in the detail panel (#1472)", async () => {
     const { panel, onNavigateToItem } = await renderWithPanel();
-    // Nothing selected — nothing portalled, so the shell's empty copy stands.
-    expect(panel().queryByRole("heading")).toBeNull();
-
-    fireEvent.click(screen.getByRole("button", { name: "Work: 4 items" }));
+    // #2628 — no click: Desktop opens on the rail's first tag, Work.
     // #2409 — the name moved into the breakdown's heading.
     expect(panel().queryByRole("heading", { level: 2 })).toBeNull();
     expect(
@@ -340,14 +357,15 @@ describe("ConnectScreen", () => {
     ).toBeGreaterThan(0);
   });
 
-  it("comes back with nothing selected when the user had cleared it", async () => {
-    await renderScreen();
-    fireEvent.click(screen.getByRole("button", { name: "Work: 4 items" }));
+  it("comes back on the first tag when the store holds none (#2628)", async () => {
+    await renderScreen(makeTwoTagDS());
+    fireEvent.click(screen.getByRole("button", { name: "Work: 3 items" }));
     cleanup();
-    // Deselection is a state the user chose too, not the absence of one.
+    // The store cannot tell "cleared" from "never picked"; both open on the
+    // rail's first tag, which is Idle here.
     resetConnectSelection();
-    await renderScreen();
-    expect(screen.queryByRole("heading", { level: 2 })).toBeNull();
+    await renderScreen(makeTwoTagDS());
+    screen.getByRole("heading", { level: 2, name: "Idle" });
   });
 
   it("reads exactly the five item lists, once", async () => {
@@ -361,6 +379,80 @@ describe("ConnectScreen", () => {
       "fetchAllRoutines",
     ] as const) {
       expect(ds[method]).toHaveBeenCalledTimes(1);
+    }
+  });
+});
+
+/*
+ * The first tag on Desktop (#2628). The wide layout used to open on a hint in
+ * the pane and an empty panel; it now opens on the rail's first tag unless a
+ * tag was already picked. The phone keeps its list-first layout.
+ */
+describe("ConnectScreen — opening on the first tag (#2628)", () => {
+  /** jsdom has no matchMedia, and useMediaQuery falls back to wide without it. */
+  function setNarrow() {
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      configurable: true,
+      value: (query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => false,
+      }),
+    });
+  }
+
+  it("selects the rail's first tag and fills the panel with it", async () => {
+    const { panel } = await renderWithPanel(makeTwoTagDS());
+    expect(railLabels()).toEqual([
+      "Idle: 1 item",
+      "Work: 3 items",
+      "Untagged: 1 item",
+    ]);
+    screen.getByRole("heading", { level: 2, name: "Idle" });
+    panel().getByRole("region", { name: "Breakdown by kind (Idle)" });
+    expect(
+      screen.queryByText("Pick a tag to see everything filed under it."),
+    ).toBeNull();
+    // Written through like any pick, so a section switch comes back to it.
+    expect(getConnectTagSelection()).toBe("t-idle");
+  });
+
+  it("keeps the tag picked earlier in the run", async () => {
+    setConnectTagSelection("t-work");
+    await renderScreen(makeTwoTagDS());
+    screen.getByRole("heading", { level: 2, name: "Work" });
+    expect(getConnectTagSelection()).toBe("t-work");
+  });
+
+  it("treats a stored tag that has gone as no pick", async () => {
+    setConnectTagSelection("t-gone");
+    await renderScreen(makeTwoTagDS());
+    screen.getByRole("heading", { level: 2, name: "Idle" });
+  });
+
+  it("never opens the untagged bucket on its own", async () => {
+    await renderScreen(
+      makeDS({ listAllTagAssignments: vi.fn().mockResolvedValue([]) }),
+    );
+    expect(railLabels()).toEqual(["Untagged: 5 items"]);
+    expect(screen.queryByRole("heading", { level: 2 })).toBeNull();
+    expect(getConnectTagSelection()).toBeNull();
+  });
+
+  it("leaves the phone on the list", async () => {
+    setNarrow();
+    try {
+      await renderScreen(makeTwoTagDS());
+      expect(screen.queryByRole("heading", { level: 2 })).toBeNull();
+      expect(getConnectTagSelection()).toBeNull();
+    } finally {
+      Reflect.deleteProperty(window, "matchMedia");
     }
   });
 });
@@ -1278,12 +1370,22 @@ describe("ConnectScreen — a tag asked for from outside (#2395)", () => {
   it("moves to it on a screen that is already up", async () => {
     const { onConsume, ask } = renderAsked(makeDS(), null);
     await railReady();
-    expect(screen.queryByRole("heading", { level: 2, name: "Work" })).toBeNull();
+    // #2628 — up on the rail's first tag, so the ask has somewhere to move.
+    screen.getByRole("heading", { level: 2, name: "Work" });
 
-    ask("t-work");
+    ask("t-idle");
+
+    screen.getByRole("heading", { level: 2, name: "Idle" });
+    expect(onConsume).toHaveBeenCalled();
+    expect(getConnectTagSelection()).toBe("t-idle");
+  });
+
+  it("opens on the asked tag, not the rail's first one (#2628)", async () => {
+    setConnectTagSelection("t-work");
+    renderAsked(makeTwoTagDS(), "t-work");
+    await railReady();
 
     screen.getByRole("heading", { level: 2, name: "Work" });
-    expect(onConsume).toHaveBeenCalled();
     expect(getConnectTagSelection()).toBe("t-work");
   });
 

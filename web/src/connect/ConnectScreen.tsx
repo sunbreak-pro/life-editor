@@ -1,4 +1,10 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { ExternalLink, Network, X } from "lucide-react";
 import {
   buildTagHubModel,
@@ -197,6 +203,53 @@ function pickSeriesOccurrence(
     }
   }
   return next ?? previous;
+}
+
+/*
+ * Desktop opens on the rail's first tag when nothing was picked (#2628): the
+ * wide layout has a pane and a panel to fill, and a hint in both said less
+ * than the first tag's rows do. A tag picked earlier in this run (the store),
+ * or one the shell asked for, is a choice and wins; a stored id whose tag has
+ * gone counts as no choice. The phone stays list-first, so narrow never picks.
+ *
+ * Waits for the reads: before they land the rail is empty and a stored tag
+ * cannot be told from a stale one. Stays armed until it has acted or a tag is
+ * open, so a mount that loaded narrow, or with no used tag yet, still picks
+ * once it widens or gains one — and never again after, so clearing or deleting
+ * the open tag is not undone behind the user's back.
+ *
+ * A hook of its own for the reason useConnectTagIntent gives: this is a
+ * one-shot setState in an effect, deliberately. Layout rather than passive, so
+ * the hint is never painted for the frame before the pick.
+ */
+function useFirstTagOnWide({
+  ready,
+  wide,
+  tags,
+  hasOpenTag,
+  hasPendingTag,
+  select,
+}: {
+  ready: boolean;
+  wide: boolean;
+  tags: readonly TagHubTagSummary[];
+  hasOpenTag: boolean;
+  hasPendingTag: boolean;
+  select: (tagId: string) => void;
+}): void {
+  const armed = useRef(true);
+  useLayoutEffect(() => {
+    if (!armed.current || !ready) return;
+    if (hasOpenTag || hasPendingTag) {
+      armed.current = false;
+      return;
+    }
+    if (!wide) return;
+    const first = tags.find((tag) => !tag.isUntagged);
+    if (!first) return;
+    armed.current = false;
+    select(first.id);
+  }, [ready, wide, tags, hasOpenTag, hasPendingTag, select]);
 }
 
 export function ConnectScreen({
@@ -768,6 +821,16 @@ export function ConnectScreen({
         : null,
     [model.tags, model.unusedTags, selectedTagId],
   );
+
+  useFirstTagOnWide({
+    ready: !isLoading,
+    wide: isWide,
+    tags: model.tags,
+    hasOpenTag: selectedTag !== null,
+    hasPendingTag: pendingSelectTagId !== null,
+    select: commitSelection,
+  });
+
   const selectedGroups = useMemo(
     () => (selectedTag ? (model.groupsByTag.get(selectedTag.id) ?? []) : []),
     [model.groupsByTag, selectedTag],
