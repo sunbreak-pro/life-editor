@@ -344,6 +344,22 @@ describe("NotesView — desktop (wide)", () => {
     expect(screen.getByTestId("editor").textContent).toBe("note-a");
   });
 
+  // #2583 / #2853: the open note is one centred 46rem column. jsdom has no
+  // layout, so the class names on the box are the only thing left to pin; a
+  // revert to a full-width box drops them.
+  it("puts the open note in a centred 46rem column", () => {
+    state.selectedId = "note-a";
+    render(<NotesView />);
+
+    const column = screen.getByTestId("editor").closest("div.mx-auto");
+    expect(column).not.toBeNull();
+    expect(column!.classList.contains("max-w-[46rem]")).toBe(true);
+    expect(column!.classList.contains("w-full")).toBe(true);
+    expect(
+      column!.contains(screen.getByLabelText("notesView.detailTitle")),
+    ).toBe(true);
+  });
+
   /*
    * #1763 — a locked note gets NO editor, not a blurred one.
    *
@@ -872,6 +888,20 @@ describe("NotesView — mobile (narrow)", () => {
 
     expect(screen.getByTestId("editor").textContent).toBe("note-a");
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  // #2853: the source applies the same box at every width (the rem cap is
+  // wider than a phone, so only the gutter is left). Pin that the narrow box
+  // fills the width and gets no cap narrower than 46rem.
+  it("fills the width on a phone, with no cap narrower than 46rem", () => {
+    state.selectedId = "note-a";
+    render(<NotesView />);
+
+    const column = screen.getByTestId("editor").closest("div.mx-auto");
+    expect(column).not.toBeNull();
+    expect(column!.classList.contains("w-full")).toBe(true);
+    const caps = [...column!.classList].filter((c) => c.startsWith("max-w-"));
+    expect(caps).toEqual(["max-w-[46rem]"]);
   });
 
   it("creates straight into the editor, the way the desktop pill does", () => {
