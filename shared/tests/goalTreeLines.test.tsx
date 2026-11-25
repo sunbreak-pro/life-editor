@@ -677,3 +677,56 @@ describe("GoalTreeView — the add-below row names its kind with an icon (#2609)
     ).toBe(LABELS.addPlaceholder);
   });
 });
+
+describe("GoalTreeView — the loose todos' empty line (#2851)", () => {
+  const LOOSE_LABELS: GoalTreeLabels = {
+    ...LABELS,
+    looseEmpty: "No todos are outside a goal",
+  };
+
+  function renderLoose(
+    todos: { id: string; title: string; status: "NOT_STARTED" | "DONE" }[],
+    activeFilters?: string[],
+  ): void {
+    render(
+      <GoalTreeView
+        model={buildGoalTreeModel({
+          goals: GOALS,
+          links: [],
+          todos: todos.map((t) => ({
+            ...t,
+            completedAt:
+              t.status === "DONE" ? "2026-09-29T00:00:00Z" : undefined,
+          })),
+          todayKey: "2026-09-30",
+          untitled: "Untitled",
+        })}
+        isLoading={false}
+        selectedGoalId={null}
+        onSelectGoal={vi.fn()}
+        onCreateGoal={vi.fn().mockResolvedValue(true)}
+        onCreateLooseTodo={vi.fn().mockResolvedValue(true)}
+        onSetTodoStatus={vi.fn()}
+        onOpenTodo={vi.fn()}
+        activeFilters={activeFilters}
+        labels={LOOSE_LABELS}
+      />,
+    );
+  }
+
+  it("says there are none when no loose todo exists", () => {
+    renderLoose([]);
+    expect(screen.queryByText("No todos are outside a goal")).not.toBeNull();
+  });
+
+  it("stays silent when every loose todo is done and listed under Completed items", () => {
+    renderLoose([{ id: "d1", title: "Done loose", status: "DONE" }]);
+    expect(screen.queryByText("No todos are outside a goal")).toBeNull();
+    expect(screen.queryByText("Done loose")).not.toBeNull();
+  });
+
+  it("stays silent while a filter is on, since it may be what hid them", () => {
+    renderLoose([], ["Tag"]);
+    expect(screen.queryByText("No todos are outside a goal")).toBeNull();
+  });
+});
