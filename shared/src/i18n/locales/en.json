@@ -1169,7 +1169,7 @@
       },
       "period": "{{kind}} · {{key}}",
       "pickHint": "Pick a goal to see its details here",
-      "sheetTitle": "Goal: {{title}}",
+      "sheetTitle": "Goal details",
       "linkSave": "Link",
       "writeFailed": "Could not save the goal. Check your connection and try again.",
       "expand": "Expand: {{title}}",
@@ -1198,6 +1198,7 @@
       "moveTodoFailed": "Could not move the todo. Check your connection and try again.",
       "arrange": {
         "heading": "Sort & filter",
+        "sheetTitle": "Sort and filter",
         "sort": "Sort",
         "sortStandard": "Standard",
         "sortProgress": "Progress",
@@ -1208,7 +1209,10 @@
         "inProgress": "In progress",
         "hideDoneTodos": "Hide done todos",
         "filteringBy": "Filtering by",
+        "filteringByLine": "Filtering by: {{filters}}",
+        "periodSeparator": ", ",
         "reset": "Reset",
+        "resetAll": "Reset all",
         "noMatch": "No goals match these filters."
       }
     }

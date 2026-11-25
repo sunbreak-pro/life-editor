@@ -1151,7 +1151,7 @@
       },
       "period": "{{kind}} · {{key}}",
       "pickHint": "目標を選ぶと、ここに詳細が出ます",
-      "sheetTitle": "目標: {{title}}",
+      "sheetTitle": "目標の詳細",
       "linkSave": "つなぐ",
       "writeFailed": "目標を保存できませんでした。通信を確認して、もう一度操作してください。",
       "expand": "開く: {{title}}",
@@ -1180,6 +1180,7 @@
       "moveTodoFailed": "Todo を移せませんでした。通信を確認して、もう一度操作してください。",
       "arrange": {
         "heading": "並び替え・絞り込み",
+        "sheetTitle": "並び替えと絞り込み",
         "sort": "並び替え",
         "sortStandard": "標準",
         "sortProgress": "進捗順",
@@ -1190,7 +1191,10 @@
         "inProgress": "進行中",
         "hideDoneTodos": "完了した Todo を隠す",
         "filteringBy": "絞り込み中",
+        "filteringByLine": "絞り込み中：{{filters}}",
+        "periodSeparator": "・",
         "reset": "リセット",
+        "resetAll": "条件をリセット",
         "noMatch": "条件に合う目標はありません。"
       }
     }

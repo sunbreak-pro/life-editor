@@ -1,10 +1,10 @@
 import { Check } from "lucide-react";
 import { cn } from "../cn";
-import { StatusFilterChips } from "../materials/StatusFilterChips";
 import { SegmentedControl } from "../SegmentedControl";
 import { FOCUS_RING_TIGHT } from "../styleTokens";
 import type { GoalPeriodKind } from "../../types/goal";
 import {
+  DEFAULT_GOAL_TREE_ARRANGEMENT,
   GOAL_PERIOD_KINDS,
   type GoalTreeArrangement,
   type GoalTreeFilter,
@@ -18,10 +18,11 @@ import {
  * phone, in a bottom sheet behind the "Sort & filter" button. The choice
  * lives in the host because the tree and this panel render apart.
  *
- * The form follows the Claude Design proposal (#2410): the period is three
- * chips, pressed again to clear; the status is three choices, since a goal with
- * nothing connected has its own group under the tree; hiding done todos is a
- * switch.
+ * The form follows the Claude Design proposal (#2410, #2610): the period is
+ * three chips, each on or off on its own and all on at first; the status is
+ * three choices, since a goal with nothing connected has its own group under
+ * the tree; hiding done todos is a switch. "Reset all" shows only while
+ * something differs from the start, and takes the sort back too.
  *
  * Pure presentation (§6.4): the arrangement and every label come from the
  * host (web/src/connect/GoalsTodosScreen.tsx).
@@ -36,9 +37,13 @@ export interface GoalTreeArrangeLabels {
   all: string;
   /** "This year" / "This month" / "This week" — the period chips. */
   periods: Record<GoalPeriodKind, string>;
+  /** Joins the periods left on in the filter line: "This year, This month". */
+  periodSeparator: string;
   statusLabel: string;
   statuses: Record<GoalTreeStatus, string>;
   hideDoneTodos: string;
+  /** "Reset all" — under the panel while anything is set (#2610). */
+  resetAll: string;
 }
 
 export interface GoalTreeArrangePanelProps {
@@ -54,19 +59,25 @@ const STATUSES: readonly (GoalTreeStatus | "all")[] = [
   "achieved",
 ];
 
-const FIELD_LABEL = "text-xs font-medium text-lumen-text-tertiary";
+const FIELD_LABEL = "text-xs font-bold text-lumen-text-tertiary";
 
 /**
- * The active filter as short phrases — "This week", "Achieved", "Done todos
- * hidden" — for the line the tree shows over itself while filtered. Empty
- * when nothing is filtered.
+ * The active filter as short phrases — "This year, This month", "Achieved",
+ * "Hide done todos" — for the line the tree shows over itself while filtered.
+ * Empty when nothing is filtered, so the host also reads it as "is filtered".
  */
 export function describeGoalTreeFilter(
   filter: GoalTreeFilter,
   labels: GoalTreeArrangeLabels,
 ): string[] {
   const parts: string[] = [];
-  if (filter.period !== "all") parts.push(labels.periods[filter.period]);
+  // Chip order, whatever order they were switched in.
+  const on = GOAL_PERIOD_KINDS.filter((kind) => filter.periods.includes(kind));
+  if (on.length < GOAL_PERIOD_KINDS.length) {
+    parts.push(
+      on.map((kind) => labels.periods[kind]).join(labels.periodSeparator),
+    );
+  }
   if (filter.status !== "all") parts.push(labels.statuses[filter.status]);
   if (filter.hideDoneTodos) parts.push(labels.hideDoneTodos);
   return parts;
@@ -83,6 +94,20 @@ export function GoalTreeArrangePanel({
       sort,
       filter: { ...filter, ...patch },
     });
+  const togglePeriod = (kind: GoalPeriodKind): void => {
+    const isOn = filter.periods.includes(kind);
+    // With none on the tree would be empty and the filter line would have
+    // nothing to name, so the last chip on stays on.
+    if (isOn && filter.periods.length === 1) return;
+    setFilter({
+      periods: GOAL_PERIOD_KINDS.filter((k) =>
+        k === kind ? !isOn : filter.periods.includes(k),
+      ),
+    });
+  };
+  const isSet =
+    sort !== DEFAULT_GOAL_TREE_ARRANGEMENT.sort ||
+    describeGoalTreeFilter(filter, labels).length > 0;
 
   return (
     <section aria-label={labels.heading} className="flex flex-col gap-3">
@@ -98,20 +123,35 @@ export function GoalTreeArrangePanel({
       </div>
       <div className="flex flex-col gap-1.5">
         <span className={FIELD_LABEL}>{labels.periodLabel}</span>
-        <StatusFilterChips
-          chips={GOAL_PERIOD_KINDS.map((id) => ({
-            id,
-            label: labels.periods[id],
-            icon:
-              filter.period === id ? <Check size={14} aria-hidden /> : undefined,
-          }))}
-          value={filter.period === "all" ? null : filter.period}
-          onChange={(id) =>
-            setFilter({ period: (id ?? "all") as GoalTreeFilter["period"] })
-          }
-          label={labels.periodLabel}
-          className="max-md:[&>button]:min-h-11"
-        />
+        {/* StatusFilterChips' look, but each chip toggles on its own: that
+            component keeps one chip at most. */}
+        <div
+          role="group"
+          aria-label={labels.periodLabel}
+          className="flex flex-wrap gap-2 max-md:[&>button]:min-h-11"
+        >
+          {GOAL_PERIOD_KINDS.map((kind) => {
+            const isOn = filter.periods.includes(kind);
+            return (
+              <button
+                key={kind}
+                type="button"
+                aria-pressed={isOn}
+                onClick={() => togglePeriod(kind)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-lumen-full border px-3 py-1 text-sm transition-colors",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+                  isOn
+                    ? "border-lumen-accent bg-lumen-accent-subtle font-semibold text-lumen-accent"
+                    : "border-lumen-border bg-lumen-bg text-lumen-text-secondary hover:bg-lumen-hover",
+                )}
+              >
+                {isOn && <Check size={14} aria-hidden />}
+                <span>{labels.periods[kind]}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
       <div className="flex flex-col gap-1.5">
         <span className={FIELD_LABEL}>{labels.statusLabel}</span>
@@ -155,6 +195,18 @@ export function GoalTreeArrangePanel({
           />
         </span>
       </button>
+      {isSet && (
+        <button
+          type="button"
+          onClick={() => onChange(DEFAULT_GOAL_TREE_ARRANGEMENT)}
+          className={cn(
+            "self-start rounded-lumen-sm text-xs text-lumen-accent underline-offset-2 hover:underline max-md:min-h-11",
+            FOCUS_RING_TIGHT,
+          )}
+        >
+          {labels.resetAll}
+        </button>
+      )}
     </section>
   );
 }

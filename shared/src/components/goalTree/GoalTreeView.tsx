@@ -11,6 +11,7 @@ import {
   ChevronDown,
   ChevronRight,
   GripVertical,
+  ListFilter,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -171,6 +172,11 @@ export interface GoalTreeLabels {
   formatCollapse: (title: string) => string;
   /** "Filtering by" — leads the active-filter line over the tree. */
   filteringBy: string;
+  /**
+   * The whole filter line, "Filtering by: This year / Achieved" (#2610), so a
+   * locale picks its own colon. Absent, `filteringBy` and ": " lead it.
+   */
+  formatFilteringBy?: (filters: string) => string;
   resetFilters: string;
   /** A filter left no goal to draw. */
   noMatch: string;
@@ -266,6 +272,11 @@ export interface GoalTreeViewProps {
   /** The active filter as phrases; empty or absent when nothing is filtered. */
   activeFilters?: readonly string[];
   onResetFilters?: () => void;
+  /**
+   * Drawn at the end of the add button's row (#2610): the host's phone-only
+   * "Sort & filter" button, so the two share one line as in the prototype.
+   */
+  addRowEnd?: ReactNode;
   onSetTodoStatus: (todoId: string, status: TodoStatus) => void;
   onOpenTodo: (todoId: string) => void;
   /** The todo open in the editor, whose row is marked (#2401). */
@@ -1667,18 +1678,21 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
   return (
     <div className={cn("flex flex-col gap-6", TREE_TOGGLE_SIZE)}>
       <section aria-label={labels.addHeading}>
-        <Button
-          ref={addButton}
-          variant={adding ? "primary" : "secondary"}
-          size="sm"
-          // Opens on this week, the period the empty state's button sets too.
-          onClick={() => openAdd(adding ? null : "week")}
-          aria-expanded={adding !== null}
-          leadingIcon={<Plus size={14} aria-hidden />}
-          className={cn(KEEP_LABEL, "max-md:min-h-11")}
-        >
-          {labels.addHeading}
-        </Button>
+        <div className="flex items-center justify-between gap-2">
+          <Button
+            ref={addButton}
+            variant={adding ? "primary" : "secondary"}
+            size="sm"
+            // Opens on this week, the period the empty state's button sets too.
+            onClick={() => openAdd(adding ? null : "week")}
+            aria-expanded={adding !== null}
+            leadingIcon={<Plus size={14} aria-hidden />}
+            className={cn(KEEP_LABEL, "max-md:min-h-11")}
+          >
+            {labels.addHeading}
+          </Button>
+          {props.addRowEnd}
+        </div>
         {adding && (
           <Card
             padding="sm"
@@ -1822,18 +1836,24 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
               role="status"
               className="-mb-3 flex flex-wrap items-center gap-2 rounded-lumen-sm bg-lumen-bg-secondary px-3 py-1.5 text-xs text-lumen-text-secondary"
             >
+              <ListFilter size={14} aria-hidden className="shrink-0" />
               <span className="min-w-0 flex-1">
-                {labels.filteringBy}: {activeFilters.join(" · ")}
+                {labels.formatFilteringBy
+                  ? labels.formatFilteringBy(activeFilters.join(" / "))
+                  : `${labels.filteringBy}: ${activeFilters.join(" / ")}`}
               </span>
               {props.onResetFilters && (
-                <Button
-                  size="sm"
-                  variant="ghost"
+                <button
+                  type="button"
                   onClick={props.onResetFilters}
-                  className={cn(KEEP_LABEL, "max-md:min-h-11")}
+                  className={cn(
+                    KEEP_LABEL,
+                    "rounded-lumen-sm text-lumen-accent underline-offset-2 hover:underline max-md:min-h-11",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+                  )}
                 >
                   {labels.resetFilters}
-                </Button>
+                </button>
               )}
             </div>
           )}
