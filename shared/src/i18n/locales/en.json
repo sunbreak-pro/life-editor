@@ -745,6 +745,8 @@
     "linkFocusEventMarked": "Outlined the event \"{{title}}\"",
     "linkFocusTodoInPanel": "The todo \"{{title}}\" is in the right panel",
     "quickAddPlaceholder": "Enter an event…",
+    "quickAddTitle": "Quick add",
+    "openFullForm": "More details",
     "detailTitle": "Event details",
     "detailPanelLabel": "Detail panel",
     "editDetail": "Edit details",

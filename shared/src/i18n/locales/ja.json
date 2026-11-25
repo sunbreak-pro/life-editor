@@ -740,6 +740,8 @@
     "linkFocusEventMarked": "予定『{{title}}』を枠で示しています",
     "linkFocusTodoInPanel": "Todo『{{title}}』を右のパネルに出しています",
     "quickAddPlaceholder": "予定を入力…",
+    "quickAddTitle": "クイック追加",
+    "openFullForm": "詳しく入力",
     "detailTitle": "予定の詳細",
     "detailPanelLabel": "詳細パネル",
     "editDetail": "詳細を編集",
