@@ -79,10 +79,10 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
   deleteLabel: string;
   dragHintLabel: string;
   /**
-   * False in the flat default list (#2061): it has no tag headings to drop
-   * onto, so a row there is not a drag source at all — no sensors, no tab stop
-   * announcing a drag, no drag hint as its name. Retagging by drag (#1687)
-   * stays in the tag-grouped list, where the headings are.
+   * False for an "Other items" row (#2061): nothing it could be dropped on is
+   * drawn beside it, so it is not a drag source at all — no sensors, no tab
+   * stop announcing a drag, no drag hint as its name. The default list's rows
+   * drag since #2579, onto the every-tag panel drawn over that list.
    */
   draggable?: boolean;
   /** While offline: the bin is off, and this says why (#2337). */

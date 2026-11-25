@@ -398,6 +398,8 @@
       "collapseGroup": "グループを折りたたむ",
       "expandGroup": "グループを展開",
       "assignTagHint": "タグにドロップして付与",
+      "tagDropRelease": "ここで離すと付きます",
+      "tagDropNoTags": "タグがまだありません",
       "sortTitle": "タイトル",
       "tagFilterLabel": "タグ",
       "tagFilterHeading": "タグで絞り込む",

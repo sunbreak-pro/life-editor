@@ -1524,11 +1524,15 @@ describe("NotesView — the default list (#2061)", () => {
     ).toBeNull();
   });
 
-  it("does not make the default list's rows drag sources (#1687 stays grouped)", () => {
+  it("makes the default list's rows drag sources as the grouped ones are (#2579)", () => {
     render(<NotesView />);
 
+    // #2061 kept them still for want of a target; #2579 gave them the
+    // every-tag panel.
     const flatRow = screen.getByRole("button", { name: "Alpha" }).closest("li");
-    expect(flatRow?.getAttribute("aria-label")).toBeNull();
+    expect(flatRow?.getAttribute("aria-label")).toBe(
+      "materials.notes.assignTagHint",
+    );
 
     showAllTagGroups();
     const groupedRow = screen

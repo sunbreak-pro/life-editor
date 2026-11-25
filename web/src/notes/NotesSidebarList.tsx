@@ -21,8 +21,13 @@ import {
   FOCUS_RING,
   useTranslation,
 } from "@life-editor/shared";
-import { noteDraggableId, type NoteTagDnd } from "./useNoteTagDnd";
+import {
+  flatNoteDraggableId,
+  noteDraggableId,
+  type NoteTagDnd,
+} from "./useNoteTagDnd";
 import { NoteTagFilterPanel } from "./NoteTagFilterPanel";
+import { TagDropTargets } from "./TagDropTargets";
 import { DesktopNoteRow, DesktopTagHeading } from "./NoteListRows";
 import { OtherNotesFlyout, OtherNotesList } from "./OtherNotesPanel";
 import { TreeDragGhost } from "../components/TreeDragGhost";
@@ -61,8 +66,11 @@ import { formatNoteUpdated } from "./formatNoteUpdated";
  * heading it came from goes, the tag it landed on arrives. The untagged bucket
  * is a target too, and dropping there removes only that one tag rather than
  * every tag the note has. No reorder / move-into: sort_order carries no meaning
- * across the many-to-many tag model. Only the tag-grouped list has headings to
- * drop on, so only its rows drag (#2061); the default list's rows do not.
+ * across the many-to-many tag model. The default list has no headings, so its
+ * rows drop onto a panel of every tag drawn over the list while one is held
+ * (#2579): that drop only adds, since the row came from no tag. "Other items"
+ * rows do not drag — the flyout lies outside the list's DndContext, and the
+ * narrow view replaces the list the panel would sit on.
  */
 
 export interface NotesSidebarListLabels {
@@ -361,13 +369,20 @@ export function NotesSidebarList({
     };
   };
 
-  /** A row of the default list or of "Other items" — never a drag source. */
-  const flatRow = (node: NoteNode, onSelect: (id: string) => void) => (
+  /**
+   * A row of the default list (a drag source since #2579) or of "Other
+   * items" (never one). A touch row drops the drag on its own (#2032).
+   */
+  const flatRow = (
+    node: NoteNode,
+    onSelect: (id: string) => void,
+    draggable = true,
+  ) => (
     <DesktopNoteRow
       key={node.id}
       node={node}
-      dragId={`flat-${node.id}`}
-      draggable={false}
+      dragId={flatNoteDraggableId(node.id)}
+      draggable={draggable}
       selected={selectedNoteId === node.id}
       onSelect={onSelect}
       onDelete={onDeleteNote}
@@ -389,7 +404,9 @@ export function NotesSidebarList({
     onSelectNote(id);
   };
   const othersTitle = labels.otherItems(otherNotes.length);
-  const othersRows = otherNotes.map((node) => flatRow(node, selectFromOthers));
+  const othersRows = otherNotes.map((node) =>
+    flatRow(node, selectFromOthers, false),
+  );
   const othersInline = othersShown && othersPresentation === "inline";
 
   /*
@@ -570,92 +587,128 @@ export function NotesSidebarList({
           </OtherNotesList>
         ) : listMode === "flat" ? (
           /* #2061 — the default list: pinned → current sort, 15 rows, in the
-             two #2576 groups. */
-          <div className="flex flex-col gap-1">
-            {freshNote && (
-              // #2581: a group of its own with no heading — the row's badge
-              // already says what it is.
-              <section
-                aria-label={labels.newHeading}
-                data-testid="note-list-fresh-group"
-                className="flex flex-col gap-1"
-              >
-                <ul className="flex flex-col gap-0.5">
-                  {flatRow(freshNote, onSelectNote)}
-                </ul>
-              </section>
+             two #2576 groups. Its own DndContext since #2579, for the drop
+             onto the every-tag panel. */
+          <DndContext
+            sensors={dnd.sensors}
+            collisionDetection={pointerWithin}
+            onDragStart={dnd.handleDragStart}
+            onDragOver={dnd.handleDragOver}
+            onDragEnd={dnd.handleDragEnd}
+            onDragCancel={dnd.handleDragCancel}
+          >
+            {/* Outside the column below: its gap would give even the panel's
+                zero-height box a slot, and the rows would move by it. */}
+            {dnd.activeId && (
+              <TagDropTargets
+                noteId={dnd.activeId}
+                overTagId={dnd.overTagId}
+                labels={{
+                  title: labels.assignTagHint,
+                  release: t("materials.notes.tagDropRelease"),
+                  noTags: t("materials.notes.tagDropNoTags"),
+                }}
+              />
             )}
-            {pinnedCount > 0 && (
-              <section
-                aria-label={labels.pinnedHeading}
-                className={cn(
-                  "flex flex-col gap-1",
-                  freshNote !== undefined &&
-                    "mt-3 border-t border-lumen-border pt-3",
-                )}
-              >
-                <ListGroupHeading
-                  icon={
-                    <Pin size={12} aria-hidden className="text-lumen-accent" />
-                  }
-                  label={labels.pinnedHeading}
-                  count={pinnedCount}
-                />
-                <ul className="flex flex-col gap-0.5">
-                  {pinnedRows.map((node) => flatRow(node, onSelectNote))}
-                </ul>
-              </section>
-            )}
-            {restCount > 0 && (
-              <section
-                aria-label={labels.allHeading}
-                className={cn(
-                  "flex flex-col gap-1",
-                  // The rule and the 0.75rem between the two groups.
-                  (pinnedCount > 0 || freshNote !== undefined) &&
-                    "mt-3 border-t border-lumen-border pt-3",
-                )}
-              >
-                <ListGroupHeading
-                  icon={
-                    <FileText
-                      size={12}
-                      aria-hidden
-                      className="text-lumen-text-secondary"
-                    />
-                  }
-                  label={labels.allHeading}
-                  count={restCount}
-                />
-                <ul className="flex flex-col gap-0.5">
-                  {restRows.map((node) => flatRow(node, onSelectNote))}
-                </ul>
-              </section>
-            )}
-            {otherNotes.length > 0 && (
-              <button
-                ref={setOthersTrigger}
-                type="button"
-                onClick={() => setOthersOpen((v) => !v)}
-                aria-expanded={othersShown}
-                aria-controls={othersId}
-                className={cn(
-                  "flex h-8 w-full items-center justify-between gap-2 rounded-lumen-md px-2 text-left text-xs text-lumen-text-secondary hover:bg-lumen-hover max-md:min-h-11",
-                  othersShown && "bg-lumen-hover text-lumen-text",
-                  FOCUS_RING,
-                )}
-              >
-                <span className="min-w-0 truncate">{othersTitle}</span>
-                {/* Points where the list will appear: left of the sidebar on
+            <div className="flex flex-col gap-1">
+              {freshNote && (
+                // #2581: a group of its own with no heading — the row's badge
+                // already says what it is.
+                <section
+                  aria-label={labels.newHeading}
+                  data-testid="note-list-fresh-group"
+                  className="flex flex-col gap-1"
+                >
+                  <ul className="flex flex-col gap-0.5">
+                    {flatRow(freshNote, onSelectNote)}
+                  </ul>
+                </section>
+              )}
+              {pinnedCount > 0 && (
+                <section
+                  aria-label={labels.pinnedHeading}
+                  className={cn(
+                    "flex flex-col gap-1",
+                    freshNote !== undefined &&
+                      "mt-3 border-t border-lumen-border pt-3",
+                  )}
+                >
+                  <ListGroupHeading
+                    icon={
+                      <Pin
+                        size={12}
+                        aria-hidden
+                        className="text-lumen-accent"
+                      />
+                    }
+                    label={labels.pinnedHeading}
+                    count={pinnedCount}
+                  />
+                  <ul className="flex flex-col gap-0.5">
+                    {pinnedRows.map((node) => flatRow(node, onSelectNote))}
+                  </ul>
+                </section>
+              )}
+              {restCount > 0 && (
+                <section
+                  aria-label={labels.allHeading}
+                  className={cn(
+                    "flex flex-col gap-1",
+                    // The rule and the 0.75rem between the two groups.
+                    (pinnedCount > 0 || freshNote !== undefined) &&
+                      "mt-3 border-t border-lumen-border pt-3",
+                  )}
+                >
+                  <ListGroupHeading
+                    icon={
+                      <FileText
+                        size={12}
+                        aria-hidden
+                        className="text-lumen-text-secondary"
+                      />
+                    }
+                    label={labels.allHeading}
+                    count={restCount}
+                  />
+                  <ul className="flex flex-col gap-0.5">
+                    {restRows.map((node) => flatRow(node, onSelectNote))}
+                  </ul>
+                </section>
+              )}
+              {otherNotes.length > 0 && (
+                <button
+                  ref={setOthersTrigger}
+                  type="button"
+                  onClick={() => setOthersOpen((v) => !v)}
+                  aria-expanded={othersShown}
+                  aria-controls={othersId}
+                  className={cn(
+                    "flex h-8 w-full items-center justify-between gap-2 rounded-lumen-md px-2 text-left text-xs text-lumen-text-secondary hover:bg-lumen-hover max-md:min-h-11",
+                    othersShown && "bg-lumen-hover text-lumen-text",
+                    FOCUS_RING,
+                  )}
+                >
+                  <span className="min-w-0 truncate">{othersTitle}</span>
+                  {/* Points where the list will appear: left of the sidebar on
                     wide, onward inside the drawer on narrow. */}
-                {othersPresentation === "flyout" ? (
-                  <ChevronLeft size={14} aria-hidden className="shrink-0" />
-                ) : (
-                  <ChevronRight size={14} aria-hidden className="shrink-0" />
-                )}
-              </button>
-            )}
-          </div>
+                  {othersPresentation === "flyout" ? (
+                    <ChevronLeft size={14} aria-hidden className="shrink-0" />
+                  ) : (
+                    <ChevronRight size={14} aria-hidden className="shrink-0" />
+                  )}
+                </button>
+              )}
+            </div>
+            <DragOverlay>
+              {dnd.activeNote ? (
+                // #2579: the held row tilts a little, as the prototype draws
+                // it; the ghost itself already carries the shadow.
+                <div className="rotate-[-0.8deg]">
+                  <TreeDragGhost title={dnd.activeNote.title} />
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
         ) : (
           <DndContext
             sensors={dnd.sensors}
