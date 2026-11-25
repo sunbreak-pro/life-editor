@@ -52,6 +52,9 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
   tagColor,
   tagIcon,
   extraTagCount = 0,
+  untitledLabel = "",
+  isNew = false,
+  newLabel,
 }: {
   node: NoteNode;
   dragId: string;
@@ -99,6 +102,18 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
   tagIcon?: string | null;
   /** Tags past the first, drawn as "+n" beside its chip. */
   extraTagCount?: number;
+  /**
+   * The grey text an empty title shows, already translated (#2581). It used
+   * to be an English "(untitled)" literal, so a Japanese list said it in
+   * English. The host always passes it.
+   */
+  untitledLabel?: string;
+  /**
+   * The note "+" just made (#2581): its title line gets the `newLabel` badge
+   * until the user moves on to another note.
+   */
+  isNew?: boolean;
+  newLabel?: string;
 }) {
   // #2032: on a phone a hold that drifted a few px picked the row up, and the
   // hold itself selected the title. The drag (#312) is a pointer gesture for
@@ -120,6 +135,8 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
   const titleLineId = useId();
   const detailsId = useId();
   const hasMeta = updatedLabel !== undefined || tagName !== undefined;
+  const untitled = node.title === "";
+  const shownTitle = node.title || untitledLabel;
 
   return (
     // Grip removed (#312): the whole row is the drag activator now — press-drag
@@ -220,11 +237,25 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
                 ? "truncate max-md:line-clamp-2 max-md:whitespace-normal max-md:break-words"
                 : "truncate",
               node.isPinned ? "font-medium" : "",
-              selected ? "text-lumen-accent" : "text-lumen-text",
+              // #2581: the placeholder is grey, like the title field's, so it
+              // does not read as a title someone typed.
+              untitled
+                ? "text-lumen-text-tertiary"
+                : selected
+                  ? "text-lumen-accent"
+                  : "text-lumen-text",
             )}
           >
-            {node.title || "(untitled)"}
+            {shownTitle}
           </span>
+          {isNew && newLabel && (
+            <span
+              data-testid="note-row-new-badge"
+              className="shrink-0 rounded-lumen-sm bg-lumen-accent-subtle px-1 text-[11px] font-semibold text-lumen-accent"
+            >
+              {newLabel}
+            </span>
+          )}
           {node.hasPassword && (
             <Lock
               size={12}
@@ -288,7 +319,7 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
             onEdit(node.id);
           }}
           aria-haspopup="dialog"
-          aria-label={`${editLabel ?? ""}: ${node.title || "untitled"}`}
+          aria-label={`${editLabel ?? ""}: ${shownTitle}`}
           className={cn(
             "flex min-h-11 min-w-11 shrink-0 items-center justify-center text-lumen-text-tertiary hover:text-lumen-accent",
             // #2673: a touch row is a phone's, so this is the size it gets.
@@ -307,7 +338,7 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
             e.stopPropagation();
             onDelete(node.id);
           }}
-          aria-label={`${deleteLabel}: ${node.title || "untitled"}`}
+          aria-label={`${deleteLabel}: ${shownTitle}`}
           disabled={deleteDisabledReason !== undefined}
           title={deleteDisabledReason}
           className={cn(

@@ -49,12 +49,13 @@ export interface UseNotesUnifiedCRUDParams {
    */
   onWriteError?: NoteWriteErrorHandler;
   /**
-   * #1953 — the title a note gets when it is created without one. The host
-   * passes the translated `common.untitled`, the same way it injects the
-   * DataService, because shared hooks take their copy from the host. The
-   * string is stored as the title (see UseNotesUnifiedAPIOptions).
+   * @deprecated #2581 — no longer read. A note created without a title is
+   * stored with an empty one, and the surfaces draw the grey "Untitled note"
+   * placeholder over it instead. Kept on the type only because
+   * useNotesUnifiedAPI still hands it over; removing the plumbing (and the
+   * host test that pins it) is a follow-up outside #2581's scope.
    */
-  untitledTitle: string;
+  untitledTitle?: string;
 }
 
 /** An undo or redo of a rename, pin or delete waits for the connection (#2337). */
@@ -86,7 +87,6 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
     markLocalWrite,
     trackWrite,
     onWriteError,
-    untitledTitle,
   } = params;
 
   const createNote = useCallback(
@@ -108,8 +108,11 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
       const now = new Date().toISOString();
       const resolvedParentId = opts?.parentId ?? null;
       const resolvedContent = opts?.initialContent ?? "";
+      // #2581: an untitled note is stored with an empty title. A stored word
+      // ("無題") had to be deleted by hand before naming the note; the list
+      // and the title field draw a placeholder over the empty title instead.
       const newNote: NoteNode = {
-        ...buildNoteNode(id, title || untitledTitle, resolvedParentId, now),
+        ...buildNoteNode(id, title ?? "", resolvedParentId, now),
         content: resolvedContent,
       };
       setNotes((prev) => [newNote, ...prev]);
@@ -203,7 +206,6 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
       setSelectedNoteId,
       selectedNoteIdRef,
       onWriteError,
-      untitledTitle,
     ],
   );
 

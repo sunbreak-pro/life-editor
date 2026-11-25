@@ -106,6 +106,11 @@ export interface NotesSidebarListLabels {
   /** A row's third line (#2576): "Updated today HH:MM" / "Updated M/D". */
   updatedToday: (time: string) => string;
   updatedOn: (date: string) => string;
+  /** The grey text an empty title shows (#2581). */
+  untitled?: string;
+  /** The badge on the note "+" just made, and its group's name (#2581). */
+  newBadge?: string;
+  newHeading?: string;
 }
 
 /** What a row shows under its title besides the date (#2576). */
@@ -192,6 +197,12 @@ export interface NotesSidebarListProps {
   offlineReason?: string;
   /** A row's excerpt and tags (#2576); without it the rows show the date only. */
   rowDetails?: (node: NoteNode) => NoteRowDetails;
+  /**
+   * The note "+" just made (#2581), until the user moves on to another note.
+   * Its row carries the "New" badge, and the default list draws it alone in
+   * a group above "Pinned" and "All".
+   */
+  freshNoteId?: string | null;
   onCreateNote: () => void;
   dnd: NoteTagDnd;
 
@@ -219,8 +230,8 @@ export function NotesSidebarList({
   onToggleTagFilter,
   onClearTagFilters,
   listMode,
-  defaultNotes,
-  otherNotes,
+  defaultNotes: matchedDefaultNotes,
+  otherNotes: matchedOtherNotes,
   othersPresentation,
   error,
   hasNotes,
@@ -239,10 +250,30 @@ export function NotesSidebarList({
   onEditNote,
   offlineReason,
   rowDetails,
+  freshNoteId = null,
   onCreateNote,
   dnd,
   templatesSlot,
 }: NotesSidebarListProps) {
+  /*
+   * #2581: the default list draws the note "+" just made on its own, above
+   * the other groups, so it is the first row whatever the sort says. It is
+   * taken out of the rows below (and out of their counts) rather than drawn
+   * twice. Only while the list's matches hold it, so a later query that does
+   * not match it hides it like any other row.
+   */
+  const freshNote =
+    listMode === "flat" && freshNoteId !== null
+      ? (matchedDefaultNotes.find((n) => n.id === freshNoteId) ??
+        matchedOtherNotes.find((n) => n.id === freshNoteId))
+      : undefined;
+  const defaultNotes = freshNote
+    ? matchedDefaultNotes.filter((n) => n.id !== freshNote.id)
+    : matchedDefaultNotes;
+  const otherNotes = freshNote
+    ? matchedOtherNotes.filter((n) => n.id !== freshNote.id)
+    : matchedOtherNotes;
+
   /*
    * Whether "Other items" is open (#2061). Local UI state, not persisted: it
    * answers "I am looking past the 15th row right now". It can only SHOW while
@@ -310,7 +341,10 @@ export function NotesSidebarList({
 
   // One clock read per render, so every row agrees on what "today" is.
   const now = new Date();
-  /** The second and third lines of a row, as the row's primitive props. */
+  /**
+   * The second and third lines of a row, plus the title line's placeholder
+   * and "New" badge (#2581), as the row's primitive props.
+   */
   const detailProps = (node: NoteNode) => {
     const details = rowDetails?.(node);
     const [first, ...rest] = details?.tags ?? [];
@@ -321,6 +355,9 @@ export function NotesSidebarList({
       tagColor: first?.color,
       tagIcon: first?.icon,
       extraTagCount: rest.length,
+      untitledLabel: labels.untitled,
+      isNew: node.id === freshNoteId,
+      newLabel: labels.newBadge,
     };
   };
 
@@ -535,10 +572,27 @@ export function NotesSidebarList({
           /* #2061 — the default list: pinned → current sort, 15 rows, in the
              two #2576 groups. */
           <div className="flex flex-col gap-1">
+            {freshNote && (
+              // #2581: a group of its own with no heading — the row's badge
+              // already says what it is.
+              <section
+                aria-label={labels.newHeading}
+                data-testid="note-list-fresh-group"
+                className="flex flex-col gap-1"
+              >
+                <ul className="flex flex-col gap-0.5">
+                  {flatRow(freshNote, onSelectNote)}
+                </ul>
+              </section>
+            )}
             {pinnedCount > 0 && (
               <section
                 aria-label={labels.pinnedHeading}
-                className="flex flex-col gap-1"
+                className={cn(
+                  "flex flex-col gap-1",
+                  freshNote !== undefined &&
+                    "mt-3 border-t border-lumen-border pt-3",
+                )}
               >
                 <ListGroupHeading
                   icon={
@@ -558,7 +612,8 @@ export function NotesSidebarList({
                 className={cn(
                   "flex flex-col gap-1",
                   // The rule and the 0.75rem between the two groups.
-                  pinnedCount > 0 && "mt-3 border-t border-lumen-border pt-3",
+                  (pinnedCount > 0 || freshNote !== undefined) &&
+                    "mt-3 border-t border-lumen-border pt-3",
                 )}
               >
                 <ListGroupHeading

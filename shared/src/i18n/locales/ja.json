@@ -346,6 +346,9 @@
         "separator": "、"
       },
       "untitled": "(無題)",
+      "untitledPlaceholder": "無題のノート",
+      "newBadge": "新規",
+      "newHeading": "作ったばかりのノート",
       "lockedHint": "このノートはロックされています",
       "offlineLocked": "オフラインのあいだは、ノートの題の変更・ピン留め・削除はできません。",
       "unsentLocked": "このノートはまだ送信していません。送信が済むまで、題の変更・ピン留め・削除はできません。",

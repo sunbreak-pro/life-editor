@@ -347,6 +347,9 @@
         "separator": ", "
       },
       "untitled": "(untitled)",
+      "untitledPlaceholder": "Untitled note",
+      "newBadge": "New",
+      "newHeading": "Just created",
       "lockedHint": "This note is locked",
       "offlineLocked": "You are offline, so renaming, pinning and deleting notes are off until you reconnect.",
       "unsentLocked": "This note has not been sent yet, so renaming, pinning and deleting it are off until it is.",

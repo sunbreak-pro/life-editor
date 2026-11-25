@@ -98,8 +98,8 @@ function makeHarness(initialNotes: NoteNode[] = []) {
     markLocalWrite,
     trackWrite,
     onWriteError,
-    // #1953: the host's translated placeholder. A non-English value, so a
-    // hard-coded English fallback coming back would fail the case below.
+    // #1953's placeholder, still handed over by useNotesUnifiedAPI. Since
+    // #2581 it is not stored; the case below fails if it is again.
     untitledTitle: "無題",
   };
 
@@ -148,14 +148,24 @@ describe("createNote", () => {
     });
   });
 
-  it("falls back to the host's placeholder for a blank title (#1953)", () => {
+  it("stores a note created without a title with an empty one (#2581)", () => {
+    // The harness still hands over the old placeholder ("無題"), so a create
+    // that went back to storing it would fail here. The surfaces draw the
+    // grey placeholder over the empty title instead (#1953 stored the word).
     const h = makeHarness();
     h.crud.createNote();
-    expect(h.notes()[0]?.title).toBe("無題");
+    expect(h.notes()[0]?.title).toBe("");
     h.crud.createNote("");
-    expect(h.notes()[0]?.title).toBe("無題");
-    // The row written to the server carries the same title the list shows.
-    expect(h.ds.createNoteUnified.mock.calls[0][0].title).toBe("無題");
+    expect(h.notes()[0]?.title).toBe("");
+    // The row written to the server is empty too, not just the local one.
+    expect(h.ds.createNoteUnified.mock.calls[0][0].title).toBe("");
+    expect(h.ds.createNoteUnified.mock.calls[1][0].title).toBe("");
+  });
+
+  it("keeps an explicit title as given", () => {
+    const h = makeHarness();
+    h.crud.createNote("Plan");
+    expect(h.ds.createNoteUnified.mock.calls[0][0].title).toBe("Plan");
   });
 
   it("marks the new note hydrated and locally written (M1 / #607)", () => {

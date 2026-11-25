@@ -256,3 +256,84 @@ describe("DesktopNoteRow — three lines (#2576)", () => {
     expect(screen.getByText("Updated 11/3")).toBeTruthy();
   });
 });
+
+/*
+ * #2581 — a new note is stored untitled. Its row shows the host's translated
+ * placeholder in grey (it used to be an English "(untitled)" literal), and
+ * the note "+" just made carries the "New" badge on its title line.
+ */
+describe("DesktopNoteRow — the untitled placeholder and the New badge (#2581)", () => {
+  it("shows the host's placeholder, greyed, for an empty title", () => {
+    render(
+      inDnd(
+        <DesktopNoteRow
+          node={note({ id: "note-a", title: "" })}
+          selected
+          untitledLabel="無題のノート"
+          {...rowProps()}
+        />,
+      ),
+    );
+    const placeholder = screen.getByText("無題のノート");
+    expect(placeholder.classList.contains("text-lumen-text-tertiary")).toBe(
+      true,
+    );
+    // Grey even on the selected row, where a real title turns accent.
+    expect(placeholder.classList.contains("text-lumen-accent")).toBe(false);
+    expect(screen.queryByText("(untitled)")).toBeNull();
+    // The bin names the row by what it shows, not by an English word.
+    expect(screen.getByLabelText("Delete: 無題のノート")).toBeTruthy();
+  });
+
+  it("draws a typed title in the title colour, not the placeholder's", () => {
+    render(
+      inDnd(
+        <DesktopNoteRow
+          node={note({ id: "note-a", title: "Plan" })}
+          selected={false}
+          untitledLabel="無題のノート"
+          {...rowProps()}
+        />,
+      ),
+    );
+    const title = screen.getByText("Plan");
+    expect(title.classList.contains("text-lumen-text")).toBe(true);
+    expect(screen.queryByText("無題のノート")).toBeNull();
+  });
+
+  it("puts the New badge on the title line of a fresh row only", () => {
+    const { rerender } = render(
+      inDnd(
+        <DesktopNoteRow
+          node={note({ id: "note-a", title: "" })}
+          selected
+          untitledLabel="無題のノート"
+          isNew
+          newLabel="新規"
+          {...rowProps()}
+        />,
+      ),
+    );
+    const badge = screen.getByTestId("note-row-new-badge");
+    expect(badge.textContent).toBe("新規");
+    // On the first line, beside the title (#2576's row has three).
+    expect(badge.parentElement).toBe(
+      screen.getByText("無題のノート").parentElement,
+    );
+
+    // memo has to let the flag going off through as well.
+    rerender(
+      inDnd(
+        <DesktopNoteRow
+          node={note({ id: "note-a", title: "" })}
+          selected
+          untitledLabel="無題のノート"
+          isNew={false}
+          newLabel="新規"
+          {...rowProps()}
+        />,
+      ),
+    );
+    expect(screen.queryByTestId("note-row-new-badge")).toBeNull();
+  });
+});
