@@ -44,28 +44,6 @@
     "languageDesc": "表示言語を切り替えます。変更は画面全体に即時反映されます。",
     "english": "English",
     "japanese": "日本語",
-    "detail": {
-      "previewHeading": "現在の外観",
-      "windowTitle": "今日の Todo",
-      "previewTitle": "今日の Todo",
-      "appearanceSummary": "テーマ: {{theme}} · 文字サイズ {{fontValue}}",
-      "tipsHeading": "ヒント",
-      "todos": {
-        "shopping": "買い物リストを作る",
-        "coffee": "コーヒー豆を注文する",
-        "dinner": "夕食の下ごしらえをする"
-      },
-      "tips": {
-        "immediate": {
-          "title": "変更は即時保存されます",
-          "body": "保存ボタンはありません。切り替えるとすぐアプリ全体へ反映されます。"
-        },
-        "fontSize": {
-          "title": "文字サイズは本文に反映",
-          "body": "見出しやUIは固定のまま、本文の可読性だけを調整します。"
-        }
-      }
-    },
     "themeSystem": "システム",
     "fontFamilyLabel": "フォント",
     "fontFamilyDesc": "アプリ全体の本文に適用されます。",
@@ -201,7 +179,6 @@
       "general": "一般",
       "claude": "Claude",
       "trash": "ゴミ箱",
-      "tips": "ヒント",
       "hiddenNote": "{{category}}を表示しています。ほかのカテゴリは詳細パネルにあります。",
       "showCategories": "カテゴリを表示"
     },
@@ -209,9 +186,6 @@
       "heading": "ゴミ箱",
       "description": "削除したものはここに残ります。元に戻すか、完全に削除できます。",
       "unavailable": "いまはゴミ箱を読み込めません。接続を確認して開き直してください。"
-    },
-    "placeholder": {
-      "message": "このセクションの設定は、用意でき次第ここに並びます。"
     },
     "schedule": {
       "heading": "予定",
@@ -682,7 +656,6 @@
     "memo": "メモ",
     "save": "保存",
     "originRoutine": "ルーチンから生成",
-    "originEvent": "予定",
     "skipThisDay": "この日はスキップ",
     "seriesEditHint": "タイトルと時刻を変えると「この予定のみ / これ以降 / すべて」を選ぶ画面が出ます。日付・終日・メモはこの日の予定だけに適用されます。タグは繰り返し本体に付くので、ここで付け外しすると確認なしで過去・未来のすべての回に反映されます。",
     "skippedTitle": "スキップ済み（{{count}}件）",
@@ -1308,8 +1281,7 @@
       "openGoal": "{{title}} を開く",
       "back": "目標の一覧へ戻る",
       "linkTodos": "Todo をつなぐ: {{title}}",
-      "openInConnect": "目標と Todo で開く",
-      "migrationOverflow_other": "目標ノートの行を目標に移しました。この移行で入れるのは 1 つの期間に 3 つまでなので、残りの {{count}} 行はノートにそのまま残しています。"
+      "openInConnect": "目標と Todo で開く"
     },
     "review": {
       "title": "終わった期間の目標",

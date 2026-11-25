@@ -1,14 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
-  loadExpandedIds,
-  saveExpandedIds,
   loadSortDirection,
   saveSortDirection,
   loadSortMode,
   saveSortMode,
   buildNoteNode,
-  buildChildrenByParent,
-  flattenVisibleNotes,
   filterAndSortNotes,
   filterNotesBySearch,
   collectNoteSubtree,
@@ -32,45 +28,6 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
-});
-
-describe("expanded-ids persistence", () => {
-  it("round-trips a set through localStorage", () => {
-    saveExpandedIds(new Set(["a", "b"]));
-    expect(localStorage.getItem("life-editor:note-tree-expanded")).toBe(
-      '["a","b"]',
-    );
-    expect(loadExpandedIds()).toEqual(new Set(["a", "b"]));
-  });
-
-  it("returns an empty set when nothing is stored", () => {
-    expect(loadExpandedIds()).toEqual(new Set());
-  });
-
-  it("returns an empty set on malformed JSON instead of throwing", () => {
-    localStorage.setItem("life-editor:note-tree-expanded", "{not json");
-    expect(loadExpandedIds()).toEqual(new Set());
-  });
-
-  it("returns an empty set when the stored value is not iterable", () => {
-    // `new Set(42)` throws inside the try — the catch must swallow it.
-    localStorage.setItem("life-editor:note-tree-expanded", "42");
-    expect(loadExpandedIds()).toEqual(new Set());
-  });
-
-  it("swallows storage write failures (private mode / quota)", () => {
-    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
-      throw new DOMException("QuotaExceededError");
-    });
-    expect(() => saveExpandedIds(new Set(["a"]))).not.toThrow();
-  });
-
-  it("swallows storage read failures", () => {
-    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
-      throw new DOMException("SecurityError");
-    });
-    expect(loadExpandedIds()).toEqual(new Set());
-  });
 });
 
 describe("sort-direction persistence", () => {
@@ -154,106 +111,6 @@ describe("buildNoteNode", () => {
     expect(
       buildNoteNode("note-2", "Root", null, "2026-01-01T00:00:00.000Z"),
     ).toMatchObject({ parentId: null });
-  });
-});
-
-describe("buildChildrenByParent", () => {
-  it("groups by parent, using the null key for roots", () => {
-    const notes = [
-      makeNote("root-a"),
-      makeNote("root-b"),
-      makeNote("child", { parentId: "root-a" }),
-    ];
-    const map = buildChildrenByParent(notes);
-    expect(map.get(null)?.map((n) => n.id)).toEqual(["root-a", "root-b"]);
-    expect(map.get("root-a")?.map((n) => n.id)).toEqual(["child"]);
-    expect(map.get("root-b")).toBeUndefined();
-  });
-
-  it("sorts each sibling group by order", () => {
-    const notes = [
-      makeNote("third", { order: 3 }),
-      makeNote("first", { order: 1 }),
-      makeNote("second", { order: 2 }),
-    ];
-    expect(
-      buildChildrenByParent(notes)
-        .get(null)
-        ?.map((n) => n.id),
-    ).toEqual(["first", "second", "third"]);
-  });
-
-  it("includes deleted rows (the caller filters)", () => {
-    const notes = [makeNote("live"), makeNote("gone", { isDeleted: true })];
-    expect(buildChildrenByParent(notes).get(null)).toHaveLength(2);
-  });
-
-  it("returns an empty map for an empty list", () => {
-    expect(buildChildrenByParent([]).size).toBe(0);
-  });
-});
-
-describe("flattenVisibleNotes", () => {
-  const tree = [
-    makeNote("root", { order: 0 }),
-    makeNote("child", { parentId: "root", order: 0 }),
-    makeNote("grandchild", { parentId: "child", order: 0 }),
-    makeNote("sibling", { order: 1 }),
-  ];
-
-  it("hides descendants of collapsed nodes", () => {
-    expect(flattenVisibleNotes(tree, new Set()).map((n) => n.id)).toEqual([
-      "root",
-      "sibling",
-    ]);
-  });
-
-  it("descends only into expanded nodes, depth-first", () => {
-    expect(
-      flattenVisibleNotes(tree, new Set(["root"])).map((n) => n.id),
-    ).toEqual(["root", "child", "sibling"]);
-    expect(
-      flattenVisibleNotes(tree, new Set(["root", "child"])).map((n) => n.id),
-    ).toEqual(["root", "child", "grandchild", "sibling"]);
-  });
-
-  it("ignores an expanded id whose parent stays collapsed", () => {
-    expect(
-      flattenVisibleNotes(tree, new Set(["child"])).map((n) => n.id),
-    ).toEqual(["root", "sibling"]);
-  });
-
-  it("orders siblings by order", () => {
-    const notes = [makeNote("b", { order: 2 }), makeNote("a", { order: 1 })];
-    expect(flattenVisibleNotes(notes, new Set()).map((n) => n.id)).toEqual([
-      "a",
-      "b",
-    ]);
-  });
-
-  it("terminates on corrupt data and drops rows a null-rooted walk cannot reach", () => {
-    // a -> b -> a. No cycle member has a null parent, so the walk never
-    // enters it — the guard in the helper is belt-and-braces. Pinning the
-    // behaviour anyway: it must return the real root and not hang.
-    const notes = [
-      makeNote("root"),
-      makeNote("a", { parentId: "b" }),
-      makeNote("b", { parentId: "a" }),
-    ];
-    const flat = flattenVisibleNotes(notes, new Set(["root", "a", "b"]));
-    expect(flat.map((n) => n.id)).toEqual(["root"]);
-  });
-
-  it("walks a deep chain when every level is expanded", () => {
-    const notes = [
-      makeNote("l0"),
-      makeNote("l1", { parentId: "l0" }),
-      makeNote("l2", { parentId: "l1" }),
-      makeNote("l3", { parentId: "l2" }),
-    ];
-    expect(
-      flattenVisibleNotes(notes, new Set(["l0", "l1", "l2"])).map((n) => n.id),
-    ).toEqual(["l0", "l1", "l2", "l3"]);
   });
 });
 

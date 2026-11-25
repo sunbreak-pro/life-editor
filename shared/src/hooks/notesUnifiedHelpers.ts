@@ -10,35 +10,16 @@ import { sortNotesForList } from "../utils/noteSort";
 
 export type NoteSortDirection = "asc" | "desc";
 
-// All three keys share the `life-editor:` per-surface prefix so "reset
-// settings" sweeps them (it matches by prefix — utils/resetPreferences.ts).
-// #718: LS_EXPANDED and LS_SORT_DIRECTION used to be bare (`note-tree-expanded`
-// / `note-sort-direction`) to avoid orphaning already-saved values, which meant
-// a reset cleared the sort MODE below but not its DIRECTION. Renaming is now
-// safe because `migrateLegacyPreferenceKeys` (utils/) copies the old values
-// across at startup — do not reintroduce an un-prefixed key here.
-const LS_EXPANDED = "life-editor:note-tree-expanded";
+// Both keys share the `life-editor:` per-surface prefix so "reset settings"
+// sweeps them (it matches by prefix — utils/resetPreferences.ts).
+// #718: LS_SORT_DIRECTION used to be bare (`note-sort-direction`) to avoid
+// orphaning already-saved values, which meant a reset cleared the sort MODE
+// below but not its DIRECTION. Renaming is now safe because
+// `migrateLegacyPreferenceKeys` (utils/) copies the old value across at
+// startup — do not reintroduce an un-prefixed key here.
 const LS_SORT_DIRECTION = "life-editor:note-sort-direction";
 // #283: sort MODE persistence.
 const LS_SORT_MODE = "life-editor:note-sort-mode";
-
-export function loadExpandedIds(): Set<string> {
-  try {
-    const saved = localStorage.getItem(LS_EXPANDED);
-    if (saved) return new Set(JSON.parse(saved) as string[]);
-  } catch {
-    // ignore malformed / unavailable storage
-  }
-  return new Set();
-}
-
-export function saveExpandedIds(ids: Set<string>): void {
-  try {
-    localStorage.setItem(LS_EXPANDED, JSON.stringify([...ids]));
-  } catch {
-    // ignore storage write failures (private mode / quota)
-  }
-}
 
 export function loadSortDirection(): NoteSortDirection {
   try {
@@ -114,64 +95,6 @@ export function buildNoteNode(
     createdAt: now,
     updatedAt: now,
   };
-}
-
-// `buildChildrenByParent` is built once per `notes` change (O(n) group +
-// sort) so `getChildren` is an O(1) Map lookup instead of an O(n)
-// filter+sort per call. NotesView's flatten previously called getChildren
-// twice per node (children + grandchildren probe) → O(n²); the Map
-// collapses that to O(n). Behaviour is identical: same null-vs-string
-// parent key (root uses the `null` key), same order sort, and it includes
-// is_deleted rows just like the old filter did (the NotesView walk applies
-// its own `!isDeleted` filter, and `flattenVisibleNotes` also sees the
-// full set).
-export function buildChildrenByParent(
-  notes: NoteNode[],
-): Map<string | null, NoteNode[]> {
-  const map = new Map<string | null, NoteNode[]>();
-  for (const n of notes) {
-    const list = map.get(n.parentId);
-    if (list) list.push(n);
-    else map.set(n.parentId, [n]);
-  }
-  for (const list of map.values()) {
-    list.sort((a, b) => a.order - b.order);
-  }
-  return map;
-}
-
-// Flatten tree for DnD (only visible nodes). #375: the recursion used to be
-// gated on `type === "folder"`; with folders retired it descends into any
-// expanded node. NOTE (#418): the nesting UI is retired — the movement hook
-// can no longer re-parent, so no drag can deepen the tree. Data-level
-// hierarchy is still writable though (`createNote({ parentId })`, and
-// MCP `create_todo(parent_id)` on the todo side), so this walk sees legacy
-// rows plus anything a non-UI caller creates.
-export function flattenVisibleNotes(
-  notes: NoteNode[],
-  expandedIds: Set<string>,
-): NoteNode[] {
-  const result: NoteNode[] = [];
-  // Defensive, not load-bearing: a walk rooted at `null` cannot actually
-  // reach a parentId cycle (no cycle member has a null parent) and ids are
-  // a PK, so this only fires on genuinely corrupt data. Kept because it is
-  // one Set lookup per node.
-  const seen = new Set<string>();
-  const walk = (parentId: string | null) => {
-    const children = notes
-      .filter((n) => n.parentId === parentId)
-      .sort((a, b) => a.order - b.order);
-    for (const child of children) {
-      if (seen.has(child.id)) continue;
-      seen.add(child.id);
-      result.push(child);
-      if (expandedIds.has(child.id)) {
-        walk(child.id);
-      }
-    }
-  };
-  walk(null);
-  return result;
 }
 
 /**
