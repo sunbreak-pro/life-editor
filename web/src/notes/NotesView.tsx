@@ -55,6 +55,7 @@ import {
 import { TemplateEditHost } from "./TemplateEditHost";
 import { useElementWidth } from "./hooks/useElementWidth";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
+import { formatNoteUpdated } from "./formatNoteUpdated";
 
 /*
  * Web Notes tab (life-tags unification S1). The former folder tree is gone:
@@ -127,34 +128,6 @@ interface NotesViewProps {
   onConsumePendingSelect?: () => void;
   /** Open a tag on Connect's tag screen (#2395). Absent → no such button. */
   onOpenTag?: (tagId: string) => void;
-}
-
-/**
- * "Updated today 14:05" / "Updated 11/3" in the device's time zone — the same
- * wording the side list's rows use (#2576), so a note reads the same in both
- * places. Kept here rather than imported because NotesSidebarList's formatter
- * is module-private (#2626).
- */
-function formatRecentUpdated(
-  iso: string,
-  now: Date,
-  labels: {
-    updatedToday: (time: string) => string;
-    updatedOn: (date: string) => string;
-  },
-): string | undefined {
-  const at = new Date(iso);
-  if (Number.isNaN(at.getTime())) return undefined;
-  const sameDay =
-    at.getFullYear() === now.getFullYear() &&
-    at.getMonth() === now.getMonth() &&
-    at.getDate() === now.getDate();
-  if (sameDay) {
-    const hh = String(at.getHours()).padStart(2, "0");
-    const mm = String(at.getMinutes()).padStart(2, "0");
-    return labels.updatedToday(`${hh}:${mm}`);
-  }
-  return labels.updatedOn(`${at.getMonth() + 1}/${at.getDate()}`);
 }
 
 /**
@@ -1012,7 +985,7 @@ export function NotesView({
                             ? undefined
                             : excerpts.get(note.id) || undefined
                         }
-                        updated={formatRecentUpdated(
+                        updated={formatNoteUpdated(
                           note.updatedAt,
                           recentNow,
                           recentUpdatedLabels,
