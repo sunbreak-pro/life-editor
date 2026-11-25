@@ -106,7 +106,7 @@ export function useGoalTreeLabels(todayKey: string): {
       renameField: t("connect.goals.titleLabel"),
       loading: t("connect.goals.loading"),
       loadFailed: t("connect.goals.loadFailed"),
-      retry: t("connect.goals.retry"),
+      retry: t("common.retry"),
     };
   }, [t, i18n.language, todayKey]);
 

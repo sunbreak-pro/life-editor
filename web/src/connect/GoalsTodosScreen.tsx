@@ -758,7 +758,7 @@ export function GoalsTodosScreen({
             {panel ? (
               <div className="border-t border-lumen-border pt-4">{panel}</div>
             ) : (
-              <p className="text-xs text-lumen-text-tertiary">
+              <p className="px-2 py-6 text-center text-xs text-lumen-text-tertiary">
                 {t("connect.goals.pickHint")}
               </p>
             )}

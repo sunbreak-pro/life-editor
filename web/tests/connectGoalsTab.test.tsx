@@ -372,11 +372,15 @@ describe("Connect Goals & Todos tab (#2108)", () => {
       .mockResolvedValue(GOALS);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     await renderTab(makeDS({ fetchGoals }), () => screen.getByRole("alert"));
+    // The shared danger card with the shared "Retry" (#2614).
+    const card = screen.getByRole("alert");
+    within(card).getByText("Could not load the goals");
+    expect(card.className.split(/\s+/)).toContain("border-lumen-danger");
     expect(screen.queryByText(/No goals yet/)).toBeNull();
     // No add button: an empty model says nothing true about the periods.
     expect(screen.queryByRole("button", { name: "Set a goal" })).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    fireEvent.click(within(card).getByRole("button", { name: "Retry" }));
     await waitFor(() => screen.getByRole("region", { name: "Goal tree" }));
   });
 
@@ -388,7 +392,7 @@ describe("Connect Goals & Todos tab (#2108)", () => {
       }),
       "Set a goal",
     );
-    screen.getByText(/No goals yet/);
+    screen.getByText("No goals yet. Write down one place you want to reach.");
     expect(screen.queryByRole("region", { name: "Goal tree" })).toBeNull();
     expect(
       screen.queryByRole("region", { name: "Unconnected goals" }),
@@ -768,11 +772,14 @@ describe("Connect Goals & Todos tab (#2108)", () => {
   });
 
   it("shows a hint under the controls until a goal is picked, then the details (#2398)", async () => {
-    const hint = "Pick a goal to see its details here";
+    const hint = "Pick a goal to see its details here.";
     const { panel } = await renderTab();
 
     panel().getByRole("region", { name: "Sort & filter" });
-    panel().getByText(hint);
+    // Centred and ending in a full stop, as the prototype has it (#2614).
+    expect(panel().getByText(hint).className.split(/\s+/)).toContain(
+      "text-center",
+    );
     expect(panel().queryByRole("textbox", { name: "Goal title" })).toBeNull();
 
     fireEvent.click(goalRow("Get the proposal approved"));
@@ -1872,7 +1879,7 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sort & filter" }));
     screen.getByRole("dialog", { name: "Sort and filter" });
     expect(
-      screen.queryByText("Pick a goal to see its details here"),
+      screen.queryByText("Pick a goal to see its details here."),
     ).toBeNull();
   });
 
