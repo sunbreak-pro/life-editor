@@ -6,7 +6,7 @@ import {
 import { collectPreferenceKeys } from "../src/utils/resetPreferences";
 
 /*
- * #718 (D-20260812-materials-1 = A) — the three bare Notes keys were renamed
+ * #718 (D-20260812-materials-1 = A) — the bare Notes keys were renamed
  * into the `life-editor:` namespace so "reset settings" can see them. This
  * covers the hand-off that makes the rename lossless: values already saved
  * under the old names are copied across at startup, then the old names go away.
@@ -31,37 +31,30 @@ describe("LEGACY_PREFERENCE_KEY_RENAMES", () => {
     );
   });
 
-  it("covers the three keys named in the issue", () => {
+  it("covers the two keys still carried over", () => {
     expect(LEGACY_PREFERENCE_KEY_RENAMES.map(([from]) => from).sort()).toEqual([
       "note-sort-direction",
       "note-tag-groups-collapsed",
-      "note-tree-expanded",
     ]);
   });
 });
 
 describe("migrateLegacyPreferenceKeys", () => {
   it("copies each legacy value onto the namespaced key and drops the old one", () => {
-    localStorage.setItem("note-tree-expanded", '["a","b"]');
     localStorage.setItem("note-sort-direction", "desc");
     localStorage.setItem("note-tag-groups-collapsed", '["work"]');
 
     expect(migrateLegacyPreferenceKeys().sort()).toEqual([
       "note-sort-direction",
       "note-tag-groups-collapsed",
-      "note-tree-expanded",
     ]);
 
-    expect(localStorage.getItem("life-editor:note-tree-expanded")).toBe(
-      '["a","b"]',
-    );
     expect(localStorage.getItem("life-editor:note-sort-direction")).toBe(
       "desc",
     );
     expect(localStorage.getItem("life-editor:note-tag-groups-collapsed")).toBe(
       '["work"]',
     );
-    expect(localStorage.getItem("note-tree-expanded")).toBeNull();
     expect(localStorage.getItem("note-sort-direction")).toBeNull();
     expect(localStorage.getItem("note-tag-groups-collapsed")).toBeNull();
   });
@@ -93,7 +86,7 @@ describe("migrateLegacyPreferenceKeys", () => {
 
   it("leaves unrelated origin keys alone", () => {
     localStorage.setItem("some-other-app", "keep");
-    localStorage.setItem("note-tree-expanded", '["a"]');
+    localStorage.setItem("note-sort-direction", "desc");
 
     migrateLegacyPreferenceKeys();
 

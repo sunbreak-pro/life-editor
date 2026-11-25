@@ -2,12 +2,11 @@
  * One-shot rename of the un-prefixed localStorage keys into the app namespace
  * (#718 — decision D-20260812-materials-1, option A).
  *
- * Three Notes view prefs predate the `life-editor` naming convention and were
- * stored under bare names (`note-tree-expanded`, `note-sort-direction`,
- * `note-tag-groups-collapsed`). "Reset settings" sweeps by prefix
- * (utils/resetPreferences.ts), so those three survived a reset and left Notes
- * in a half-reset state — the sort MODE went back to default while its
- * DIRECTION, the tree expansion and the folded tag groups stayed.
+ * Two Notes view prefs predate the `life-editor` naming convention and were
+ * stored under bare names (`note-sort-direction`, `note-tag-groups-collapsed`).
+ * "Reset settings" sweeps by prefix (utils/resetPreferences.ts), so those two
+ * survived a reset and left Notes in a half-reset state — the sort MODE went
+ * back to default while its DIRECTION and the folded tag groups stayed.
  *
  * They were left bare on purpose: renaming a key orphans whatever is already
  * stored under the old name. This module removes that objection — it copies
@@ -32,7 +31,6 @@ export const LEGACY_PREFERENCE_KEY_RENAMES: readonly (readonly [
   string,
 ])[] = [
   // hooks/notesUnifiedHelpers.ts
-  ["note-tree-expanded", "life-editor:note-tree-expanded"],
   ["note-sort-direction", "life-editor:note-sort-direction"],
   // web/src/notes/hooks/useNoteListState.tsx
   ["note-tag-groups-collapsed", "life-editor:note-tag-groups-collapsed"],
