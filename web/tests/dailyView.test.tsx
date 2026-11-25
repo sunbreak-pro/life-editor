@@ -47,6 +47,7 @@ const state = vi.hoisted(() => {
   const doc = (content: unknown[]) => JSON.stringify({ type: "doc", content });
   return {
     isWide: true,
+    language: "en",
     lastMerge: null as unknown,
     dailies: [] as unknown[],
     selectedDate: "",
@@ -92,7 +93,7 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
     useTranslation: () => ({
       t: (key: string, opts?: Record<string, unknown>) =>
         opts ? `${key}|${Object.values(opts).join(",")}` : key,
-      i18n: { language: "en" },
+      i18n: { language: state.language },
     }),
     useMediaQuery: () => state.isWide,
     useSyncDomains: () => 0,
@@ -244,6 +245,7 @@ function daily(date: string, over: Partial<DailyNode> = {}): DailyNode {
 beforeEach(() => {
   localStorage.clear();
   state.isWide = true;
+  state.language = "en";
   state.lastMerge = null;
   state.selectedDate = YESTERDAY;
   state.dailies = [daily(TODAY), daily(YESTERDAY), daily(LAST_WEEK)];
@@ -1022,6 +1024,28 @@ describe("DailyView — the entry list says which day is open (#1839)", () => {
         .getAllByRole("button")
         .filter((b) => b.getAttribute("aria-current") === "true"),
     ).toHaveLength(0);
+  });
+
+  it("labels an entry row as M月D日（曜） in Japanese, with the year only off this year (#2590)", () => {
+    state.language = "ja";
+    state.dailies = [daily("2020-03-05"), daily(TODAY)];
+    state.selectedDate = TODAY;
+    render(<DailyView />);
+
+    // 2020-03-05 was a Thursday.
+    screen.getAllByText("2020年3月5日（木）");
+    const now = new Date();
+    screen.getAllByText(
+      `${now.getMonth() + 1}月${now.getDate()}日（${"日月火水木金土"[now.getDay()]}）`,
+    );
+  });
+
+  it("keeps the short Wd M/D row label in English, with the year off this year (#2590)", () => {
+    state.dailies = [daily("2020-03-05")];
+    state.selectedDate = "2020-03-05";
+    render(<DailyView />);
+
+    screen.getAllByText("Thu 3/5/2020");
   });
 
   it("says why the list is empty when a filter empties it", () => {

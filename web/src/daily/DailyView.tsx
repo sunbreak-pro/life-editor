@@ -843,12 +843,9 @@ export function DailyView({
     })}`;
   };
 
-  const entryDayLabel = (iso: string): string => {
-    const d = parseIso(iso);
-    const wd = weekdayShort.format(d);
-    if (isJa) return `${d.getMonth() + 1}/${d.getDate()}（${wd}）`;
-    return `${wd} ${d.getMonth() + 1}/${d.getDate()}`;
-  };
+  // Ja reads "M月D日（曜）" like the heading; en keeps the short "Wd M/D". Both
+  // add the year for a day outside this year, as the heading does (#2590).
+  const entryDayLabel = (iso: string): string => headingLabel(iso, !isJa);
 
   const todayIso = useMemo(() => isoDay(0), []);
 
