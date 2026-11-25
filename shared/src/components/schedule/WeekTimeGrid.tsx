@@ -835,7 +835,7 @@ export function WeekTimeGrid({
                           }
                           style={face.style}
                           className={cn(
-                            "block h-5 w-full cursor-pointer truncate rounded px-1 py-0.5 text-left text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+                            "block w-full cursor-pointer truncate rounded px-1 py-0.5 text-left text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
                             face.className,
                           )}
                         >
@@ -890,8 +890,9 @@ export function WeekTimeGrid({
                         }
                         title={it.title}
                         className={cn(
-                          // h-5 = the month chip's 1.25rem (#2563).
-                          "flex h-5 w-full items-center gap-1 rounded px-1 text-left text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+                          // py-0.5 + text-xs like the month chip, so both take
+                          // their height from the same line box (#2702).
+                          "flex w-full items-center gap-1 rounded px-1 py-0.5 text-left text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
                           face.className,
                           selected && SCHEDULE_SELECTED_RING,
                           it.id === markedId && "le-focus-mark",
