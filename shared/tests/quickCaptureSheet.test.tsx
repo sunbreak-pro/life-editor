@@ -10,7 +10,7 @@ import {
 /*
  * QuickCaptureSheet (#280, moved from web CalendarTab) — the Mobile creation
  * frame. Since #2624 it opens as a short sheet (type, title, day, times) and
- * goes on to the unified <ItemCreatePanel> only from 「追加して詳細へ」, which
+ * goes on to the unified <ItemCreatePanel> only from 「詳しく入力」, which
  * carries what was typed. These tests pin what the FRAME owns: the two stages,
  * what the short sheet sends, and the hand-over (the panel's own behaviour is
  * covered by itemCreatePanel.test.tsx).
@@ -85,6 +85,8 @@ function renderSheet(props?: {
     open: true,
     onClose,
     sheetTitle: "Add item",
+    quickTitle: "Quick add",
+    detailLabel: "More details",
     closeLabel: "Close",
     initial: {
       date: props?.initialDate ?? DATE,
@@ -130,21 +132,33 @@ function renderSheet(props?: {
   };
 }
 
-const sheet = () => screen.getByRole("dialog", { name: "Add item" });
-const goToDetail = () => fireEvent.click(screen.getByText("Add and edit"));
+// The short sheet is "Quick add"; the full page it leads to is "Add item" (#2849).
+const shortSheet = () => screen.getByRole("dialog", { name: "Quick add" });
+const fullPage = () => screen.getByRole("dialog", { name: "Add item" });
+const goToDetail = () => fireEvent.click(screen.getByText("More details"));
 
 describe("QuickCaptureSheet — the short sheet (#2624)", () => {
-  it("titles the sheet with sheetTitle, not the title-input label (#376)", () => {
-    // The sheet holds more than one kind of item, so its heading names the
-    // panel. Before #376 both came from the same key and read "Add event".
+  it("titles the short sheet with quickTitle and its left button with detailLabel (#2849)", () => {
     renderSheet();
-    expect(screen.getByText("Add item")).toBeInTheDocument();
+    expect(screen.getByText("Quick add")).toBeInTheDocument();
+    expect(screen.queryByText("Add item")).toBeNull();
+    // The full page's "Add and edit" must not leak onto the sheet.
+    expect(screen.queryByText("Add and edit")).toBeNull();
+    screen.getByText("More details");
+  });
+
+  it("titles the full page with sheetTitle and keeps its footer wording (#2849)", () => {
+    renderSheet();
+    goToDetail();
+    expect(fullPage()).toBeInTheDocument();
+    expect(screen.queryByText("Quick add")).toBeNull();
+    screen.getByText("Add and edit");
   });
 
   it("opens part-way up the screen with only the type, title, day and times", () => {
     renderSheet();
-    expect(sheet().className).not.toContain("h-full");
-    expect(sheet().querySelector("[data-quick-capture]")).not.toBeNull();
+    expect(shortSheet().className).not.toContain("h-full");
+    expect(shortSheet().querySelector("[data-quick-capture]")).not.toBeNull();
     screen.getByRole("tablist", { name: "Item type" });
     screen.getByLabelText("Title");
     screen.getByLabelText("Date");
@@ -250,7 +264,7 @@ describe("QuickCaptureSheet — the short sheet (#2624)", () => {
 
   it("gives every button a 44px floor on a phone", () => {
     renderSheet();
-    for (const name of ["Add and edit", "Add"]) {
+    for (const name of ["More details", "Add"]) {
       expect(screen.getByText(name).className).toContain("max-md:min-h-11");
     }
   });
@@ -273,8 +287,8 @@ describe("QuickCaptureSheet — on to the full page (#2624)", () => {
     expect(onSubmitEvent).not.toHaveBeenCalled();
     expect(onSubmitEventAndOpen).not.toHaveBeenCalled();
     expect(screen.getAllByRole("dialog")).toHaveLength(1);
-    expect(sheet().className).toContain("h-full");
-    expect(sheet().querySelector("[data-quick-capture]")).toBeNull();
+    expect(fullPage().className).toContain("h-full");
+    expect(fullPage().querySelector("[data-quick-capture]")).toBeNull();
     // The full panel's extras are there now.
     screen.getByText("Attach a note");
     expect((screen.getByLabelText("Title") as HTMLInputElement).value).toBe(
@@ -341,7 +355,7 @@ describe("QuickCaptureSheet — on to the full page (#2624)", () => {
     view.rerender(<QuickCaptureSheet {...sheetProps} open={false} />);
     expect(screen.queryByRole("dialog")).toBeNull();
     view.rerender(<QuickCaptureSheet {...sheetProps} open />);
-    expect(sheet().querySelector("[data-quick-capture]")).not.toBeNull();
+    expect(shortSheet().querySelector("[data-quick-capture]")).not.toBeNull();
     expect(screen.queryByText("Attach a note")).toBeNull();
   });
 });

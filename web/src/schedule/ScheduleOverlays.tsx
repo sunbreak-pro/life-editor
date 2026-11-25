@@ -674,7 +674,7 @@ export function ScheduleOverlays({
    * panel behind it.
    *
    * #2624: on Mobile the sheet opens short (type, title, day, times) and goes
-   * on to this same full panel only from its 「追加して詳細へ」. That second
+   * on to this same full panel only from its 「詳しく入力」. That second
    * step lives inside <QuickCaptureSheet>, so this host still opens and
    * closes one frame.
    */
@@ -731,6 +731,8 @@ export function ScheduleOverlays({
       open={!!create.panel}
       onClose={create.onClose}
       sheetTitle={t("scheduleScreen.addItem")}
+      quickTitle={t("scheduleScreen.quickAddTitle")}
+      detailLabel={t("scheduleScreen.openFullForm")}
       closeLabel={t("common.close")}
       initial={{
         date: create.panel?.date ?? create.anchorDate,
