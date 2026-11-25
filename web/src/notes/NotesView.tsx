@@ -17,6 +17,7 @@ import {
   RightSidebarPortal,
   EmptyState,
   SkeletonList,
+  LoadErrorCard,
   AddPill,
   TemplateSavedPanel,
   TemplateListPanel,
@@ -649,13 +650,14 @@ export function NotesView({
    */
   const bodyGated = selected !== null && password.isGated(selected);
 
-  if (notes.isLoading) {
-    return (
-      <div className="px-4 pt-4">
-        <SkeletonList rows={6} rowHeight={34} gap={4} />
-      </div>
-    );
-  }
+  /*
+   * #2582: the first read failed and nothing has been read yet, so the main
+   * area has no note to offer and says so, with a way to read again. A failed
+   * re-read after notes have arrived keeps the notes on screen; the list's
+   * own card reports it.
+   */
+  const mainLoadFailed =
+    !notes.isLoading && !!notes.error && noteRows.length === 0;
 
   // ---- i18n → props (§6.4) --------------------------------------------
 
@@ -788,9 +790,16 @@ export function NotesView({
         untitled: t("materials.notes.untitledPlaceholder"),
         newBadge: t("materials.notes.newBadge"),
         newHeading: t("materials.notes.newHeading"),
+        loadFailedList: t("materials.notes.loadFailedList"),
+        retryLabel: t("common.retry"),
+        loadingLabel: t("materials.notes.loading"),
       }}
       freshNoteId={freshNoteId}
       error={notes.error}
+      // #2582: the list column draws its own skeleton while loading, where it
+      // used to be hidden behind the main one.
+      isLoading={notes.isLoading}
+      onRetry={notes.reload}
       selectedNoteId={selected?.id ?? null}
       onSelectNote={handleSelectNote}
       onDeleteNote={handleDeleteNote}
@@ -851,7 +860,28 @@ export function NotesView({
   // above every note on a phone, so the entry is a 40px "+" in the top bar
   // beside Redo instead. Still one press, and still there with nothing
   // selected. What stays in the column is the #2291 top gap alone.
-  const mainContent = (
+  //
+  // #2582: while the notes load, and when the first read failed, the column
+  // holds only the skeleton or the failed-load card. The narrow column has the
+  // gutter of its own, so the horizontal padding is wide's alone.
+  const mainContent = notes.isLoading ? (
+    <div className={cn("pt-4", isWide && "px-4")}>
+      <SkeletonList
+        rows={6}
+        rowHeight={34}
+        gap={4}
+        label={t("materials.notes.loading")}
+      />
+    </div>
+  ) : mainLoadFailed ? (
+    <div className={cn("pt-4", isWide && "px-4")}>
+      <LoadErrorCard
+        message={t("materials.notes.loadFailedMain")}
+        retryLabel={t("common.retry")}
+        onRetry={notes.reload}
+      />
+    </div>
+  ) : (
     <>
       <div
         className={cn(

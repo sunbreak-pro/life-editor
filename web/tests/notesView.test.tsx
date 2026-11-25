@@ -61,6 +61,7 @@ const state = vi.hoisted(() => ({
   setSearchQuery: vi.fn(),
   setSortMode: vi.fn(),
   setSortDirection: vi.fn(),
+  reload: vi.fn(),
   createNote: vi.fn(),
   softDeleteNote: vi.fn(),
   restoreNote: vi.fn(),
@@ -99,6 +100,7 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
       setSelectedNoteId: state.setSelectedNoteId,
       isLoading: state.isLoading,
       error: state.error,
+      reload: state.reload,
       searchQuery: state.searchQuery,
       setSearchQuery: state.setSearchQuery,
       bodySearchFailed: state.bodySearchFailed,
@@ -289,14 +291,95 @@ function filterOption(name: string): HTMLElement {
 }
 
 describe("NotesView — loading", () => {
-  it("shows a skeleton instead of either surface while notes load", () => {
+  /*
+   * #2582: the list column used to be hidden behind the main skeleton. Both
+   * now draw their own, each a named status, and neither shows a row yet.
+   */
+  it("shows a named skeleton in the list and in the main area while notes load", () => {
     state.isLoading = true;
     render(<NotesView />);
 
-    expect(
-      screen.queryByLabelText("materials.notes.searchPlaceholder"),
-    ).toBeNull();
+    const skeletons = screen.getAllByRole("status", {
+      name: "materials.notes.loading",
+    });
+    expect(skeletons).toHaveLength(2);
+    for (const el of skeletons) {
+      expect(el.getAttribute("aria-busy")).toBe("true");
+    }
+    const panel = screen.getByTestId("right-sidebar-portal");
+    expect(skeletons.filter((el) => panel.contains(el))).toHaveLength(1);
+
     expect(screen.queryByText("Alpha")).toBeNull();
+    expect(screen.queryByText("Beta")).toBeNull();
+    expect(screen.queryByText("materials.notes.empty")).toBeNull();
+  });
+
+  it("does not claim an empty vault in the list while the first read runs", () => {
+    state.isLoading = true;
+    state.notes = [];
+    render(<NotesView />);
+
+    const panel = within(screen.getByTestId("right-sidebar-portal"));
+    panel.getByRole("status", { name: "materials.notes.loading" });
+    expect(panel.queryByText("materials.notes.empty")).toBeNull();
+  });
+});
+
+describe("NotesView — a failed read (#2582)", () => {
+  it("offers a retry in the list and the main area when nothing was read", () => {
+    state.error = "load failed";
+    state.notes = [];
+    render(<NotesView />);
+
+    const alerts = screen.getAllByRole("alert");
+    expect(alerts).toHaveLength(2);
+    const panel = screen.getByTestId("right-sidebar-portal");
+    const listCard = alerts.find((el) => panel.contains(el));
+    const mainCard = alerts.find((el) => !panel.contains(el));
+    if (!listCard || !mainCard) throw new Error("expected a card on each side");
+    within(listCard).getByText("materials.notes.loadFailedList");
+    within(mainCard).getByText("materials.notes.loadFailedMain");
+    // The card replaces the empty state, which would say the vault is empty.
+    expect(screen.queryByText("materials.notes.empty")).toBeNull();
+
+    fireEvent.click(
+      within(listCard).getByRole("button", { name: "common.retry" }),
+    );
+    expect(state.reload).toHaveBeenCalledTimes(1);
+    fireEvent.click(
+      within(mainCard).getByRole("button", { name: "common.retry" }),
+    );
+    expect(state.reload).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the notes on screen when a re-read fails after they arrived", () => {
+    state.error = "load failed";
+    render(<NotesView />);
+
+    const alert = screen.getByRole("alert");
+    expect(screen.getByTestId("right-sidebar-portal").contains(alert)).toBe(
+      true,
+    );
+    within(alert).getByText("materials.notes.loadFailedList");
+    screen.getByText("Alpha");
+    screen.getByText("materials.notes.mainEmpty");
+
+    fireEvent.click(
+      within(alert).getByRole("button", { name: "common.retry" }),
+    );
+    expect(state.reload).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the skeleton, not the card, while the retry reads", () => {
+    state.error = "load failed";
+    state.isLoading = true;
+    state.notes = [];
+    render(<NotesView />);
+
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(
+      screen.getAllByRole("status", { name: "materials.notes.loading" }),
+    ).toHaveLength(2);
   });
 });
 
@@ -753,8 +836,10 @@ describe("NotesView — desktop (wide)", () => {
     state.error = "load failed";
     render(<NotesView />);
 
-    screen.getByRole("alert");
-    screen.getByText("load failed");
+    // #2582: the card carries the screen's copy, not the raw error string.
+    const alert = screen.getByRole("alert");
+    within(alert).getByText("materials.notes.loadFailedList");
+    expect(screen.queryByText("load failed")).toBeNull();
   });
 });
 

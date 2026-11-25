@@ -12,6 +12,8 @@ import {
   EmptyState,
   SidebarListControls,
   NoticePanel,
+  LoadErrorCard,
+  SkeletonList,
   tagGroupKey as groupKey,
   UNTAGGED_GROUP_KEY,
   BUSY_STALE,
@@ -73,6 +75,13 @@ import { formatNoteUpdated } from "./formatNoteUpdated";
  * narrow view replaces the list the panel would sit on.
  */
 
+/*
+ * The loading rows (#2582): one bar for a title, a longer one for its
+ * excerpt, repeated. SkeletonList has one bar height, so the pairs read as
+ * rows through their widths alone.
+ */
+const LOADING_ROW_WIDTHS = ["62%", "88%"] as const;
+
 export interface NotesSidebarListLabels {
   searchPlaceholder: string;
   sort: string;
@@ -119,6 +128,15 @@ export interface NotesSidebarListLabels {
   /** The badge on the note "+" just made, and its group's name (#2581). */
   newBadge?: string;
   newHeading?: string;
+  /**
+   * The failed-load card's copy and its button (#2582). Optional, like the
+   * #2581 pair, so a host that renders the list on its own still compiles; the
+   * card needs both these and `onRetry` to replace the plain danger band.
+   */
+  loadFailedList?: string;
+  retryLabel?: string;
+  /** The list skeleton's spoken name while the notes load (#2582). */
+  loadingLabel?: string;
 }
 
 /** What a row shows under its title besides the date (#2576). */
@@ -169,6 +187,10 @@ export interface NotesSidebarListProps {
 
   // The list itself.
   error: string | null;
+  /** The first read of the notes is still running (#2582). */
+  isLoading?: boolean;
+  /** Reads the notes again — the failed-load card's button (#2582). */
+  onRetry?: () => void;
   /** Whether the VAULT holds any note — not whether the query matched (#1470). */
   hasNotes: boolean;
   /** A query is on and nothing matched it (#1470). */
@@ -242,6 +264,8 @@ export function NotesSidebarList({
   otherNotes: matchedOtherNotes,
   othersPresentation,
   error,
+  isLoading = false,
+  onRetry,
   hasNotes,
   searchEmpty,
   searchBusy = false,
@@ -409,6 +433,20 @@ export function NotesSidebarList({
   );
   const othersInline = othersShown && othersPresentation === "inline";
 
+  // #2582: the card needs its copy and a way to read again; a host without
+  // them keeps the plain danger band.
+  const retryCard =
+    Boolean(error) &&
+    onRetry !== undefined &&
+    labels.loadFailedList !== undefined &&
+    labels.retryLabel !== undefined
+      ? {
+          message: labels.loadFailedList,
+          retryLabel: labels.retryLabel,
+          onRetry,
+        }
+      : null;
+
   /*
    * #2576: the default list in two groups, "Pinned" over "All". A pinned note
    * is drawn in the first group only. The counts take in every match, the
@@ -531,11 +569,22 @@ export function NotesSidebarList({
         />
       )}
 
-      {error && (
-        // No glyph: this band sits in a dense sidebar column where the
-        // extra 16px pushes the first tag heading off the fold.
-        <NoticePanel message={error} tone="danger" icon={null} />
-      )}
+      {error &&
+        !isLoading &&
+        (retryCard ? (
+          // #2582: the shared failed-load card, so the list can be read again
+          // without leaving the tab. Hidden while a retry is loading, where
+          // the skeleton below is the answer.
+          <LoadErrorCard
+            message={retryCard.message}
+            retryLabel={retryCard.retryLabel}
+            onRetry={retryCard.onRetry}
+          />
+        ) : (
+          // No glyph: this band sits in a dense sidebar column where the
+          // extra 16px pushes the first tag heading off the fold.
+          <NoticePanel message={error} tone="danger" icon={null} />
+        ))}
 
       {/*
        * The list. While the body half of a search is still in flight the
@@ -549,7 +598,24 @@ export function NotesSidebarList({
         className={cn(searchBusy && BUSY_STALE)}
         aria-busy={searchBusy || undefined}
       >
-        {searchEmpty ? (
+        {isLoading ? (
+          /*
+           * #2582: the prototype's two-bar rows, a title and its excerpt, in
+           * place of the list. Before this the list column was not drawn at
+           * all while loading, and an empty `notes` here would otherwise read
+           * as "no notes yet" with a create button. The same goes for a failed
+           * first read: the card above says nothing was read, so the empty
+           * state is left out rather than claim the vault is empty.
+           */
+          <SkeletonList
+            rows={10}
+            rowHeight={12}
+            gap={8}
+            widths={LOADING_ROW_WIDTHS}
+            label={labels.loadingLabel}
+            className="px-1 py-2"
+          />
+        ) : retryCard && !hasNotes ? null : searchEmpty ? (
           /*
            * #1470: a query nobody's notes match is not an empty vault. This used
            * to fall through to the branch below, so the list answered a typo

@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { cn } from "../cn";
 import { EmptyState } from "../EmptyState";
+import { LoadErrorCard } from "../LoadErrorCard";
+import { SkeletonList } from "../SkeletonList";
 import { FOCUS_RING_TIGHT as FOCUS_RING } from "../styleTokens";
 import {
   DailyMonthCalendar,
@@ -93,8 +95,38 @@ export interface DailyEntriesPanelProps {
   emptyMessage?: string;
   /** True when the list is empty because a filter is narrowing it. */
   searchEmpty?: boolean;
+  /** The first read of the list is in flight: the list area shows a skeleton. */
+  isLoading?: boolean;
+  /** Already-translated name of that skeleton (its `role="status"`). */
+  loadingLabel?: string;
+  /**
+   * The list could not be read (#2582). Given, the list area shows the failure
+   * card with its retry instead of the entries or the empty line. Whether a
+   * failure is worth showing (only before anything was read) is the host's call.
+   */
+  loadError?: DailyEntriesPanelLoadError | null;
   className?: string;
 }
+
+export interface DailyEntriesPanelLoadError {
+  /** Already-translated body of the failure card. */
+  message: string;
+  /** Already-translated retry label, usually `t("common.retry")`. */
+  retryLabel: string;
+  onRetry: () => void;
+}
+
+// Title bar + excerpt bar per entry, the two lines an ExcerptListItem draws.
+const LIST_SKELETON_WIDTHS = [
+  "38%",
+  "86%",
+  "32%",
+  "72%",
+  "44%",
+  "80%",
+  "36%",
+  "66%",
+] as const;
 
 // The pair shares one look; the label makes each wide enough for a thumb, so
 // narrow floors the height only (#1840).
@@ -115,6 +147,9 @@ export function DailyEntriesPanel({
   pinnedLabel,
   emptyMessage,
   searchEmpty = false,
+  isLoading = false,
+  loadingLabel,
+  loadError,
   className,
 }: DailyEntriesPanelProps) {
   return (
@@ -128,7 +163,27 @@ export function DailyEntriesPanel({
         <div className="px-0.5 text-xs uppercase tracking-wide text-lumen-text-tertiary">
           {entriesHeading}
         </div>
-        {entries.length === 0 && emptyMessage ? (
+        {loadError ? (
+          /*
+           * #2582 — a failed first read used to leave "ENTRIES (0)" over the
+           * "nothing here yet" line, which says the days are gone. The
+           * calendar and the actions row stay: a day can still be opened.
+           */
+          <LoadErrorCard
+            message={loadError.message}
+            retryLabel={loadError.retryLabel}
+            onRetry={loadError.onRetry}
+          />
+        ) : isLoading ? (
+          <SkeletonList
+            rows={LIST_SKELETON_WIDTHS.length}
+            rowHeight={12}
+            gap={10}
+            widths={LIST_SKELETON_WIDTHS}
+            label={loadingLabel}
+            className="px-2.5 py-1.5"
+          />
+        ) : entries.length === 0 && emptyMessage ? (
           /*
            * #1839 — "ENTRIES (0)" over a blank space said nothing about why it
            * was blank. Notes answers the same question in the same place

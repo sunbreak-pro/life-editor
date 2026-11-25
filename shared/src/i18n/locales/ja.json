@@ -304,6 +304,9 @@
       "detailTitle": "Todo の詳細"
     },
     "notes": {
+      "loadFailedList": "サーバーに接続できず、ノートを読み込めませんでした",
+      "loadFailedMain": "ノートを読み込めませんでした",
+      "loading": "読み込み中",
       "searchPlaceholder": "ノートを検索…",
       "addCta": "ノート",
       "addAria": "ノートを作成",
@@ -485,6 +488,9 @@
       "sectionCount": "{{label}}（{{count}}）"
     },
     "daily": {
+      "loadFailedList": "サーバーに接続できず、デイリーを読み込めませんでした",
+      "loadFailedMain": "デイリーを読み込めませんでした",
+      "loading": "読み込み中",
       "toToday": "今日へ",
       "prevDay": "前の日",
       "nextDay": "次の日",

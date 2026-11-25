@@ -316,14 +316,23 @@ describe.each([
     expect(upsert).not.toHaveBeenCalled();
   });
 
-  it("still opens the editor when the first list read fails", async () => {
+  /*
+   * #2582 — a failed first list read used to fall through to the editor over a
+   * day nothing was read for. It now leaves the pending skeleton for the
+   * failure card, whose retry reads the list again and opens the editor.
+   */
+  it("trades the skeleton for the failure card when the first list read fails, and its retry reads again", async () => {
     const list = deferred<DailyNode[]>();
+    const listDailies = vi
+      .fn()
+      .mockImplementationOnce(() => list.promise)
+      .mockResolvedValue([]);
     const consoleError = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
     renderDaily(
       makeDS({
-        listDailySummariesUnified: vi.fn(() => list.promise),
+        listDailySummariesUnified: listDailies,
         getDailyByDateUnified: vi.fn(async () => null),
         upsertDailyByDateUnified: vi.fn(),
       }),
@@ -333,7 +342,19 @@ describe.each([
 
     await act(async () => list.reject(new Error("offline")));
     await settle();
+    expect(screen.queryByTestId("daily-body-pending")).toBeNull();
+    expect(screen.queryByTestId("editor")).toBeNull();
+    const main = screen
+      .getAllByRole("alert")
+      .find((el) => el.textContent?.includes("materials.daily.loadFailedMain"));
+    if (!main) throw new Error("expected the main failure card");
+
+    const calls = listDailies.mock.calls.length;
+    fireEvent.click(within(main).getByRole("button", { name: "common.retry" }));
+    await settle();
+    expect(listDailies.mock.calls.length).toBeGreaterThan(calls);
     await screen.findByTestId("editor");
+    expect(screen.queryByRole("alert")).toBeNull();
     consoleError.mockRestore();
   });
 
