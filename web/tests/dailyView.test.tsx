@@ -915,6 +915,91 @@ describe("DailyView — the actions kebab", () => {
       .find((el) => el.textContent?.includes("materials.daily.delete"));
     expect(item?.getAttribute("aria-disabled")).toBe("true");
   });
+
+  it("names the pin row for the state it would change to (#2596)", () => {
+    state.dailies = [daily(YESTERDAY, { isPinned: true })];
+    render(<DailyView />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "materials.daily.moreActions" }),
+    );
+    const menu = screen.getByRole("menu");
+    within(menu).getByText("materials.daily.unpin");
+    expect(within(menu).queryByText("materials.daily.pin")).toBeNull();
+  });
+});
+
+/*
+ * #2596 — the pin on the date row, beside the kebab. The context is stubbed,
+ * so the flip itself is the stub's job here; what this pins is that the
+ * button reads the OPEN day's flag and acts on the OPEN day. The write through
+ * the real providers is in dailyScreenActions.test.tsx.
+ */
+describe("DailyView — the pin toggle on the date row (#2596)", () => {
+  const toggle = (): HTMLElement =>
+    screen.getByRole("button", { name: "materials.daily.pinToggle" });
+
+  it.each([
+    ["desktop", true],
+    ["mobile", false],
+  ])("sits in the date row next to the kebab (%s)", (_, wide) => {
+    state.isWide = wide;
+    render(<DailyView />);
+
+    const kebab = screen.getByRole("button", {
+      name: "materials.daily.moreActions",
+    });
+    // Same group as the kebab, and before it.
+    const group = kebab.parentElement?.parentElement;
+    expect(group?.contains(toggle())).toBe(true);
+    expect(
+      toggle().compareDocumentPosition(kebab) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    const prev = screen.getByRole("button", { name: "materials.daily.prevDay" });
+    expect(prev.parentElement?.parentElement?.contains(toggle())).toBe(true);
+  });
+
+  it("switches aria-pressed with the open day's pin", () => {
+    const { rerender } = render(<DailyView />);
+    expect(toggle().getAttribute("aria-pressed")).toBe("false");
+
+    fireEvent.click(toggle());
+    expect(state.togglePin).toHaveBeenCalledExactlyOnceWith(YESTERDAY);
+
+    // What the real context does once the flip lands.
+    state.dailies = [
+      daily(TODAY),
+      daily(YESTERDAY, { isPinned: true }),
+      daily(LAST_WEEK),
+    ];
+    rerender(<DailyView />);
+    expect(toggle().getAttribute("aria-pressed")).toBe("true");
+    // The pressed state fills the glyph in the accent colour.
+    expect(toggle().className).toContain("text-lumen-accent");
+    expect(toggle().querySelector("svg")?.getAttribute("class")).toContain(
+      "fill-current",
+    );
+  });
+
+  it("keeps one name in both states, so it reads as one button", () => {
+    state.dailies = [daily(YESTERDAY, { isPinned: true })];
+    render(<DailyView />);
+    expect(toggle().getAttribute("aria-pressed")).toBe("true");
+    expect(
+      screen.queryByRole("button", { name: "materials.daily.unpin" }),
+    ).toBeNull();
+  });
+
+  it("is disabled on a day with no entry, where there is nothing to pin", () => {
+    state.selectedDate = LONG_AGO;
+    render(<DailyView />);
+
+    expect((toggle() as HTMLButtonElement).disabled).toBe(true);
+    expect(toggle().getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(toggle());
+    expect(state.togglePin).not.toHaveBeenCalled();
+  });
 });
 
 describe("DailyView — the entry list says which day is open (#1839)", () => {
@@ -1613,6 +1698,18 @@ describe("#1840 — Daily's controls meet the touch floor", () => {
     // The drawn box is untouched — the hit box is what grew.
     expect(kebab.classList.contains("h-7")).toBe(true);
     expect(kebab.classList.contains("min-h-lumen-tap-touch")).toBe(false);
+  });
+
+  it("floors the pin toggle the same way as the kebab beside it (#2596)", () => {
+    render(<DailyView />);
+    const pin = screen.getByRole("button", {
+      name: "materials.daily.pinToggle",
+    });
+
+    expect(pin.classList.contains("max-md:min-h-lumen-tap-touch")).toBe(true);
+    expect(pin.classList.contains("max-md:min-w-lumen-tap-touch")).toBe(true);
+    expect(pin.classList.contains("h-7")).toBe(true);
+    expect(pin.classList.contains("min-h-lumen-tap-touch")).toBe(false);
   });
 
   // The reflection preview the audit also read (34px) went with the evening

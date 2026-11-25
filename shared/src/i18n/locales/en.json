@@ -514,6 +514,7 @@
       "unsaved": "Unsaved",
       "pin": "Pin entry",
       "unpin": "Unpin entry",
+      "pinToggle": "Pin",
       "pinned": "Pinned",
       "delete": "Delete entry",
       "deleteConfirmBody": "Delete the entry for {{day}}? It goes to the trash, so you can restore it later.",

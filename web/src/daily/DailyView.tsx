@@ -13,6 +13,7 @@ import {
   ChevronRight,
   MoreHorizontal,
   Pin,
+  PinOff,
   Trash2,
 } from "lucide-react";
 import {
@@ -991,6 +992,47 @@ export function DailyView({
     });
   };
 
+  /*
+   * The pin on the date row (#2596). Until now the pin lived only inside the
+   * kebab, so a pinned day showed nothing of it on the page. The kebab keeps
+   * its own pin row as well.
+   *
+   * One fixed name with aria-pressed carrying the state: a toggle whose name
+   * flips with the state would be read as two different buttons. Disabled on
+   * a day with no entry, because togglePin has no row to flip there and a
+   * press would do nothing.
+   */
+  const pinned = selectedDaily?.isPinned === true;
+  const pinToggle = (variant: "icon" | "boxed") => (
+    <button
+      type="button"
+      onClick={() => togglePin(selectedDate)}
+      aria-pressed={pinned}
+      aria-label={t("materials.daily.pinToggle")}
+      disabled={!selectedDaily}
+      data-testid="daily-pin-toggle"
+      className={cn(
+        "grid shrink-0 place-items-center rounded-lumen-md",
+        variant === "boxed"
+          ? "h-8 w-8 border border-lumen-border bg-lumen-bg"
+          : "h-7 w-7",
+        pinned
+          ? "text-lumen-accent hover:bg-lumen-hover"
+          : "text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
+        "disabled:cursor-not-allowed disabled:text-lumen-text-tertiary disabled:hover:bg-transparent",
+        // Same hit box as the kebab beside it (#1840).
+        "max-md:min-h-lumen-tap-touch max-md:min-w-lumen-tap-touch",
+        FOCUS_RING,
+      )}
+    >
+      <Pin
+        size={variant === "boxed" ? 16 : 15}
+        aria-hidden
+        className={cn(pinned && "fill-current")}
+      />
+    </button>
+  );
+
   // A single kebab that collapses the pin / delete actions behind one
   // affordance (#284). The menu opens right-anchored just beneath the trigger
   // (align="end" — a rightward panel would overflow the header's right edge).
@@ -1029,7 +1071,13 @@ export function DailyView({
         label={t("materials.daily.moreActions")}
       >
         <MenuItem
-          icon={<Pin size={14} aria-hidden />}
+          icon={
+            selectedDaily?.isPinned ? (
+              <PinOff size={14} aria-hidden />
+            ) : (
+              <Pin size={14} aria-hidden />
+            )
+          }
           onSelect={() => {
             togglePin(selectedDate);
             setActionsOpen(false);
@@ -1039,6 +1087,13 @@ export function DailyView({
             ? t("materials.daily.unpin")
             : t("materials.daily.pin")}
         </MenuItem>
+        {/* #2596 — sets the one row that removes the day apart from the row
+            that only changes it, as the note menu does (#2584). */}
+        <div
+          role="separator"
+          data-testid="daily-menu-separator"
+          className="my-1 h-px bg-lumen-border"
+        />
         <MenuItem
           icon={<Trash2 size={14} aria-hidden />}
           variant="danger"
@@ -1300,7 +1355,13 @@ export function DailyView({
       <div className="flex h-full min-h-0 flex-col">
         <div className="flex min-h-0 flex-1 flex-col">
           <EditorCard
-            header={dayHeader(false, actionsMenu("icon"))}
+            header={dayHeader(
+              false,
+              <>
+                {pinToggle("icon")}
+                {actionsMenu("icon")}
+              </>,
+            )}
             editorKey={editorKey}
             date={selectedDate}
             initialContent={editorContent}
@@ -1328,7 +1389,15 @@ export function DailyView({
 
   return (
     <div className="flex h-full min-h-0 flex-col px-4 pt-2">
-      <div className="pb-3">{dayHeader(true, actionsMenu("boxed"))}</div>
+      <div className="pb-3">
+        {dayHeader(
+          true,
+          <>
+            {pinToggle("boxed")}
+            {actionsMenu("boxed")}
+          </>,
+        )}
+      </div>
 
       <div className="flex min-h-0 flex-1 flex-col">
         <EditorCard
