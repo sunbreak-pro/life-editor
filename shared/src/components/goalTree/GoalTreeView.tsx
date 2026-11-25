@@ -1785,7 +1785,9 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
                     value={range.end}
                     min={range.start || undefined}
                     invalid={!rangeValid}
-                    onChange={(e) => setRange({ ...range, end: e.target.value })}
+                    onChange={(e) =>
+                      setRange({ ...range, end: e.target.value })
+                    }
                     className="max-md:min-h-11 max-md:text-base"
                   />
                 </span>
@@ -1940,11 +1942,16 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
               </button>
             </div>
           )}
-          {model.looseTodos.length === 0 && labels.looseEmpty && (
-            <p className="px-2 py-1.5 text-xs text-lumen-text-tertiary">
-              {labels.looseEmpty}
-            </p>
-          )}
+          {/* Read the unseparated model: done todos moved to Completed items
+              and filtered-out ones are still there, so "none" would be false
+              (#2851). */}
+          {props.model.looseTodos.length === 0 &&
+            activeFilters.length === 0 &&
+            labels.looseEmpty && (
+              <p className="px-2 py-1.5 text-xs text-lumen-text-tertiary">
+                {labels.looseEmpty}
+              </p>
+            )}
           <ul>
             {model.looseTodos.map((todo) => (
               <TodoRow
