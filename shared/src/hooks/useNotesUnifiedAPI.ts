@@ -92,6 +92,11 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
   const untitledTitle = options.untitledTitle ?? "";
   const { push } = options.undoRedo ?? createNoopUndoRedo();
   const syncVersion = useSyncDomains("notes");
+  // The error card's "Retry" (#2582): a bump re-runs the load below. It rides
+  // on `version`, not `anchor`, because the anchor is part of the snapshot
+  // key and a retry must refill the same "notes" snapshot the mount replays.
+  const [reloadTick, setReloadTick] = useState(0);
+  const reload = useCallback(() => setReloadTick((n) => n + 1), []);
 
   const [notes, setNotes] = useState<NoteNode[]>([]);
   const [deletedNotes, setDeletedNotes] = useState<NoteNode[]>([]);
@@ -323,7 +328,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
     domain: "Notes",
     snapshotKey: "notes",
     dataService: ds,
-    version: syncVersion,
+    version: syncVersion + reloadTick,
     load: async (service) => {
       const rows = await service.listNotesUnified();
       // Set HERE, not in `apply`: this is the only point that is reachable
@@ -654,6 +659,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       notes,
       isLoading,
       error,
+      reload,
       deletedNotes,
       selectedNoteId,
       // M1: expose the hydrate-then-select wrapper under the same name so
@@ -696,6 +702,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       notes,
       isLoading,
       error,
+      reload,
       deletedNotes,
       selectedNoteId,
       selectNote,

@@ -50,6 +50,10 @@ const state = vi.hoisted(() => {
     language: "en",
     lastMerge: null as unknown,
     dailies: [] as unknown[],
+    /* #2582: the list read's state and its retry. */
+    isLoading: false,
+    error: null as string | null,
+    reload: vi.fn(),
     selectedDate: "",
     setSelectedDate: vi.fn(),
     upsertDaily: vi.fn(),
@@ -99,6 +103,9 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
     useSyncDomains: () => 0,
     useDailiesUnifiedContext: () => ({
       dailies: state.dailies,
+      isLoading: state.isLoading,
+      error: state.error,
+      reload: state.reload,
       selectedDate: state.selectedDate,
       setSelectedDate: state.setSelectedDate,
       selectedDaily:
@@ -249,6 +256,9 @@ beforeEach(() => {
   state.lastMerge = null;
   state.selectedDate = YESTERDAY;
   state.dailies = [daily(TODAY), daily(YESTERDAY), daily(LAST_WEEK)];
+  state.isLoading = false;
+  state.error = null;
+  state.reload.mockClear();
   state.setSelectedDate.mockClear();
   state.upsertDaily.mockClear();
   state.deleteDaily.mockClear();
@@ -803,6 +813,76 @@ describe("DailyView — attachments", () => {
       });
     });
     expect(screen.queryByRole("status")).toBeNull();
+  });
+});
+
+describe("DailyView — a list read that fails or is in flight (#2582)", () => {
+  it("shows the failure card in the main area and in the list when the first read failed", () => {
+    state.dailies = [];
+    state.error = "offline";
+    render(<DailyView />);
+
+    const cards = screen.getAllByRole("alert");
+    expect(cards.map((c) => c.textContent)).toEqual([
+      expect.stringContaining("materials.daily.loadFailedMain"),
+      expect.stringContaining("materials.daily.loadFailedList"),
+    ]);
+    // In the editor's place: nothing to type over a day not read yet.
+    expect(screen.queryByTestId("editor")).toBeNull();
+    expect(screen.queryByTestId("daily-body-pending")).toBeNull();
+    // No "nothing here yet" under the list's card: the days are not gone.
+    expect(screen.queryByText("materials.daily.empty")).toBeNull();
+    // The calendar stays, so a day can still be picked.
+    screen.getByLabelText("materials.daily.calendar");
+  });
+
+  it("calls reload from either card's retry", () => {
+    state.dailies = [];
+    state.error = "offline";
+    render(<DailyView />);
+
+    const retries = screen.getAllByRole("button", { name: "common.retry" });
+    expect(retries).toHaveLength(2);
+    fireEvent.click(retries[0]);
+    fireEvent.click(retries[1]);
+    expect(state.reload).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps what was read when a re-fetch fails after a successful read", async () => {
+    state.error = "offline";
+    render(<DailyView />);
+
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("button", { name: "common.retry" })).toBeNull();
+    expect((await screen.findByTestId("editor")).textContent).toBe(
+      `daily-${YESTERDAY}`,
+    );
+    screen.getByText(`entry for ${LAST_WEEK}`);
+  });
+
+  it("names the list skeleton while the first read is in flight", () => {
+    state.dailies = [];
+    state.isLoading = true;
+    render(<DailyView />);
+
+    const status = screen.getByRole("status", {
+      name: "materials.daily.loading",
+    });
+    expect(status.getAttribute("aria-busy")).toBe("true");
+    expect(screen.queryByText("materials.daily.empty")).toBeNull();
+  });
+
+  it("names the body skeleton without changing its three bars", () => {
+    state.dailies = [daily(YESTERDAY, { bodyLoaded: false, content: "" })];
+    render(<DailyView />);
+
+    const pending = screen.getByTestId("daily-body-pending");
+    expect(pending.getAttribute("role")).toBe("status");
+    expect(pending.getAttribute("aria-label")).toBe("materials.daily.loading");
+    expect(pending.getAttribute("aria-busy")).toBe("true");
+    expect(
+      pending.querySelectorAll(".animate-pulse.h-5.bg-lumen-hover"),
+    ).toHaveLength(3);
   });
 });
 

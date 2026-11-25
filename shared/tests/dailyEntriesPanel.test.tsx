@@ -345,4 +345,77 @@ describe("DailyEntriesPanel", () => {
     expect(selected).toHaveClass("border-lumen-accent");
     expect(other).not.toHaveClass("border-lumen-accent");
   });
+
+  describe("a list that is loading or failed to load (#2582)", () => {
+    it("draws a named skeleton of title + excerpt bars instead of the rows", () => {
+      renderPanel({
+        entries: [],
+        emptyMessage: "No entries yet",
+        isLoading: true,
+        loadingLabel: "Loading",
+      });
+      const status = screen.getByRole("status", { name: "Loading" });
+      expect(status).toHaveAttribute("aria-busy", "true");
+      // Two bars per row: a short title over a longer excerpt.
+      const bars = status.querySelectorAll(".animate-pulse");
+      expect(bars.length).toBeGreaterThan(0);
+      expect(bars.length % 2).toBe(0);
+      const width = (i: number): number =>
+        parseFloat((bars[i] as HTMLElement).style.width);
+      expect(width(0)).toBeLessThan(width(1));
+      expect(screen.queryByText("No entries yet")).toBeNull();
+      // The calendar stays.
+      screen.getByRole("region", { name: "Calendar" });
+    });
+
+    it("shows the failure card with its retry instead of the empty line", () => {
+      const onRetry = vi.fn();
+      renderPanel({
+        entries: [],
+        emptyMessage: "No entries yet",
+        loadError: {
+          message: "Could not load the dailies",
+          retryLabel: "Retry",
+          onRetry,
+        },
+        actions: {
+          todayLabel: "Today",
+          onToday: () => {},
+          isToday: false,
+          filterLabel: "Filter",
+          filterActiveLabel: "filters on",
+          filterActive: false,
+          filterPanel: null,
+        },
+      });
+      const card = screen.getByRole("alert");
+      expect(card).toHaveTextContent("Could not load the dailies");
+      expect(screen.queryByText("No entries yet")).toBeNull();
+
+      fireEvent.click(within(card).getByRole("button", { name: "Retry" }));
+      expect(onRetry).toHaveBeenCalledTimes(1);
+      // The calendar and the Today / Filter row stay.
+      screen.getByRole("region", { name: "Calendar" });
+      screen.getByRole("button", { name: "Today" });
+      screen.getByRole("button", { name: "Filter" });
+    });
+
+    it("prefers the failure card over the skeleton", () => {
+      renderPanel({
+        entries: [],
+        isLoading: true,
+        loadingLabel: "Loading",
+        loadError: { message: "Failed", retryLabel: "Retry", onRetry: vi.fn() },
+      });
+      screen.getByRole("alert");
+      expect(screen.queryByRole("status")).toBeNull();
+    });
+
+    it("draws the rows when neither is set", () => {
+      renderPanel({ loadError: null, isLoading: false });
+      expect(screen.queryByRole("alert")).toBeNull();
+      expect(screen.queryByRole("status")).toBeNull();
+      screen.getByText("7/4（金）");
+    });
+  });
 });

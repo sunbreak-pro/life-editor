@@ -305,6 +305,9 @@
       "detailTitle": "Todo details"
     },
     "notes": {
+      "loadFailedList": "Could not reach the server to load notes",
+      "loadFailedMain": "Could not load notes",
+      "loading": "Loading",
       "searchPlaceholder": "Search notes…",
       "addCta": "Note",
       "addAria": "Create note",
@@ -486,6 +489,9 @@
       "sectionCount": "{{label}} ({{count}})"
     },
     "daily": {
+      "loadFailedList": "Could not reach the server to load dailies",
+      "loadFailedMain": "Could not load dailies",
+      "loading": "Loading",
       "toToday": "Today",
       "prevDay": "Previous day",
       "nextDay": "Next day",

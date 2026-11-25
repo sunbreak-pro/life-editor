@@ -52,6 +52,11 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
   const ds = options.dataService;
   const { push } = options.undoRedo ?? createNoopUndoRedo();
   const syncVersion = useSyncDomains("dailies");
+  // The error card's "Retry" (#2582): a bump re-runs the load below. It rides
+  // on `version`, not `anchor`, because the anchor is part of the snapshot
+  // key and a retry must refill the same "dailies" snapshot the mount replays.
+  const [reloadTick, setReloadTick] = useState(0);
+  const reload = useCallback(() => setReloadTick((n) => n + 1), []);
 
   const [dailies, setDailies] = useState<DailyNode[]>([]);
   const [deletedDailies, setDeletedDailies] = useState<DailyNode[]>([]);
@@ -138,12 +143,9 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
    * empty list, silently, for the rest of the session.
    *
    * `isLoading` / `error` are therefore NEW on this hook's surface rather than
-   * a rename of something that was already there. Nothing renders them yet;
-   * wiring a loading state or an error card into the Daily UI is a visible
-   * change and does not belong in a behaviour-preserving refactor. What they
-   * do buy now is that #296's un-latch (an error clears on the next successful
-   * read) is in place before any surface starts reading them, which is the
-   * thing the four hand-written copies each got wrong differently.
+   * a rename of something that was already there. #296's un-latch (an error
+   * clears on the next successful read) matters here because the Daily UI's
+   * error card (#2582) reads `error` and its "Retry" calls `reload`.
    *
    * `refetchReportsLoading: false` for the same reason as todos and notes:
    * Realtime echoes this tab's own writes back, so a bump-driven re-read must
@@ -154,7 +156,7 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
     snapshotKey: "dailies",
     skipWhenFresh: ["dailies"],
     dataService: ds,
-    version: syncVersion,
+    version: syncVersion + reloadTick,
     load: async (service) =>
       withExcerptBodies(service, await service.listDailySummariesUnified()),
     // #2333: a row kept from the snapshot still has the body it was given.
@@ -533,6 +535,7 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
       dailies,
       isLoading,
       error,
+      reload,
       deletedDailies,
       selectedDate,
       setSelectedDate,
@@ -550,6 +553,7 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
       dailies,
       isLoading,
       error,
+      reload,
       deletedDailies,
       selectedDate,
       setSelectedDate,

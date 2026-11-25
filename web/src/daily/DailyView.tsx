@@ -33,6 +33,7 @@ import {
   RightSidebarPortal,
   DailyEntriesPanel,
   DailyDayFooter,
+  LoadErrorCard,
   SidebarListControls,
   useUndoRedoOptional,
   afterSettled,
@@ -54,6 +55,7 @@ import {
   type DailyListDirection,
   type DailyListSortMode,
   type DataService,
+  type LoadErrorCardProps,
   FOCUS_RING_TIGHT as FOCUS_RING,
   formatDateKey,
   WIDE_QUERY,
@@ -192,6 +194,8 @@ function EditorCard({
   uploadingFile,
   uploadingLabel,
   bodyPending = false,
+  pendingLabel,
+  loadError = null,
   onEditorBlur,
 }: {
   /** The date row (#2591). Omitted where the screen draws it above the card. */
@@ -217,6 +221,14 @@ function EditorCard({
    * emptiness over the day.
    */
   bodyPending?: boolean;
+  /** Names the pending skeleton as the screen's loading status (#2582). */
+  pendingLabel?: string;
+  /**
+   * The first list read failed (#2582): the failure card stands where the
+   * editor would, since an editor opened over a day not read could save its
+   * emptiness over it.
+   */
+  loadError?: LoadErrorCardProps | null;
   /** The caret left the body: a change held back for it can land now (#2289). */
   onEditorBlur?: (event: FocusEvent<HTMLDivElement>) => void;
 }) {
@@ -246,9 +258,18 @@ function EditorCard({
           unmount/beforeunload, the onBlur-commit equivalent. The key remounts
           the editor on date switch / external content change only — never on
           our own save echo — so typing keeps cursor + IME state. */}
-      {bodyPending ? (
+      {loadError ? (
+        <div className={cn("pb-5 pt-1", EDITOR_INSET)}>
+          <LoadErrorCard {...loadError} />
+        </div>
+      ) : bodyPending ? (
         <div
           data-testid="daily-body-pending"
+          // Named only when a label arrives, so a missing one cannot mint a
+          // nameless status (the rule SkeletonList keeps).
+          role={pendingLabel ? "status" : undefined}
+          aria-busy={pendingLabel ? true : undefined}
+          aria-label={pendingLabel || undefined}
           className={cn("min-h-0 flex-1 pb-5 pt-1", EDITOR_INSET)}
         >
           <div aria-hidden="true" className="flex flex-col gap-2">
@@ -309,6 +330,8 @@ export function DailyView({
   const {
     dailies,
     isLoading,
+    error,
+    reload,
     selectedDate,
     setSelectedDate,
     selectedDaily,
@@ -473,6 +496,9 @@ export function DailyView({
   const bodyPending =
     selectedDaily?.bodyLoaded === false ||
     (selectedDaily === undefined && isLoading);
+  // #2582: only a failed FIRST read is shown. Once a list has been read, a
+  // failed re-fetch keeps it on screen rather than trading it for a card.
+  const firstLoadFailed = error != null && dailies.length === 0;
   const [emitted, setEmitted] = useState<{
     date: string;
     jsons: string[];
@@ -1190,6 +1216,12 @@ export function DailyView({
     dailyFilterQuery.trim() !== "" ||
     dailySortMode !== "date" ||
     dailySortDirection !== "desc";
+  const loadingLabel = t("materials.daily.loading");
+  const loadErrorFor = (message: string): LoadErrorCardProps | null =>
+    firstLoadFailed
+      ? { message, retryLabel: t("common.retry"), onRetry: reload }
+      : null;
+  const mainLoadError = loadErrorFor(t("materials.daily.loadFailedMain"));
   const pastEntries = (
     <RightSidebarPortal>
       <div className="flex flex-col gap-2">
@@ -1264,6 +1296,10 @@ export function DailyView({
               ? t("materials.daily.searchEmpty")
               : t("materials.daily.empty")
           }
+          // Rows already on screen (a snapshot) are not traded for bars.
+          isLoading={isLoading && dailies.length === 0}
+          loadingLabel={loadingLabel}
+          loadError={loadErrorFor(t("materials.daily.loadFailedList"))}
         />
       </div>
     </RightSidebarPortal>
@@ -1363,6 +1399,8 @@ export function DailyView({
             date={selectedDate}
             initialContent={editorContent}
             bodyPending={bodyPending}
+            pendingLabel={loadingLabel}
+            loadError={mainLoadError}
             onEditorBlur={handleEditorBlur}
             onUpdate={handleEditorUpdate}
             onDirty={markDirty}
@@ -1402,6 +1440,8 @@ export function DailyView({
           date={selectedDate}
           initialContent={editorContent}
           bodyPending={bodyPending}
+          pendingLabel={loadingLabel}
+          loadError={mainLoadError}
           onEditorBlur={handleEditorBlur}
           onUpdate={handleEditorUpdate}
           onDirty={markDirty}
