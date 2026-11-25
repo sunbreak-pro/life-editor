@@ -507,6 +507,8 @@
     },
     "daily": {
       "toToday": "今日へ",
+      "prevDay": "前の日",
+      "nextDay": "次の日",
       "saved": "保存済み",
       "unsaved": "未保存",
       "pin": "ピン留めする",
