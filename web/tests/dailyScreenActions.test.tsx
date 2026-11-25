@@ -347,6 +347,75 @@ describe("DailyView — the kebab writes to the row the date resolves to", () =>
   });
 });
 
+/*
+ * #2596 — the kebab's rows and the pin toggle beside it, as the prototype has
+ * them: pin / unpin, a separator, then the delete in the danger colour.
+ */
+describe("DailyView — the kebab's rows and the pin toggle (#2596)", () => {
+  /** The menu's children in order: a row's label, or "separator". */
+  function menuShape(): string[] {
+    return Array.from(screen.getByRole("menu").children).map((el) =>
+      el.getAttribute("role") === "separator"
+        ? "separator"
+        : (el.textContent ?? ""),
+    );
+  }
+
+  it("orders pin, a separator, then delete", async () => {
+    await renderDaily(makeHarness());
+    openYesterday();
+    kebab();
+
+    expect(menuShape()).toEqual([
+      "materials.daily.pin",
+      "separator",
+      "materials.daily.delete",
+    ]);
+    const del = within(screen.getByRole("menu"))
+      .getAllByRole("menuitem")
+      .find((el) => el.textContent === "materials.daily.delete");
+    expect(del?.className).toContain("text-lumen-danger");
+  });
+
+  it("offers unpin in the same place on a pinned day", async () => {
+    await renderDaily(
+      makeHarness([row(TODAY), row(YESTERDAY, { isPinned: true })]),
+    );
+    openYesterday();
+    kebab();
+
+    expect(menuShape()).toEqual([
+      "materials.daily.unpin",
+      "separator",
+      "materials.daily.delete",
+    ]);
+  });
+
+  it("flips aria-pressed and writes the open day's row", async () => {
+    const harness = makeHarness();
+    await renderDaily(harness);
+    openYesterday();
+
+    const toggle = screen.getByRole("button", {
+      name: "materials.daily.pinToggle",
+    });
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(toggle);
+
+    // The provider flips the flag before the write lands.
+    await waitFor(() =>
+      expect(toggle.getAttribute("aria-pressed")).toBe("true"),
+    );
+    await waitFor(() =>
+      expect(harness.fns.updateDailyUnified).toHaveBeenCalled(),
+    );
+    expectOnlyWrite(harness.fns, "updateDailyUnified", [
+      ROW_ID[YESTERDAY],
+      { isPinned: true },
+    ]);
+  });
+});
+
 describe("DailyView — the editor's save", () => {
   it("writes the body under the open DATE, not under a row id", async () => {
     const harness = makeHarness();
