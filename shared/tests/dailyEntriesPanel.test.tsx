@@ -5,6 +5,9 @@ import {
   type DailyEntriesPanelEntry,
   type DailyMonthCalendarProps,
 } from "../src/components";
+// Straight from the file: the barrel is outside #2589's scope, and the host
+// passes the actions as a literal, so nothing else needs the name.
+import type { DailyEntriesPanelActions } from "../src/components/materials/DailyEntriesPanel";
 
 /*
  * Materials mini-plan Step 4 — Daily past-entries panel (rightSidebar, Desktop).
@@ -89,7 +92,7 @@ describe("DailyEntriesPanel", () => {
     expect(screen.getByLabelText("Pinned")).toBeInTheDocument();
   });
 
-  it("offers no day jump beside the calendar (#1189)", () => {
+  it("offers no day jump beside the calendar without its actions (#1189)", () => {
     const { container } = renderPanel();
     expect(screen.queryByRole("button", { name: "Today" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Yesterday" })).toBeNull();
@@ -223,6 +226,115 @@ describe("DailyEntriesPanel", () => {
     }
     // Nothing from the glyph is read before the day.
     expect(rows[0]).toHaveAccessibleName(/^7\/4（金）/);
+  });
+
+  /*
+   * #2589 — "Today" and "Filter" sit in one row under the calendar, and the
+   * filter's search + sort are folded under the second until asked for.
+   */
+  describe("the row under the calendar (#2589)", () => {
+    function actions(
+      overrides: Partial<DailyEntriesPanelActions> = {},
+    ): DailyEntriesPanelActions {
+      return {
+        todayLabel: "Today",
+        onToday: () => {},
+        isToday: false,
+        filterLabel: "Filter",
+        filterActiveLabel: "filters on",
+        filterActive: false,
+        filterPanel: <input aria-label="Filter entries" />,
+        ...overrides,
+      };
+    }
+
+    it("puts Today and Filter after the calendar, before the list", () => {
+      const { container } = renderPanel({ actions: actions() });
+      const calendar = screen.getByRole("region", { name: "Calendar" });
+      const today = screen.getByRole("button", { name: "Today" });
+      const filter = screen.getByRole("button", { name: "Filter" });
+      const heading = screen.getByText("Entries (2)");
+      const after = Node.DOCUMENT_POSITION_FOLLOWING;
+      expect(calendar.compareDocumentPosition(today) & after).toBeTruthy();
+      expect(today.compareDocumentPosition(filter) & after).toBeTruthy();
+      expect(filter.compareDocumentPosition(heading) & after).toBeTruthy();
+      // Side by side: the two share one row.
+      expect(today.parentElement).toBe(filter.parentElement);
+      expect(container.querySelector("button[aria-label='Yesterday']")).toBe(
+        null,
+      );
+    });
+
+    it("jumps to today, and goes pale and disabled on today", () => {
+      const onToday = vi.fn();
+      const { rerender } = renderPanel({ actions: actions({ onToday }) });
+      const today = screen.getByRole("button", { name: "Today" });
+      expect(today).toBeEnabled();
+      expect(today.querySelector(".lucide-calendar-check")).not.toBeNull();
+      fireEvent.click(today);
+      expect(onToday).toHaveBeenCalledTimes(1);
+
+      rerender(
+        <DailyEntriesPanel
+          calendar={calendarProps()}
+          entries={ENTRIES}
+          onSelectEntry={() => {}}
+          {...LABELS}
+          actions={actions({ onToday, isToday: true })}
+        />,
+      );
+      const pale = screen.getByRole("button", { name: "Today" });
+      expect(pale).toBeDisabled();
+      expect(pale).toHaveClass("disabled:opacity-50");
+      fireEvent.click(pale);
+      expect(onToday).toHaveBeenCalledTimes(1);
+    });
+
+    it("folds the search and sort under Filter until it is pressed", () => {
+      renderPanel({ actions: actions() });
+      const filter = screen.getByRole("button", { name: "Filter" });
+      // lucide-react's `Filter` is an alias of `Funnel`, which names the class.
+      expect(filter.querySelector(".lucide-funnel")).not.toBeNull();
+      expect(filter).toHaveAttribute("aria-expanded", "false");
+      const panel = document.getElementById(
+        filter.getAttribute("aria-controls")!,
+      );
+      expect(panel).not.toBeNull();
+      expect(panel).not.toBeVisible();
+
+      fireEvent.click(filter);
+      expect(filter).toHaveAttribute("aria-expanded", "true");
+      expect(panel).toBeVisible();
+      expect(screen.getByRole("textbox", { name: "Filter entries" })).toBe(
+        panel!.querySelector("input"),
+      );
+
+      fireEvent.click(filter);
+      expect(filter).toHaveAttribute("aria-expanded", "false");
+      expect(panel).not.toBeVisible();
+    });
+
+    it("dots Filter while a condition is in effect, and says so", () => {
+      const { rerender } = renderPanel({ actions: actions() });
+      expect(screen.queryByTestId("daily-filter-dot")).toBeNull();
+
+      rerender(
+        <DailyEntriesPanel
+          calendar={calendarProps()}
+          entries={ENTRIES}
+          onSelectEntry={() => {}}
+          {...LABELS}
+          actions={actions({ filterActive: true })}
+        />,
+      );
+      const dot = screen.getByTestId("daily-filter-dot");
+      expect(dot).toHaveClass("bg-lumen-accent");
+      expect(dot).toHaveAttribute("aria-hidden", "true");
+      // Shut, the dot is the only sign; a screen reader hears it in the name.
+      expect(
+        screen.getByRole("button", { name: "Filter filters on" }),
+      ).toHaveAttribute("aria-expanded", "false");
+    });
   });
 
   it("keeps the selected row on the accent border", () => {

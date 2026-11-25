@@ -211,6 +211,16 @@ function isoDay(offsetDays: number): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+/** The panel's Filter button (#2589), dot or no dot. */
+const filterToggle = (): HTMLElement =>
+  screen.getByRole("button", { name: /^materials\.daily\.filterToggle/ });
+
+/** Unfold the search + sort the way a user does before typing a query. */
+function openFilter(): void {
+  const toggle = filterToggle();
+  if (toggle.getAttribute("aria-expanded") !== "true") fireEvent.click(toggle);
+}
+
 const TODAY = isoDay(0);
 const YESTERDAY = isoDay(-1);
 const LAST_WEEK = isoDay(-7);
@@ -261,13 +271,46 @@ describe("DailyView — the open day", () => {
     );
   });
 
-  it("jumps the selection to today from the accent CTA", () => {
+  it("jumps the selection to today from the button under the calendar", () => {
     render(<DailyView />);
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "materials.daily.toToday" }),
-    );
+    const cta = screen.getByRole("button", { name: "materials.daily.toToday" });
+    expect(cta.hasAttribute("disabled")).toBe(false);
+    fireEvent.click(cta);
     expect(state.setSelectedDate).toHaveBeenCalledExactlyOnceWith(TODAY);
+    // Desktop's panel is a pinned column; it stays where it was.
+    expect(state.closeDrawer).not.toHaveBeenCalled();
+  });
+
+  it("leaves Today pale and disabled while today is open (#2589)", () => {
+    state.selectedDate = TODAY;
+    render(<DailyView />);
+
+    const cta = screen.getByRole("button", { name: "materials.daily.toToday" });
+    expect(cta.hasAttribute("disabled")).toBe(true);
+    expect(cta.classList.contains("disabled:opacity-50")).toBe(true);
+    fireEvent.click(cta);
+    expect(state.setSelectedDate).not.toHaveBeenCalled();
+  });
+
+  it("draws Today under the calendar, not over the body (#2589)", () => {
+    render(<DailyView />);
+
+    // One Today on the screen, and it is the panel's.
+    const [cta, ...others] = screen.getAllByRole("button", {
+      name: "materials.daily.toToday",
+    });
+    expect(others).toHaveLength(0);
+    const calendar = screen.getByLabelText("materials.daily.calendar");
+    expect(
+      calendar.compareDocumentPosition(cta) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // Inside the entry panel itself, which is what the sidebar carries.
+    let panel: HTMLElement | null = calendar;
+    while (panel && !panel.classList.contains("max-md:select-none")) {
+      panel = panel.parentElement;
+    }
+    expect(panel?.contains(cta)).toBe(true);
   });
 
   it("reads as saved before anything is typed", () => {
@@ -830,6 +873,7 @@ describe("DailyView — the entry list says which day is open (#1839)", () => {
   it("says why the list is empty when a filter empties it", () => {
     render(<DailyView />);
 
+    openFilter();
     fireEvent.change(screen.getByLabelText("materials.daily.filterLabel"), {
       target: { value: "nothing-matches-this" },
     });
@@ -899,6 +943,7 @@ describe("DailyView — desktop entry panel", () => {
   it("narrows the list by the sidebar filter query", () => {
     render(<DailyView />);
 
+    openFilter();
     fireEvent.change(screen.getByLabelText("materials.daily.filterLabel"), {
       target: { value: `entry for ${LAST_WEEK}` },
     });
@@ -911,11 +956,64 @@ describe("DailyView — desktop entry panel", () => {
     // outside they read as a filter that did nothing.
     expect(screen.queryByText("materials.daily.today")).toBeNull();
     expect(screen.queryByText("materials.daily.yesterday")).toBeNull();
-    // What is left above the list: the calendar (#2588), the search and the
-    // sort.
+    // What is left above the list: the calendar (#2588), and under it the
+    // Today and Filter buttons (#2589), the latter folding search and sort.
     screen.getByLabelText("materials.daily.calendar");
-    screen.getByLabelText("materials.daily.filterLabel");
-    screen.getByLabelText("materials.sidebar.sort");
+    screen.getByRole("button", { name: "materials.daily.filterToggle" });
+  });
+
+  /*
+   * #2589 — the search and the sort held the list's top at all times. They
+   * are folded under one button now, which carries a dot while either of them
+   * is narrowing or reordering the list.
+   */
+  it("folds the search and sort under the Filter button", () => {
+    render(<DailyView />);
+
+    const toggle = filterToggle();
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    const panel = document.getElementById(
+      toggle.getAttribute("aria-controls") ?? "",
+    );
+    expect(panel?.hidden).toBe(true);
+    // The search and the sort are the folded panel's, not loose above it.
+    expect(
+      panel?.contains(screen.getByLabelText("materials.daily.filterLabel")),
+    ).toBe(true);
+    expect(
+      panel?.contains(screen.getByLabelText("materials.sidebar.sort")),
+    ).toBe(true);
+
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(panel?.hidden).toBe(false);
+  });
+
+  it("dots the Filter button while a query narrows the list", () => {
+    render(<DailyView />);
+    expect(screen.queryByTestId("daily-filter-dot")).toBeNull();
+
+    openFilter();
+    fireEvent.change(screen.getByLabelText("materials.daily.filterLabel"), {
+      target: { value: "entry" },
+    });
+    screen.getByTestId("daily-filter-dot");
+    screen.getByRole("button", {
+      name: "materials.daily.filterToggle materials.daily.filterActive",
+    });
+
+    fireEvent.change(screen.getByLabelText("materials.daily.filterLabel"), {
+      target: { value: "  " },
+    });
+    expect(screen.queryByTestId("daily-filter-dot")).toBeNull();
+  });
+
+  it("dots the Filter button for a sort other than newest date first", () => {
+    // The sort is remembered, so it is in effect from the first paint.
+    localStorage.setItem("life-editor:daily-sort-direction", '"asc"');
+    render(<DailyView />);
+
+    screen.getByTestId("daily-filter-dot");
   });
 });
 
@@ -953,8 +1051,28 @@ describe("DailyView — mobile", () => {
     // Every entry, not a two-row teaser — LONG_AGO included.
     screen.getByText("materials.daily.entriesCount|4");
     screen.getByText(`entry for ${LONG_AGO}`);
-    // And the sort / filter controls that came with it.
+    // And the sort / filter controls that came with it, folded (#2589).
+    openFilter();
     screen.getByLabelText("materials.daily.filterLabel");
+  });
+
+  it("puts Today in the drawer under the calendar, and closes it there (#2589)", () => {
+    render(<DailyView />);
+
+    const [cta, ...others] = screen.getAllByRole("button", {
+      name: "materials.daily.toToday",
+    });
+    // The body's row keeps only the kebab.
+    expect(others).toHaveLength(0);
+    const calendar = screen.getByLabelText("materials.daily.calendar");
+    expect(
+      calendar.compareDocumentPosition(cta) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    fireEvent.click(cta);
+    expect(state.setSelectedDate).toHaveBeenCalledExactlyOnceWith(TODAY);
+    // Same as an entry row: the drawer would cover the day just opened.
+    expect(state.closeDrawer).toHaveBeenCalledTimes(1);
   });
 
   it("closes the drawer on the day it just opened", () => {
@@ -1409,8 +1527,9 @@ describe("#1840 — Daily's controls meet the touch floor", () => {
     // A labelled button is already wide enough for a thumb; a min-width would
     // stretch it for no one.
     expect(cta.classList.contains("max-md:min-w-11")).toBe(false);
-    // Desktop unchanged: same padding, no unconditional floor.
-    expect(cta.classList.contains("py-1.5")).toBe(true);
+    // Desktop keeps the mouse height (#2589's row under the calendar), with
+    // no unconditional floor.
+    expect(cta.classList.contains("h-8")).toBe(true);
     expect(cta.classList.contains("min-h-11")).toBe(false);
   });
 
