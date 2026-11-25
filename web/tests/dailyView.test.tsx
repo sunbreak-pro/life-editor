@@ -335,6 +335,75 @@ describe("DailyView — the open day", () => {
  * #2592 — "Write about today" over a past day's empty body names the wrong
  * day, so every day but today gets its own placeholder.
  */
+describe("DailyView — the date row with day arrows (#2591)", () => {
+  const THIS_YEAR = new Date().getFullYear();
+  const heading = (): string =>
+    screen.getByRole("heading", { level: 1 }).textContent ?? "";
+
+  it("steps to the previous and next calendar day", () => {
+    state.selectedDate = `${THIS_YEAR}-03-01`;
+    render(<DailyView />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "materials.daily.prevDay" }),
+    );
+    expect(state.setSelectedDate).toHaveBeenLastCalledWith(
+      `${THIS_YEAR}-02-${new Date(THIS_YEAR, 2, 0).getDate()}`,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "materials.daily.nextDay" }),
+    );
+    expect(state.setSelectedDate).toHaveBeenLastCalledWith(
+      `${THIS_YEAR}-03-02`,
+    );
+  });
+
+  it("steps across a year boundary", () => {
+    state.selectedDate = `${THIS_YEAR}-12-31`;
+    render(<DailyView />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "materials.daily.nextDay" }),
+    );
+    expect(state.setSelectedDate).toHaveBeenCalledExactlyOnceWith(
+      `${THIS_YEAR + 1}-01-01`,
+    );
+  });
+
+  it("leaves the year off a day in the current year", () => {
+    state.selectedDate = `${THIS_YEAR}-03-14`;
+    render(<DailyView />);
+    expect(heading()).toContain("March 14");
+    expect(heading()).not.toContain(String(THIS_YEAR));
+  });
+
+  it("puts the year on a day in another year", () => {
+    state.selectedDate = `${THIS_YEAR - 1}-03-14`;
+    render(<DailyView />);
+    expect(heading()).toContain(String(THIS_YEAR - 1));
+  });
+
+  it("draws the arrows and the date on Mobile too, in one row with the kebab", () => {
+    state.isWide = false;
+    state.selectedDate = `${THIS_YEAR}-03-14`;
+    render(<DailyView />);
+
+    const prev = screen.getByRole("button", { name: "materials.daily.prevDay" });
+    const kebab = screen.getByRole("button", {
+      name: "materials.daily.moreActions",
+    });
+    expect(prev.parentElement?.parentElement?.contains(kebab)).toBe(true);
+    const wd = new Intl.DateTimeFormat("en-US", { weekday: "short" }).format(
+      new Date(THIS_YEAR, 2, 14),
+    );
+    expect(heading()).toBe(`${wd} 3/14`);
+    fireEvent.click(prev);
+    expect(state.setSelectedDate).toHaveBeenCalledExactlyOnceWith(
+      `${THIS_YEAR}-03-13`,
+    );
+  });
+});
+
 describe("DailyView — the empty body's placeholder (#2592)", () => {
   it("speaks of today on today", async () => {
     state.selectedDate = TODAY;

@@ -508,6 +508,8 @@
     },
     "daily": {
       "toToday": "Today",
+      "prevDay": "Previous day",
+      "nextDay": "Next day",
       "saved": "Saved",
       "unsaved": "Unsaved",
       "pin": "Pin entry",

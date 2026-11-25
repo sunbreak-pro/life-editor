@@ -8,7 +8,13 @@ import {
   type FocusEvent,
   type ReactNode,
 } from "react";
-import { MoreHorizontal, Pin, Trash2 } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  MoreHorizontal,
+  Pin,
+  Trash2,
+} from "lucide-react";
 import {
   useDailiesUnifiedContext,
   currentDailyMergeSeq,
@@ -69,10 +75,11 @@ import { useDayFigures } from "./useDayFigures";
  * Web Daily tab (Materials mini-plan Step 4). Re-shaped to the target-IA
  * ClaudeDesign import:
  *
- *   - Desktop (isWide): a centered max-width 800px editor card (28px date
- *     heading + saved-state caption + pin / delete icon buttons + a plain-text
- *     body wired to upsertDaily-on-blur).
- *   - Mobile (narrow): a kebab row and the same editor card (19px date).
+ *   - Desktop (isWide): a centered "‹ date ›" row (1.25rem date, arrows to the
+ *     previous / next day, #2591) with the saved-state caption + kebab on its
+ *     right, over a rich-text body wired to upsertDaily.
+ *   - Mobile (narrow): the same "‹ date ›" row (compact date) with the kebab,
+ *     over the same body.
  *
  * The past-entries UI — the shared <DailyEntriesPanel> (month calendar, the
  * "今日へ" + "絞り込み" row folding the filter and sort, the chronological
@@ -170,10 +177,7 @@ const EDITOR_BLEED = "-mx-lumen-gutter md:-mx-lumen-gutter-wide";
 const EDITOR_INSET = "px-lumen-gutter md:px-lumen-gutter-wide";
 
 function EditorCard({
-  dateLabel,
-  dateClassName,
-  savedLabel,
-  headerActions,
+  header,
   editorKey,
   date,
   initialContent,
@@ -189,11 +193,8 @@ function EditorCard({
   bodyPending = false,
   onEditorBlur,
 }: {
-  dateLabel: string;
-  dateClassName: string;
-  /** Omitted on a day with nothing to report — see #1839. */
-  savedLabel?: string;
-  headerActions?: ReactNode;
+  /** The date row (#2591). Omitted where the screen draws it above the card. */
+  header?: ReactNode;
   editorKey: string;
   date: string;
   initialContent?: string;
@@ -227,15 +228,9 @@ function EditorCard({
         DAILY_EDITOR_CARD_MIN_HEIGHT,
       )}
     >
-      <div className={cn("flex items-start gap-2.5 pb-1 pt-4", EDITOR_INSET)}>
-        <h1 className={cn("flex-1", dateClassName)}>{dateLabel}</h1>
-        {savedLabel != null && (
-          <span className="pt-1.5 text-[11.5px] text-lumen-text-tertiary">
-            {savedLabel}
-          </span>
-        )}
-        {headerActions}
-      </div>
+      {header != null && (
+        <div className={cn("pb-1 pt-4", EDITOR_INSET)}>{header}</div>
+      )}
       {/* Same band as the Notes body: outside the document, so nothing
           mid-upload can reach the autosave (D-20260902-materials-1 = B). */}
       <div className={EDITOR_INSET}>
@@ -826,26 +821,24 @@ export function DailyView({
 
   // ---- date label formatters (host-side; the shared parts stay pure) ----
 
-  const fullDateLabel = (iso: string): string => {
+  // The year is dropped for the current year and shown for any other (#2591),
+  // so a day last December cannot be mistaken for one this year.
+  const headingLabel = (iso: string, compact: boolean): string => {
     const d = parseIso(iso);
     const wd = weekdayShort.format(d);
-    if (isJa) {
-      return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${wd}）`;
+    const withYear = d.getFullYear() !== new Date().getFullYear();
+    const y = d.getFullYear();
+    const m = d.getMonth() + 1;
+    const day = d.getDate();
+    if (compact) {
+      if (isJa) return `${withYear ? `${y}/` : ""}${m}/${day}（${wd}）`;
+      return `${wd} ${m}/${day}${withYear ? `/${y}` : ""}`;
     }
+    if (isJa) return `${withYear ? `${y}年` : ""}${m}月${day}日（${wd}）`;
     return `${wd}, ${d.toLocaleDateString("en-US", {
       month: "long",
       day: "numeric",
-      year: "numeric",
-    })}`;
-  };
-
-  const shortDateLabel = (iso: string): string => {
-    const d = parseIso(iso);
-    const wd = weekdayShort.format(d);
-    if (isJa) return `${d.getMonth() + 1}月${d.getDate()}日（${wd}）`;
-    return `${wd}, ${d.toLocaleDateString("en-US", {
-      month: "long",
-      day: "numeric",
+      ...(withYear ? { year: "numeric" } : {}),
     })}`;
   };
 
@@ -1224,6 +1217,76 @@ export function DailyView({
     </RightSidebarPortal>
   );
 
+  // "‹ date ›" with the saved caption and the kebab on its right (#2591).
+  // Desktop centres the date on a three-column grid so the caption's width
+  // cannot push it off-centre; Mobile has no room for equal side columns, so
+  // the date takes what the right group leaves.
+  const stepDay = (offset: number) => {
+    const d = parseIso(selectedDate);
+    d.setDate(d.getDate() + offset);
+    setSelectedDate(formatDateKey(d));
+  };
+  const stepButton = (offset: -1 | 1) => (
+    <button
+      type="button"
+      onClick={() => stepDay(offset)}
+      aria-label={t(
+        offset < 0 ? "materials.daily.prevDay" : "materials.daily.nextDay",
+      )}
+      className={cn(
+        "grid h-10 w-10 shrink-0 place-items-center rounded-lumen-md",
+        "text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
+        FOCUS_RING,
+      )}
+    >
+      {offset < 0 ? (
+        <ChevronLeft size={18} aria-hidden />
+      ) : (
+        <ChevronRight size={18} aria-hidden />
+      )}
+    </button>
+  );
+  const dayHeader = (compact: boolean, actions: ReactNode) => (
+    <div
+      className={cn(
+        "items-center gap-2",
+        compact ? "flex" : "grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]",
+      )}
+    >
+      {!compact && <div />}
+      <div
+        className={cn(
+          "flex items-center justify-center gap-1",
+          compact && "min-w-0 flex-1",
+        )}
+      >
+        {stepButton(-1)}
+        <h1
+          className={cn(
+            "text-center font-bold leading-tight tracking-tight text-lumen-text",
+            compact ? "text-sm" : "text-xl",
+          )}
+        >
+          {headingLabel(selectedDate, compact)}
+        </h1>
+        {stepButton(1)}
+      </div>
+      <div
+        className={cn(
+          "flex items-center gap-2.5",
+          compact ? "shrink-0" : "min-w-0 justify-end",
+        )}
+      >
+        {savedLabel != null && (
+          <span className="text-[11.5px] text-lumen-text-tertiary">
+            {savedLabel}
+          </span>
+        )}
+        {actions}
+      </div>
+    </div>
+  );
+
   // ---- Desktop --------------------------------------------------------
 
   if (isWide) {
@@ -1237,10 +1300,7 @@ export function DailyView({
       <div className="flex h-full min-h-0 flex-col">
         <div className="flex min-h-0 flex-1 flex-col">
           <EditorCard
-            dateLabel={fullDateLabel(selectedDate)}
-            dateClassName="text-[28px] font-bold leading-tight tracking-tight text-lumen-text"
-            savedLabel={savedLabel}
-            headerActions={actionsMenu("icon")}
+            header={dayHeader(false, actionsMenu("icon"))}
             editorKey={editorKey}
             date={selectedDate}
             initialContent={editorContent}
@@ -1268,15 +1328,10 @@ export function DailyView({
 
   return (
     <div className="flex h-full min-h-0 flex-col px-4 pt-2">
-      <div className="flex items-center justify-end gap-2 pb-3">
-        {actionsMenu("boxed")}
-      </div>
+      <div className="pb-3">{dayHeader(true, actionsMenu("boxed"))}</div>
 
       <div className="flex min-h-0 flex-1 flex-col">
         <EditorCard
-          dateLabel={shortDateLabel(selectedDate)}
-          dateClassName="text-lg font-bold leading-tight tracking-tight text-lumen-text"
-          savedLabel={savedLabel}
           editorKey={editorKey}
           date={selectedDate}
           initialContent={editorContent}
