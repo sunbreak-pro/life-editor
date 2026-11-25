@@ -104,12 +104,15 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
   );
 
   // Load on mount and on every tags bump, through the shared load effect
-  // (#672 / #891). `error` is new on this hook's surface — the effect this
-  // replaces had no catch at all, so a failed bulk load became an unhandled
-  // rejection and the tag surfaces just showed an empty graph. Nothing renders
-  // it yet (an error card is a visible change); what it buys now is that
-  // #296's un-latch is in place before any surface starts reading it.
-  const { isLoading: attemptInFlight, error } = useDomainLoad({
+  // (#672 / #891). The effect this replaced had no catch at all, so a failed
+  // bulk load became an unhandled rejection and the tag surfaces just showed
+  // an empty graph. Connect reads `error` with `hasLoaded` to tell a list that
+  // never arrived from an empty one (#2850).
+  const {
+    isLoading: attemptInFlight,
+    error,
+    setError,
+  } = useDomainLoad({
     domain: "WikiTags",
     snapshotKey: "wikiTags",
     skipWhenFresh: ["tags"],
@@ -137,14 +140,18 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
    */
   const loading = attemptInFlight && !hasLoaded;
 
-  // Imperative reload, kept on the public surface (no in-repo caller today).
+  // Imperative reload — Connect's error card retries through it (#2604).
   // Behaviour note: it no longer raises `loading` while in flight. That only
   // ever applied before the first successful load — the flag was pinned false
   // afterwards by the #300 rule above — and an imperative call cannot drive
   // the shared effect's derived state without writing it from a render.
+  // A success un-latches `error` the way the effect's own reads do (#296):
+  // this read bypasses the effect, so nothing else would clear it (#2850).
+  // A failure rejects and leaves the last message as it was.
   const refresh = useCallback(async () => {
     applyAll(await loadAll(ds));
-  }, [applyAll, loadAll, ds]);
+    setError(null);
+  }, [applyAll, loadAll, ds, setError]);
 
   // -- tag master ----------------------------------------------------------
 
@@ -676,6 +683,10 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
       allConnections,
       countsByTag,
       loading,
+      // #2850: whether a bulk load has ever landed. `loading` drops to false
+      // after a failed first read too, so without this a caller cannot tell
+      // "no tags" from "the tags were never read".
+      hasLoaded,
       error,
       refresh,
       createTag,
@@ -705,6 +716,7 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
       allConnections,
       countsByTag,
       loading,
+      hasLoaded,
       error,
       refresh,
       createTag,
