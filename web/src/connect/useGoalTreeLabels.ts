@@ -81,6 +81,8 @@ export function useGoalTreeLabels(todayKey: string): {
       formatExpand: (title) => t("connect.goals.expand", { title }),
       formatCollapse: (title) => t("connect.goals.collapse", { title }),
       filteringBy: t("connect.goals.arrange.filteringBy"),
+      formatFilteringBy: (filters) =>
+        t("connect.goals.arrange.filteringByLine", { filters }),
       resetFilters: t("connect.goals.arrange.reset"),
       noMatch: t("connect.goals.arrange.noMatch"),
       completedHeading: t("connect.goals.completedHeading"),

@@ -3,9 +3,9 @@ import { SlidersHorizontal } from "lucide-react";
 import {
   BottomSheet,
   Button,
+  cn,
   ConfirmDialog,
   DEFAULT_GOAL_TREE_ARRANGEMENT,
-  DEFAULT_GOAL_TREE_FILTER,
   formatGoalPeriod,
   GoalDeleteDialog,
   GoalDetailPanel,
@@ -72,8 +72,8 @@ import { useGoalTreeLabels } from "./useGoalTreeLabels";
  *
  * Sort and filter (#2225) are held here, since the tree and the panel render
  * apart: wide, the controls sit at the top of the right panel at all times,
- * above the picked goal; narrow, a "Sort & filter" button over the tree opens
- * them in their own bottom sheet.
+ * above the picked goal; narrow, a "Sort & filter" button on the add button's
+ * row (#2610) opens them in their own bottom sheet.
  *
  * Drag to re-parent a goal or move a todo between goals (#2226) is wide only:
  * on a phone the tree draws no grip, so the panel keeps its parent select there
@@ -213,12 +213,14 @@ export function GoalsTodosScreen({
       periodLabel: t("connect.goals.arrange.period"),
       all: t("connect.goals.arrange.all"),
       periods: treeLabels.periods,
+      periodSeparator: t("connect.goals.arrange.periodSeparator"),
       statusLabel: t("connect.goals.arrange.status"),
       statuses: {
         inProgress: t("connect.goals.arrange.inProgress"),
         achieved: t("connect.goals.achieved"),
       },
       hideDoneTodos: t("connect.goals.arrange.hideDoneTodos"),
+      resetAll: t("connect.goals.arrange.resetAll"),
     }),
     [t, treeLabels],
   );
@@ -226,12 +228,10 @@ export function GoalsTodosScreen({
     arrangement.filter,
     arrangeLabels,
   );
+  // The line's reset is the panel's "Reset all": the sort goes back too, as
+  // in the prototype (#2610).
   const resetFilters = useCallback(
-    () =>
-      setArrangement((prev) => ({
-        ...prev,
-        filter: DEFAULT_GOAL_TREE_FILTER,
-      })),
+    () => setArrangement(DEFAULT_GOAL_TREE_ARRANGEMENT),
     [],
   );
   const arrangePanel = (
@@ -770,23 +770,32 @@ export function GoalsTodosScreen({
           stays full width so its scrollbar sits at the screen's edge. */}
       <div className="h-full min-h-0 overflow-y-auto px-1 pt-4 pb-12 md:pt-6">
         <div data-goals-body className="mx-auto max-w-[48rem]">
-          {!isWide && model.byId.size > 0 && !loadFailed && (
-            <div className="mb-4 flex justify-end">
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => setArrangeSheetOpen(true)}
-                leadingIcon={<SlidersHorizontal size={14} aria-hidden />}
-                className="max-md:min-h-11"
-              >
-                {arrangeLabels.heading}
-              </Button>
-            </div>
-          )}
           <GoalTreeView
             model={shownModel}
             activeFilters={activeFilters}
             onResetFilters={resetFilters}
+            addRowEnd={
+              !isWide &&
+              model.byId.size > 0 && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setArrangeSheetOpen(true)}
+                  leadingIcon={<SlidersHorizontal size={14} aria-hidden />}
+                  // The accent frame says a filter is on while the line
+                  // over the tree may be scrolled away (#2610). Only the
+                  // border changes: the variant already sets the colours.
+                  className={cn(
+                    "shrink-0 whitespace-nowrap border max-md:min-h-11",
+                    activeFilters.length > 0
+                      ? "border-lumen-accent"
+                      : "border-transparent",
+                  )}
+                >
+                  {arrangeLabels.heading}
+                </Button>
+              )
+            }
             onCreateLooseTodo={createLooseTodo}
             isLoading={isLoading}
             loadFailed={loadFailed}
@@ -814,9 +823,7 @@ export function GoalsTodosScreen({
             setSelectedGoalId(null);
             setLinkingGoalId(null);
           }}
-          title={t("connect.goals.sheetTitle", {
-            title: selectedNode.goal.title,
-          })}
+          title={t("connect.goals.sheetTitle")}
           closeLabel={t("connect.sheetClose")}
         >
           {panel}
@@ -826,7 +833,7 @@ export function GoalsTodosScreen({
         <BottomSheet
           open
           onClose={() => setArrangeSheetOpen(false)}
-          title={arrangeLabels.heading}
+          title={t("connect.goals.arrange.sheetTitle")}
           closeLabel={t("connect.sheetClose")}
         >
           {arrangePanel}

@@ -258,7 +258,11 @@ export type GoalTreeSort = "standard" | "progress" | "name";
 export type GoalTreeStatus = "inProgress" | "achieved";
 
 export interface GoalTreeFilter {
-  period: GoalPeriodKind | "all";
+  /**
+   * The periods whose goals are drawn, each on or off on its own (#2610). All
+   * three is no filter; the panel keeps at least one on.
+   */
+  periods: readonly GoalPeriodKind[];
   status: GoalTreeStatus | "all";
   hideDoneTodos: boolean;
 }
@@ -269,7 +273,7 @@ export interface GoalTreeArrangement {
 }
 
 export const DEFAULT_GOAL_TREE_FILTER: GoalTreeFilter = {
-  period: "all",
+  periods: GOAL_PERIOD_KINDS,
   status: "all",
   hideDoneTodos: false,
 };
@@ -294,8 +298,8 @@ function progressRatio(node: GoalTreeNode): number {
 /**
  * The model as drawn under `arrangement`. Sorting applies at every sibling
  * level, ties keeping the standard order. A goal the filter drops gives its
- * place to those of its children that pass, so "Week" lists this week's goals
- * on their own rather than a year → month frame around them. Hiding done
+ * place to those of its children that pass, so with only "This week" on, this
+ * week's goals stand on their own rather than in a year → month frame. Hiding done
  * todos takes them off every goal and off the loose list; the progress counts
  * still include them. `byId` and the period counts are left whole — the panel
  * and the add limit are about the goals, not about what is drawn.
@@ -305,7 +309,7 @@ export function arrangeGoalTree(
   { sort, filter }: GoalTreeArrangement,
 ): GoalTreeModel {
   const passes = (node: GoalTreeNode): boolean =>
-    (filter.period === "all" || node.goal.periodKind === filter.period) &&
+    filter.periods.includes(node.goal.periodKind) &&
     (filter.status === "all" || goalTreeStatus(node) === filter.status);
   const keepTodo = (todo: GoalTreeTodo): boolean =>
     !filter.hideDoneTodos || todo.status !== "DONE";

@@ -173,10 +173,39 @@ describe("arrangeGoalTree (#2225)", () => {
   });
 
   it("lifts a period's goals out of the frame the filter drops", () => {
-    const model = arrange("standard", { period: "week" });
+    const model = arrange("standard", { periods: ["week"] });
     expect(ids(model.roots)).toEqual(["w1", "w2"]);
     expect(ids(model.unconnected)).toEqual(["w3"]);
-    expect(ids(arrange("standard", { period: "year" }).roots)).toEqual(["y"]);
+    expect(ids(arrange("standard", { periods: ["year"] }).roots)).toEqual([
+      "y",
+    ]);
+  });
+
+  it("draws every period by default, the three periods all on (#2610)", () => {
+    expect(DEFAULT_GOAL_TREE_FILTER.periods).toEqual(["year", "month", "week"]);
+    const model = arrange("standard");
+    expect(ids(model.roots)).toEqual(["y"]);
+    expect(ids(model.roots[0].children)).toEqual(["m"]);
+  });
+
+  it("keeps the goals of every period left on, and hides the one turned off (#2610)", () => {
+    // The year off: the month stands as a root, its weeks still under it.
+    const noYear = arrange("standard", { periods: ["month", "week"] });
+    expect(ids(noYear.roots)).toEqual(["m"]);
+    expect(ids(noYear.roots[0].children)).toEqual(["w1", "w2"]);
+    expect(ids(noYear.unconnected)).toEqual(["w3"]);
+
+    // The month off: the weeks hang straight under the year.
+    const noMonth = arrange("standard", { periods: ["year", "week"] });
+    expect(ids(noMonth.roots)).toEqual(["y"]);
+    expect(ids(noMonth.roots[0].children)).toEqual(["w1", "w2"]);
+
+    // The week off: no week goal is drawn anywhere.
+    const noWeek = arrange("standard", { periods: ["year", "month"] });
+    expect(ids(noWeek.roots)).toEqual(["y"]);
+    expect(ids(noWeek.roots[0].children)).toEqual(["m"]);
+    expect(noWeek.roots[0].children[0].children).toEqual([]);
+    expect(noWeek.unconnected).toEqual([]);
   });
 
   it("keeps only the goals in the picked state", () => {
