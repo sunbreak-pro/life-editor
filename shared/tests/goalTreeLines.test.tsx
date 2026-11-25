@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { ComponentProps } from "react";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import {
   GoalTreeView,
@@ -728,5 +729,73 @@ describe("GoalTreeView — the loose todos' empty line (#2851)", () => {
   it("stays silent while a filter is on, since it may be what hid them", () => {
     renderLoose([], ["Tag"]);
     expect(screen.queryByText("No todos are outside a goal")).toBeNull();
+  });
+});
+
+describe("GoalTreeView — a failed read and no goals (#2614)", () => {
+  function renderState(
+    over: Partial<ComponentProps<typeof GoalTreeView>>,
+  ): void {
+    render(
+      <GoalTreeView
+        model={model()}
+        isLoading={false}
+        selectedGoalId={null}
+        onSelectGoal={vi.fn()}
+        onCreateGoal={vi.fn().mockResolvedValue(true)}
+        onCreateLooseTodo={vi.fn().mockResolvedValue(true)}
+        onSetTodoStatus={vi.fn()}
+        onOpenTodo={vi.fn()}
+        labels={LABELS}
+        {...over}
+      />,
+    );
+  }
+
+  it("shows the danger card with Retry, which calls onRetry", () => {
+    const onRetry = vi.fn();
+    renderState({ loadFailed: true, onRetry });
+
+    const card = screen.getByRole("alert");
+    within(card).getByText("Could not load");
+    expect(card.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(["border-lumen-danger", "bg-lumen-danger-subtle"]),
+    );
+    expect(screen.queryByRole("region", { name: "Goals" })).toBeNull();
+
+    fireEvent.click(within(card).getByRole("button", { name: "Retry" }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a plain line, with no dead button, for a host without a retry", () => {
+    renderState({ loadFailed: true });
+    const alert = screen.getByRole("alert");
+    expect(alert.textContent).toBe("Could not load");
+    expect(within(alert).queryByRole("button")).toBeNull();
+  });
+
+  it("shows the guidance and a bordered Target button that opens this week's field", () => {
+    renderState({ model: model([]) });
+
+    const empty = screen.getByText("No goals").closest("[data-goals-empty]");
+    if (!(empty instanceof HTMLElement)) throw new Error("no empty state");
+    const button = within(empty).getByRole("button", {
+      name: "Add this week's goal",
+    });
+    const classes = button.className.split(/\s+/);
+    // A border, not the accent fill the shared EmptyState would give it.
+    expect(classes).toEqual(
+      expect.arrayContaining(["border", "border-lumen-border"]),
+    );
+    expect(classes).not.toContain("bg-lumen-accent");
+    // The goal's own glyph leads the label, hidden from screen readers.
+    expect(button.querySelector("svg.lucide-target")).not.toBeNull();
+
+    fireEvent.click(button);
+    screen.getByRole("textbox", { name: /This week/ });
+    // The field is open, so the guidance's button steps aside.
+    expect(
+      screen.queryByRole("button", { name: "Add this week's goal" }),
+    ).toBeNull();
   });
 });

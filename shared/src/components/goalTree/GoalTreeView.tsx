@@ -24,9 +24,9 @@ import { WIDE_QUERY } from "../../constants/breakpoints";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { Button } from "../Button";
 import { Card } from "../Card";
-import { EmptyState } from "../EmptyState";
 import { IconButton } from "../IconButton";
 import { Input } from "../Input";
+import { LoadErrorCard } from "../LoadErrorCard";
 import { SkeletonList } from "../SkeletonList";
 import { ICON_TAP_NARROW } from "../styleTokens";
 import { TodoStatusCheckbox, toggledTodoStatus } from "../TodoStatusCheckbox";
@@ -1519,25 +1519,21 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
   }
 
   if (props.loadFailed) {
-    return (
-      <div
+    // The danger card the tags tab shows too (#2604, #2614). A host without a
+    // retry keeps the plain line: the card's button would do nothing.
+    return props.onRetry ? (
+      <LoadErrorCard
+        message={labels.loadFailed}
+        retryLabel={labels.retry}
+        onRetry={props.onRetry}
+      />
+    ) : (
+      <p
         role="alert"
-        className="flex flex-col items-center gap-3 px-6 py-12 text-center"
+        className="px-6 py-12 text-center text-[12.5px] text-lumen-text-secondary"
       >
-        <p className="text-[12.5px] text-lumen-text-secondary">
-          {labels.loadFailed}
-        </p>
-        {props.onRetry && (
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={props.onRetry}
-            className="max-md:min-h-11"
-          >
-            {labels.retry}
-          </Button>
-        )}
-      </div>
+        {labels.loadFailed}
+      </p>
     );
   }
 
@@ -1820,15 +1816,28 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
       </section>
 
       {!hasGoals ? (
-        <EmptyState
-          icon={<Target />}
-          message={labels.empty}
-          cta={
-            adding
-              ? undefined
-              : { label: labels.emptyAction, onClick: () => openAdd("week") }
-          }
-        />
+        // Not EmptyState: its call-to-action is the accent fill, and the
+        // prototype frames this one in a border with the goal's Target inside,
+        // so the large glyph above would repeat it (#2614).
+        <div
+          data-goals-empty
+          className="flex flex-col items-center justify-center gap-3 px-6 py-12 text-center"
+        >
+          <p className="text-[12.5px] leading-relaxed text-lumen-text-secondary">
+            {labels.empty}
+          </p>
+          {!adding && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => openAdd("week")}
+              leadingIcon={<Target size={14} aria-hidden />}
+              className="border border-lumen-border max-md:min-h-11"
+            >
+              {labels.emptyAction}
+            </Button>
+          )}
+        </div>
       ) : (
         <>
           {activeFilters.length > 0 && (
