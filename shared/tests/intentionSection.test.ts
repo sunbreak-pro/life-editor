@@ -55,8 +55,8 @@ describe("normalizeIntentionText", () => {
 /*
  * The section writer (mergeIntentionSection) and the save caption helper
  * (hasIntentionToReport) were removed with the paper's declaration field
- * (D-20261007-briefing-1), and the reader (extractIntentionSection) with
- * #2757: no screen showed what older days carry. What stays pinned is that
+ * (D-20261007-briefing-1), and the reader with #2757: no screen showed what
+ * older days carry. What stays pinned is that
  * the 朝刊 / 夕刊 readers do not claim an older day's 宣言 section.
  */
 describe("an older day's 宣言 section beside the 朝刊 / 夕刊 readers", () => {

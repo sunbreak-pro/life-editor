@@ -246,7 +246,7 @@ TodoTree を SSOT として、日次実行対象（Schedule）と長期構造（
 
 ### Purpose
 
-ツリー階層で構造化された長文ナレッジベース。TipTap リッチテキスト + スラッシュコマンドで自由に書け、note_connections により別ノートと双方向リンクでき、ピン留め・パスワード保護・編集ロックを持つ「Life Editor 版 Obsidian / Notion ページ」。
+ツリー階層で構造化された長文ナレッジベース。TipTap リッチテキスト + スラッシュコマンドで自由に書け、note_connections により別ノートと双方向リンクでき、ピン留め・パスワード保護を持つ「Life Editor 版 Obsidian / Notion ページ」。
 
 ### Boundary
 
@@ -255,7 +255,8 @@ TodoTree を SSOT として、日次実行対象（Schedule）と長期構造（
   - TipTap エディタ（`content` は TipTap JSON）+ スラッシュコマンド + バブルツールバー
   - **画像 / ファイルの添付・埋め込み（2026-09-01 #1404）**: スラッシュコマンドの `image` / `file` から。Notes の本文に加え、2026-10-07 から Daily の本文でも使える（夕刊の振り返り欄は対象外 — 閉じた状態が文字だけのプレビューで添付を描けないため）。実体は**非公開** Storage バケット `attachments` の `<uid>/<uuid>.<ext>`（migration 0027 のポリシーが第 1 セグメント = `auth.uid()` で認可）で、ドキュメントが持つのは**パスだけ** — バケットが非公開なので URL は署名付き・1 時間で失効し、ノートに焼き込めない。描画時に `attachment` ノードが毎回署名 URL を引く。$0 厳守のため 1 ファイル 10 MB 上限（無料枠 = 1 GB / 月 5 GB egress / 1 アップロード 50 MB。クライアントとバケット両方で担保）
   - 相互接続（`note_connections` テーブル、1 対 1 で delete_by_note_pair をサポート）
-  - ピン留め（`isPinned`）/ 全文検索（`db_notes_search`）/ パスワード保護（`hasPassword` + set/remove/verify）/ 編集ロック（`isEditLocked`）
+  - ピン留め（`isPinned`）/ 全文検索（`db_notes_search`）/ パスワード保護（`hasPassword` + set/remove/verify）
+  - **編集ロックは退役（#2757）**: 切り替えの処理と画面は消した。DB の列 `is_edit_locked` と型の `isEditLocked` は、DDL を打たずに残してある（読むだけで、書く画面は無い）
   - ソフトデリート + 復元 + 完全削除（UI からのみ実行可能）
   - `icon` / `color` のカスタマイズ
   - WikiTags 経由でのタグ付与（`note_tags` / `note_tag_definitions`）
@@ -318,7 +319,7 @@ TodoTree を SSOT として、日次実行対象（Schedule）と長期構造（
 ### Boundary
 
 - やる:
-  - **Memo**: 日次 1 エントリ（`id='memo-<date>'`）、TipTap コンテンツ、ピン留め、パスワード保護、編集ロック
+  - **Memo**: 日次 1 エントリ（`id='memo-<date>'`）、TipTap コンテンツ、ピン留め、パスワード保護（編集ロックは #2757 で退役 — Notes と同じ）
   - **本文 = その日の 1 本の文章（2026-10・#2123）**: Daily の本文から朝刊の節・宣言の節・「夕刊」の見出し・「気分: n/5」の行を除いた残りを 1 本の文章として編集する。夕刊の締めくくりの欄と同じ `readDailyText` / `writeDailyText` を使い、開いただけの日は保存し直さない。朝刊の講評と古い宣言は `readMorningRecord` で本文とは別の欄に読み取り専用で出す。本文の下は気分の★と評価の数字 4 つ（予定の数・Todo の達成率・作業時間・今日進んだ目標の数）だけで、★は夕刊の★と同じく発行時刻も入れる（D-20261006-main-5〜8・実装 = `web/src/daily/DailyView.tsx`）
   - **TimeMemo**: 時刻付き短文メモ（`date` + `hour` + `content`）、Schedule タイムグリッドに埋め込まれる補助記録
   - MCP `get_memo` / `upsert_memo` による Claude からの読み書き（日記自動記入 / 過去分検索）
@@ -326,7 +327,7 @@ TodoTree を SSOT として、日次実行対象（Schedule）と長期構造（
   - WikiTags 経由でのタグ付与
 - やらない:
   - 1 日に複数 Memo 作成（それは Notes で扱う）
-  - MCP 経由での削除 / ロック操作（安全性重視）
+  - MCP 経由での削除（安全性重視）
   - Memo 間の相互リンク（Note と用途を分離）
 
 ### Acceptance Criteria
@@ -334,7 +335,7 @@ TodoTree を SSOT として、日次実行対象（Schedule）と長期構造（
 - [ ] AC1: Schedule DayFlow / Connect > DailyMemoView から特定日を開くと、その日の Memo エントリがインライン編集可能な状態で表示される（存在しなければ upsert で作成）
 - [ ] AC2: `upsert_memo(date, content)` を MCP 経由で呼ぶと、同じ日の UI 表示が次回ロード時に更新される（同じ日付で 2 回呼ぶと上書きされ重複は作られない）
 - [ ] AC3: Memo にパスワードを設定すると、verify 前は `content` が UI に表示されず、MCP `get_memo` でも本文が返らない
-- [ ] AC4: 編集ロックを ON にすると UI から編集できず、解除しないと変更不可（MCP からも上書きされない）
+- AC4（退役 — #2757）: 編集ロックの切り替えは消したので、この項目は検証しない
 - [ ] AC5: Schedule タイムグリッド上で時刻セルをクリックすると、その時刻の TimeMemo（`date` + `hour`）が編集でき、空内容保存で自動削除される
 - [ ] AC6: ピン留めした Memo は Memos 一覧の先頭に固定表示される
 - [ ] AC7: Memo を削除すると `is_deleted=1` になり、TrashView で復元 / 完全削除できる（MCP 経由では不可）

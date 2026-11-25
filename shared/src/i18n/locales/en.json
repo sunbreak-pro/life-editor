@@ -44,28 +44,6 @@
     "languageDesc": "Switch the display language. Changes apply across the whole app instantly.",
     "english": "English",
     "japanese": "Japanese",
-    "detail": {
-      "previewHeading": "Current appearance",
-      "windowTitle": "Today's todos",
-      "previewTitle": "Today's todos",
-      "appearanceSummary": "Theme: {{theme}} · Font size {{fontValue}}",
-      "tipsHeading": "Tips",
-      "todos": {
-        "shopping": "Make a shopping list",
-        "coffee": "Order coffee beans",
-        "dinner": "Prep dinner"
-      },
-      "tips": {
-        "immediate": {
-          "title": "Changes save instantly",
-          "body": "There is no save button. Toggling applies to the whole app right away."
-        },
-        "fontSize": {
-          "title": "Font size affects body text",
-          "body": "Headings and UI stay fixed; only body readability is adjusted."
-        }
-      }
-    },
     "themeSystem": "System",
     "fontFamilyLabel": "Font",
     "fontFamilyDesc": "Applies to body text across the app.",
@@ -201,7 +179,6 @@
       "general": "General",
       "claude": "Claude",
       "trash": "Trash",
-      "tips": "Tips",
       "hiddenNote": "Showing {{category}}. The other categories are in the details panel.",
       "showCategories": "Show categories"
     },
@@ -209,9 +186,6 @@
       "heading": "Trash",
       "description": "Deleted items stay here. Put them back, or remove them for good.",
       "unavailable": "The trash cannot be read right now. Check your connection and reopen this."
-    },
-    "placeholder": {
-      "message": "Settings for this section will land here as they arrive."
     },
     "schedule": {
       "heading": "Schedule",
@@ -685,7 +659,6 @@
     "memo": "Memo",
     "save": "Save",
     "originRoutine": "Generated from routine",
-    "originEvent": "Event",
     "skipThisDay": "Skip this day",
     "seriesEditHint": "Changing the title or times asks whether to apply it to this occurrence, this and later ones, or all. The date, the all-day switch and the memo only ever affect this one. Tags belong to the repeat itself: adding or removing one here changes every occurrence, past and future, without asking first.",
     "skippedTitle": "Skipped ({{count}})",
@@ -1328,9 +1301,7 @@
       "openGoal": "Open {{title}}",
       "back": "Back to goals",
       "linkTodos": "Link todos: {{title}}",
-      "openInConnect": "Open in Goals & Todos",
-      "migrationOverflow_one": "Your goals note became goals. This move fills each period up to 3 goals, so {{count}} more line stays in the note as it was.",
-      "migrationOverflow_other": "Your goals note became goals. This move fills each period up to 3 goals, so {{count}} more lines stay in the note as they were."
+      "openInConnect": "Open in Goals & Todos"
     },
     "review": {
       "title": "GOALS FROM AN ENDED PERIOD",
