@@ -5,6 +5,7 @@ import {
   fireEvent,
   act,
   waitFor,
+  within,
 } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { clearRecentNotes, type NoteNode } from "@life-editor/shared";
@@ -155,7 +156,32 @@ function pressAndTravel(): void {
   pointer(document, "pointermove", 20, 90);
 }
 
+/*
+ * Lets go of a drag and waits out @dnd-kit's teardown. A started drag puts a
+ * capturing click stopper on `document` and takes it off 50ms after the drag
+ * ends; a drag left held, or a click inside that window, swallows a later
+ * test's click on the same document.
+ */
+async function releaseDrag(): Promise<void> {
+  pointer(document, "pointerup", 20, 90);
+  await act(() => new Promise<void>((resolve) => setTimeout(resolve, 60)));
+}
+
 const SHEET_NAME = "Alpha: materials.notes.rowActions";
+
+function tag(id: string, name: string) {
+  return {
+    id,
+    name,
+    color: null,
+    icon: null,
+    isDeleted: false,
+    createdAt: "2026-08-01T00:00:00Z",
+    updatedAt: "2026-08-01T00:00:00Z",
+  };
+}
+
+const WORK = tag("tag-work", "Work");
 
 describe("Notes sidebar rows on narrow (#2032)", () => {
   it("does not start a drag when a held finger travels", () => {
@@ -167,6 +193,14 @@ describe("Notes sidebar rows on narrow (#2032)", () => {
 
     pressAndTravel();
     expect(li.classList.contains("opacity-40")).toBe(false);
+  });
+
+  // #2579 brought the drag to the Desktop default list, the list this is.
+  it("draws no tag drop panel either, with tags to drop on", () => {
+    state.tags = [WORK];
+    render(<NotesView />);
+    pressAndTravel();
+    expect(screen.queryByTestId("note-tag-drop-targets")).toBeNull();
   });
 
   it("keeps a hold from selecting text or opening the platform menu", () => {
@@ -286,21 +320,10 @@ describe("Notes sidebar rows on Desktop (#2032 leaves them alone)", () => {
     state.isWide = true;
   });
 
-  it("still picks the row up on press-and-travel", () => {
-    // #2061: only the tag-grouped list drags — the default list has no
-    // headings to drop on. Two groups, so the tag filter that opens the
-    // grouped list is drawn at all.
-    state.tags = [
-      {
-        id: "tag-work",
-        name: "Work",
-        color: null,
-        icon: null,
-        isDeleted: false,
-        createdAt: "2026-08-01T00:00:00Z",
-        updatedAt: "2026-08-01T00:00:00Z",
-      },
-    ];
+  it("still picks the row up on press-and-travel", async () => {
+    // The tag-grouped list (#1687). Two groups, so the tag filter that opens
+    // the grouped list is drawn at all.
+    state.tags = [WORK];
     state.assignments = {
       "note-a": [{ itemId: "note-a", tagId: "tag-work", isDeleted: false }],
     };
@@ -311,6 +334,94 @@ describe("Notes sidebar rows on Desktop (#2032 leaves them alone)", () => {
     expect(li.getAttribute("aria-roledescription")).toBe("draggable");
     pressAndTravel();
     expect(li.classList.contains("opacity-40")).toBe(true);
+    // The headings are the targets there; the every-tag panel is the flat
+    // list's (#2579).
+    expect(screen.queryByTestId("note-tag-drop-targets")).toBeNull();
+    await releaseDrag();
+  });
+
+  describe("the default list (#2579)", () => {
+    beforeEach(() => {
+      // Home carries no note: an empty tag is a target too.
+      state.tags = [
+        WORK,
+        tag("tag-home", "Home"),
+        {
+          ...tag("tag-gone", "Gone"),
+          isDeleted: true,
+        },
+      ];
+      state.assignments = {
+        "note-a": [
+          {
+            id: "asg-1",
+            itemId: "note-a",
+            tagId: "tag-work",
+            isDeleted: false,
+          },
+        ],
+      };
+    });
+
+    it("picks a row up and offers every live tag over the list", async () => {
+      render(<NotesView />);
+      const li = row();
+      expect(li.getAttribute("aria-roledescription")).toBe("draggable");
+      expect(screen.queryByTestId("note-tag-drop-targets")).toBeNull();
+
+      pressAndTravel();
+      expect(li.classList.contains("opacity-40")).toBe(true);
+      const panel = screen.getByRole("region", {
+        name: "materials.notes.assignTagHint",
+      });
+      const targets = within(panel).getAllByTestId("note-tag-drop-target");
+      expect(targets.map((t) => t.textContent)).toEqual(["Work", "Home"]);
+      await releaseDrag();
+      expect(screen.queryByTestId("note-tag-drop-targets")).toBeNull();
+    });
+
+    it("turns off the target of a tag the note already carries", async () => {
+      render(<NotesView />);
+      pressAndTravel();
+      const [work, home] = screen.getAllByTestId("note-tag-drop-target");
+      expect(work.getAttribute("aria-disabled")).toBe("true");
+      expect(home.hasAttribute("aria-disabled")).toBe(false);
+      await releaseDrag();
+    });
+
+    it("takes the panel away when the drag is cancelled", async () => {
+      render(<NotesView />);
+      pressAndTravel();
+      screen.getByTestId("note-tag-drop-targets");
+      act(() => {
+        document.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Escape", code: "Escape" }),
+        );
+      });
+      expect(screen.queryByTestId("note-tag-drop-targets")).toBeNull();
+      // The pointerup the helper sends finds no drag left; only the wait counts.
+      await releaseDrag();
+    });
+
+    it("leaves the 'Other items' rows undraggable", () => {
+      state.notes = Array.from({ length: 16 }, (_, i) =>
+        note({
+          id: `note-${i}`,
+          title: `Note ${String(i).padStart(2, "0")}`,
+          updatedAt: `2026-08-${String(i + 1).padStart(2, "0")}T00:00:00Z`,
+        }),
+      );
+      render(<NotesView />);
+      fireEvent.click(
+        screen.getByRole("button", { name: /materials\.notes\.otherItems/ }),
+      );
+      const flyout = screen.getByRole("dialog", {
+        name: "materials.notes.otherItems|1",
+      });
+      const other = within(flyout).getByRole("listitem");
+      expect(other.getAttribute("aria-roledescription")).toBeNull();
+      expect(other.hasAttribute("tabindex")).toBe(false);
+    });
   });
 
   it("draws no edit button — right-click is the Desktop door", () => {

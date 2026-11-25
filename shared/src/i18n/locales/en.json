@@ -425,6 +425,8 @@
       "collapseGroup": "Collapse group",
       "expandGroup": "Expand group",
       "assignTagHint": "Drop onto a tag to assign it",
+      "tagDropRelease": "Release to add it here",
+      "tagDropNoTags": "No tags yet",
       "sortTitle": "Title",
       "tagFilterLabel": "Tags",
       "tagFilterHeading": "Filter by tag",

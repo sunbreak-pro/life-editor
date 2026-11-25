@@ -30,6 +30,10 @@ import { UNTAGGED_GROUP_KEY, type NoteNode } from "@life-editor/shared";
  * affordance saying so; removing the one the user dragged out of is the same
  * move the other direction.
  *
+ * The flat default list drags too since #2579. Its rows come from no heading
+ * and land on the every-tag panel (TagDropTargets), so a drop there only adds,
+ * and one onto a tag the note already has writes nothing (planTagMove).
+ *
  * Lives in web/ (not shared/) so the shared package stays UI/dnd-free.
  */
 
@@ -55,6 +59,18 @@ const NOTE_DRAG_SEP = "::";
 export const noteDraggableId = (groupKey: string, noteId: string): string =>
   `${groupKey}${NOTE_DRAG_SEP}${noteId}`;
 
+/*
+ * The group key a row of the flat default list drags under (#2579). That list
+ * has no tag headings, so a row there comes from no tag: a drop only adds,
+ * like a row out of the untagged bucket (#1687). Not a tag id, so it can never
+ * be read as one.
+ */
+const FLAT_LIST_DRAG_KEY = "note-flat-list";
+
+/** Draggable id for a row of the flat default list (#2579). */
+export const flatNoteDraggableId = (noteId: string): string =>
+  noteDraggableId(FLAT_LIST_DRAG_KEY, noteId);
+
 const parseNoteId = (dragId: string): string => {
   const idx = dragId.indexOf(NOTE_DRAG_SEP);
   return idx === -1 ? dragId : dragId.slice(idx + NOTE_DRAG_SEP.length);
@@ -63,13 +79,14 @@ const parseNoteId = (dragId: string): string => {
 /**
  * The tag the dragged ROW belongs to (#1687) — the group key in the draggable
  * id, which is the tag id for every group but the untagged bucket. Null when
- * the row came from that bucket, or when the id carries no group at all.
+ * the row came from that bucket or the flat default list (#2579), or when the
+ * id carries no group at all.
  */
 const parseSourceTagId = (dragId: string): string | null => {
   const idx = dragId.indexOf(NOTE_DRAG_SEP);
   if (idx === -1) return null;
   const key = dragId.slice(0, idx);
-  return key === UNTAGGED_GROUP_KEY ? null : key;
+  return key === UNTAGGED_GROUP_KEY || key === FLAT_LIST_DRAG_KEY ? null : key;
 };
 
 /** Where a drop landed: a tag id, null for the untagged bucket, undefined for nowhere. */
