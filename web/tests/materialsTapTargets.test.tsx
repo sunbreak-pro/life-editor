@@ -137,11 +137,19 @@ describe("#1560 — the tag filter meets the 44px touch floor", () => {
     }
   });
 
-  it("also floors the clear button ACROSS — it is a glyph with no label", () => {
+  it("also floors the clear buttons ACROSS — they are glyphs with no label", () => {
     renderFilter(["t-a"]);
-    const clear = screen.getByRole("button", { name: "Clear" });
-    expect(clear.classList.contains("max-md:min-h-lumen-tap-touch")).toBe(true);
-    expect(clear.classList.contains("max-md:min-w-lumen-tap-touch")).toBe(true);
+    // The × beside the button (#2847) and the clear inside the panel.
+    const clears = screen.getAllByRole("button", { name: "Clear" });
+    expect(clears).toHaveLength(2);
+    for (const clear of clears) {
+      expect(clear.classList.contains("max-md:min-h-lumen-tap-touch")).toBe(
+        true,
+      );
+      expect(clear.classList.contains("max-md:min-w-lumen-tap-touch")).toBe(
+        true,
+      );
+    }
   });
 
   it("leaves the DESKTOP controls at their mouse size", () => {
@@ -149,7 +157,7 @@ describe("#1560 — the tag filter meets the 44px touch floor", () => {
     for (const el of [
       screen.getByRole("button", { name: /^Tags/ }),
       ...optionButtons(),
-      screen.getByRole("button", { name: "Clear" }),
+      ...screen.getAllByRole("button", { name: "Clear" }),
     ]) {
       expect(el.classList.contains("min-h-11")).toBe(false);
     }
