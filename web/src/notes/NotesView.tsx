@@ -7,7 +7,7 @@ import {
   useState,
 } from "react";
 import type { Editor } from "@tiptap/core";
-import { FileText } from "lucide-react";
+import { FileText, Plus } from "lucide-react";
 import {
   useNotesUnifiedContext,
   useWikiTagsUnifiedContext,
@@ -56,6 +56,15 @@ import { TemplateEditHost } from "./TemplateEditHost";
 import { useElementWidth } from "./hooks/useElementWidth";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { formatNoteUpdated } from "./formatNoteUpdated";
+import { NarrowHeaderActionPortal } from "../NarrowHeaderRow";
+
+/*
+ * The narrow top bar's "+" (#2795). It sits flush against Redo, so it takes
+ * the same outlined 40px box as that pair (UndoRedoButtons' BTN). The floor is
+ * unprefixed because only the narrow branch renders it.
+ */
+const NARROW_CREATE_BUTTON =
+  "flex size-8 min-h-lumen-tap-touch min-w-lumen-tap-touch shrink-0 items-center justify-center rounded-lumen-md border border-lumen-border-strong text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
 
 /*
  * Web Notes tab (life-tags unification S1). The former folder tree is gone:
@@ -795,32 +804,54 @@ export function NotesView({
   // Main-content toolbar (#302): "+ Add Note" at the main-content top-right —
   // same accent pill + position sense as the Todos board toolbar. Always
   // present so a new note can be made with nothing selected.
+  //
+  // Narrow (#2795, ユーザー決定 2026-11-22 = 案 A): the pill's band took 62px
+  // above every note on a phone, so the entry is a 40px "+" in the top bar
+  // beside Redo instead. Still one press, and still there with nothing
+  // selected. What stays in the column is the #2291 top gap alone.
   const mainContent = (
     <>
       <div
         className={cn(
-          "flex items-center justify-end px-1 pb-3",
+          "flex items-center justify-end px-1",
           // #2291: the narrow column's top gap lives here, not as the
           // scroller's padding. A sticky box stops at the scroller's padding
           // edge, so a `pt-2` there left 9px of scrolled body showing above
-          // the stuck note header.
-          !isWide && "pt-2",
+          // the stuck note header. With the "+" up in the top bar this box is
+          // empty, and its two paddings are the whole gap.
+          isWide ? "pb-3" : "pt-2 pb-2",
         )}
       >
-        <span className="inline-flex">
-          <AddPill
-            onClick={handleAddNote}
-            label={t("materials.notes.addCta")}
-            // #2793: the visible "+ ノート" reads the same as the tab; the
-            // spoken name says what the button does.
-            ariaLabel={t("materials.notes.addAria")}
-            // #1560: the pill measured 33 tall at 390px. The floor rides on
-            // THIS call site rather than on AddPill's own recipe because the
-            // part has two other hosts in the Schedule lane, and growing their
-            // pills is that lane's call to make (#1512 splits by section).
-            className="max-md:min-h-11"
-          />
-        </span>
+        {isWide ? (
+          <span className="inline-flex">
+            <AddPill
+              onClick={handleAddNote}
+              label={t("materials.notes.addCta")}
+              // #2793: the visible "+ ノート" reads the same as the tab; the
+              // spoken name says what the button does.
+              ariaLabel={t("materials.notes.addAria")}
+              // #1560: the pill measured 33 tall at 390px. The floor rides on
+              // THIS call site rather than on AddPill's own recipe because the
+              // part has two other hosts in the Schedule lane, and growing
+              // their pills is that lane's call to make (#1512 splits by
+              // section). It still matters on the wide layout: `max-md:` is
+              // rem-based, so a window between 768px and 48rem draws this pill.
+              className="max-md:min-h-11"
+            />
+          </span>
+        ) : (
+          <NarrowHeaderActionPortal>
+            <button
+              type="button"
+              onClick={handleAddNote}
+              aria-label={t("materials.notes.addAria")}
+              title={t("materials.notes.addAria")}
+              className={NARROW_CREATE_BUTTON}
+            >
+              <Plus aria-hidden className="size-4" />
+            </button>
+          </NarrowHeaderActionPortal>
+        )}
       </div>
       {selected ? (
         // #2583: the open note is one centred 46rem column on the page, a
@@ -944,9 +975,9 @@ export function NotesView({
               history (first run, everything deleted) the list is absent and
               this is the centred icon + line on its own.
 
-              #1372: no CTA of its own. The toolbar pill above is the add
-              entry at BOTH widths, so a second button saying the same thing a
-              few centimetres below it only doubled the target. */}
+              #1372: no CTA of its own. The toolbar pill above (the top bar's
+              "+" on narrow, #2795) is the add entry at both widths, so a
+              second button saying the same thing only doubled the target. */}
           <div className="flex w-full max-w-sm flex-col items-center">
             <EmptyState
               icon={<FileText aria-hidden />}
