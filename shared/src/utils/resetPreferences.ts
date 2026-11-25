@@ -23,8 +23,8 @@
  * stored value is orphaned. It is also why a retired surface needs no cleanup
  * code: prefix matching still sweeps whatever it left behind in a browser.
  *
- * Three Notes keys used to carry no prefix at all and so survived a reset
- * (`note-tree-expanded`, `note-sort-direction`, `note-tag-groups-collapsed`).
+ * Two Notes keys used to carry no prefix at all and so survived a reset
+ * (`note-sort-direction`, `note-tag-groups-collapsed`).
  * They were renamed into the colon family in #718; the values saved under the
  * old bare names are carried across at startup by
  * `migrateLegacyPreferenceKeys`. Prefix matching therefore has NO exceptions —

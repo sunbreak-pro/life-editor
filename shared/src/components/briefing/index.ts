@@ -124,9 +124,7 @@ export {
   type GoalLinkSnapshot,
 } from "./useGoalLinkSnapshot";
 export {
-  goalPeriodKeys,
   goalPeriodRanges,
-  type GoalPeriodKeys,
   type GoalPeriodRanges,
 } from "./goalPeriods";
 export { normalizeIntentionText } from "./intentionSection";

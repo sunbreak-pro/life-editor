@@ -12,7 +12,7 @@ import {
   ToastProvider,
   WEEK_STARTS_ON,
   addDaysKey,
-  goalPeriodKeys,
+  startOfWeekKey,
   localDateTimeToISO,
   todayDateKey,
   type DataService,
@@ -41,7 +41,10 @@ import { BriefingScreen } from "../src/briefing/BriefingScreen";
  */
 
 const TODAY = todayDateKey();
-const KEYS = goalPeriodKeys(TODAY, WEEK_STARTS_ON);
+const KEYS = {
+  week: startOfWeekKey(TODAY, WEEK_STARTS_ON),
+  year: TODAY.slice(0, 4),
+};
 const LAST_WEEK = addDaysKey(KEYS.week, -7);
 
 const syncValue: WebSyncContextValue = {

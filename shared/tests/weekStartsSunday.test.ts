@@ -6,7 +6,6 @@ import {
   monthGridKeys,
   startOfWeekKey,
 } from "../src/utils/scheduleGridLayout";
-import { goalPeriodKeys } from "../src/components/briefing/goalPeriods";
 
 /*
  * #1102 — the week starts on Sunday and nothing moves it.
@@ -58,8 +57,8 @@ describe("week start (#1102)", () => {
     }
   });
 
-  it("files a goal under the Sunday week key", () => {
-    expect(goalPeriodKeys(WEDNESDAY, WEEK_STARTS_ON).week).toBe("2026-08-16");
+  it("keys a week by its Sunday start date", () => {
+    expect(startOfWeekKey(WEDNESDAY, WEEK_STARTS_ON)).toBe("2026-08-16");
   });
 });
 

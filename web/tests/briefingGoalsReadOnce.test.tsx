@@ -4,7 +4,7 @@ import {
   SyncContext,
   SYNC_DOMAINS,
   WEEK_STARTS_ON,
-  goalPeriodKeys,
+  startOfWeekKey,
   todayDateKey,
   type DataService,
   type Goal,
@@ -29,7 +29,7 @@ import { BriefingScreen } from "../src/briefing/BriefingScreen";
  */
 
 const TODAY = todayDateKey();
-const WEEK = goalPeriodKeys(TODAY, WEEK_STARTS_ON).week;
+const WEEK = startOfWeekKey(TODAY, WEEK_STARTS_ON);
 const NOW_ISO = new Date().toISOString();
 
 const syncValue: WebSyncContextValue = {

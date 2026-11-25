@@ -13,7 +13,7 @@ import {
   SYNC_DOMAINS,
   WEEK_STARTS_ON,
   addDaysKey,
-  goalPeriodKeys,
+  startOfWeekKey,
   localDateTimeToISO,
   todayDateKey,
   type DailyNode,
@@ -41,7 +41,7 @@ import { BriefingScreen } from "../src/briefing/BriefingScreen";
 
 const TODAY = todayDateKey();
 const TOMORROW = addDaysKey(TODAY, 1);
-const WEEK = goalPeriodKeys(TODAY, WEEK_STARTS_ON).week;
+const WEEK = startOfWeekKey(TODAY, WEEK_STARTS_ON);
 const NOW_ISO = new Date().toISOString();
 
 const syncValue: WebSyncContextValue = {
@@ -526,11 +526,16 @@ describe("put on tomorrow (#2107)", () => {
     });
     await within(goals).findByText("1/2");
 
-    fireEvent.change(screen.getByLabelText("Time (optional): 図を直す 企画書を通す"), {
-      target: { value: "09:00" },
-    });
+    fireEvent.change(
+      screen.getByLabelText("Time (optional): 図を直す 企画書を通す"),
+      {
+        target: { value: "09:00" },
+      },
+    );
     fireEvent.click(
-      screen.getByRole("button", { name: "Put on tomorrow: 図を直す 企画書を通す" }),
+      screen.getByRole("button", {
+        name: "Put on tomorrow: 図を直す 企画書を通す",
+      }),
     );
     await waitFor(() =>
       expect(writes.updateTodo).toHaveBeenCalledWith("t-open", {
@@ -548,7 +553,9 @@ describe("put on tomorrow (#2107)", () => {
     const { ds, writes } = makeDS({ today: null, todos: [STILL_OPEN] });
     renderEvening(ds);
     fireEvent.click(
-      await screen.findByRole("button", { name: "Put on tomorrow: 図を直す 企画書を通す" }),
+      await screen.findByRole("button", {
+        name: "Put on tomorrow: 図を直す 企画書を通す",
+      }),
     );
     await waitFor(() =>
       expect(writes.updateTodo).toHaveBeenCalledWith("t-open", {
@@ -571,7 +578,9 @@ describe("put on tomorrow (#2107)", () => {
       { target: { value: "23:45" } },
     );
     fireEvent.click(
-      screen.getByRole("button", { name: "Put on tomorrow: 図を直す 企画書を通す" }),
+      screen.getByRole("button", {
+        name: "Put on tomorrow: 図を直す 企画書を通す",
+      }),
     );
     await waitFor(() =>
       expect(writes.updateTodo).toHaveBeenCalledWith("t-open", {
@@ -597,7 +606,7 @@ describe("put on tomorrow (#2107)", () => {
         todos: [STILL_OPEN],
         goal: {
           ...WEEK_GOAL,
-          periodKey: goalPeriodKeys(paperDay, WEEK_STARTS_ON).week,
+          periodKey: startOfWeekKey(paperDay, WEEK_STARTS_ON),
         },
       });
       renderEvening(ds);
@@ -606,7 +615,9 @@ describe("put on tomorrow (#2107)", () => {
         { target: { value: "02:00" } },
       );
       fireEvent.click(
-        screen.getByRole("button", { name: "Put on tomorrow: 図を直す 企画書を通す" }),
+        screen.getByRole("button", {
+          name: "Put on tomorrow: 図を直す 企画書を通す",
+        }),
       );
       // 02:00 belongs to tomorrow until 04:00, which on the wall calendar is
       // the date after tomorrow — and the row says「Tomorrow 02:00」.

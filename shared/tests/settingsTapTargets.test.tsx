@@ -69,7 +69,7 @@ describe("#1562 — the settings category list", () => {
       <SettingsTabsNav
         tabs={[
           { id: "general", label: "General", icon: null },
-          { id: "tips", label: "Tips", icon: null, opensPanel: true },
+          { id: "tips", label: "Tips", icon: null },
         ]}
         value="general"
         onSelect={() => {}}
