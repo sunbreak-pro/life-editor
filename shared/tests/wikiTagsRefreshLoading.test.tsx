@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { useWikiTagsUnifiedAPI } from "../src/hooks/useWikiTagsUnifiedAPI";
 import { createBumpableSync } from "./helpers/bumpableSync";
@@ -74,5 +74,77 @@ describe("useWikiTagsUnifiedAPI loading (#300)", () => {
 
     await act(async () => releaseAll());
     expect(hook.result.current.loading).toBe(false);
+  });
+});
+
+/*
+ * #2850 — a failed first read and `refresh()`. `loading` is false after a
+ * failed first read as well as after a good one, so `hasLoaded` is what tells
+ * Connect "no tags" from "never read"; and `refresh()` reads outside the load
+ * effect, so it has to clear `error` itself or the card never goes away.
+ */
+describe("useWikiTagsUnifiedAPI hasLoaded and refresh (#2850)", () => {
+  function makeFailingDS() {
+    const listAllWikiTagsUnified = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("network down"))
+      .mockResolvedValue([]);
+    const ds = stubDataService({
+      listAllWikiTagsUnified,
+      listAllTagAssignments: vi.fn().mockResolvedValue([]),
+      listAllTagConnections: vi.fn().mockResolvedValue([]),
+    });
+    return { ds, listAllWikiTagsUnified };
+  }
+
+  it("reports hasLoaded once the first bulk load lands", async () => {
+    const { ds } = makeDS();
+    const hook = renderHook(() => useWikiTagsUnifiedAPI({ dataService: ds }), {
+      wrapper,
+    });
+    expect(hook.result.current.hasLoaded).toBe(false);
+    await waitFor(() => expect(hook.result.current.hasLoaded).toBe(true));
+    expect(hook.result.current.error).toBeNull();
+  });
+
+  it("keeps hasLoaded false after a failed first read, and refresh() clears the error", async () => {
+    const { ds, listAllWikiTagsUnified } = makeFailingDS();
+    const hook = renderHook(() => useWikiTagsUnifiedAPI({ dataService: ds }), {
+      wrapper,
+    });
+    await waitFor(() => expect(hook.result.current.error).toBe("network down"));
+    expect(hook.result.current.hasLoaded).toBe(false);
+    // The trap #2850 is about: a failed first read is not "still loading".
+    expect(hook.result.current.loading).toBe(false);
+
+    await act(async () => {
+      await hook.result.current.refresh();
+    });
+    expect(listAllWikiTagsUnified).toHaveBeenCalledTimes(2);
+    expect(hook.result.current.hasLoaded).toBe(true);
+    expect(hook.result.current.error).toBeNull();
+  });
+
+  it("leaves the error in place when refresh() fails too", async () => {
+    const listAllWikiTagsUnified = vi
+      .fn()
+      .mockRejectedValue(new Error("network down"));
+    const ds = stubDataService({
+      listAllWikiTagsUnified,
+      listAllTagAssignments: vi.fn().mockResolvedValue([]),
+      listAllTagConnections: vi.fn().mockResolvedValue([]),
+    });
+    const hook = renderHook(() => useWikiTagsUnifiedAPI({ dataService: ds }), {
+      wrapper,
+    });
+    await waitFor(() => expect(hook.result.current.error).toBe("network down"));
+
+    await act(async () => {
+      await expect(hook.result.current.refresh()).rejects.toThrow(
+        "network down",
+      );
+    });
+    expect(hook.result.current.hasLoaded).toBe(false);
+    expect(hook.result.current.error).toBe("network down");
   });
 });
