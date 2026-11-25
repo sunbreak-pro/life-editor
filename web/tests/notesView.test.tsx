@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 import type { NoteNode } from "@life-editor/shared";
 import { clearRecentNotes, recordNoteOpened } from "@life-editor/shared";
 import { NotesView } from "../src/notes/NotesView";
+import { NarrowHeaderRow } from "../src/NarrowHeaderRow";
 import { showAllTagGroups, stubDataService } from "./helpers";
 
 /*
@@ -963,6 +964,152 @@ describe("NotesView — mobile (narrow)", () => {
 });
 
 /*
+ * #2795 (ユーザー決定 2026-11-22 = 案 A) — on a phone the create entry is a
+ * 40px "+" at the right end of the top bar, beside Redo, and the "+ ノート"
+ * band above the note is gone. MainScreen builds that bar and needs the whole
+ * Provider stack, so the real NarrowHeaderRow is rendered beside the view
+ * here, as PageContainer draws the two in the shell.
+ */
+describe("NotesView — the create button in the narrow top bar (#2795)", () => {
+  function renderWithTopBar(): ReturnType<typeof render> {
+    return render(
+      <>
+        <NarrowHeaderRow
+          shape="tabs+hamburger"
+          tabs={<div className="flex-1" />}
+          hamburger={<button type="button">hamburger</button>}
+          actions={
+            <>
+              <button type="button">common.undo</button>
+              <button type="button">common.redo</button>
+            </>
+          }
+        />
+        <NotesView />
+      </>,
+    );
+  }
+
+  // The top bar's own button. With no notes the drawer's list offers a second
+  // one (#1372), so the slot is where to look.
+  const createButton = (): HTMLElement =>
+    within(screen.getByTestId("narrow-header-action-slot")).queryByRole(
+      "button",
+      { name: "materials.notes.addAria" },
+    ) ?? screen.getByRole("button", { name: "materials.notes.addAria" });
+
+  // The main column is the narrow scroll owner (#875). Read off the empty
+  // state, so it needs nothing selected.
+  const mainColumn = (): HTMLElement =>
+    screen
+      .getByText("materials.notes.mainEmpty")
+      .closest(".overflow-y-auto") as HTMLElement;
+
+  beforeEach(() => {
+    state.isWide = false;
+  });
+
+  it("puts the one create entry beside Redo, not in the note's column", () => {
+    state.selectedId = "note-a";
+    renderWithTopBar();
+
+    const plus = createButton();
+    const slot = screen.getByTestId("narrow-header-action-slot");
+    expect(slot.contains(plus)).toBe(true);
+    expect(slot.previousElementSibling?.textContent).toBe("common.redo");
+    const column = screen
+      .getByTestId("editor")
+      .closest(".overflow-y-auto") as HTMLElement;
+    expect(column.contains(plus)).toBe(false);
+    // No band left above the note: nothing in the column says "+ ノート".
+    expect(within(column).queryByText("materials.notes.addCta")).toBeNull();
+  });
+
+  it("makes a note in one press and gets the drawer out of the way", () => {
+    renderWithTopBar();
+
+    fireEvent.click(createButton());
+
+    expect(state.createNote).toHaveBeenCalledExactlyOnceWith();
+    expect(state.close).toHaveBeenCalled();
+  });
+
+  it("is there with nothing selected and no notes at all", () => {
+    state.notes = [];
+    renderWithTopBar();
+
+    const plus = createButton();
+    expect(screen.getByTestId("narrow-header-action-slot").contains(plus)).toBe(
+      true,
+    );
+    fireEvent.click(plus);
+    expect(state.createNote).toHaveBeenCalled();
+  });
+
+  it("is a 40px square icon button with the action as its name", () => {
+    renderWithTopBar();
+
+    const plus = createButton();
+    expect(plus.textContent).toBe("");
+    for (const c of [
+      "size-8",
+      "min-h-lumen-tap-touch",
+      "min-w-lumen-tap-touch",
+    ]) {
+      expect(plus.classList.contains(c)).toBe(true);
+    }
+  });
+
+  it("leaves only the #2291 top gap in the column, on no scroller padding", () => {
+    renderWithTopBar();
+
+    const column = mainColumn();
+    expect(column.className.split(" ")).not.toContain("pt-2");
+    const gap = column.firstElementChild as HTMLElement;
+    expect(gap.childElementCount).toBe(0);
+    expect(gap.className.split(" ")).toEqual(
+      expect.arrayContaining(["pt-2", "pb-2"]),
+    );
+  });
+
+  it("goes away with the Notes tab", () => {
+    const { rerender } = renderWithTopBar();
+    createButton();
+
+    // Switching to the Daily tab unmounts NotesView; the bar stays.
+    rerender(
+      <NarrowHeaderRow
+        shape="tabs+hamburger"
+        tabs={<div className="flex-1" />}
+        hamburger={<button type="button">hamburger</button>}
+        actions={<button type="button">common.redo</button>}
+      />,
+    );
+    expect(
+      screen.queryByRole("button", { name: "materials.notes.addAria" }),
+    ).toBeNull();
+  });
+
+  // Desktop keeps the pill at the column's top right (#302): even with a
+  // narrow bar's slot on the page, the wide branch draws the pill in place.
+  it("leaves the Desktop pill where it was", () => {
+    state.isWide = true;
+    renderWithTopBar();
+
+    const pill = createButton();
+    expect(pill.textContent).toBe("materials.notes.addCta");
+    expect(
+      screen.getByTestId("narrow-header-action-slot").childElementCount,
+    ).toBe(0);
+    const band = pill.closest(".justify-end") as HTMLElement;
+    expect(band.className.split(" ")).toEqual(
+      expect.arrayContaining(["px-1", "pb-3"]),
+    );
+    expect(band.className.split(" ")).not.toContain("pt-2");
+  });
+});
+
+/*
  * #1288 — the tag filter row, now multi-select, and the unfiltered list's cap.
  *
  * The suite's fixtures give one tagged group (Work → Alpha) and the untagged
@@ -1354,6 +1501,23 @@ describe("NotesView — the default list (#2061)", () => {
       expect(document.activeElement).toBe(othersButton());
     });
 
+    // #2795 took the panel's two icon buttons to the 40px token with #2673.
+    it("floors its close button on the tap-touch token", () => {
+      render(<NotesView />);
+      fireEvent.click(othersButton());
+
+      const close = within(flyout()).getByRole("button", {
+        name: "materials.notes.closeOtherItems",
+      });
+      expect(close.classList.contains("max-md:min-h-lumen-tap-touch")).toBe(
+        true,
+      );
+      expect(close.classList.contains("max-md:min-w-lumen-tap-touch")).toBe(
+        true,
+      );
+      expect(close.classList.contains("max-md:min-h-11")).toBe(false);
+    });
+
     it("closes on a press outside it", () => {
       render(<NotesView />);
       fireEvent.click(othersButton());
@@ -1409,8 +1573,15 @@ describe("NotesView — the default list (#2061)", () => {
         name: "materials.notes.backToList",
       });
       expect(document.activeElement).toBe(back);
-      expect(back.classList.contains("max-md:min-h-11")).toBe(true);
-      expect(back.classList.contains("max-md:min-w-11")).toBe(true);
+      // Icon-only, so the 40px tap-touch floor rather than 2.75rem (#2673,
+      // moved with this test in #2795).
+      expect(back.classList.contains("max-md:min-h-lumen-tap-touch")).toBe(
+        true,
+      );
+      expect(back.classList.contains("max-md:min-w-lumen-tap-touch")).toBe(
+        true,
+      );
+      expect(back.classList.contains("max-md:min-h-11")).toBe(false);
     });
 
     it("goes back to the list and to 'Other items'", () => {

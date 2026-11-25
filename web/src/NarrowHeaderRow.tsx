@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { useSyncExternalStore, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import type { NarrowHeader } from "./sectionDescriptors";
 
 /*
@@ -11,9 +12,12 @@ import type { NarrowHeader } from "./sectionDescriptors";
  * mobile in exactly one place, the bottom bar's "More" sheet (#472), which is
  * two taps and a mode switch away from the edit you want to take back.
  *
- * So the row is now UNCONDITIONAL and has three slots, left to right:
+ * So the row is now UNCONDITIONAL and has these slots, left to right:
  *
- *   [hamburger] [tabs ····························] [actions]
+ *   [hamburger] [tabs ·······················] [actions][section slot]
+ *
+ * (The section slot is empty except on the Notes tab — see
+ * NarrowHeaderActionPortal below.)
  *
  * `shape` still decides the first two — that part is verbatim from the old
  * helper — but `actions` is drawn on every section, pinned to the right end
@@ -53,6 +57,70 @@ export interface NarrowHeaderRowProps {
   actions: ReactNode;
 }
 
+/*
+ * The slot right of `actions` that a section BODY can fill (#2795).
+ *
+ * The Notes tab's "+" lives in this row on a phone, beside Redo, so it no
+ * longer takes a band above the note. But the row is built by MainScreen and
+ * the create handler belongs to NotesView, which mounts far below it inside a
+ * lazy chunk. The body therefore portals its button up into this slot, the way
+ * the list goes to the right sidebar through <RightSidebarPortal>.
+ *
+ * A module-level store rather than a context: a Provider would have to wrap
+ * both the row and the body, which only MainScreen / AppProviders can do.
+ * One narrow header is on screen at a time, so one slot is enough; the ref's
+ * cleanup only clears the slot it set, so a row replaced in the same commit
+ * cannot wipe its successor.
+ */
+let actionSlot: HTMLElement | null = null;
+const slotListeners = new Set<() => void>();
+
+function setActionSlot(next: HTMLElement | null): void {
+  if (actionSlot === next) return;
+  actionSlot = next;
+  for (const listener of slotListeners) listener();
+}
+
+function subscribeActionSlot(listener: () => void): () => void {
+  slotListeners.add(listener);
+  return () => {
+    slotListeners.delete(listener);
+  };
+}
+
+const readActionSlot = (): HTMLElement | null => actionSlot;
+const readNoActionSlot = (): HTMLElement | null => null;
+
+// Module-level, so the ref is the same function every render and React does
+// not detach and re-attach it on each one.
+function attachActionSlot(
+  el: HTMLSpanElement | null,
+): (() => void) | undefined {
+  if (!el) return undefined;
+  setActionSlot(el);
+  return () => {
+    if (actionSlot === el) setActionSlot(null);
+  };
+}
+
+/**
+ * Draws its children in the narrow header row's right-end slot (#2795), or in
+ * place when no narrow header is mounted — a host without the row, or a test
+ * of the body alone — so the control is never left with nowhere to be.
+ */
+export function NarrowHeaderActionPortal({
+  children,
+}: {
+  children: ReactNode;
+}): React.JSX.Element {
+  const slot = useSyncExternalStore(
+    subscribeActionSlot,
+    readActionSlot,
+    readNoActionSlot,
+  );
+  return slot ? createPortal(children, slot) : <>{children}</>;
+}
+
 export function NarrowHeaderRow({
   shape,
   tabs,
@@ -82,7 +150,17 @@ export function NarrowHeaderRow({
       ) : (
         <span className="flex-1" />
       )}
-      {actions}
+      {/* No gap inside: a section's button sits flush against Redo, as two
+          icon buttons side by side do on narrow (#2673). `contents`, so an
+          empty slot adds no box and no gap. */}
+      <div className="flex items-center">
+        {actions}
+        <span
+          ref={attachActionSlot}
+          data-testid="narrow-header-action-slot"
+          className="contents"
+        />
+      </div>
     </div>
   );
 }
