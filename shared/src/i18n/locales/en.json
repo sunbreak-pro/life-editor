@@ -528,6 +528,8 @@
       "entriesCount": "Entries ({{count}})",
       "filterPlaceholder": "Filter entries…",
       "filterLabel": "Filter entries",
+      "filterToggle": "Filter",
+      "filterActive": "filters on",
       "searchEmpty": "No entries match that filter",
       "empty": "No entries yet",
       "eveningMood": "Mood",

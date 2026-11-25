@@ -527,6 +527,8 @@
       "entriesCount": "エントリ（{{count}}）",
       "filterPlaceholder": "エントリを絞り込む…",
       "filterLabel": "エントリを絞り込む",
+      "filterToggle": "絞り込み",
+      "filterActive": "条件あり",
       "searchEmpty": "絞り込みに一致するエントリはありません",
       "empty": "エントリはまだありません",
       "eveningMood": "気分",

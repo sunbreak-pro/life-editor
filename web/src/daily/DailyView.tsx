@@ -8,7 +8,7 @@ import {
   type FocusEvent,
   type ReactNode,
 } from "react";
-import { Calendar, MoreHorizontal, Pin, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pin, Trash2 } from "lucide-react";
 import {
   useDailiesUnifiedContext,
   currentDailyMergeSeq,
@@ -71,12 +71,12 @@ import { useDayFigures } from "./useDayFigures";
  *
  *   - Desktop (isWide): a centered max-width 800px editor card (28px date
  *     heading + saved-state caption + pin / delete icon buttons + a plain-text
- *     body wired to upsertDaily-on-blur) and a "今日へ" action row.
- *   - Mobile (narrow): a "今日へ" + pin action row and the same editor card
- *     (19px date).
+ *     body wired to upsertDaily-on-blur).
+ *   - Mobile (narrow): a kebab row and the same editor card (19px date).
  *
- * The past-entries UI — sort / direction / filter above the shared
- * <DailyEntriesPanel> (date picker + chronological entry list) — is PUSHED INTO
+ * The past-entries UI — the shared <DailyEntriesPanel> (month calendar, the
+ * "今日へ" + "絞り込み" row folding the filter and sort, the chronological
+ * entry list) — is PUSHED INTO
  * THE SHARED detail panel via RightSidebarPortal at BOTH
  * widths since #876 (ユーザー裁定 D-20260815-materials-2 = A): the push-in
  * rightSidebar on Desktop, the hamburger's <MobileDrawer> on narrow. It is
@@ -93,6 +93,10 @@ import { useDayFigures } from "./useDayFigures";
  * nothing — and the strip could only ever reach the last 14 days, which is the
  * range the entry list covers best. Arbitrary days are reached through the
  * picker, and "today" through the CTA that was always there.
+ *
+ * #2589 moved that CTA off the body, under the panel's calendar, where it is
+ * pale on today. The body's own way to step between days is the date arrows
+ * (#2591).
  *
  * The body is the shared Notes TipTap editor (F-1 #258 — headings are what
  * makes handwritten 朝刊/夕刊 sections visible to extractBriefing). The title
@@ -956,25 +960,6 @@ export function DailyView({
       : "materials.daily.placeholderOtherDay",
   );
 
-  // "今日へ" accent CTA — jump the selection to today.
-  const toTodayButton = (
-    <button
-      type="button"
-      onClick={() => setSelectedDate(todayIso)}
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-lumen-md bg-lumen-accent px-3.5 py-1.5",
-        "text-sm font-medium text-lumen-on-accent shadow-lumen-sm transition-opacity hover:opacity-90",
-        // #1840 — 36px tall. Height only: the label already makes it wide
-        // enough for a thumb, and a min-width would stretch it.
-        "max-md:min-h-11",
-        FOCUS_RING,
-      )}
-    >
-      <Calendar size={14} aria-hidden />
-      {t("materials.daily.toToday")}
-    </button>
-  );
-
   /*
    * The question before a day goes (#1838).
    *
@@ -1154,32 +1139,51 @@ export function DailyView({
     setSelectedDate(date);
     if (!isWide) rightSidebar?.close();
   };
+  // The defaults are the pre-#369 order, so anything else is a change the
+  // folded "絞り込み" button has to own up to with its dot (#2589).
+  const filterActive =
+    dailyFilterQuery.trim() !== "" ||
+    dailySortMode !== "date" ||
+    dailySortDirection !== "desc";
   const pastEntries = (
     <RightSidebarPortal>
       <div className="flex flex-col gap-2">
-        {/* Filter + sort (#283, modes added in #369, one button + chip
-            panel since #2577), above the past-entries panel. */}
-        <SidebarListControls
-          modes={dailySortModes}
-          activeModeId={dailySortMode}
-          onModeChange={(id) => setDailySortMode(id as DailyListSortMode)}
-          sortLabel={t("materials.sidebar.sort")}
-          modeGroupLabel={t("materials.sidebar.sortBy")}
-          directionGroupLabel={t("materials.sidebar.sortOrder")}
-          directions={dailyDirections}
-          direction={dailySortDirection}
-          onDirectionChange={setDailySortDirection}
-          formatSummary={(mode, order) =>
-            t("materials.sidebar.sortSummary", { mode, order })
-          }
-          filter={{
-            value: dailyFilterQuery,
-            onChange: setDailyFilterQuery,
-            placeholder: t("materials.daily.filterPlaceholder"),
-            ariaLabel: t("materials.daily.filterLabel"),
-          }}
-        />
         <DailyEntriesPanel
+          actions={{
+            todayLabel: t("materials.daily.toToday"),
+            // selectDay, so the drawer gets out of the way of today on narrow.
+            onToday: () => selectDay(todayIso),
+            isToday: selectedDate === todayIso,
+            filterLabel: t("materials.daily.filterToggle"),
+            filterActiveLabel: t("materials.daily.filterActive"),
+            filterActive,
+            filterPanel: (
+              // Filter + sort (#283, modes added in #369, one button + chip
+              // panel since #2577), folded under "絞り込み" since #2589.
+              <SidebarListControls
+                modes={dailySortModes}
+                activeModeId={dailySortMode}
+                onModeChange={(id) =>
+                  setDailySortMode(id as DailyListSortMode)
+                }
+                sortLabel={t("materials.sidebar.sort")}
+                modeGroupLabel={t("materials.sidebar.sortBy")}
+                directionGroupLabel={t("materials.sidebar.sortOrder")}
+                directions={dailyDirections}
+                direction={dailySortDirection}
+                onDirectionChange={setDailySortDirection}
+                formatSummary={(mode, order) =>
+                  t("materials.sidebar.sortSummary", { mode, order })
+                }
+                filter={{
+                  value: dailyFilterQuery,
+                  onChange: setDailyFilterQuery,
+                  placeholder: t("materials.daily.filterPlaceholder"),
+                  ariaLabel: t("materials.daily.filterLabel"),
+                }}
+              />
+            ),
+          }}
           // #2032: a hold on an entry row selected its excerpt and raised
           // iOS's callout. The rows only open a day, so a hold has nothing to
           // offer; narrow or any pointer that cannot hover.
@@ -1231,7 +1235,6 @@ export function DailyView({
       // the gutter-padded full width. Until #203 merges it still renders in the
       // reading column.
       <div className="flex h-full min-h-0 flex-col">
-        <div className="flex justify-end pb-3">{toTodayButton}</div>
         <div className="flex min-h-0 flex-1 flex-col">
           <EditorCard
             dateLabel={fullDateLabel(selectedDate)}
@@ -1266,7 +1269,6 @@ export function DailyView({
   return (
     <div className="flex h-full min-h-0 flex-col px-4 pt-2">
       <div className="flex items-center justify-end gap-2 pb-3">
-        {toTodayButton}
         {actionsMenu("boxed")}
       </div>
 
