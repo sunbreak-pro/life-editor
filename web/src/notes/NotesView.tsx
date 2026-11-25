@@ -448,9 +448,10 @@ export function NotesView({
   // thing the placeholder title is waiting for. Narrow used to raise a title-first
   // QuickAddSheet (#876's "a phone's create is usually the whole capture"),
   // which put a form between the user and the thing they wanted to write in.
-  // The sheet is gone; `createNote()` with no title falls back to the placeholder title
-  // (useNotesUnifiedCRUD) and selects the new note, so the body is already
-  // mounted when the drawer gets out of the way.
+  // The sheet is gone; `createNote()` with no title stores an empty one
+  // (useNotesUnifiedCRUD, #2581 — the field shows a grey placeholder over it)
+  // and selects the new note, so the body is already mounted when the drawer
+  // gets out of the way.
   //
   // Closing the drawer is the same move `handleSelectNote` makes and for the
   // same reason: on narrow it is a modal overlay, so leaving it up would cover
@@ -466,11 +467,47 @@ export function NotesView({
    * later does not re-select the title under whoever is reading it.
    */
   const [focusTitleNoteId, setFocusTitleNoteId] = useState<string | null>(null);
+
+  /*
+   * #2581 — the note "+" just made, which the list draws first with a "New"
+   * badge. It stays fresh while it is the open note, and stops being fresh
+   * the moment the selection moves off it (another note, the recent cards, a
+   * link, a delete). Adjusted while rendering rather than from an effect, the
+   * same pattern ScheduleEventEditor uses for its selection. Until the
+   * provider reports the create's selection back, `prevSelectedNoteId` is the
+   * note that was open before, so the fresh id survives that first render.
+   */
+  const [freshNoteId, setFreshNoteId] = useState<string | null>(null);
+  const selectedNoteId = selected?.id ?? null;
+  const [prevSelectedNoteId, setPrevSelectedNoteId] = useState(selectedNoteId);
+  if (selectedNoteId !== prevSelectedNoteId) {
+    setPrevSelectedNoteId(selectedNoteId);
+    if (freshNoteId !== null && prevSelectedNoteId === freshNoteId) {
+      setFreshNoteId(null);
+    }
+  }
+
+  // #2581: a search or a tag filter left on would hide the new, empty-titled
+  // note from the very list that is supposed to show it first. One call
+  // clears both (useNoteListState drops the tags with the query).
+  const searchQuery = notes.searchQuery;
+  const filteringByTag = tagFilters.length > 0;
   const handleAddNote = useCallback(() => {
+    if (searchQuery !== "" || filteringByTag) handleSearchChange("");
     const id = createNote();
-    if (typeof id === "string") setFocusTitleNoteId(id);
+    if (typeof id === "string") {
+      setFocusTitleNoteId(id);
+      setFreshNoteId(id);
+    }
     if (!isWide) closeSidebar();
-  }, [createNote, isWide, closeSidebar]);
+  }, [
+    createNote,
+    isWide,
+    closeSidebar,
+    searchQuery,
+    filteringByTag,
+    handleSearchChange,
+  ]);
 
   // #1179: the kebab entry registers the OPEN note as a template in one press.
   // The default name is derived here rather than in the hook because the name
@@ -673,6 +710,7 @@ export function NotesView({
 
   const detailLabels = {
     title: t("notesView.detailTitle"),
+    titlePlaceholder: t("materials.notes.untitledPlaceholder"),
     pin: t("notesView.unpin"),
     unpin: t("notesView.pin"),
     pinned: t("notesView.pinned"),
@@ -747,7 +785,11 @@ export function NotesView({
         allHeading: t("materials.notes.allHeading"),
         updatedToday: (time) => t("materials.notes.updatedToday", { time }),
         updatedOn: (date) => t("materials.notes.updatedOn", { date }),
+        untitled: t("materials.notes.untitledPlaceholder"),
+        newBadge: t("materials.notes.newBadge"),
+        newHeading: t("materials.notes.newHeading"),
       }}
+      freshNoteId={freshNoteId}
       error={notes.error}
       selectedNoteId={selected?.id ?? null}
       onSelectNote={handleSelectNote}

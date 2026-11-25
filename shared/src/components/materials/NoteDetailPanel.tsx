@@ -102,10 +102,13 @@ function NoteTitleInput({
   readOnly = false,
   describedBy,
   onEnter,
+  placeholder,
 }: {
   noteId: string;
   initialTitle: string;
   label: string;
+  /** Grey text over an empty title (#2581). */
+  placeholder?: string;
   onCommit: (id: string, title: string) => void;
   /** "main" surface → big borderless heading matching the Daily date title. */
   isMain: boolean;
@@ -259,6 +262,7 @@ function NoteTitleInput({
         }}
         onBlur={flush}
         aria-label={label}
+        placeholder={placeholder}
         readOnly={readOnly}
         aria-describedby={describedBy}
         className={cn(
@@ -290,6 +294,7 @@ function NoteTitleInput({
       }}
       onBlur={flush}
       aria-label={label}
+      placeholder={placeholder}
       readOnly={readOnly}
       aria-describedby={describedBy}
       className={cn(
@@ -335,6 +340,12 @@ export interface NoteDetailPanelProps {
   offlineReason?: string;
   /** Already-translated aria-label for the title input (§6.4). */
   titleLabel: string;
+  /**
+   * Already-translated grey text the title field shows while the title is
+   * empty (#2581): a new note is stored untitled, so there is no word to
+   * delete before naming it.
+   */
+  titlePlaceholder?: string;
   /** Open with the title focused and selected (#1842 — a fresh note). */
   autoFocusTitle?: boolean;
   /** Fired once that focus has been taken. */
@@ -473,6 +484,7 @@ export function NoteDetailPanel({
   onDelete,
   offlineReason,
   titleLabel,
+  titlePlaceholder,
   autoFocusTitle = false,
   onTitleAutoFocused,
   pinLabel,
@@ -643,6 +655,7 @@ export function NoteDetailPanel({
               noteId={noteId}
               initialTitle={title}
               label={titleLabel}
+              placeholder={titlePlaceholder}
               onCommit={onTitleCommit}
               isMain={isMain}
               autoFocus={autoFocusTitle}

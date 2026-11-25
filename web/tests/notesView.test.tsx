@@ -915,7 +915,7 @@ describe("NotesView — mobile (narrow)", () => {
       screen.getAllByRole("button", { name: /materials\.notes\.addAria/ })[0],
     );
     // #1147: no title-first sheet in between. `createNote()` takes no title, so
-    // useNotesUnifiedCRUD's "Untitled" fallback names it and selects it.
+    // useNotesUnifiedCRUD stores it untitled (#2581) and selects it.
     expect(state.createNote).toHaveBeenCalledExactlyOnceWith();
     expect(screen.queryByRole("dialog")).toBeNull();
     // Same reason selecting closes it: the drawer is a modal overlay, so
@@ -932,7 +932,8 @@ describe("NotesView — mobile (narrow)", () => {
     // the Provider comes back with that note selected. The title field is
     // keyed on the note id, so it mounts fresh for the new note -- which is
     // the moment the focus is taken, and the only one.
-    const fresh = note({ id: "note-new", title: "Untitled" });
+    // Stored untitled since #2581, as the real create leaves it.
+    const fresh = note({ id: "note-new", title: "" });
     // Once, so the shared mock does not keep handing an id to the tests after
     // this one.
     state.createNote.mockReturnValueOnce("note-new");
@@ -951,6 +952,9 @@ describe("NotesView — mobile (narrow)", () => {
     expect(document.activeElement).toBe(field);
     expect(field.selectionStart).toBe(0);
     expect(field.selectionEnd).toBe(field.value.length);
+    // #2581: nothing to select or delete — the name is a grey placeholder.
+    expect(field.value).toBe("");
+    expect(field.placeholder).toBe("materials.notes.untitledPlaceholder");
   });
 
   it("shows the Links panel on Mobile too, in the header (#2391)", () => {
@@ -960,6 +964,125 @@ describe("NotesView — mobile (narrow)", () => {
     within(screen.getByTestId("note-detail-title-row")).getByTestId(
       "link-panel",
     );
+  });
+});
+
+/*
+ * #2581 — right after "+", the new note is the first row of the list, alone in
+ * a group of its own with a "New" badge, and both the row and the title field
+ * show the grey "Untitled note" placeholder over its empty title. The search
+ * and the tag filter are cleared by the create, since either could hide the
+ * row. The badge goes once the selection moves off the note.
+ *
+ * Two steps, as in the #1842 case above: the press hands back an id, and the
+ * Provider comes back with the note listed and selected.
+ */
+describe("NotesView — the note just created (#2581)", () => {
+  const FRESH = note({
+    id: "note-new",
+    title: "",
+    // The oldest stamp, so the badge's group — not the sort — is what puts
+    // it first.
+    updatedAt: "2026-07-01T00:00:00Z",
+  });
+
+  function createFresh(): ReturnType<typeof render> {
+    state.createNote.mockReturnValueOnce("note-new");
+    const view = render(<NotesView />);
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "materials.notes.addAria" })[0],
+    );
+    state.notes = [ALPHA, BETA, FRESH];
+    state.selectedId = "note-new";
+    view.rerender(<NotesView />);
+    return view;
+  }
+
+  it("lists it first, alone, with the New badge and the placeholder", () => {
+    createFresh();
+
+    const fresh = screen.getByRole("region", {
+      name: "materials.notes.newHeading",
+    });
+    expect(within(fresh).getAllByRole("listitem")).toHaveLength(1);
+    within(fresh).getByText("materials.notes.untitledPlaceholder");
+    expect(within(fresh).getByTestId("note-row-new-badge").textContent).toBe(
+      "materials.notes.newBadge",
+    );
+    // Above "All", and not drawn there a second time.
+    const all = screen.getByRole("region", {
+      name: "materials.notes.allHeading",
+    });
+    expect(
+      fresh.compareDocumentPosition(all) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      within(all).queryByText("materials.notes.untitledPlaceholder"),
+    ).toBeNull();
+    expect(screen.getAllByTestId("note-row-new-badge")).toHaveLength(1);
+  });
+
+  it("opens the title empty, with the placeholder, and focused", () => {
+    createFresh();
+
+    const field = screen.getByLabelText(
+      "notesView.detailTitle",
+    ) as HTMLInputElement;
+    expect(field.value).toBe("");
+    expect(field.placeholder).toBe("materials.notes.untitledPlaceholder");
+    expect(document.activeElement).toBe(field);
+  });
+
+  it("drops the badge once another note is opened, and does not bring it back", () => {
+    const view = createFresh();
+
+    state.selectedId = "note-a";
+    view.rerender(<NotesView />);
+    expect(screen.queryByTestId("note-row-new-badge")).toBeNull();
+    expect(
+      screen.queryByRole("region", { name: "materials.notes.newHeading" }),
+    ).toBeNull();
+    // The row is an ordinary one now, still showing its placeholder.
+    screen.getByText("materials.notes.untitledPlaceholder");
+
+    state.selectedId = "note-new";
+    view.rerender(<NotesView />);
+    expect(screen.queryByTestId("note-row-new-badge")).toBeNull();
+  });
+
+  it("clears the search on create", () => {
+    state.searchQuery = "Alpha";
+    render(<NotesView />);
+
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "materials.notes.addAria" })[0],
+    );
+    expect(state.setSearchQuery).toHaveBeenCalledWith("");
+    expect(state.createNote).toHaveBeenCalledExactlyOnceWith();
+  });
+
+  it("clears the tag filter on create", () => {
+    render(<NotesView />);
+    fireEvent.click(filterOption("Work"));
+    expect(tagFilterButton().getAttribute("aria-label")).toBe(
+      "materials.notes.tagFilterSelected|1",
+    );
+
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "materials.notes.addAria" })[0],
+    );
+    expect(tagFilterButton().getAttribute("aria-label")).toBeNull();
+    // The untagged note is listed again.
+    screen.getByText("Beta");
+  });
+
+  it("leaves an unfiltered list's search alone", () => {
+    render(<NotesView />);
+
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "materials.notes.addAria" })[0],
+    );
+    expect(state.setSearchQuery).not.toHaveBeenCalled();
   });
 });
 
