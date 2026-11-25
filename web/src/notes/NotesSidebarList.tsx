@@ -26,6 +26,7 @@ import { NoteTagFilterPanel } from "./NoteTagFilterPanel";
 import { DesktopNoteRow, DesktopTagHeading } from "./NoteListRows";
 import { OtherNotesFlyout, OtherNotesList } from "./OtherNotesPanel";
 import { TreeDragGhost } from "../components/TreeDragGhost";
+import { formatNoteUpdated } from "./formatNoteUpdated";
 
 /*
  * The Desktop side list (extracted from NotesView.tsx — #588 split, zero
@@ -112,29 +113,6 @@ export interface NoteRowDetails {
   excerpt?: string;
   /** The note's live tags, first one drawn as a chip and the rest as "+n". */
   tags: readonly { name: string; color: string | null; icon: string | null }[];
-}
-
-/**
- * "Updated today 14:05" for a note touched today, "Updated 11/3" otherwise
- * (#2576) — in the device's own time zone, which is the day the user means.
- */
-function formatNoteUpdated(
-  iso: string,
-  now: Date,
-  labels: Pick<NotesSidebarListLabels, "updatedToday" | "updatedOn">,
-): string | undefined {
-  const at = new Date(iso);
-  if (Number.isNaN(at.getTime())) return undefined;
-  const sameDay =
-    at.getFullYear() === now.getFullYear() &&
-    at.getMonth() === now.getMonth() &&
-    at.getDate() === now.getDate();
-  if (sameDay) {
-    const hh = String(at.getHours()).padStart(2, "0");
-    const mm = String(at.getMinutes()).padStart(2, "0");
-    return labels.updatedToday(`${hh}:${mm}`);
-  }
-  return labels.updatedOn(`${at.getMonth() + 1}/${at.getDate()}`);
 }
 
 export interface NotesSidebarListProps {
