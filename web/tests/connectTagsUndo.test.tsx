@@ -40,19 +40,33 @@ interface TagRow {
   isDeleted: boolean;
 }
 
-const ASSIGNMENTS = [
-  { id: "a-1", itemId: "task-1", tagId: "t-work", isDeleted: false },
-  { id: "a-2", itemId: "note-1", tagId: "t-work", isDeleted: false },
-];
+interface AssignmentRow {
+  id: string;
+  itemId: string;
+  tagId: string;
+  isDeleted: boolean;
+}
 
-/** An in-memory `wiki_tags` that keeps a soft-deleted row, as the table does. */
-function makeDS() {
+/**
+ * An in-memory `wiki_tags` that keeps a soft-deleted row, as the table does,
+ * and a `wiki_tag_assignments` that revives a pair's own row on a second
+ * assign, as the service does (#1593). `extraTags` sit next to Work with no
+ * items.
+ */
+function makeDS(extraTags: readonly TagRow[] = []) {
   const tags = new Map<string, TagRow>([
     [
       "t-work",
       { id: "t-work", name: "Work", color: null, icon: null, isDeleted: false },
     ],
+    ...extraTags.map((tag): [string, TagRow] => [tag.id, tag]),
   ]);
+  const assignments: AssignmentRow[] = [
+    { id: "a-1", itemId: "task-1", tagId: "t-work", isDeleted: false },
+    { id: "a-2", itemId: "note-1", tagId: "t-work", isDeleted: false },
+  ];
+  const liveAssignments = () =>
+    assignments.filter((a) => !a.isDeleted).map((a) => ({ ...a }));
   const live = () => [...tags.values()].filter((t) => !t.isDeleted);
   const set = (id: string, patch: Partial<TagRow>) => {
     const row = { ...(tags.get(id) as TagRow), ...patch };
@@ -76,6 +90,24 @@ function makeDS() {
     restoreWikiTagUnified: vi.fn(async (id: string) =>
       set(id, { isDeleted: false }),
     ),
+    assignTagToItem: vi.fn(
+      async (assignmentId: string, itemId: string, tagId: string) => {
+        const own = assignments.find(
+          (a) => a.itemId === itemId && a.tagId === tagId,
+        );
+        if (own) {
+          own.isDeleted = false;
+          return { ...own };
+        }
+        const row = { id: assignmentId, itemId, tagId, isDeleted: false };
+        assignments.push(row);
+        return { ...row };
+      },
+    ),
+    unassignTagFromItem: vi.fn(async (assignmentId: string) => {
+      const row = assignments.find((a) => a.id === assignmentId);
+      if (row) row.isDeleted = true;
+    }),
   };
   const ds = stubDataService({
     fetchTodoTree: vi.fn().mockResolvedValue([
@@ -93,12 +125,48 @@ function makeDS() {
     fetchAllRoutines: vi.fn().mockResolvedValue([]),
     listNoteExcerptsUnified: vi.fn().mockResolvedValue([]),
     listAllWikiTagsUnified: vi.fn(async () => live()),
-    listAllTagAssignments: vi.fn().mockResolvedValue(ASSIGNMENTS),
+    listAllTagAssignments: vi.fn(async () => liveAssignments()),
     listAllTagConnections: vi.fn().mockResolvedValue([]),
     ...writes,
   });
-  return { ds, tags, live, writes };
+  return { ds, tags, live, liveAssignments, writes };
 }
+
+const WRITING: TagRow = {
+  id: "t-writing",
+  name: "Writing",
+  color: null,
+  icon: null,
+  isDeleted: false,
+};
+
+/** The item ids carrying `tagId` in the table right now, sorted. */
+const itemsOn = (
+  rows: readonly { itemId: string; tagId: string }[],
+  tagId: string,
+) =>
+  rows
+    .filter((a) => a.tagId === tagId)
+    .map((a) => a.itemId)
+    .sort();
+
+/**
+ * A tag left with no items moves out of the rail's list into the unused group
+ * (buildTagHubModel), so "back to 0" reads as its counted row going away.
+ */
+const waitForGone = (name: string) =>
+  waitFor(() => expect(screen.queryByRole("button", { name })).toBe(null));
+
+/** #2224 — the squares are behind the header's "Select". */
+const selectBoth = () => {
+  fireEvent.click(screen.getByRole("button", { name: "Select" }));
+  for (const title of ["Draft the PR", "Migration notes"]) {
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: `Select “${title}”` }),
+    );
+  }
+  screen.getByText("2 selected");
+};
 
 function HistoryProbe() {
   const history = useUndoRedoOptional();
@@ -210,5 +278,61 @@ describe("Connect tag operations on the Undo stack (#2881)", () => {
     await waitFor(() =>
       expect(live().map((t) => t.name).sort()).toEqual(["Recipes", "Work"]),
     );
+  });
+
+  /*
+   * The hook records a bulk run only when its caller asks to (useDuplicateTagCopy
+   * and useCreatePanelNotes must not push), so these go through the selection
+   * bar rather than the hook: a bar that forgot to ask would push nothing.
+   */
+  it("a bulk add from the selection bar comes off with one Undo and back with one Redo", async () => {
+    const { ds, liveAssignments } = makeDS([WRITING]);
+    await renderScreen(ds);
+    fireEvent.click(screen.getByRole("button", { name: "Work: 2 items" }));
+    selectBoth();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add a tag" }));
+    fireEvent.click(
+      within(
+        screen.getByRole("dialog", { name: "Add a tag to the selection" }),
+      ).getByRole("button", { name: "Writing" }),
+    );
+    await screen.findByRole("button", { name: "Writing: 2 items" });
+    expect(itemsOn(liveAssignments(), "t-writing")).toEqual([
+      "note-1",
+      "task-1",
+    ]);
+
+    await press("Header undo");
+    await waitForGone("Writing: 2 items");
+    expect(itemsOn(liveAssignments(), "t-writing")).toEqual([]);
+    // Only what the run put on came off.
+    expect(itemsOn(liveAssignments(), "t-work")).toEqual(["note-1", "task-1"]);
+
+    await press("Header redo");
+    await screen.findByRole("button", { name: "Writing: 2 items" });
+    expect(itemsOn(liveAssignments(), "t-writing")).toEqual([
+      "note-1",
+      "task-1",
+    ]);
+  });
+
+  it("a bulk remove from the selection bar goes back on with one Undo and off with one Redo", async () => {
+    const { ds, liveAssignments } = makeDS([WRITING]);
+    await renderScreen(ds);
+    fireEvent.click(screen.getByRole("button", { name: "Work: 2 items" }));
+    selectBoth();
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove this tag" }));
+    await waitForGone("Work: 2 items");
+    expect(itemsOn(liveAssignments(), "t-work")).toEqual([]);
+
+    await press("Header undo");
+    await screen.findByRole("button", { name: "Work: 2 items" });
+    expect(itemsOn(liveAssignments(), "t-work")).toEqual(["note-1", "task-1"]);
+
+    await press("Header redo");
+    await waitForGone("Work: 2 items");
+    expect(itemsOn(liveAssignments(), "t-work")).toEqual([]);
   });
 });
