@@ -767,6 +767,31 @@ describe("GoalTreeView — a failed read and no goals (#2614)", () => {
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps the card up with its button busy while the retry reads (#2871)", () => {
+    const onRetry = vi.fn();
+    // The host reports the retry's wait as loading; the card, not the
+    // skeleton, stays on screen.
+    renderState({ loadFailed: true, onRetry, isLoading: true, retrying: true });
+
+    expect(screen.queryByRole("status", { name: "Loading" })).toBeNull();
+    const button = within(screen.getByRole("alert")).getByRole("button", {
+      name: "Retry",
+    }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(button.getAttribute("aria-busy")).toBe("true");
+    fireEvent.click(button);
+    expect(onRetry).not.toHaveBeenCalled();
+  });
+
+  it("leaves the button pressable when no retry is running", () => {
+    renderState({ loadFailed: true, onRetry: vi.fn() });
+    const button = within(screen.getByRole("alert")).getByRole("button", {
+      name: "Retry",
+    }) as HTMLButtonElement;
+    expect(button.disabled).toBe(false);
+    expect(button.getAttribute("aria-busy")).toBeNull();
+  });
+
   it("keeps a plain line, with no dead button, for a host without a retry", () => {
     renderState({ loadFailed: true });
     const alert = screen.getByRole("alert");

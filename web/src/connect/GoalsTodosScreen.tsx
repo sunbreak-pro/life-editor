@@ -167,7 +167,10 @@ export function GoalsTodosScreen({
     dataService,
     version: syncVersion,
     anchor: reloadTick,
-    refetchReportsLoading: false,
+    // A refetch keeps the tree on screen rather than blinking to the skeleton.
+    // Until one read has landed there is no tree to keep, so a retry reports
+    // its wait and the failure card's button can say it is working (#2871).
+    refetchReportsLoading: !hasLoaded,
     load: async (service) => {
       const fence = linkWriteFence.current;
       const [goals, todos] = await Promise.all([
@@ -991,6 +994,7 @@ export function GoalsTodosScreen({
             isLoading={isLoading}
             loadFailed={loadFailed}
             onRetry={() => setReloadTick((n) => n + 1)}
+            retrying={isLoading}
             selectedGoalId={selectedGoalId}
             onSelectGoal={selectGoal}
             onCreateGoal={createGoal}
