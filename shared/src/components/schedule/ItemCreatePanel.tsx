@@ -664,15 +664,26 @@ const DISABLED_OUTLINE_BTN = "disabled:cursor-not-allowed disabled:opacity-50";
 //
 // #2406: `max-md:min-h-11` gives all three footer buttons the 44px floor on a
 // phone (rules/frontend.md §Gotchas); Desktop keeps the `py-2` height.
-// Both submits stay an equal split (`flex-1`, no `max-md:basis-auto`) so the pair
-// reads as one row of the same-size targets. At 375px that is 103px each, and
-// 「追加して詳細へ」 needs 110px, so its last character wraps to a second line.
-// The button grows to fit because `min-h-11` is only a floor; a fixed `h-11`
-// would clip the second line. Owner-accepted 2026-11-21 (replaces the
-// width-by-label choice made in #2427). The footer row stretches its items, so
-// the other two buttons grow with the wrapped one (#2814).
+// Both submits start from an equal split (`flex-1`, no `max-md:basis-auto`) so
+// the pair reads as one row of the same-size targets (owner's choice
+// 2026-11-21, replacing the width-by-label split of #2427).
+//
+// #2890: at the default 18px root a 390px phone gives each half about 109px of
+// text room, and 「追加して詳細へ」 needs about 110px, so its last character
+// dropped to a second line and read as an arrow. `whitespace-nowrap` on the
+// "and open" button makes its label its flex minimum (`min-width: auto`): the
+// halves stay equal whenever the label fits, and when it does not, that button
+// keeps its label width and the primary gives up the few px (about 3px at
+// 390px). The primary keeps normal wrapping on purpose. Two unbreakable labels
+// (the todo tab's 「配置して詳細へ」 beside 「この時間に配置」) need more than the
+// row holds at 390px and would push the footer past the sheet's edge; one of
+// them has to be able to give.
+//
+// The buttons grow with a wrapped primary because `min-h-11` is only a floor (a
+// fixed `h-11` would clip the second line), and the footer row stretches its
+// items so the others grow with it (#2814).
 const PRIMARY_BTN = `flex-1 rounded-lumen-md bg-lumen-accent py-2 text-center text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover max-md:min-h-11 ${FOCUS_RING_ON_ACCENT} ${DISABLED_FILLED_BTN}`;
-const SECONDARY_BTN = `flex-1 rounded-lumen-md border border-lumen-border-strong py-2 text-center text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11 ${DISABLED_OUTLINE_BTN}`;
+const SECONDARY_BTN = `flex-1 whitespace-nowrap rounded-lumen-md border border-lumen-border-strong py-2 text-center text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11 ${DISABLED_OUTLINE_BTN}`;
 // Cancel writes nothing, so it takes neither the fill nor the outline — only
 // its own width, at the far end from the submit.
 const CANCEL_BTN = `shrink-0 rounded-lumen-md px-3 py-2 text-center text-sm font-medium text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text max-md:min-h-11 ${FOCUS_RING_TIGHT}`;

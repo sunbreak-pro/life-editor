@@ -227,15 +227,30 @@ describe("the add dialog's floor on a phone (#2427)", () => {
   });
 
   it("splits the footer's two submits equally on a phone", () => {
-    // Equal width wins over fitting the label: at 375px each is 103px, so
-    // 「追加して詳細へ」 may wrap; `min-h-11` is a floor, so it grows, and the
-    // stretched footer row grows the other buttons with it (#2814).
+    // An equal start: `flex-1` with no label-width basis. `min-h-11` is a
+    // floor, so a wrapped primary grows, and the stretched footer row grows
+    // the other buttons with it (#2814).
     renderPanel();
     for (const name of ["Add and edit", "Add"]) {
       const button = screen.getByRole("button", { name });
       expect(button).toHaveClass("flex-1", "max-md:min-h-11");
       expect(button).not.toHaveClass("max-md:basis-auto");
     }
+  });
+
+  it("keeps the and-open label on one line, leaving the primary to give (#2890)", () => {
+    // At 390px each half is about 1px short of 「追加して詳細へ」, which dropped
+    // its last character. `whitespace-nowrap` makes the label the button's flex
+    // minimum. The primary must stay breakable: with both labels unbreakable,
+    // the todo tab's 「配置して詳細へ」 + 「この時間に配置」 overflow the sheet.
+    renderPanel();
+    const andOpen = screen.getByRole("button", { name: "Add and edit" });
+    expect(andOpen).toHaveClass("whitespace-nowrap", "flex-1", "max-md:min-h-11");
+    // Either would undo the minimum: the label would shrink or be cut.
+    expect(andOpen).not.toHaveClass("min-w-0");
+    expect(andOpen).not.toHaveClass("truncate");
+    const primary = screen.getByRole("button", { name: "Add" });
+    expect(primary).not.toHaveClass("whitespace-nowrap");
   });
 
   it("stretches the footer row so its buttons share one height (#2814)", () => {
