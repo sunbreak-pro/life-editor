@@ -2,7 +2,8 @@
 # Collect everything Claude Design needs into one upload folder.
 # Usage (from the repo root):
 #   bash .claude/docs/design/prototype/make-bundle.sh [capture-dir]
-# capture-dir defaults to the newest shots/*-design-capture folder.
+# capture-dir defaults to shots/2026-11-25-design-capture (the capture the
+# README's table describes); without it, the newest shots/*-design-capture.
 # Output: shots/claude-design-bundle/ (untracked; screenshots never enter git).
 set -euo pipefail
 
@@ -11,6 +12,9 @@ src="$root/.claude/docs/design/prototype"
 out="$root/shots/claude-design-bundle"
 
 capture="${1:-}"
+if [ -z "$capture" ] && [ -d "$root/shots/2026-11-25-design-capture" ]; then
+  capture="$root/shots/2026-11-25-design-capture"
+fi
 if [ -z "$capture" ]; then
   capture="$(ls -d "$root"/shots/*-design-capture 2>/dev/null | sort | tail -n 1 || true)"
 fi
