@@ -1103,6 +1103,10 @@ export function DailyView({
               <Pin size={14} aria-hidden />
             )
           }
+          // togglePin flips an existing row and does nothing without one, so
+          // on a day with no entry the item is disabled like the delete item
+          // below and the pin toggle on the date row (#2872).
+          disabled={!selectedDaily}
           onSelect={() => {
             togglePin(selectedDate);
             setActionsOpen(false);

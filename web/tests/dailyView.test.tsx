@@ -1002,6 +1002,21 @@ describe("DailyView — the actions kebab", () => {
     expect(item?.getAttribute("aria-disabled")).toBe("true");
   });
 
+  it("has nothing to pin on a day with no entry (#2872)", () => {
+    state.selectedDate = LONG_AGO;
+    render(<DailyView />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "materials.daily.moreActions" }),
+    );
+    const item = within(screen.getByRole("menu"))
+      .getAllByRole("menuitem", { hidden: true })
+      .find((el) => el.textContent?.includes("materials.daily.pin"));
+    expect(item?.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(item as HTMLElement);
+    expect(state.togglePin).not.toHaveBeenCalled();
+  });
+
   it("names the pin row for the state it would change to (#2596)", () => {
     state.dailies = [daily(YESTERDAY, { isPinned: true })];
     render(<DailyView />);
