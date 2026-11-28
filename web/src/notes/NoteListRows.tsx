@@ -15,6 +15,7 @@ import {
   type NoteNode,
   type NoteTagGroup,
   FOCUS_RING,
+  ICON_TAP_NARROW,
 } from "@life-editor/shared";
 import { tagDroppableId, UNTAGGED_DROP_ID } from "./useNoteTagDnd";
 import { useLongPress } from "./useLongPress";
@@ -323,7 +324,7 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
           className={cn(
             "flex min-h-11 min-w-11 shrink-0 items-center justify-center text-lumen-text-tertiary hover:text-lumen-accent",
             // #2673: a touch row is a phone's, so this is the size it gets.
-            "max-md:min-h-lumen-tap-touch max-md:min-w-lumen-tap-touch",
+            ICON_TAP_NARROW,
             FOCUS_RING,
           )}
         >
@@ -359,7 +360,7 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
              * narrow window.
              */
             "max-md:opacity-100 [@media(hover:none)]:opacity-100",
-            "max-md:min-h-lumen-tap-touch max-md:min-w-lumen-tap-touch",
+            ICON_TAP_NARROW,
             FOCUS_RING,
           )}
         >

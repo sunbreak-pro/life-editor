@@ -57,6 +57,7 @@ import {
   type DataService,
   type LoadErrorCardProps,
   FOCUS_RING_TIGHT as FOCUS_RING,
+  ICON_TAP_NARROW,
   formatDateKey,
   WIDE_QUERY,
   dateFromKey,
@@ -1045,7 +1046,7 @@ export function DailyView({
           : "text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
         "disabled:cursor-not-allowed disabled:text-lumen-text-tertiary disabled:hover:bg-transparent",
         // Same hit box as the kebab beside it (#1840).
-        "max-md:min-h-lumen-tap-touch max-md:min-w-lumen-tap-touch",
+        ICON_TAP_NARROW,
         FOCUS_RING,
       )}
     >
@@ -1081,7 +1082,7 @@ export function DailyView({
           // #1840 — on the shared string rather than inside the "boxed"
           // branch, so both variants carry it and a test can read it without
           // faking a viewport.
-          "max-md:min-h-lumen-tap-touch max-md:min-w-lumen-tap-touch",
+          ICON_TAP_NARROW,
           FOCUS_RING,
         )}
       >

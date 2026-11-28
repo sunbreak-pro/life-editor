@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { Filter, X } from "lucide-react";
-import { cn, FOCUS_RING } from "@life-editor/shared";
+import { cn, FOCUS_RING, ICON_TAP_NARROW } from "@life-editor/shared";
 
 /*
  * The Notes tag filter (#2059) — a button that opens a tag panel, replacing the
@@ -214,7 +214,7 @@ export function NoteTagFilterPanel({
               "inline-flex h-7 w-7 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
               // Icon-only, so the narrow floor is the tap-touch token on both
               // sides (#2673).
-              "max-md:min-h-lumen-tap-touch max-md:min-w-lumen-tap-touch",
+              ICON_TAP_NARROW,
               FOCUS_RING,
             )}
           >
@@ -255,7 +255,7 @@ export function NoteTagFilterPanel({
               "inline-flex h-7 items-center gap-1 self-start rounded-lumen-md px-1.5 text-xs text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
               // The narrow floor in both directions (#1560), on the tap-touch
               // token the icon-only controls share (#2673).
-              "max-md:min-h-lumen-tap-touch max-md:min-w-lumen-tap-touch",
+              ICON_TAP_NARROW,
               FOCUS_RING,
             )}
           >
