@@ -384,6 +384,69 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     await waitFor(() => screen.getByRole("region", { name: "Goal tree" }));
   });
 
+  it("holds the Retry button busy until the re-read lands (#2871)", async () => {
+    let finishRetry: (goals: Goal[]) => void = () => undefined;
+    const fetchGoals = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockImplementationOnce(
+        () =>
+          new Promise<Goal[]>((resolve) => {
+            finishRetry = resolve;
+          }),
+      )
+      .mockResolvedValue(GOALS);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await renderTab(makeDS({ fetchGoals }), () => screen.getByRole("alert"));
+
+    const retry = (): HTMLButtonElement =>
+      within(screen.getByRole("alert")).getByRole("button", {
+        name: "Retry",
+      }) as HTMLButtonElement;
+    expect(retry().disabled).toBe(false);
+
+    fireEvent.click(retry());
+    // The card stays (not the skeleton) and its button cannot be pressed again.
+    await waitFor(() => expect(retry().disabled).toBe(true));
+    expect(retry().getAttribute("aria-busy")).toBe("true");
+    fireEvent.click(retry());
+    expect(fetchGoals).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      finishRetry(GOALS);
+    });
+    await waitFor(() => screen.getByRole("region", { name: "Goal tree" }));
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("keeps the Retry button pressable again when the re-read fails too", async () => {
+    let failRetry: (e: Error) => void = () => undefined;
+    const fetchGoals = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockImplementationOnce(
+        () =>
+          new Promise<Goal[]>((_, reject) => {
+            failRetry = reject;
+          }),
+      );
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await renderTab(makeDS({ fetchGoals }), () => screen.getByRole("alert"));
+
+    const retry = (): HTMLButtonElement =>
+      within(screen.getByRole("alert")).getByRole("button", {
+        name: "Retry",
+      }) as HTMLButtonElement;
+    fireEvent.click(retry());
+    await waitFor(() => expect(retry().disabled).toBe(true));
+
+    await act(async () => {
+      failRetry(new Error("still offline"));
+    });
+    await waitFor(() => expect(retry().disabled).toBe(false));
+    expect(screen.queryByRole("region", { name: "Goal tree" })).toBeNull();
+  });
+
   it("shows only the guidance when there are no goals — no empty group frames", async () => {
     await renderTab(
       makeDS({

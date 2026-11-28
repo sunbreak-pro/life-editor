@@ -256,6 +256,8 @@ export interface GoalTreeViewProps {
    */
   loadFailed?: boolean;
   onRetry?: () => void;
+  /** The retry pressed on the failure card is still reading. */
+  retrying?: boolean;
   selectedGoalId: string | null;
   onSelectGoal: (goalId: string) => void;
   /**
@@ -1510,22 +1512,17 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
   const narrow = !useMediaQuery(WIDE_QUERY, true);
   const menu: RowMenu = { narrow, openKey: openMenu, onOpen: setOpenMenu };
 
-  if (isLoading) {
-    return (
-      <div role="status" aria-label={labels.loading}>
-        <SkeletonList rows={6} rowHeight={36} />
-      </div>
-    );
-  }
-
   if (props.loadFailed) {
     // The danger card the tags tab shows too (#2604, #2614). A host without a
     // retry keeps the plain line: the card's button would do nothing.
+    // Checked before the skeleton: a retry in flight keeps the card up with its
+    // button busy, so a second press cannot stack a second read (#2871).
     return props.onRetry ? (
       <LoadErrorCard
         message={labels.loadFailed}
         retryLabel={labels.retry}
         onRetry={props.onRetry}
+        retrying={props.retrying ?? false}
       />
     ) : (
       <p
@@ -1534,6 +1531,14 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
       >
         {labels.loadFailed}
       </p>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div role="status" aria-label={labels.loading}>
+        <SkeletonList rows={6} rowHeight={36} />
+      </div>
     );
   }
 
