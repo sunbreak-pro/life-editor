@@ -232,10 +232,12 @@ describe("Notes sidebar — right-clicking a tag (#1677)", () => {
     const confirm = await screen.findByText("connect.deleteConfirm|Work");
     expect(state.deleteTag).not.toHaveBeenCalled();
 
-    const dialog = confirm.closest("div[role]") ?? document.body;
+    const dialog = screen.getByRole("dialog", { name: "connect.deleteTag" });
+    expect(confirm).toBeTruthy();
+    within(dialog).getByRole("button", { name: "common.close" });
     fireEvent.click(
-      within(dialog as HTMLElement).getByRole("button", {
-        name: "connect.deleteTag",
+      within(dialog).getByRole("button", {
+        name: "connect.deleteTagConfirm",
       }),
     );
     await vi.waitFor(() =>

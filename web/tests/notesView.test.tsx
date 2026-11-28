@@ -579,6 +579,12 @@ describe("NotesView — desktop (wide)", () => {
     ).toBeTruthy();
     expect(state.softDeleteNote).not.toHaveBeenCalled();
 
+    // Named by its heading, with a × beside it (#2587).
+    const dialog = screen.getByRole("dialog", {
+      name: "materials.notes.deleteConfirmTitle",
+    });
+    within(dialog).getByRole("button", { name: "common.close" });
+
     fireEvent.click(screen.getByText("materials.notes.deleteConfirmAction"));
 
     await waitFor(() =>

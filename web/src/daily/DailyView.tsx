@@ -999,6 +999,7 @@ export function DailyView({
 
   const handleDeleteDaily = () => {
     void askConfirm({
+      title: t("materials.daily.deleteConfirmTitle"),
       message: t("materials.daily.deleteConfirmBody", {
         day: entryDayLabel(selectedDate),
       }),
@@ -1138,10 +1139,12 @@ export function DailyView({
       {confirmRequest && (
         <ConfirmDialog
           open
+          title={confirmRequest.title}
           message={confirmRequest.message}
           confirmLabel={confirmRequest.confirmLabel}
           cancelLabel={confirmRequest.cancelLabel}
           danger={confirmRequest.danger}
+          closeLabel={t("common.close")}
           onConfirm={() => resolveConfirm(true)}
           onCancel={() => resolveConfirm(false)}
         />

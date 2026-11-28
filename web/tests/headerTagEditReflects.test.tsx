@@ -105,7 +105,7 @@ describe("The header tag panel — what a delete reaches (#2395)", () => {
     const question = screen.getAllByRole("dialog")[1];
     await act(async () => {
       fireEvent.click(
-        within(question).getByRole("button", { name: "Delete tag" }),
+        within(question).getByRole("button", { name: "Delete" }),
       );
     });
 
