@@ -355,9 +355,8 @@ export interface NoteDetailPanelProps {
   /** Already-translated aria-label for the pin toggle when unpinned. */
   unpinLabel: string;
   /**
-   * Already-translated name of the "this note is pinned" marker shown left of
-   * the kebab (#885). Omitted → the marker is drawn without an accessible name
-   * (decorative), never dropped: the state has to be visible either way.
+   * Unused since #2595: the pin marker became the toggle, which is named by
+   * `pinLabel` / `unpinLabel`. Kept so hosts that still pass it compile.
    */
   pinnedLabel?: string;
   /** Already-translated aria-label for the delete button. */
@@ -489,7 +488,6 @@ export function NoteDetailPanel({
   onTitleAutoFocused,
   pinLabel,
   unpinLabel,
-  pinnedLabel,
   deleteLabel,
   moreActionsLabel,
   onRegisterTemplate,
@@ -686,27 +684,42 @@ export function NoteDetailPanel({
               </div>
             )}
           </div>
-          {/* Pinned marker (#885) — immediately left of the kebab, so the state
-            reads at a glance instead of only inside the opened menu. Not a
-            button: unpinning stays the menu's job, and a second control on the
-            same act would be two ways to do one thing. Same place at both
+          {/* Pin toggle (#2595, replacing the #885 marker) — immediately left of
+            the kebab, shown for every note so the state reads at a glance AND
+            one press flips it. The kebab keeps its own pin row: the menu is
+            where the other note actions are looked for. Same place at both
             widths, because both host this panel. */}
           <div
             data-testid="note-detail-actions"
             className={cn(
-              "flex shrink-0 items-center gap-1.5",
+              // Two icon-only touch boxes side by side: each is already a
+              // finger wide below md, so the gap closes (ICON_TAP_NARROW).
+              "flex shrink-0 items-center gap-1.5 max-md:gap-0",
               ACTIONS_LINE_BOX[variant],
             )}
           >
-            {isPinned && (
+            <button
+              type="button"
+              onClick={() => onTogglePin(noteId)}
+              disabled={offline}
+              aria-pressed={isPinned}
+              aria-label={isPinned ? pinLabel : unpinLabel}
+              className={cn(
+                "grid h-[26px] w-[26px] shrink-0 place-items-center rounded-lumen-md",
+                isPinned
+                  ? "text-lumen-accent"
+                  : "text-lumen-text-tertiary hover:text-lumen-text",
+                "hover:bg-lumen-hover disabled:cursor-not-allowed disabled:opacity-50",
+                ICON_TAP_NARROW,
+                FOCUS_RING,
+              )}
+            >
               <Pin
                 size={14}
-                {...(pinnedLabel
-                  ? { role: "img", "aria-label": pinnedLabel }
-                  : { "aria-hidden": true })}
-                className="shrink-0 fill-current text-lumen-accent"
+                aria-hidden
+                className={cn("shrink-0", isPinned && "fill-current")}
               />
-            )}
+            </button>
             <div className="relative shrink-0">
               <button
                 ref={menuTriggerRef}
