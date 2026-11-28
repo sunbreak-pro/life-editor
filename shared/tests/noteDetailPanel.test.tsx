@@ -129,9 +129,9 @@ describe("NoteDetailPanel", () => {
     expect(screen.queryByTestId("note-detail-divider")).not.toBeInTheDocument();
   });
 
-  // #885: pinned state has to read from the header itself, not only from inside
-  // the opened kebab menu — and at both widths, which this one panel serves.
-  it("marks a pinned note immediately left of the kebab", () => {
+  // #885 / #2595: the pin state reads from the header itself, as a button that
+  // flips it — for pinned and unpinned notes alike, at both widths.
+  it("shows a pin toggle left of the kebab for a pinned and an unpinned note", () => {
     const { rerender } = render(
       <NoteDetailPanel
         noteId="note-a"
@@ -143,10 +143,11 @@ describe("NoteDetailPanel", () => {
         {...LABELS}
       />,
     );
-    const marker = screen.getByRole("img", { name: "Pinned" });
+    const pinned = screen.getByRole("button", { name: "Unpin note" });
     const kebab = screen.getByRole("button", { name: "More actions" });
-    // The kebab's positioned wrapper is the marker's next sibling.
-    expect(marker.nextElementSibling?.contains(kebab)).toBe(true);
+    expect(pinned.getAttribute("aria-pressed")).toBe("true");
+    // The kebab's positioned wrapper is the toggle's next sibling.
+    expect(pinned.nextElementSibling?.contains(kebab)).toBe(true);
 
     rerender(
       <NoteDetailPanel
@@ -159,9 +160,63 @@ describe("NoteDetailPanel", () => {
         {...LABELS}
       />,
     );
+    const loose = screen.getByRole("button", { name: "Pin note" });
+    expect(loose.getAttribute("aria-pressed")).toBe("false");
+    expect(loose.nextElementSibling?.contains(kebab)).toBe(true);
+  });
+
+  it("fires onTogglePin from the toggle, and flips aria-pressed when the host does", () => {
+    const onTogglePin = vi.fn();
+    const { rerender } = render(
+      <NoteDetailPanel
+        noteId="note-a"
+        title="t"
+        isPinned={false}
+        onTitleCommit={() => {}}
+        onTogglePin={onTogglePin}
+        onDelete={() => {}}
+        {...LABELS}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Pin note" }));
+    expect(onTogglePin).toHaveBeenCalledExactlyOnceWith("note-a");
+
+    rerender(
+      <NoteDetailPanel
+        noteId="note-a"
+        title="t"
+        isPinned
+        onTitleCommit={() => {}}
+        onTogglePin={onTogglePin}
+        onDelete={() => {}}
+        {...LABELS}
+      />,
+    );
     expect(
-      screen.queryByRole("img", { name: "Pinned" }),
-    ).not.toBeInTheDocument();
+      screen
+        .getByRole("button", { name: "Unpin note" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
+  });
+
+  it("disables the toggle while the note is held offline", () => {
+    const onTogglePin = vi.fn();
+    render(
+      <NoteDetailPanel
+        noteId="note-a"
+        title="t"
+        isPinned={false}
+        onTitleCommit={() => {}}
+        onTogglePin={onTogglePin}
+        onDelete={() => {}}
+        offlineReason="offline"
+        {...LABELS}
+      />,
+    );
+    const toggle = screen.getByRole("button", { name: "Pin note" });
+    expect(toggle).toBeDisabled();
+    fireEvent.click(toggle);
+    expect(onTogglePin).not.toHaveBeenCalled();
   });
 
   it("commits a title edit on blur", () => {

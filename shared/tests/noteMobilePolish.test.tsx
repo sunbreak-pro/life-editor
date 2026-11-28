@@ -238,3 +238,26 @@ describe("Narrow note title as a heading (#2584)", () => {
     expect(document.activeElement).toBe(screen.getByTestId("body"));
   });
 });
+
+/*
+ * #2595 — the pin toggle takes the same touch floor as the kebab beside it
+ * (40px, ICON_TAP_NARROW since #2673), below the breakpoint only, and the two
+ * boxes meet with no gap so the pair does not grow wider than it needs to.
+ */
+describe("Pin toggle touch floor (#2595)", () => {
+  it.each([
+    ["pinned", true, "Unpin note"],
+    ["not pinned", false, "Pin note"],
+  ])("takes the touch-floor square below the breakpoint when %s", (_, isPinned, name) => {
+    renderPanel({ isPinned });
+    const toggle = screen.getByRole("button", { name });
+    const classes = toggle.className.split(/\s+/);
+    expect(classes).toContain("max-md:min-h-lumen-tap-touch");
+    expect(classes).toContain("max-md:min-w-lumen-tap-touch");
+    // Not the always-on square, so the Desktop header keeps its shape.
+    expect(classes).not.toContain("min-h-lumen-tap-touch");
+    expect(
+      screen.getByTestId("note-detail-actions").className.split(/\s+/),
+    ).toContain("max-md:gap-0");
+  });
+});

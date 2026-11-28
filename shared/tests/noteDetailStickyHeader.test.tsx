@@ -241,12 +241,11 @@ describe("NoteDetailPanel narrow title row (#2467)", () => {
     expect(kebab.parentElement?.parentElement).toBe(actions);
     expect(row.firstElementChild).toBe(titleRow);
     expect(tagRow.contains(kebab)).toBe(false);
-    const pin = screen.queryByRole("img", { name: "Pinned" });
-    if (isPinned) {
-      expect(pin?.parentElement).toBe(actions);
-    } else {
-      expect(pin).toBeNull();
-    }
+    // The pin toggle (#2595) is there for either state, in the same box.
+    const pin = screen.getByRole("button", {
+      name: isPinned ? "Unpin note" : "Pin note",
+    });
+    expect(pin.parentElement).toBe(actions);
     // The tag row goes last, on a full-width line of its own.
     expect(classes(tagRow)).toEqual(
       expect.arrayContaining(["max-md:order-last", "max-md:w-full"]),
