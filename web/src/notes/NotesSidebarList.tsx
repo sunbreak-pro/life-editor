@@ -12,6 +12,8 @@ import {
   EmptyState,
   SidebarListControls,
   NoticePanel,
+  LoadErrorCard,
+  SkeletonList,
   tagGroupKey as groupKey,
   UNTAGGED_GROUP_KEY,
   BUSY_STALE,
@@ -21,11 +23,17 @@ import {
   FOCUS_RING,
   useTranslation,
 } from "@life-editor/shared";
-import { noteDraggableId, type NoteTagDnd } from "./useNoteTagDnd";
+import {
+  flatNoteDraggableId,
+  noteDraggableId,
+  type NoteTagDnd,
+} from "./useNoteTagDnd";
 import { NoteTagFilterPanel } from "./NoteTagFilterPanel";
+import { TagDropTargets } from "./TagDropTargets";
 import { DesktopNoteRow, DesktopTagHeading } from "./NoteListRows";
 import { OtherNotesFlyout, OtherNotesList } from "./OtherNotesPanel";
 import { TreeDragGhost } from "../components/TreeDragGhost";
+import { formatNoteUpdated } from "./formatNoteUpdated";
 
 /*
  * The Desktop side list (extracted from NotesView.tsx — #588 split, zero
@@ -60,9 +68,19 @@ import { TreeDragGhost } from "../components/TreeDragGhost";
  * heading it came from goes, the tag it landed on arrives. The untagged bucket
  * is a target too, and dropping there removes only that one tag rather than
  * every tag the note has. No reorder / move-into: sort_order carries no meaning
- * across the many-to-many tag model. Only the tag-grouped list has headings to
- * drop on, so only its rows drag (#2061); the default list's rows do not.
+ * across the many-to-many tag model. The default list has no headings, so its
+ * rows drop onto a panel of every tag drawn over the list while one is held
+ * (#2579): that drop only adds, since the row came from no tag. "Other items"
+ * rows do not drag — the flyout lies outside the list's DndContext, and the
+ * narrow view replaces the list the panel would sit on.
  */
+
+/*
+ * The loading rows (#2582): one bar for a title, a longer one for its
+ * excerpt, repeated. SkeletonList has one bar height, so the pairs read as
+ * rows through their widths alone.
+ */
+const LOADING_ROW_WIDTHS = ["62%", "88%"] as const;
 
 export interface NotesSidebarListLabels {
   searchPlaceholder: string;
@@ -105,6 +123,20 @@ export interface NotesSidebarListLabels {
   /** A row's third line (#2576): "Updated today HH:MM" / "Updated M/D". */
   updatedToday: (time: string) => string;
   updatedOn: (date: string) => string;
+  /** The grey text an empty title shows (#2581). */
+  untitled?: string;
+  /** The badge on the note "+" just made, and its group's name (#2581). */
+  newBadge?: string;
+  newHeading?: string;
+  /**
+   * The failed-load card's copy and its button (#2582). Optional, like the
+   * #2581 pair, so a host that renders the list on its own still compiles; the
+   * card needs both these and `onRetry` to replace the plain danger band.
+   */
+  loadFailedList?: string;
+  retryLabel?: string;
+  /** The list skeleton's spoken name while the notes load (#2582). */
+  loadingLabel?: string;
 }
 
 /** What a row shows under its title besides the date (#2576). */
@@ -112,29 +144,6 @@ export interface NoteRowDetails {
   excerpt?: string;
   /** The note's live tags, first one drawn as a chip and the rest as "+n". */
   tags: readonly { name: string; color: string | null; icon: string | null }[];
-}
-
-/**
- * "Updated today 14:05" for a note touched today, "Updated 11/3" otherwise
- * (#2576) — in the device's own time zone, which is the day the user means.
- */
-function formatNoteUpdated(
-  iso: string,
-  now: Date,
-  labels: Pick<NotesSidebarListLabels, "updatedToday" | "updatedOn">,
-): string | undefined {
-  const at = new Date(iso);
-  if (Number.isNaN(at.getTime())) return undefined;
-  const sameDay =
-    at.getFullYear() === now.getFullYear() &&
-    at.getMonth() === now.getMonth() &&
-    at.getDate() === now.getDate();
-  if (sameDay) {
-    const hh = String(at.getHours()).padStart(2, "0");
-    const mm = String(at.getMinutes()).padStart(2, "0");
-    return labels.updatedToday(`${hh}:${mm}`);
-  }
-  return labels.updatedOn(`${at.getMonth() + 1}/${at.getDate()}`);
 }
 
 export interface NotesSidebarListProps {
@@ -178,6 +187,10 @@ export interface NotesSidebarListProps {
 
   // The list itself.
   error: string | null;
+  /** The first read of the notes is still running (#2582). */
+  isLoading?: boolean;
+  /** Reads the notes again — the failed-load card's button (#2582). */
+  onRetry?: () => void;
   /** Whether the VAULT holds any note — not whether the query matched (#1470). */
   hasNotes: boolean;
   /** A query is on and nothing matched it (#1470). */
@@ -214,6 +227,12 @@ export interface NotesSidebarListProps {
   offlineReason?: string;
   /** A row's excerpt and tags (#2576); without it the rows show the date only. */
   rowDetails?: (node: NoteNode) => NoteRowDetails;
+  /**
+   * The note "+" just made (#2581), until the user moves on to another note.
+   * Its row carries the "New" badge, and the default list draws it alone in
+   * a group above "Pinned" and "All".
+   */
+  freshNoteId?: string | null;
   onCreateNote: () => void;
   dnd: NoteTagDnd;
 
@@ -241,10 +260,12 @@ export function NotesSidebarList({
   onToggleTagFilter,
   onClearTagFilters,
   listMode,
-  defaultNotes,
-  otherNotes,
+  defaultNotes: matchedDefaultNotes,
+  otherNotes: matchedOtherNotes,
   othersPresentation,
   error,
+  isLoading = false,
+  onRetry,
   hasNotes,
   searchEmpty,
   searchBusy = false,
@@ -261,10 +282,30 @@ export function NotesSidebarList({
   onEditNote,
   offlineReason,
   rowDetails,
+  freshNoteId = null,
   onCreateNote,
   dnd,
   templatesSlot,
 }: NotesSidebarListProps) {
+  /*
+   * #2581: the default list draws the note "+" just made on its own, above
+   * the other groups, so it is the first row whatever the sort says. It is
+   * taken out of the rows below (and out of their counts) rather than drawn
+   * twice. Only while the list's matches hold it, so a later query that does
+   * not match it hides it like any other row.
+   */
+  const freshNote =
+    listMode === "flat" && freshNoteId !== null
+      ? (matchedDefaultNotes.find((n) => n.id === freshNoteId) ??
+        matchedOtherNotes.find((n) => n.id === freshNoteId))
+      : undefined;
+  const defaultNotes = freshNote
+    ? matchedDefaultNotes.filter((n) => n.id !== freshNote.id)
+    : matchedDefaultNotes;
+  const otherNotes = freshNote
+    ? matchedOtherNotes.filter((n) => n.id !== freshNote.id)
+    : matchedOtherNotes;
+
   /*
    * Whether "Other items" is open (#2061). Local UI state, not persisted: it
    * answers "I am looking past the 15th row right now". It can only SHOW while
@@ -332,7 +373,10 @@ export function NotesSidebarList({
 
   // One clock read per render, so every row agrees on what "today" is.
   const now = new Date();
-  /** The second and third lines of a row, as the row's primitive props. */
+  /**
+   * The second and third lines of a row, plus the title line's placeholder
+   * and "New" badge (#2581), as the row's primitive props.
+   */
   const detailProps = (node: NoteNode) => {
     const details = rowDetails?.(node);
     const [first, ...rest] = details?.tags ?? [];
@@ -343,16 +387,26 @@ export function NotesSidebarList({
       tagColor: first?.color,
       tagIcon: first?.icon,
       extraTagCount: rest.length,
+      untitledLabel: labels.untitled,
+      isNew: node.id === freshNoteId,
+      newLabel: labels.newBadge,
     };
   };
 
-  /** A row of the default list or of "Other items" — never a drag source. */
-  const flatRow = (node: NoteNode, onSelect: (id: string) => void) => (
+  /**
+   * A row of the default list (a drag source since #2579) or of "Other
+   * items" (never one). A touch row drops the drag on its own (#2032).
+   */
+  const flatRow = (
+    node: NoteNode,
+    onSelect: (id: string) => void,
+    draggable = true,
+  ) => (
     <DesktopNoteRow
       key={node.id}
       node={node}
-      dragId={`flat-${node.id}`}
-      draggable={false}
+      dragId={flatNoteDraggableId(node.id)}
+      draggable={draggable}
       selected={selectedNoteId === node.id}
       onSelect={onSelect}
       onDelete={onDeleteNote}
@@ -374,8 +428,24 @@ export function NotesSidebarList({
     onSelectNote(id);
   };
   const othersTitle = labels.otherItems(otherNotes.length);
-  const othersRows = otherNotes.map((node) => flatRow(node, selectFromOthers));
+  const othersRows = otherNotes.map((node) =>
+    flatRow(node, selectFromOthers, false),
+  );
   const othersInline = othersShown && othersPresentation === "inline";
+
+  // #2582: the card needs its copy and a way to read again; a host without
+  // them keeps the plain danger band.
+  const retryCard =
+    Boolean(error) &&
+    onRetry !== undefined &&
+    labels.loadFailedList !== undefined &&
+    labels.retryLabel !== undefined
+      ? {
+          message: labels.loadFailedList,
+          retryLabel: labels.retryLabel,
+          onRetry,
+        }
+      : null;
 
   /*
    * #2576: the default list in two groups, "Pinned" over "All". A pinned note
@@ -499,11 +569,22 @@ export function NotesSidebarList({
         />
       )}
 
-      {error && (
-        // No glyph: this band sits in a dense sidebar column where the
-        // extra 16px pushes the first tag heading off the fold.
-        <NoticePanel message={error} tone="danger" icon={null} />
-      )}
+      {error &&
+        !isLoading &&
+        (retryCard ? (
+          // #2582: the shared failed-load card, so the list can be read again
+          // without leaving the tab. Hidden while a retry is loading, where
+          // the skeleton below is the answer.
+          <LoadErrorCard
+            message={retryCard.message}
+            retryLabel={retryCard.retryLabel}
+            onRetry={retryCard.onRetry}
+          />
+        ) : (
+          // No glyph: this band sits in a dense sidebar column where the
+          // extra 16px pushes the first tag heading off the fold.
+          <NoticePanel message={error} tone="danger" icon={null} />
+        ))}
 
       {/*
        * The list. While the body half of a search is still in flight the
@@ -517,7 +598,24 @@ export function NotesSidebarList({
         className={cn(searchBusy && BUSY_STALE)}
         aria-busy={searchBusy || undefined}
       >
-        {searchEmpty ? (
+        {isLoading ? (
+          /*
+           * #2582: the prototype's two-bar rows, a title and its excerpt, in
+           * place of the list. Before this the list column was not drawn at
+           * all while loading, and an empty `notes` here would otherwise read
+           * as "no notes yet" with a create button. The same goes for a failed
+           * first read: the card above says nothing was read, so the empty
+           * state is left out rather than claim the vault is empty.
+           */
+          <SkeletonList
+            rows={10}
+            rowHeight={12}
+            gap={8}
+            widths={LOADING_ROW_WIDTHS}
+            label={labels.loadingLabel}
+            className="px-1 py-2"
+          />
+        ) : retryCard && !hasNotes ? null : searchEmpty ? (
           /*
            * #1470: a query nobody's notes match is not an empty vault. This used
            * to fall through to the branch below, so the list answered a typo
@@ -555,74 +653,128 @@ export function NotesSidebarList({
           </OtherNotesList>
         ) : listMode === "flat" ? (
           /* #2061 — the default list: pinned → current sort, 15 rows, in the
-             two #2576 groups. */
-          <div className="flex flex-col gap-1">
-            {pinnedCount > 0 && (
-              <section
-                aria-label={labels.pinnedHeading}
-                className="flex flex-col gap-1"
-              >
-                <ListGroupHeading
-                  icon={
-                    <Pin size={12} aria-hidden className="text-lumen-accent" />
-                  }
-                  label={labels.pinnedHeading}
-                  count={pinnedCount}
-                />
-                <ul className="flex flex-col gap-0.5">
-                  {pinnedRows.map((node) => flatRow(node, onSelectNote))}
-                </ul>
-              </section>
+             two #2576 groups. Its own DndContext since #2579, for the drop
+             onto the every-tag panel. */
+          <DndContext
+            sensors={dnd.sensors}
+            collisionDetection={pointerWithin}
+            onDragStart={dnd.handleDragStart}
+            onDragOver={dnd.handleDragOver}
+            onDragEnd={dnd.handleDragEnd}
+            onDragCancel={dnd.handleDragCancel}
+          >
+            {/* Outside the column below: its gap would give even the panel's
+                zero-height box a slot, and the rows would move by it. */}
+            {dnd.activeId && (
+              <TagDropTargets
+                noteId={dnd.activeId}
+                overTagId={dnd.overTagId}
+                labels={{
+                  title: labels.assignTagHint,
+                  release: t("materials.notes.tagDropRelease"),
+                  noTags: t("materials.notes.tagDropNoTags"),
+                }}
+              />
             )}
-            {restCount > 0 && (
-              <section
-                aria-label={labels.allHeading}
-                className={cn(
-                  "flex flex-col gap-1",
-                  // The rule and the 0.75rem between the two groups.
-                  pinnedCount > 0 && "mt-3 border-t border-lumen-border pt-3",
-                )}
-              >
-                <ListGroupHeading
-                  icon={
-                    <FileText
-                      size={12}
-                      aria-hidden
-                      className="text-lumen-text-secondary"
-                    />
-                  }
-                  label={labels.allHeading}
-                  count={restCount}
-                />
-                <ul className="flex flex-col gap-0.5">
-                  {restRows.map((node) => flatRow(node, onSelectNote))}
-                </ul>
-              </section>
-            )}
-            {otherNotes.length > 0 && (
-              <button
-                ref={setOthersTrigger}
-                type="button"
-                onClick={() => setOthersOpen((v) => !v)}
-                aria-expanded={othersShown}
-                aria-controls={othersId}
-                className={cn(
-                  "flex h-8 w-full items-center justify-between gap-2 rounded-lumen-md px-2 text-left text-xs text-lumen-text-secondary hover:bg-lumen-hover max-md:min-h-11",
-                  othersShown && "bg-lumen-hover text-lumen-text",
-                  FOCUS_RING,
-                )}
-              >
-                <span className="min-w-0 truncate">{othersTitle}</span>
-                {/* Points where the list will appear: left of the sidebar on
+            <div className="flex flex-col gap-1">
+              {freshNote && (
+                // #2581: a group of its own with no heading — the row's badge
+                // already says what it is.
+                <section
+                  aria-label={labels.newHeading}
+                  data-testid="note-list-fresh-group"
+                  className="flex flex-col gap-1"
+                >
+                  <ul className="flex flex-col gap-0.5">
+                    {flatRow(freshNote, onSelectNote)}
+                  </ul>
+                </section>
+              )}
+              {pinnedCount > 0 && (
+                <section
+                  aria-label={labels.pinnedHeading}
+                  className={cn(
+                    "flex flex-col gap-1",
+                    freshNote !== undefined &&
+                      "mt-3 border-t border-lumen-border pt-3",
+                  )}
+                >
+                  <ListGroupHeading
+                    icon={
+                      <Pin
+                        size={12}
+                        aria-hidden
+                        className="text-lumen-accent"
+                      />
+                    }
+                    label={labels.pinnedHeading}
+                    count={pinnedCount}
+                  />
+                  <ul className="flex flex-col gap-0.5">
+                    {pinnedRows.map((node) => flatRow(node, onSelectNote))}
+                  </ul>
+                </section>
+              )}
+              {restCount > 0 && (
+                <section
+                  aria-label={labels.allHeading}
+                  className={cn(
+                    "flex flex-col gap-1",
+                    // The rule and the 0.75rem between the two groups.
+                    (pinnedCount > 0 || freshNote !== undefined) &&
+                      "mt-3 border-t border-lumen-border pt-3",
+                  )}
+                >
+                  <ListGroupHeading
+                    icon={
+                      <FileText
+                        size={12}
+                        aria-hidden
+                        className="text-lumen-text-secondary"
+                      />
+                    }
+                    label={labels.allHeading}
+                    count={restCount}
+                  />
+                  <ul className="flex flex-col gap-0.5">
+                    {restRows.map((node) => flatRow(node, onSelectNote))}
+                  </ul>
+                </section>
+              )}
+              {otherNotes.length > 0 && (
+                <button
+                  ref={setOthersTrigger}
+                  type="button"
+                  onClick={() => setOthersOpen((v) => !v)}
+                  aria-expanded={othersShown}
+                  aria-controls={othersId}
+                  className={cn(
+                    "flex h-8 w-full items-center justify-between gap-2 rounded-lumen-md px-2 text-left text-xs text-lumen-text-secondary hover:bg-lumen-hover max-md:min-h-11",
+                    othersShown && "bg-lumen-hover text-lumen-text",
+                    FOCUS_RING,
+                  )}
+                >
+                  <span className="min-w-0 truncate">{othersTitle}</span>
+                  {/* Points where the list will appear: left of the sidebar on
                     wide, onward inside the drawer on narrow. */}
-                {othersPresentation === "flyout" ? (
-                  <ChevronLeft size={14} aria-hidden className="shrink-0" />
-                ) : (
-                  <ChevronRight size={14} aria-hidden className="shrink-0" />
-                )}
-              </button>
-            )}
-          </div>
+                  {othersPresentation === "flyout" ? (
+                    <ChevronLeft size={14} aria-hidden className="shrink-0" />
+                  ) : (
+                    <ChevronRight size={14} aria-hidden className="shrink-0" />
+                  )}
+                </button>
+              )}
+            </div>
+            <DragOverlay>
+              {dnd.activeNote ? (
+                // #2579: the held row tilts a little, as the prototype draws
+                // it; the ghost itself already carries the shadow.
+                <div className="rotate-[-0.8deg]">
+                  <TreeDragGhost title={dnd.activeNote.title} />
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
         ) : (
           <DndContext
             sensors={dnd.sensors}

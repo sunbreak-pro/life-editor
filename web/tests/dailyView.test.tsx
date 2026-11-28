@@ -47,8 +47,13 @@ const state = vi.hoisted(() => {
   const doc = (content: unknown[]) => JSON.stringify({ type: "doc", content });
   return {
     isWide: true,
+    language: "en",
     lastMerge: null as unknown,
     dailies: [] as unknown[],
+    /* #2582: the list read's state and its retry. */
+    isLoading: false,
+    error: null as string | null,
+    reload: vi.fn(),
     selectedDate: "",
     setSelectedDate: vi.fn(),
     upsertDaily: vi.fn(),
@@ -92,12 +97,15 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
     useTranslation: () => ({
       t: (key: string, opts?: Record<string, unknown>) =>
         opts ? `${key}|${Object.values(opts).join(",")}` : key,
-      i18n: { language: "en" },
+      i18n: { language: state.language },
     }),
     useMediaQuery: () => state.isWide,
     useSyncDomains: () => 0,
     useDailiesUnifiedContext: () => ({
       dailies: state.dailies,
+      isLoading: state.isLoading,
+      error: state.error,
+      reload: state.reload,
       selectedDate: state.selectedDate,
       setSelectedDate: state.setSelectedDate,
       selectedDaily:
@@ -211,6 +219,16 @@ function isoDay(offsetDays: number): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+/** The panel's Filter button (#2589), dot or no dot. */
+const filterToggle = (): HTMLElement =>
+  screen.getByRole("button", { name: /^materials\.daily\.filterToggle/ });
+
+/** Unfold the search + sort the way a user does before typing a query. */
+function openFilter(): void {
+  const toggle = filterToggle();
+  if (toggle.getAttribute("aria-expanded") !== "true") fireEvent.click(toggle);
+}
+
 const TODAY = isoDay(0);
 const YESTERDAY = isoDay(-1);
 const LAST_WEEK = isoDay(-7);
@@ -234,9 +252,13 @@ function daily(date: string, over: Partial<DailyNode> = {}): DailyNode {
 beforeEach(() => {
   localStorage.clear();
   state.isWide = true;
+  state.language = "en";
   state.lastMerge = null;
   state.selectedDate = YESTERDAY;
   state.dailies = [daily(TODAY), daily(YESTERDAY), daily(LAST_WEEK)];
+  state.isLoading = false;
+  state.error = null;
+  state.reload.mockClear();
   state.setSelectedDate.mockClear();
   state.upsertDaily.mockClear();
   state.deleteDaily.mockClear();
@@ -261,13 +283,46 @@ describe("DailyView — the open day", () => {
     );
   });
 
-  it("jumps the selection to today from the accent CTA", () => {
+  it("jumps the selection to today from the button under the calendar", () => {
     render(<DailyView />);
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "materials.daily.toToday" }),
-    );
+    const cta = screen.getByRole("button", { name: "materials.daily.toToday" });
+    expect(cta.hasAttribute("disabled")).toBe(false);
+    fireEvent.click(cta);
     expect(state.setSelectedDate).toHaveBeenCalledExactlyOnceWith(TODAY);
+    // Desktop's panel is a pinned column; it stays where it was.
+    expect(state.closeDrawer).not.toHaveBeenCalled();
+  });
+
+  it("leaves Today pale and disabled while today is open (#2589)", () => {
+    state.selectedDate = TODAY;
+    render(<DailyView />);
+
+    const cta = screen.getByRole("button", { name: "materials.daily.toToday" });
+    expect(cta.hasAttribute("disabled")).toBe(true);
+    expect(cta.classList.contains("disabled:opacity-50")).toBe(true);
+    fireEvent.click(cta);
+    expect(state.setSelectedDate).not.toHaveBeenCalled();
+  });
+
+  it("draws Today under the calendar, not over the body (#2589)", () => {
+    render(<DailyView />);
+
+    // One Today on the screen, and it is the panel's.
+    const [cta, ...others] = screen.getAllByRole("button", {
+      name: "materials.daily.toToday",
+    });
+    expect(others).toHaveLength(0);
+    const calendar = screen.getByLabelText("materials.daily.calendar");
+    expect(
+      calendar.compareDocumentPosition(cta) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // Inside the entry panel itself, which is what the sidebar carries.
+    let panel: HTMLElement | null = calendar;
+    while (panel && !panel.classList.contains("max-md:select-none")) {
+      panel = panel.parentElement;
+    }
+    expect(panel?.contains(cta)).toBe(true);
   });
 
   it("reads as saved before anything is typed", () => {
@@ -292,6 +347,75 @@ describe("DailyView — the open day", () => {
  * #2592 — "Write about today" over a past day's empty body names the wrong
  * day, so every day but today gets its own placeholder.
  */
+describe("DailyView — the date row with day arrows (#2591)", () => {
+  const THIS_YEAR = new Date().getFullYear();
+  const heading = (): string =>
+    screen.getByRole("heading", { level: 1 }).textContent ?? "";
+
+  it("steps to the previous and next calendar day", () => {
+    state.selectedDate = `${THIS_YEAR}-03-01`;
+    render(<DailyView />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "materials.daily.prevDay" }),
+    );
+    expect(state.setSelectedDate).toHaveBeenLastCalledWith(
+      `${THIS_YEAR}-02-${new Date(THIS_YEAR, 2, 0).getDate()}`,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "materials.daily.nextDay" }),
+    );
+    expect(state.setSelectedDate).toHaveBeenLastCalledWith(
+      `${THIS_YEAR}-03-02`,
+    );
+  });
+
+  it("steps across a year boundary", () => {
+    state.selectedDate = `${THIS_YEAR}-12-31`;
+    render(<DailyView />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "materials.daily.nextDay" }),
+    );
+    expect(state.setSelectedDate).toHaveBeenCalledExactlyOnceWith(
+      `${THIS_YEAR + 1}-01-01`,
+    );
+  });
+
+  it("leaves the year off a day in the current year", () => {
+    state.selectedDate = `${THIS_YEAR}-03-14`;
+    render(<DailyView />);
+    expect(heading()).toContain("March 14");
+    expect(heading()).not.toContain(String(THIS_YEAR));
+  });
+
+  it("puts the year on a day in another year", () => {
+    state.selectedDate = `${THIS_YEAR - 1}-03-14`;
+    render(<DailyView />);
+    expect(heading()).toContain(String(THIS_YEAR - 1));
+  });
+
+  it("draws the arrows and the date on Mobile too, in one row with the kebab", () => {
+    state.isWide = false;
+    state.selectedDate = `${THIS_YEAR}-03-14`;
+    render(<DailyView />);
+
+    const prev = screen.getByRole("button", { name: "materials.daily.prevDay" });
+    const kebab = screen.getByRole("button", {
+      name: "materials.daily.moreActions",
+    });
+    expect(prev.parentElement?.parentElement?.contains(kebab)).toBe(true);
+    const wd = new Intl.DateTimeFormat("en-US", { weekday: "short" }).format(
+      new Date(THIS_YEAR, 2, 14),
+    );
+    expect(heading()).toBe(`${wd} 3/14`);
+    fireEvent.click(prev);
+    expect(state.setSelectedDate).toHaveBeenCalledExactlyOnceWith(
+      `${THIS_YEAR}-03-13`,
+    );
+  });
+});
+
 describe("DailyView — the empty body's placeholder (#2592)", () => {
   it("speaks of today on today", async () => {
     state.selectedDate = TODAY;
@@ -692,6 +816,76 @@ describe("DailyView — attachments", () => {
   });
 });
 
+describe("DailyView — a list read that fails or is in flight (#2582)", () => {
+  it("shows the failure card in the main area and in the list when the first read failed", () => {
+    state.dailies = [];
+    state.error = "offline";
+    render(<DailyView />);
+
+    const cards = screen.getAllByRole("alert");
+    expect(cards.map((c) => c.textContent)).toEqual([
+      expect.stringContaining("materials.daily.loadFailedMain"),
+      expect.stringContaining("materials.daily.loadFailedList"),
+    ]);
+    // In the editor's place: nothing to type over a day not read yet.
+    expect(screen.queryByTestId("editor")).toBeNull();
+    expect(screen.queryByTestId("daily-body-pending")).toBeNull();
+    // No "nothing here yet" under the list's card: the days are not gone.
+    expect(screen.queryByText("materials.daily.empty")).toBeNull();
+    // The calendar stays, so a day can still be picked.
+    screen.getByLabelText("materials.daily.calendar");
+  });
+
+  it("calls reload from either card's retry", () => {
+    state.dailies = [];
+    state.error = "offline";
+    render(<DailyView />);
+
+    const retries = screen.getAllByRole("button", { name: "common.retry" });
+    expect(retries).toHaveLength(2);
+    fireEvent.click(retries[0]);
+    fireEvent.click(retries[1]);
+    expect(state.reload).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps what was read when a re-fetch fails after a successful read", async () => {
+    state.error = "offline";
+    render(<DailyView />);
+
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("button", { name: "common.retry" })).toBeNull();
+    expect((await screen.findByTestId("editor")).textContent).toBe(
+      `daily-${YESTERDAY}`,
+    );
+    screen.getByText(`entry for ${LAST_WEEK}`);
+  });
+
+  it("names the list skeleton while the first read is in flight", () => {
+    state.dailies = [];
+    state.isLoading = true;
+    render(<DailyView />);
+
+    const status = screen.getByRole("status", {
+      name: "materials.daily.loading",
+    });
+    expect(status.getAttribute("aria-busy")).toBe("true");
+    expect(screen.queryByText("materials.daily.empty")).toBeNull();
+  });
+
+  it("names the body skeleton without changing its three bars", () => {
+    state.dailies = [daily(YESTERDAY, { bodyLoaded: false, content: "" })];
+    render(<DailyView />);
+
+    const pending = screen.getByTestId("daily-body-pending");
+    expect(pending.getAttribute("role")).toBe("status");
+    expect(pending.getAttribute("aria-label")).toBe("materials.daily.loading");
+    expect(pending.getAttribute("aria-busy")).toBe("true");
+    expect(
+      pending.querySelectorAll(".animate-pulse.h-5.bg-lumen-hover"),
+    ).toHaveLength(3);
+  });
+});
+
 describe("DailyView — the actions kebab", () => {
   it("keeps pin and delete behind it", () => {
     render(<DailyView />);
@@ -757,8 +951,12 @@ describe("DailyView — the actions kebab", () => {
     // Nothing is gone yet. The press opens the question, and the question
     // names the day the entry list names.
     expect(state.deleteDaily).not.toHaveBeenCalled();
-    const dialog = screen.getByRole("dialog");
+    // Named by its heading, with a × beside it (#2587).
+    const dialog = screen.getByRole("dialog", {
+      name: "materials.daily.deleteConfirmTitle",
+    });
     within(dialog).getByText(/^materials\.daily\.deleteConfirmBody\|/);
+    within(dialog).getByRole("button", { name: "common.close" });
 
     fireEvent.click(
       within(dialog).getByRole("button", {
@@ -803,6 +1001,106 @@ describe("DailyView — the actions kebab", () => {
       .find((el) => el.textContent?.includes("materials.daily.delete"));
     expect(item?.getAttribute("aria-disabled")).toBe("true");
   });
+
+  it("has nothing to pin on a day with no entry (#2872)", () => {
+    state.selectedDate = LONG_AGO;
+    render(<DailyView />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "materials.daily.moreActions" }),
+    );
+    const item = within(screen.getByRole("menu"))
+      .getAllByRole("menuitem", { hidden: true })
+      .find((el) => el.textContent?.includes("materials.daily.pin"));
+    expect(item?.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(item as HTMLElement);
+    expect(state.togglePin).not.toHaveBeenCalled();
+  });
+
+  it("names the pin row for the state it would change to (#2596)", () => {
+    state.dailies = [daily(YESTERDAY, { isPinned: true })];
+    render(<DailyView />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "materials.daily.moreActions" }),
+    );
+    const menu = screen.getByRole("menu");
+    within(menu).getByText("materials.daily.unpin");
+    expect(within(menu).queryByText("materials.daily.pin")).toBeNull();
+  });
+});
+
+/*
+ * #2596 — the pin on the date row, beside the kebab. The context is stubbed,
+ * so the flip itself is the stub's job here; what this pins is that the
+ * button reads the OPEN day's flag and acts on the OPEN day. The write through
+ * the real providers is in dailyScreenActions.test.tsx.
+ */
+describe("DailyView — the pin toggle on the date row (#2596)", () => {
+  const toggle = (): HTMLElement =>
+    screen.getByRole("button", { name: "materials.daily.pinToggle" });
+
+  it.each([
+    ["desktop", true],
+    ["mobile", false],
+  ])("sits in the date row next to the kebab (%s)", (_, wide) => {
+    state.isWide = wide;
+    render(<DailyView />);
+
+    const kebab = screen.getByRole("button", {
+      name: "materials.daily.moreActions",
+    });
+    // Same group as the kebab, and before it.
+    const group = kebab.parentElement?.parentElement;
+    expect(group?.contains(toggle())).toBe(true);
+    expect(
+      toggle().compareDocumentPosition(kebab) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    const prev = screen.getByRole("button", { name: "materials.daily.prevDay" });
+    expect(prev.parentElement?.parentElement?.contains(toggle())).toBe(true);
+  });
+
+  it("switches aria-pressed with the open day's pin", () => {
+    const { rerender } = render(<DailyView />);
+    expect(toggle().getAttribute("aria-pressed")).toBe("false");
+
+    fireEvent.click(toggle());
+    expect(state.togglePin).toHaveBeenCalledExactlyOnceWith(YESTERDAY);
+
+    // What the real context does once the flip lands.
+    state.dailies = [
+      daily(TODAY),
+      daily(YESTERDAY, { isPinned: true }),
+      daily(LAST_WEEK),
+    ];
+    rerender(<DailyView />);
+    expect(toggle().getAttribute("aria-pressed")).toBe("true");
+    // The pressed state fills the glyph in the accent colour.
+    expect(toggle().className).toContain("text-lumen-accent");
+    expect(toggle().querySelector("svg")?.getAttribute("class")).toContain(
+      "fill-current",
+    );
+  });
+
+  it("keeps one name in both states, so it reads as one button", () => {
+    state.dailies = [daily(YESTERDAY, { isPinned: true })];
+    render(<DailyView />);
+    expect(toggle().getAttribute("aria-pressed")).toBe("true");
+    expect(
+      screen.queryByRole("button", { name: "materials.daily.unpin" }),
+    ).toBeNull();
+  });
+
+  it("is disabled on a day with no entry, where there is nothing to pin", () => {
+    state.selectedDate = LONG_AGO;
+    render(<DailyView />);
+
+    expect((toggle() as HTMLButtonElement).disabled).toBe(true);
+    expect(toggle().getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(toggle());
+    expect(state.togglePin).not.toHaveBeenCalled();
+  });
 });
 
 describe("DailyView — the entry list says which day is open (#1839)", () => {
@@ -827,9 +1125,32 @@ describe("DailyView — the entry list says which day is open (#1839)", () => {
     ).toHaveLength(0);
   });
 
+  it("labels an entry row as M月D日（曜） in Japanese, with the year only off this year (#2590)", () => {
+    state.language = "ja";
+    state.dailies = [daily("2020-03-05"), daily(TODAY)];
+    state.selectedDate = TODAY;
+    render(<DailyView />);
+
+    // 2020-03-05 was a Thursday.
+    screen.getAllByText("2020年3月5日（木）");
+    const now = new Date();
+    screen.getAllByText(
+      `${now.getMonth() + 1}月${now.getDate()}日（${"日月火水木金土"[now.getDay()]}）`,
+    );
+  });
+
+  it("keeps the short Wd M/D row label in English, with the year off this year (#2590)", () => {
+    state.dailies = [daily("2020-03-05")];
+    state.selectedDate = "2020-03-05";
+    render(<DailyView />);
+
+    screen.getAllByText("Thu 3/5/2020");
+  });
+
   it("says why the list is empty when a filter empties it", () => {
     render(<DailyView />);
 
+    openFilter();
     fireEvent.change(screen.getByLabelText("materials.daily.filterLabel"), {
       target: { value: "nothing-matches-this" },
     });
@@ -899,6 +1220,7 @@ describe("DailyView — desktop entry panel", () => {
   it("narrows the list by the sidebar filter query", () => {
     render(<DailyView />);
 
+    openFilter();
     fireEvent.change(screen.getByLabelText("materials.daily.filterLabel"), {
       target: { value: `entry for ${LAST_WEEK}` },
     });
@@ -911,11 +1233,64 @@ describe("DailyView — desktop entry panel", () => {
     // outside they read as a filter that did nothing.
     expect(screen.queryByText("materials.daily.today")).toBeNull();
     expect(screen.queryByText("materials.daily.yesterday")).toBeNull();
-    // What is left above the list: the calendar (#2588), the search and the
-    // sort.
+    // What is left above the list: the calendar (#2588), and under it the
+    // Today and Filter buttons (#2589), the latter folding search and sort.
     screen.getByLabelText("materials.daily.calendar");
-    screen.getByLabelText("materials.daily.filterLabel");
-    screen.getByLabelText("materials.sidebar.sort");
+    screen.getByRole("button", { name: "materials.daily.filterToggle" });
+  });
+
+  /*
+   * #2589 — the search and the sort held the list's top at all times. They
+   * are folded under one button now, which carries a dot while either of them
+   * is narrowing or reordering the list.
+   */
+  it("folds the search and sort under the Filter button", () => {
+    render(<DailyView />);
+
+    const toggle = filterToggle();
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    const panel = document.getElementById(
+      toggle.getAttribute("aria-controls") ?? "",
+    );
+    expect(panel?.hidden).toBe(true);
+    // The search and the sort are the folded panel's, not loose above it.
+    expect(
+      panel?.contains(screen.getByLabelText("materials.daily.filterLabel")),
+    ).toBe(true);
+    expect(
+      panel?.contains(screen.getByLabelText("materials.sidebar.sort")),
+    ).toBe(true);
+
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(panel?.hidden).toBe(false);
+  });
+
+  it("dots the Filter button while a query narrows the list", () => {
+    render(<DailyView />);
+    expect(screen.queryByTestId("daily-filter-dot")).toBeNull();
+
+    openFilter();
+    fireEvent.change(screen.getByLabelText("materials.daily.filterLabel"), {
+      target: { value: "entry" },
+    });
+    screen.getByTestId("daily-filter-dot");
+    screen.getByRole("button", {
+      name: "materials.daily.filterToggle materials.daily.filterActive",
+    });
+
+    fireEvent.change(screen.getByLabelText("materials.daily.filterLabel"), {
+      target: { value: "  " },
+    });
+    expect(screen.queryByTestId("daily-filter-dot")).toBeNull();
+  });
+
+  it("dots the Filter button for a sort other than newest date first", () => {
+    // The sort is remembered, so it is in effect from the first paint.
+    localStorage.setItem("life-editor:daily-sort-direction", '"asc"');
+    render(<DailyView />);
+
+    screen.getByTestId("daily-filter-dot");
   });
 });
 
@@ -953,8 +1328,28 @@ describe("DailyView — mobile", () => {
     // Every entry, not a two-row teaser — LONG_AGO included.
     screen.getByText("materials.daily.entriesCount|4");
     screen.getByText(`entry for ${LONG_AGO}`);
-    // And the sort / filter controls that came with it.
+    // And the sort / filter controls that came with it, folded (#2589).
+    openFilter();
     screen.getByLabelText("materials.daily.filterLabel");
+  });
+
+  it("puts Today in the drawer under the calendar, and closes it there (#2589)", () => {
+    render(<DailyView />);
+
+    const [cta, ...others] = screen.getAllByRole("button", {
+      name: "materials.daily.toToday",
+    });
+    // The body's row keeps only the kebab.
+    expect(others).toHaveLength(0);
+    const calendar = screen.getByLabelText("materials.daily.calendar");
+    expect(
+      calendar.compareDocumentPosition(cta) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    fireEvent.click(cta);
+    expect(state.setSelectedDate).toHaveBeenCalledExactlyOnceWith(TODAY);
+    // Same as an entry row: the drawer would cover the day just opened.
+    expect(state.closeDrawer).toHaveBeenCalledTimes(1);
   });
 
   it("closes the drawer on the day it just opened", () => {
@@ -1409,8 +1804,9 @@ describe("#1840 — Daily's controls meet the touch floor", () => {
     // A labelled button is already wide enough for a thumb; a min-width would
     // stretch it for no one.
     expect(cta.classList.contains("max-md:min-w-11")).toBe(false);
-    // Desktop unchanged: same padding, no unconditional floor.
-    expect(cta.classList.contains("py-1.5")).toBe(true);
+    // Desktop keeps the mouse height (#2589's row under the calendar), with
+    // no unconditional floor.
+    expect(cta.classList.contains("h-8")).toBe(true);
     expect(cta.classList.contains("min-h-11")).toBe(false);
   });
 
@@ -1425,6 +1821,18 @@ describe("#1840 — Daily's controls meet the touch floor", () => {
     // The drawn box is untouched — the hit box is what grew.
     expect(kebab.classList.contains("h-7")).toBe(true);
     expect(kebab.classList.contains("min-h-lumen-tap-touch")).toBe(false);
+  });
+
+  it("floors the pin toggle the same way as the kebab beside it (#2596)", () => {
+    render(<DailyView />);
+    const pin = screen.getByRole("button", {
+      name: "materials.daily.pinToggle",
+    });
+
+    expect(pin.classList.contains("max-md:min-h-lumen-tap-touch")).toBe(true);
+    expect(pin.classList.contains("max-md:min-w-lumen-tap-touch")).toBe(true);
+    expect(pin.classList.contains("h-7")).toBe(true);
+    expect(pin.classList.contains("min-h-lumen-tap-touch")).toBe(false);
   });
 
   // The reflection preview the audit also read (34px) went with the evening

@@ -92,8 +92,10 @@ export function useHeaderTagEdit({
       const name = allTags.find((row) => row.id === tagId)?.name ?? "";
       void (async () => {
         const ok = await askConfirm({
+          title: t("connect.deleteTag"),
           message: t("connect.deleteConfirm", { name }),
-          confirmLabel: t("connect.deleteTag"),
+          // Not `connect.deleteTag`: that key also names the row menu's item.
+          confirmLabel: t("connect.deleteTagConfirm"),
           cancelLabel: t("common.cancel"),
           danger: true,
         });
@@ -165,10 +167,12 @@ export function useHeaderTagEdit({
           {confirmRequest && (
             <ConfirmDialog
               open
+              title={confirmRequest.title}
               message={confirmRequest.message}
               confirmLabel={confirmRequest.confirmLabel}
               cancelLabel={confirmRequest.cancelLabel}
               danger={confirmRequest.danger}
+              closeLabel={t("common.close")}
               onConfirm={() => resolveConfirm(tag !== null)}
               onCancel={() => resolveConfirm(false)}
             />

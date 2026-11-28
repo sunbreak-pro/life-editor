@@ -8,9 +8,10 @@ import { fetchMaybeSingleRow } from "./postgrestSingle";
  * Notes (SupabaseNotesUnifiedLock, G1) and Dailies (SupabaseDailiesUnified-
  * Service, DU-G G2) grew the same methods line for line: set / remove /
  * verify password, the lazy PBKDF2 rehash, and the items_meta updated_at
- * bump they share. The two copies differed only in four values — the role string, the payload table, the error labels, and how
- * the domain object is re-read afterwards — so they are parameters here rather
- * than a second copy of the body.
+ * bump they share. The two copies differed only in four values — the role
+ * string, the payload table, the error labels, and how the domain object is
+ * re-read afterwards — so they are parameters here rather than a second copy
+ * of the body.
  *
  * The order of the round-trips (items_meta UPDATE -> payload UPDATE ->
  * re-read) and the "verify before clear" rule are load-bearing, and both

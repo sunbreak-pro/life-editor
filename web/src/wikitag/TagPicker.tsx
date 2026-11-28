@@ -10,6 +10,7 @@ import {
 import { Plus, Tag as TagIcon } from "lucide-react";
 import {
   cn,
+  ICON_TAP_NARROW,
   isImeComposing,
   ItemRoleBadge,
   TagHeadingIcon,
@@ -428,7 +429,7 @@ export function TagPicker({
         // to TAP_TARGET itself, which every icon button in the app shares. The
         // bare "+" takes the icon-only floor; with its name showing it is a
         // labelled button and keeps 2.75rem (#2673).
-        className={`${TAP_TARGET} ${bareAdd ? "max-md:min-h-lumen-tap-touch max-md:min-w-lumen-tap-touch" : "max-md:min-h-11 max-md:min-w-11"} gap-1 rounded-md border border-dashed border-lumen-border px-2 py-1 text-xs text-lumen-text-secondary hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent`}
+        className={`${TAP_TARGET} ${bareAdd ? ICON_TAP_NARROW : "max-md:min-h-11 max-md:min-w-11"} gap-1 rounded-md border border-dashed border-lumen-border px-2 py-1 text-xs text-lumen-text-secondary hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent`}
       >
         <Plus size={14} aria-hidden />
         {addLabel ? (

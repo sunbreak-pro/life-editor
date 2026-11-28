@@ -17,7 +17,7 @@ import {
   Minus,
   Strikethrough,
 } from "lucide-react";
-import { cn, FOCUS_RING } from "@life-editor/shared";
+import { cn, FOCUS_RING, ICON_TAP_NARROW } from "@life-editor/shared";
 import { FORMAT_BUBBLE_OPTIONS } from "./formatBubbleOptions";
 import { hasItemLinkPicker } from "./itemLinkSuggestion";
 
@@ -275,7 +275,7 @@ export function FormatToolbar({
               className={cn(
                 "inline-grid h-6 w-6 place-items-center rounded-lumen-sm transition-colors",
                 // The icon-only floor below the app's breakpoint (#1512, #2673).
-                "max-md:min-h-lumen-tap-touch max-md:min-w-lumen-tap-touch",
+                ICON_TAP_NARROW,
                 pressed
                   ? "bg-lumen-accent-subtle text-lumen-accent"
                   : "text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",

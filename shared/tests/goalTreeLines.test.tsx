@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { ComponentProps } from "react";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import {
   GoalTreeView,
@@ -675,5 +676,151 @@ describe("GoalTreeView — the add-below row names its kind with an icon (#2609)
         .getByRole("textbox", { name: /^Add under/ })
         .getAttribute("placeholder"),
     ).toBe(LABELS.addPlaceholder);
+  });
+});
+
+describe("GoalTreeView — the loose todos' empty line (#2851)", () => {
+  const LOOSE_LABELS: GoalTreeLabels = {
+    ...LABELS,
+    looseEmpty: "No todos are outside a goal",
+  };
+
+  function renderLoose(
+    todos: { id: string; title: string; status: "NOT_STARTED" | "DONE" }[],
+    activeFilters?: string[],
+  ): void {
+    render(
+      <GoalTreeView
+        model={buildGoalTreeModel({
+          goals: GOALS,
+          links: [],
+          todos: todos.map((t) => ({
+            ...t,
+            completedAt:
+              t.status === "DONE" ? "2026-09-29T00:00:00Z" : undefined,
+          })),
+          todayKey: "2026-09-30",
+          untitled: "Untitled",
+        })}
+        isLoading={false}
+        selectedGoalId={null}
+        onSelectGoal={vi.fn()}
+        onCreateGoal={vi.fn().mockResolvedValue(true)}
+        onCreateLooseTodo={vi.fn().mockResolvedValue(true)}
+        onSetTodoStatus={vi.fn()}
+        onOpenTodo={vi.fn()}
+        activeFilters={activeFilters}
+        labels={LOOSE_LABELS}
+      />,
+    );
+  }
+
+  it("says there are none when no loose todo exists", () => {
+    renderLoose([]);
+    expect(screen.queryByText("No todos are outside a goal")).not.toBeNull();
+  });
+
+  it("stays silent when every loose todo is done and listed under Completed items", () => {
+    renderLoose([{ id: "d1", title: "Done loose", status: "DONE" }]);
+    expect(screen.queryByText("No todos are outside a goal")).toBeNull();
+    expect(screen.queryByText("Done loose")).not.toBeNull();
+  });
+
+  it("stays silent while a filter is on, since it may be what hid them", () => {
+    renderLoose([], ["Tag"]);
+    expect(screen.queryByText("No todos are outside a goal")).toBeNull();
+  });
+});
+
+describe("GoalTreeView — a failed read and no goals (#2614)", () => {
+  function renderState(
+    over: Partial<ComponentProps<typeof GoalTreeView>>,
+  ): void {
+    render(
+      <GoalTreeView
+        model={model()}
+        isLoading={false}
+        selectedGoalId={null}
+        onSelectGoal={vi.fn()}
+        onCreateGoal={vi.fn().mockResolvedValue(true)}
+        onCreateLooseTodo={vi.fn().mockResolvedValue(true)}
+        onSetTodoStatus={vi.fn()}
+        onOpenTodo={vi.fn()}
+        labels={LABELS}
+        {...over}
+      />,
+    );
+  }
+
+  it("shows the danger card with Retry, which calls onRetry", () => {
+    const onRetry = vi.fn();
+    renderState({ loadFailed: true, onRetry });
+
+    const card = screen.getByRole("alert");
+    within(card).getByText("Could not load");
+    expect(card.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(["border-lumen-danger", "bg-lumen-danger-subtle"]),
+    );
+    expect(screen.queryByRole("region", { name: "Goals" })).toBeNull();
+
+    fireEvent.click(within(card).getByRole("button", { name: "Retry" }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the card up with its button busy while the retry reads (#2871)", () => {
+    const onRetry = vi.fn();
+    // The host reports the retry's wait as loading; the card, not the
+    // skeleton, stays on screen.
+    renderState({ loadFailed: true, onRetry, isLoading: true, retrying: true });
+
+    expect(screen.queryByRole("status", { name: "Loading" })).toBeNull();
+    const button = within(screen.getByRole("alert")).getByRole("button", {
+      name: "Retry",
+    }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(button.getAttribute("aria-busy")).toBe("true");
+    fireEvent.click(button);
+    expect(onRetry).not.toHaveBeenCalled();
+  });
+
+  it("leaves the button pressable when no retry is running", () => {
+    renderState({ loadFailed: true, onRetry: vi.fn() });
+    const button = within(screen.getByRole("alert")).getByRole("button", {
+      name: "Retry",
+    }) as HTMLButtonElement;
+    expect(button.disabled).toBe(false);
+    expect(button.getAttribute("aria-busy")).toBeNull();
+  });
+
+  it("keeps a plain line, with no dead button, for a host without a retry", () => {
+    renderState({ loadFailed: true });
+    const alert = screen.getByRole("alert");
+    expect(alert.textContent).toBe("Could not load");
+    expect(within(alert).queryByRole("button")).toBeNull();
+  });
+
+  it("shows the guidance and a bordered Target button that opens this week's field", () => {
+    renderState({ model: model([]) });
+
+    const empty = screen.getByText("No goals").closest("[data-goals-empty]");
+    if (!(empty instanceof HTMLElement)) throw new Error("no empty state");
+    const button = within(empty).getByRole("button", {
+      name: "Add this week's goal",
+    });
+    const classes = button.className.split(/\s+/);
+    // A border, not the accent fill the shared EmptyState would give it.
+    expect(classes).toEqual(
+      expect.arrayContaining(["border", "border-lumen-border"]),
+    );
+    expect(classes).not.toContain("bg-lumen-accent");
+    // The goal's own glyph leads the label, hidden from screen readers.
+    expect(button.querySelector("svg.lucide-target")).not.toBeNull();
+
+    fireEvent.click(button);
+    screen.getByRole("textbox", { name: /This week/ });
+    // The field is open, so the guidance's button steps aside.
+    expect(
+      screen.queryByRole("button", { name: "Add this week's goal" }),
+    ).toBeNull();
   });
 });

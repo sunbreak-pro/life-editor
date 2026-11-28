@@ -4,6 +4,7 @@ import { UNTAGGED_GROUP_KEY } from "@life-editor/shared";
 import type { DragEndEvent } from "@dnd-kit/core";
 import {
   useNoteTagDnd,
+  flatNoteDraggableId,
   noteDraggableId,
   tagDroppableId,
   planTagMove,
@@ -123,5 +124,54 @@ describe("planTagMove — which writes a move comes down to (#1687)", () => {
         assignment("asg-1", "tag-a", true),
       ]),
     ).toEqual({ unassignId: null, assignTagId: "tag-b" });
+  });
+});
+
+/*
+ * #2579 — the flat default list drags onto a panel of every tag. Its rows
+ * come from no heading, so the drop only adds: the note's other tags stay,
+ * and a tag it already carries writes nothing at all.
+ */
+describe("a drop from the flat default list (#2579)", () => {
+  const assignment = (id: string, tagId: string) => ({
+    id,
+    tagId,
+    isDeleted: false,
+  });
+
+  it("reads a flat row as coming from no tag", () => {
+    expect(drop(flatNoteDraggableId(NOTE), tagDroppableId("tag-b"))).toEqual({
+      noteId: NOTE,
+      fromTagId: null,
+      toTagId: "tag-b",
+    });
+  });
+
+  it("only adds, leaving the tags the note already has", () => {
+    const move = drop(flatNoteDraggableId(NOTE), tagDroppableId("tag-b"));
+    expect(
+      planTagMove(move!, [
+        assignment("asg-1", "tag-a"),
+        assignment("asg-2", "tag-c"),
+      ]),
+    ).toEqual({ unassignId: null, assignTagId: "tag-b" });
+  });
+
+  it("writes nothing when the note already carries the tag", () => {
+    const move = drop(flatNoteDraggableId(NOTE), tagDroppableId("tag-b"));
+    expect(planTagMove(move!, [assignment("asg-2", "tag-b")])).toEqual({
+      unassignId: null,
+      assignTagId: null,
+    });
+  });
+
+  it("does nothing when the drop lands on nothing", () => {
+    expect(drop(flatNoteDraggableId(NOTE), null)).toBe(null);
+  });
+
+  it("keeps the grouped list's move as it was", () => {
+    expect(
+      drop(noteDraggableId("tag-a", NOTE), tagDroppableId("tag-b")),
+    ).toEqual({ noteId: NOTE, fromTagId: "tag-a", toTagId: "tag-b" });
   });
 });

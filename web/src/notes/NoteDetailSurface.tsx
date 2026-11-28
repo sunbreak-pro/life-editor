@@ -27,10 +27,10 @@ import { FormatBubbleMenu, type FormatToolbarLabels } from "./FormatToolbar";
 
 export interface NoteDetailLabels {
   title: string;
+  /** Grey text over an empty title — a new note is stored untitled (#2581). */
+  titlePlaceholder: string;
   pin: string;
   unpin: string;
-  /** Name of the "this note is pinned" marker beside the kebab (#885). */
-  pinned: string;
   delete: string;
   moreActions: string;
   lockedHint: string;
@@ -153,9 +153,9 @@ export function NoteDetailSurface({
       onDelete={onDelete}
       offlineReason={offlineReason}
       titleLabel={labels.title}
+      titlePlaceholder={labels.titlePlaceholder}
       pinLabel={labels.pin}
       unpinLabel={labels.unpin}
-      pinnedLabel={labels.pinned}
       deleteLabel={labels.delete}
       moreActionsLabel={labels.moreActions}
       onRegisterTemplate={onRegisterTemplate}

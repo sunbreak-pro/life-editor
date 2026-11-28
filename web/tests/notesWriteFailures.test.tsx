@@ -28,7 +28,6 @@ import { TEMPLATE_WRITE_FAILED_COPY } from "../src/notes/hooks/useTemplateWriteF
 
 const captured = vi.hoisted(() => ({
   onWriteError: null as ((op: NoteWriteOp, error: unknown) => void) | null,
-  untitledTitle: undefined as string | undefined,
   showToast: vi.fn(),
 }));
 
@@ -40,14 +39,11 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
     NotesUnifiedProvider: ({
       children,
       onWriteError,
-      untitledTitle,
     }: {
       children: ReactNode;
       onWriteError?: (op: NoteWriteOp, error: unknown) => void;
-      untitledTitle?: string;
     }) => {
       captured.onWriteError = onWriteError ?? null;
-      captured.untitledTitle = untitledTitle;
       return <>{children}</>;
     },
   };
@@ -60,7 +56,6 @@ afterAll(async () => {
 
 function mountHost() {
   captured.onWriteError = null;
-  captured.untitledTitle = undefined;
   captured.showToast.mockClear();
   render(
     <NotesUnifiedHost dataService={{} as DataService}>
@@ -96,26 +91,6 @@ describe("NotesUnifiedHost", () => {
 
     const [first, second] = h.showToast.mock.calls.map((c) => c[1]);
     expect(first).not.toBe(second);
-  });
-});
-
-describe("NotesUnifiedHost — the new note's placeholder title (#1953)", () => {
-  /*
-   * A note created with no title used to be named by a literal in the shared
-   * hook, so a Japanese UI got an English title. The host now hands the
-   * provider the catalog's word for the current language.
-   */
-  it("hands the provider the Japanese word in ja", async () => {
-    await i18n.changeLanguage("ja");
-    const h = mountHost();
-    expect(h.untitledTitle).toBe("無題");
-  });
-
-  it("follows the catalog in en", async () => {
-    await i18n.changeLanguage("en");
-    const h = mountHost();
-    expect(h.untitledTitle).toBe(i18n.t("common.untitled"));
-    expect(h.untitledTitle).not.toBe("common.untitled");
   });
 });
 

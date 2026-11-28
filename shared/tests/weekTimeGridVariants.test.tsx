@@ -429,10 +429,13 @@ describe("WeekTimeGrid — all-day chips coloured like the month (#2563)", () =>
     expect(chip.className).not.toContain("border-l-lumen-chip-routine-dot");
   });
 
-  it("makes every lane chip 1.25rem tall, the holiday included", () => {
+  it("sizes every lane chip like the month chip (py-0.5 + text-xs), the holiday included", () => {
     renderGrid({ items: LANE });
     for (const title of ["Trip", "Laundry", "Pay rent", "Sea Day"]) {
-      expect(screen.getByTitle(title).className.split(" ")).toContain("h-5");
+      const classes = screen.getByTitle(title).className.split(" ");
+      expect(classes).toEqual(expect.arrayContaining(["py-0.5", "text-xs"]));
+      // No fixed height: it would pull the chip off the month's 24px.
+      expect(classes).not.toContain("h-5");
     }
   });
 

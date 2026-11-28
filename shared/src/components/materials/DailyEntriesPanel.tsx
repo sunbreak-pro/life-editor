@@ -1,6 +1,17 @@
-import { Calendar, CalendarDays, Pin, Search } from "lucide-react";
+import { useId, useState, type ReactNode } from "react";
+import {
+  Calendar,
+  CalendarCheck,
+  CalendarDays,
+  Filter,
+  Pin,
+  Search,
+} from "lucide-react";
 import { cn } from "../cn";
 import { EmptyState } from "../EmptyState";
+import { LoadErrorCard } from "../LoadErrorCard";
+import { SkeletonList } from "../SkeletonList";
+import { FOCUS_RING_TIGHT as FOCUS_RING } from "../styleTokens";
 import {
   DailyMonthCalendar,
   type DailyMonthCalendarProps,
@@ -22,6 +33,14 @@ import { ExcerptListItem } from "./ExcerptListItem";
  * showed one date and nothing else; the calendar shows which days of the month
  * have an entry, and it is still the way to open a day nobody has written yet.
  *
+ * #2589 put a row of two buttons under the calendar: "Today", and "Filter",
+ * which folds the search and sort controls (the host hands them in, so they
+ * stay #2577's own part). Unlike #1189's pair, "Today" sits where the days are
+ * picked and goes pale on today, so pressing it always changes something. The
+ * sort used to hold the list's top at all times for a setting changed rarely;
+ * folded, a dot on the button says the list is narrowed or reordered, which
+ * would otherwise be invisible while the controls are shut.
+ *
  * Pure presentation, DataService-free (§3.1): every pick / select is a
  * host-injected callback, all copy is already-translated props (§6.4 — no
  * useTranslation here), and date math / label formatting stays host-side.
@@ -41,9 +60,28 @@ export interface DailyEntriesPanelEntry {
   selected?: boolean;
 }
 
+/** The "Today" + "Filter" row under the calendar (#2589). */
+export interface DailyEntriesPanelActions {
+  /** Already-translated label of the "Today" button. */
+  todayLabel: string;
+  onToday: () => void;
+  /** Today is the open day: the button stays in place, pale and disabled. */
+  isToday: boolean;
+  /** Already-translated label of the "Filter" button. */
+  filterLabel: string;
+  /** Already-translated words read out with the dot ("filters on"). */
+  filterActiveLabel: string;
+  /** A search query or a non-default sort is in effect: draws the dot. */
+  filterActive: boolean;
+  /** The search + sort controls the "Filter" button opens. */
+  filterPanel: ReactNode;
+}
+
 export interface DailyEntriesPanelProps {
   /** The month calendar at the top of the panel (#2588), passed through. */
   calendar: DailyMonthCalendarProps;
+  /** Omitted → no row under the calendar. */
+  actions?: DailyEntriesPanelActions;
   /** Already-translated heading (e.g. "エントリ（3）"). */
   entriesHeading: string;
   entries: DailyEntriesPanelEntry[];
@@ -57,29 +95,95 @@ export interface DailyEntriesPanelProps {
   emptyMessage?: string;
   /** True when the list is empty because a filter is narrowing it. */
   searchEmpty?: boolean;
+  /** The first read of the list is in flight: the list area shows a skeleton. */
+  isLoading?: boolean;
+  /** Already-translated name of that skeleton (its `role="status"`). */
+  loadingLabel?: string;
+  /**
+   * The list could not be read (#2582). Given, the list area shows the failure
+   * card with its retry instead of the entries or the empty line. Whether a
+   * failure is worth showing (only before anything was read) is the host's call.
+   */
+  loadError?: DailyEntriesPanelLoadError | null;
   className?: string;
 }
 
+export interface DailyEntriesPanelLoadError {
+  /** Already-translated body of the failure card. */
+  message: string;
+  /** Already-translated retry label, usually `t("common.retry")`. */
+  retryLabel: string;
+  onRetry: () => void;
+}
+
+// Title bar + excerpt bar per entry, the two lines an ExcerptListItem draws.
+const LIST_SKELETON_WIDTHS = [
+  "38%",
+  "86%",
+  "32%",
+  "72%",
+  "44%",
+  "80%",
+  "36%",
+  "66%",
+] as const;
+
+// The pair shares one look; the label makes each wide enough for a thumb, so
+// narrow floors the height only (#1840).
+const ACTION_BUTTON = cn(
+  "inline-flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lumen-md border px-2.5 text-[12.5px] max-md:min-h-11 max-md:text-sm",
+  "transition-colors",
+  FOCUS_RING,
+);
+const ACTION_IDLE =
+  "border-lumen-border bg-lumen-surface-sunken text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text";
+
 export function DailyEntriesPanel({
   calendar,
+  actions,
   entriesHeading,
   entries,
   onSelectEntry,
   pinnedLabel,
   emptyMessage,
   searchEmpty = false,
+  isLoading = false,
+  loadingLabel,
+  loadError,
   className,
 }: DailyEntriesPanelProps) {
   return (
     <div className={cn("flex flex-col gap-3", className)}>
       <DailyMonthCalendar {...calendar} />
 
+      {actions && <PanelActions {...actions} />}
+
       {/* Entry list. */}
       <div className="flex flex-col gap-1.5">
         <div className="px-0.5 text-xs uppercase tracking-wide text-lumen-text-tertiary">
           {entriesHeading}
         </div>
-        {entries.length === 0 && emptyMessage ? (
+        {loadError ? (
+          /*
+           * #2582 — a failed first read used to leave "ENTRIES (0)" over the
+           * "nothing here yet" line, which says the days are gone. The
+           * calendar and the actions row stay: a day can still be opened.
+           */
+          <LoadErrorCard
+            message={loadError.message}
+            retryLabel={loadError.retryLabel}
+            onRetry={loadError.onRetry}
+          />
+        ) : isLoading ? (
+          <SkeletonList
+            rows={LIST_SKELETON_WIDTHS.length}
+            rowHeight={12}
+            gap={10}
+            widths={LIST_SKELETON_WIDTHS}
+            label={loadingLabel}
+            className="px-2.5 py-1.5"
+          />
+        ) : entries.length === 0 && emptyMessage ? (
           /*
            * #1839 — "ENTRIES (0)" over a blank space said nothing about why it
            * was blank. Notes answers the same question in the same place
@@ -123,6 +227,74 @@ export function DailyEntriesPanel({
             />
           ))
         )}
+      </div>
+    </div>
+  );
+}
+
+function PanelActions({
+  todayLabel,
+  onToday,
+  isToday,
+  filterLabel,
+  filterActiveLabel,
+  filterActive,
+  filterPanel,
+}: DailyEntriesPanelActions) {
+  // Local and starts shut, like the sort panel inside it: it answers "I am
+  // narrowing the list right now". The dot carries what is in effect.
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={onToday}
+          disabled={isToday}
+          className={cn(
+            ACTION_BUTTON,
+            ACTION_IDLE,
+            "disabled:cursor-default disabled:opacity-50",
+            "disabled:hover:bg-lumen-surface-sunken disabled:hover:text-lumen-text-secondary",
+          )}
+        >
+          <CalendarCheck size={13} aria-hidden className="shrink-0" />
+          <span className="truncate">{todayLabel}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          aria-controls={panelId}
+          className={cn(
+            ACTION_BUTTON,
+            open
+              ? "border-lumen-accent bg-lumen-accent-subtle text-lumen-accent"
+              : ACTION_IDLE,
+          )}
+        >
+          <Filter size={13} aria-hidden className="shrink-0" />
+          <span className="truncate">{filterLabel}</span>
+          {filterActive && (
+            <>
+              <span
+                data-testid="daily-filter-dot"
+                aria-hidden
+                className="size-1.5 shrink-0 rounded-lumen-full bg-lumen-accent"
+              />
+              {/* The space keeps the two words apart in the button's name. */}
+              {" "}
+              <span className="sr-only">{filterActiveLabel}</span>
+            </>
+          )}
+        </button>
+      </div>
+      {/* Always in the tree, `hidden` while shut, so `aria-controls` points at
+          something in both states and the sort panel keeps its own state. */}
+      <div id={panelId} hidden={!open}>
+        {filterPanel}
       </div>
     </div>
   );

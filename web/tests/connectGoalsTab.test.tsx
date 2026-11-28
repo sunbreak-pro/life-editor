@@ -372,12 +372,79 @@ describe("Connect Goals & Todos tab (#2108)", () => {
       .mockResolvedValue(GOALS);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     await renderTab(makeDS({ fetchGoals }), () => screen.getByRole("alert"));
+    // The shared danger card with the shared "Retry" (#2614).
+    const card = screen.getByRole("alert");
+    within(card).getByText("Could not load the goals");
+    expect(card.className.split(/\s+/)).toContain("border-lumen-danger");
     expect(screen.queryByText(/No goals yet/)).toBeNull();
     // No add button: an empty model says nothing true about the periods.
     expect(screen.queryByRole("button", { name: "Set a goal" })).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    fireEvent.click(within(card).getByRole("button", { name: "Retry" }));
     await waitFor(() => screen.getByRole("region", { name: "Goal tree" }));
+  });
+
+  it("holds the Retry button busy until the re-read lands (#2871)", async () => {
+    let finishRetry: (goals: Goal[]) => void = () => undefined;
+    const fetchGoals = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockImplementationOnce(
+        () =>
+          new Promise<Goal[]>((resolve) => {
+            finishRetry = resolve;
+          }),
+      )
+      .mockResolvedValue(GOALS);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await renderTab(makeDS({ fetchGoals }), () => screen.getByRole("alert"));
+
+    const retry = (): HTMLButtonElement =>
+      within(screen.getByRole("alert")).getByRole("button", {
+        name: "Retry",
+      }) as HTMLButtonElement;
+    expect(retry().disabled).toBe(false);
+
+    fireEvent.click(retry());
+    // The card stays (not the skeleton) and its button cannot be pressed again.
+    await waitFor(() => expect(retry().disabled).toBe(true));
+    expect(retry().getAttribute("aria-busy")).toBe("true");
+    fireEvent.click(retry());
+    expect(fetchGoals).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      finishRetry(GOALS);
+    });
+    await waitFor(() => screen.getByRole("region", { name: "Goal tree" }));
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("keeps the Retry button pressable again when the re-read fails too", async () => {
+    let failRetry: (e: Error) => void = () => undefined;
+    const fetchGoals = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockImplementationOnce(
+        () =>
+          new Promise<Goal[]>((_, reject) => {
+            failRetry = reject;
+          }),
+      );
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await renderTab(makeDS({ fetchGoals }), () => screen.getByRole("alert"));
+
+    const retry = (): HTMLButtonElement =>
+      within(screen.getByRole("alert")).getByRole("button", {
+        name: "Retry",
+      }) as HTMLButtonElement;
+    fireEvent.click(retry());
+    await waitFor(() => expect(retry().disabled).toBe(true));
+
+    await act(async () => {
+      failRetry(new Error("still offline"));
+    });
+    await waitFor(() => expect(retry().disabled).toBe(false));
+    expect(screen.queryByRole("region", { name: "Goal tree" })).toBeNull();
   });
 
   it("shows only the guidance when there are no goals — no empty group frames", async () => {
@@ -388,7 +455,7 @@ describe("Connect Goals & Todos tab (#2108)", () => {
       }),
       "Set a goal",
     );
-    screen.getByText(/No goals yet/);
+    screen.getByText("No goals yet. Write down one place you want to reach.");
     expect(screen.queryByRole("region", { name: "Goal tree" })).toBeNull();
     expect(
       screen.queryByRole("region", { name: "Unconnected goals" }),
@@ -768,11 +835,14 @@ describe("Connect Goals & Todos tab (#2108)", () => {
   });
 
   it("shows a hint under the controls until a goal is picked, then the details (#2398)", async () => {
-    const hint = "Pick a goal to see its details here";
+    const hint = "Pick a goal to see its details here.";
     const { panel } = await renderTab();
 
     panel().getByRole("region", { name: "Sort & filter" });
-    panel().getByText(hint);
+    // Centred and ending in a full stop, as the prototype has it (#2614).
+    expect(panel().getByText(hint).className.split(/\s+/)).toContain(
+      "text-center",
+    );
     expect(panel().queryByRole("textbox", { name: "Goal title" })).toBeNull();
 
     fireEvent.click(goalRow("Get the proposal approved"));
@@ -874,9 +944,7 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     const ds = makeDS();
     await renderTab(ds);
     fireEvent.click(goalRow("Get the proposal approved"));
-    const sheet = within(
-      screen.getByRole("dialog", { name: "Goal: Get the proposal approved" }),
-    );
+    const sheet = within(screen.getByRole("dialog", { name: "Goal details" }));
     // A week's parents are the goals of its month and of its year, each named
     // with its kind so the two read apart (#2399).
     const parent = sheet.getByRole("combobox", { name: "Goal above" });
@@ -888,7 +956,14 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     );
     // The link is there too, and picks the goal above in the same sheet.
     fireEvent.click(sheet.getByRole("button", { name: "Win an autumn project" }));
-    screen.getByRole("dialog", { name: "Goal: Win an autumn project" });
+    expect(
+      (
+        within(screen.getByRole("dialog", { name: "Goal details" })).getByRole(
+          "textbox",
+          { name: "Goal title" },
+        ) as HTMLInputElement
+      ).value,
+    ).toBe("Win an autumn project");
   });
 
   it("counts the linked todos beside their heading (#2410)", async () => {
@@ -1106,9 +1181,7 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     setNarrow();
     await renderTab();
     fireEvent.click(goalRow("Finish one book"));
-    const sheetDialog = screen.getByRole("dialog", {
-      name: "Goal: Finish one book",
-    });
+    const sheetDialog = screen.getByRole("dialog", { name: "Goal details" });
     const sheet = within(sheetDialog);
     fireEvent.click(sheet.getByRole("button", { name: "Link todos" }));
     const dialog = screen.getByRole("dialog", { name: "Link todos" });
@@ -1119,7 +1192,7 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     // Esc belongs to the dialog on top: the sheet stays open under it.
     fireEvent.keyDown(document.activeElement ?? document, { key: "Escape" });
     expect(screen.queryByRole("dialog", { name: "Link todos" })).toBeNull();
-    screen.getByRole("dialog", { name: "Goal: Finish one book" });
+    screen.getByRole("dialog", { name: "Goal details" });
   });
 
   it("renames a goal from the tree's edit icon with the panel's write (#2283 / #2367)", async () => {
@@ -1644,7 +1717,8 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     const { panel } = await renderTab();
     // The controls are there before any goal is picked.
     const period = within(panel().getByRole("group", { name: "Period" }));
-    fireEvent.click(period.getByRole("button", { name: "This week" }));
+    fireEvent.click(period.getByRole("button", { name: "This year" }));
+    fireEvent.click(period.getByRole("button", { name: "This month" }));
 
     const line = screen.getByRole("status");
     expect(line.textContent).toContain("Filtering by: This week");
@@ -1653,21 +1727,73 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     goalRow("Run 3 times");
     goalRow("Get the proposal approved");
 
-    fireEvent.click(within(line).getByRole("button", { name: "Reset" }));
+    // A link-styled reset after the filter icon (#2610).
+    expect(line.querySelector("svg")).not.toBeNull();
+    const reset = within(line).getByRole("button", { name: "Reset" });
+    expect(reset.className).toContain("text-lumen-accent");
+    fireEvent.click(reset);
     goalRow("Run 10 km in 60 min");
     expect(screen.queryByText(/Filtering by/)).toBeNull();
+    for (const name of ["This year", "This month", "This week"]) {
+      expect(
+        period.getByRole("button", { name }).getAttribute("aria-pressed"),
+      ).toBe("true");
+    }
   });
 
-  it("clears the period by pressing the picked chip again (#2410)", async () => {
+  it("starts with all three periods on and no filter line (#2610)", async () => {
     const { panel } = await renderTab();
     const period = within(panel().getByRole("group", { name: "Period" }));
-    fireEvent.click(period.getByRole("button", { name: "This year" }));
-    expect(screen.getByRole("status").textContent).toContain(
-      "Filtering by: This year",
-    );
-    fireEvent.click(period.getByRole("button", { name: "This year" }));
+    for (const name of ["This year", "This month", "This week"]) {
+      expect(
+        period.getByRole("button", { name }).getAttribute("aria-pressed"),
+      ).toBe("true");
+    }
     expect(screen.queryByText(/Filtering by/)).toBeNull();
+    expect(panel().queryByRole("button", { name: "Reset all" })).toBeNull();
+    goalRow("Run 10 km in 60 min");
     goalRow("Run 3 times");
+  });
+
+  it("hides the period turned off, and names every condition on the line (#2610)", async () => {
+    const { panel } = await renderTab();
+    const period = within(panel().getByRole("group", { name: "Period" }));
+    fireEvent.click(period.getByRole("button", { name: "This week" }));
+    // The week goals are gone; the year and the month stay in their frame.
+    expect(screen.queryByText("Run 3 times")).toBeNull();
+    expect(screen.queryByText("Get the proposal approved")).toBeNull();
+    goalRow("Run 10 km in 60 min");
+    goalRow("Run three times a week");
+
+    fireEvent.click(
+      within(panel().getByRole("tablist", { name: "Status" })).getByRole(
+        "tab",
+        { name: "In progress" },
+      ),
+    );
+    fireEvent.click(panel().getByRole("switch", { name: "Hide done todos" }));
+    expect(screen.getByRole("status").textContent).toContain(
+      "Filtering by: This year, This month / In progress / Hide done todos",
+    );
+  });
+
+  it("resets the sort too from the panel's Reset all (#2610)", async () => {
+    const { panel } = await renderTab();
+    const sort = within(panel().getByRole("tablist", { name: "Sort" }));
+    fireEvent.click(sort.getByRole("tab", { name: "Name" }));
+    fireEvent.click(
+      within(panel().getByRole("group", { name: "Period" })).getByRole(
+        "button",
+        { name: "This year" },
+      ),
+    );
+    fireEvent.click(panel().getByRole("button", { name: "Reset all" }));
+    expect(
+      sort.getByRole("tab", { name: "Standard" }).getAttribute("aria-selected"),
+    ).toBe("true");
+    expect(screen.queryByText(/Filtering by/)).toBeNull();
+    expect(panel().queryByRole("button", { name: "Reset all" })).toBeNull();
+    goalRow("Run 10 km in 60 min");
   });
 
   it("offers three statuses, and still lists the unconnected goals under the tree (#2410)", async () => {
@@ -1814,9 +1940,9 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     setNarrow();
     await renderTab();
     fireEvent.click(screen.getByRole("button", { name: "Sort & filter" }));
-    screen.getByRole("dialog", { name: "Sort & filter" });
+    screen.getByRole("dialog", { name: "Sort and filter" });
     expect(
-      screen.queryByText("Pick a goal to see its details here"),
+      screen.queryByText("Pick a goal to see its details here."),
     ).toBeNull();
   });
 
@@ -1824,7 +1950,9 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     setNarrow();
     await renderTab();
     fireEvent.click(screen.getByRole("button", { name: "Sort & filter" }));
-    const sheet = within(screen.getByRole("dialog", { name: "Sort & filter" }));
+    const sheet = within(
+      screen.getByRole("dialog", { name: "Sort and filter" }),
+    );
     fireEvent.click(
       within(sheet.getByRole("tablist", { name: "Status" })).getByRole("tab", {
         name: "Achieved",
@@ -1836,14 +1964,48 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     expect(screen.queryByText("Run 10 km in 60 min")).toBeNull();
   });
 
-  it("puts the panel in a bottom sheet on a phone", async () => {
+  it("puts the two buttons on one row on a phone, and frames Sort & filter in the accent while filtered (#2610)", async () => {
+    setNarrow();
+    await renderTab();
+    const add = screen.getByRole("button", { name: "Set a goal" });
+    const arrange = screen.getByRole("button", { name: "Sort & filter" });
+    expect(arrange.parentElement).toBe(add.parentElement);
+    expect(arrange.className).not.toContain("border-lumen-accent");
+
+    fireEvent.click(arrange);
+    const sheet = within(
+      screen.getByRole("dialog", { name: "Sort and filter" }),
+    );
+    fireEvent.click(
+      within(sheet.getByRole("group", { name: "Period" })).getByRole("button", {
+        name: "This week",
+      }),
+    );
+    expect(
+      screen.getByRole("button", { name: "Sort & filter" }).className,
+    ).toContain("border-lumen-accent");
+
+    fireEvent.click(sheet.getByRole("button", { name: "Reset all" }));
+    expect(
+      screen.getByRole("button", { name: "Sort & filter" }).className,
+    ).not.toContain("border-lumen-accent");
+  });
+
+  it("draws no Sort & filter button on a wide screen, where the panel holds the controls", async () => {
+    const { panel } = await renderTab();
+    expect(screen.queryByRole("button", { name: "Sort & filter" })).toBeNull();
+    panel().getByRole("region", { name: "Sort & filter" });
+  });
+
+  it("puts the panel in a bottom sheet titled Goal details on a phone", async () => {
     setNarrow();
     await renderTab();
     fireEvent.click(goalRow("Run 3 times"));
-    const sheet = within(
-      screen.getByRole("dialog", { name: "Goal: Run 3 times" }),
-    );
-    sheet.getByRole("textbox", { name: "Goal title" });
+    const sheet = within(screen.getByRole("dialog", { name: "Goal details" }));
+    expect(
+      (sheet.getByRole("textbox", { name: "Goal title" }) as HTMLInputElement)
+        .value,
+    ).toBe("Run 3 times");
   });
 });
 

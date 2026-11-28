@@ -11,6 +11,7 @@ import {
   ChevronDown,
   ChevronRight,
   GripVertical,
+  ListFilter,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -23,9 +24,9 @@ import { WIDE_QUERY } from "../../constants/breakpoints";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { Button } from "../Button";
 import { Card } from "../Card";
-import { EmptyState } from "../EmptyState";
 import { IconButton } from "../IconButton";
 import { Input } from "../Input";
+import { LoadErrorCard } from "../LoadErrorCard";
 import { SkeletonList } from "../SkeletonList";
 import { ICON_TAP_NARROW } from "../styleTokens";
 import { TodoStatusCheckbox, toggledTodoStatus } from "../TodoStatusCheckbox";
@@ -171,6 +172,11 @@ export interface GoalTreeLabels {
   formatCollapse: (title: string) => string;
   /** "Filtering by" — leads the active-filter line over the tree. */
   filteringBy: string;
+  /**
+   * The whole filter line, "Filtering by: This year / Achieved" (#2610), so a
+   * locale picks its own colon. Absent, `filteringBy` and ": " lead it.
+   */
+  formatFilteringBy?: (filters: string) => string;
   resetFilters: string;
   /** A filter left no goal to draw. */
   noMatch: string;
@@ -250,6 +256,8 @@ export interface GoalTreeViewProps {
    */
   loadFailed?: boolean;
   onRetry?: () => void;
+  /** The retry pressed on the failure card is still reading. */
+  retrying?: boolean;
   selectedGoalId: string | null;
   onSelectGoal: (goalId: string) => void;
   /**
@@ -266,6 +274,11 @@ export interface GoalTreeViewProps {
   /** The active filter as phrases; empty or absent when nothing is filtered. */
   activeFilters?: readonly string[];
   onResetFilters?: () => void;
+  /**
+   * Drawn at the end of the add button's row (#2610): the host's phone-only
+   * "Sort & filter" button, so the two share one line as in the prototype.
+   */
+  addRowEnd?: ReactNode;
   onSetTodoStatus: (todoId: string, status: TodoStatus) => void;
   onOpenTodo: (todoId: string) => void;
   /** The todo open in the editor, whose row is marked (#2401). */
@@ -1499,33 +1512,32 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
   const narrow = !useMediaQuery(WIDE_QUERY, true);
   const menu: RowMenu = { narrow, openKey: openMenu, onOpen: setOpenMenu };
 
+  if (props.loadFailed) {
+    // The danger card the tags tab shows too (#2604, #2614). A host without a
+    // retry keeps the plain line: the card's button would do nothing.
+    // Checked before the skeleton: a retry in flight keeps the card up with its
+    // button busy, so a second press cannot stack a second read (#2871).
+    return props.onRetry ? (
+      <LoadErrorCard
+        message={labels.loadFailed}
+        retryLabel={labels.retry}
+        onRetry={props.onRetry}
+        retrying={props.retrying ?? false}
+      />
+    ) : (
+      <p
+        role="alert"
+        className="px-6 py-12 text-center text-[12.5px] text-lumen-text-secondary"
+      >
+        {labels.loadFailed}
+      </p>
+    );
+  }
+
   if (isLoading) {
     return (
       <div role="status" aria-label={labels.loading}>
         <SkeletonList rows={6} rowHeight={36} />
-      </div>
-    );
-  }
-
-  if (props.loadFailed) {
-    return (
-      <div
-        role="alert"
-        className="flex flex-col items-center gap-3 px-6 py-12 text-center"
-      >
-        <p className="text-[12.5px] text-lumen-text-secondary">
-          {labels.loadFailed}
-        </p>
-        {props.onRetry && (
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={props.onRetry}
-            className="max-md:min-h-11"
-          >
-            {labels.retry}
-          </Button>
-        )}
       </div>
     );
   }
@@ -1667,18 +1679,21 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
   return (
     <div className={cn("flex flex-col gap-6", TREE_TOGGLE_SIZE)}>
       <section aria-label={labels.addHeading}>
-        <Button
-          ref={addButton}
-          variant={adding ? "primary" : "secondary"}
-          size="sm"
-          // Opens on this week, the period the empty state's button sets too.
-          onClick={() => openAdd(adding ? null : "week")}
-          aria-expanded={adding !== null}
-          leadingIcon={<Plus size={14} aria-hidden />}
-          className={cn(KEEP_LABEL, "max-md:min-h-11")}
-        >
-          {labels.addHeading}
-        </Button>
+        <div className="flex items-center justify-between gap-2">
+          <Button
+            ref={addButton}
+            variant={adding ? "primary" : "secondary"}
+            size="sm"
+            // Opens on this week, the period the empty state's button sets too.
+            onClick={() => openAdd(adding ? null : "week")}
+            aria-expanded={adding !== null}
+            leadingIcon={<Plus size={14} aria-hidden />}
+            className={cn(KEEP_LABEL, "max-md:min-h-11")}
+          >
+            {labels.addHeading}
+          </Button>
+          {props.addRowEnd}
+        </div>
         {adding && (
           <Card
             padding="sm"
@@ -1785,7 +1800,9 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
                     value={range.end}
                     min={range.start || undefined}
                     invalid={!rangeValid}
-                    onChange={(e) => setRange({ ...range, end: e.target.value })}
+                    onChange={(e) =>
+                      setRange({ ...range, end: e.target.value })
+                    }
                     className="max-md:min-h-11 max-md:text-base"
                   />
                 </span>
@@ -1804,15 +1821,28 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
       </section>
 
       {!hasGoals ? (
-        <EmptyState
-          icon={<Target />}
-          message={labels.empty}
-          cta={
-            adding
-              ? undefined
-              : { label: labels.emptyAction, onClick: () => openAdd("week") }
-          }
-        />
+        // Not EmptyState: its call-to-action is the accent fill, and the
+        // prototype frames this one in a border with the goal's Target inside,
+        // so the large glyph above would repeat it (#2614).
+        <div
+          data-goals-empty
+          className="flex flex-col items-center justify-center gap-3 px-6 py-12 text-center"
+        >
+          <p className="text-[12.5px] leading-relaxed text-lumen-text-secondary">
+            {labels.empty}
+          </p>
+          {!adding && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => openAdd("week")}
+              leadingIcon={<Target size={14} aria-hidden />}
+              className="border border-lumen-border max-md:min-h-11"
+            >
+              {labels.emptyAction}
+            </Button>
+          )}
+        </div>
       ) : (
         <>
           {activeFilters.length > 0 && (
@@ -1820,18 +1850,24 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
               role="status"
               className="-mb-3 flex flex-wrap items-center gap-2 rounded-lumen-sm bg-lumen-bg-secondary px-3 py-1.5 text-xs text-lumen-text-secondary"
             >
+              <ListFilter size={14} aria-hidden className="shrink-0" />
               <span className="min-w-0 flex-1">
-                {labels.filteringBy}: {activeFilters.join(" · ")}
+                {labels.formatFilteringBy
+                  ? labels.formatFilteringBy(activeFilters.join(" / "))
+                  : `${labels.filteringBy}: ${activeFilters.join(" / ")}`}
               </span>
               {props.onResetFilters && (
-                <Button
-                  size="sm"
-                  variant="ghost"
+                <button
+                  type="button"
                   onClick={props.onResetFilters}
-                  className={cn(KEEP_LABEL, "max-md:min-h-11")}
+                  className={cn(
+                    KEEP_LABEL,
+                    "rounded-lumen-sm text-lumen-accent underline-offset-2 hover:underline max-md:min-h-11",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+                  )}
                 >
                   {labels.resetFilters}
-                </Button>
+                </button>
               )}
             </div>
           )}
@@ -1940,11 +1976,16 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
               </button>
             </div>
           )}
-          {model.looseTodos.length === 0 && labels.looseEmpty && (
-            <p className="px-2 py-1.5 text-xs text-lumen-text-tertiary">
-              {labels.looseEmpty}
-            </p>
-          )}
+          {/* Read the unseparated model: done todos moved to Completed items
+              and filtered-out ones are still there, so "none" would be false
+              (#2851). */}
+          {props.model.looseTodos.length === 0 &&
+            activeFilters.length === 0 &&
+            labels.looseEmpty && (
+              <p className="px-2 py-1.5 text-xs text-lumen-text-tertiary">
+                {labels.looseEmpty}
+              </p>
+            )}
           <ul>
             {model.looseTodos.map((todo) => (
               <TodoRow

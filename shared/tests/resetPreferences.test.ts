@@ -33,7 +33,6 @@ const REAL_KEYS = [
   "life-editor:kanban-view-mode", // writer retired with the board (#1153)
   "life-editor:note-sort-mode", // hooks/notesUnifiedHelpers.ts
   "life-editor:note-sort-direction", // same (#718 — renamed from bare)
-  "life-editor:note-tree-expanded", // same (#718 — renamed from bare)
   "life-editor:note-tag-groups-collapsed", // web/src/notes/hooks/useNoteListState.tsx (#718)
   "life-editor:daily-sort-direction", // web/src/daily/DailyView.tsx
   // dot — layout / canvas state (#718)
@@ -108,14 +107,13 @@ describe("resetLocalPreferences", () => {
   });
 
   it("clears the renamed Notes view keys too (#718)", () => {
-    // These three used to be stored bare (`note-tree-expanded`,
-    // `note-sort-direction`, `note-tag-groups-collapsed`) and survived a reset,
-    // leaving Notes half-reset: sort MODE back to default, DIRECTION + tree
-    // expansion + folded tag groups untouched. D-20260812-materials-1 chose to
+    // These two used to be stored bare (`note-sort-direction`,
+    // `note-tag-groups-collapsed`) and survived a reset, leaving Notes
+    // half-reset: sort MODE back to default, DIRECTION + folded tag groups
+    // untouched. D-20260812-materials-1 chose to
     // rename them into the namespace (values carried over by
     // migrateLegacyPreferenceKeys) rather than keep an exception list here.
     const notesKeys = [
-      "life-editor:note-tree-expanded",
       "life-editor:note-sort-direction",
       "life-editor:note-tag-groups-collapsed",
     ];
@@ -132,9 +130,9 @@ describe("resetLocalPreferences", () => {
     // whatever the startup migration has not consumed yet (or another app on
     // the same origin), so leaving it alone is the correct behaviour — see
     // migrateLegacyPreferenceKeys.test.ts for the hand-off.
-    localStorage.setItem("note-tree-expanded", '["a"]');
+    localStorage.setItem("note-sort-direction", "desc");
 
     expect(resetLocalPreferences({ reload: false })).toEqual([]);
-    expect(localStorage.getItem("note-tree-expanded")).toBe('["a"]');
+    expect(localStorage.getItem("note-sort-direction")).toBe("desc");
   });
 });

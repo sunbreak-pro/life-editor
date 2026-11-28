@@ -7,7 +7,7 @@ import {
   useState,
 } from "react";
 import type { Editor } from "@tiptap/core";
-import { FileText } from "lucide-react";
+import { FileText, Plus } from "lucide-react";
 import {
   useNotesUnifiedContext,
   useWikiTagsUnifiedContext,
@@ -17,6 +17,7 @@ import {
   RightSidebarPortal,
   EmptyState,
   SkeletonList,
+  LoadErrorCard,
   AddPill,
   TemplateSavedPanel,
   TemplateListPanel,
@@ -55,6 +56,16 @@ import {
 import { TemplateEditHost } from "./TemplateEditHost";
 import { useElementWidth } from "./hooks/useElementWidth";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
+import { formatNoteUpdated } from "./formatNoteUpdated";
+import { NarrowHeaderActionPortal } from "../NarrowHeaderRow";
+
+/*
+ * The narrow top bar's "+" (#2795). It sits flush against Redo, so it takes
+ * the same outlined 40px box as that pair (UndoRedoButtons' BTN). The floor is
+ * unprefixed because only the narrow branch renders it.
+ */
+const NARROW_CREATE_BUTTON =
+  "flex size-8 min-h-lumen-tap-touch min-w-lumen-tap-touch shrink-0 items-center justify-center rounded-lumen-md border border-lumen-border-strong text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
 
 /*
  * Web Notes tab (life-tags unification S1). The former folder tree is gone:
@@ -127,34 +138,6 @@ interface NotesViewProps {
   onConsumePendingSelect?: () => void;
   /** Open a tag on Connect's tag screen (#2395). Absent → no such button. */
   onOpenTag?: (tagId: string) => void;
-}
-
-/**
- * "Updated today 14:05" / "Updated 11/3" in the device's time zone — the same
- * wording the side list's rows use (#2576), so a note reads the same in both
- * places. Kept here rather than imported because NotesSidebarList's formatter
- * is module-private (#2626).
- */
-function formatRecentUpdated(
-  iso: string,
-  now: Date,
-  labels: {
-    updatedToday: (time: string) => string;
-    updatedOn: (date: string) => string;
-  },
-): string | undefined {
-  const at = new Date(iso);
-  if (Number.isNaN(at.getTime())) return undefined;
-  const sameDay =
-    at.getFullYear() === now.getFullYear() &&
-    at.getMonth() === now.getMonth() &&
-    at.getDate() === now.getDate();
-  if (sameDay) {
-    const hh = String(at.getHours()).padStart(2, "0");
-    const mm = String(at.getMinutes()).padStart(2, "0");
-    return labels.updatedToday(`${hh}:${mm}`);
-  }
-  return labels.updatedOn(`${at.getMonth() + 1}/${at.getDate()}`);
 }
 
 /**
@@ -466,9 +449,10 @@ export function NotesView({
   // thing the placeholder title is waiting for. Narrow used to raise a title-first
   // QuickAddSheet (#876's "a phone's create is usually the whole capture"),
   // which put a form between the user and the thing they wanted to write in.
-  // The sheet is gone; `createNote()` with no title falls back to the placeholder title
-  // (useNotesUnifiedCRUD) and selects the new note, so the body is already
-  // mounted when the drawer gets out of the way.
+  // The sheet is gone; `createNote()` with no title stores an empty one
+  // (useNotesUnifiedCRUD, #2581 — the field shows a grey placeholder over it)
+  // and selects the new note, so the body is already mounted when the drawer
+  // gets out of the way.
   //
   // Closing the drawer is the same move `handleSelectNote` makes and for the
   // same reason: on narrow it is a modal overlay, so leaving it up would cover
@@ -484,11 +468,47 @@ export function NotesView({
    * later does not re-select the title under whoever is reading it.
    */
   const [focusTitleNoteId, setFocusTitleNoteId] = useState<string | null>(null);
+
+  /*
+   * #2581 — the note "+" just made, which the list draws first with a "New"
+   * badge. It stays fresh while it is the open note, and stops being fresh
+   * the moment the selection moves off it (another note, the recent cards, a
+   * link, a delete). Adjusted while rendering rather than from an effect, the
+   * same pattern ScheduleEventEditor uses for its selection. Until the
+   * provider reports the create's selection back, `prevSelectedNoteId` is the
+   * note that was open before, so the fresh id survives that first render.
+   */
+  const [freshNoteId, setFreshNoteId] = useState<string | null>(null);
+  const selectedNoteId = selected?.id ?? null;
+  const [prevSelectedNoteId, setPrevSelectedNoteId] = useState(selectedNoteId);
+  if (selectedNoteId !== prevSelectedNoteId) {
+    setPrevSelectedNoteId(selectedNoteId);
+    if (freshNoteId !== null && prevSelectedNoteId === freshNoteId) {
+      setFreshNoteId(null);
+    }
+  }
+
+  // #2581: a search or a tag filter left on would hide the new, empty-titled
+  // note from the very list that is supposed to show it first. One call
+  // clears both (useNoteListState drops the tags with the query).
+  const searchQuery = notes.searchQuery;
+  const filteringByTag = tagFilters.length > 0;
   const handleAddNote = useCallback(() => {
+    if (searchQuery !== "" || filteringByTag) handleSearchChange("");
     const id = createNote();
-    if (typeof id === "string") setFocusTitleNoteId(id);
+    if (typeof id === "string") {
+      setFocusTitleNoteId(id);
+      setFreshNoteId(id);
+    }
     if (!isWide) closeSidebar();
-  }, [createNote, isWide, closeSidebar]);
+  }, [
+    createNote,
+    isWide,
+    closeSidebar,
+    searchQuery,
+    filteringByTag,
+    handleSearchChange,
+  ]);
 
   // #1179: the kebab entry registers the OPEN note as a template in one press.
   // The default name is derived here rather than in the hook because the name
@@ -578,6 +598,7 @@ export function NotesView({
       const row = noteRows.find((note) => note.id === id);
       const name = row?.title || t("materials.notes.untitled");
       void askConfirm({
+        title: t("materials.notes.deleteConfirmTitle"),
         message: t("materials.notes.deleteConfirmBody", { name }),
         confirmLabel: t("materials.notes.deleteConfirmAction"),
         cancelLabel: t("common.cancel"),
@@ -630,13 +651,14 @@ export function NotesView({
    */
   const bodyGated = selected !== null && password.isGated(selected);
 
-  if (notes.isLoading) {
-    return (
-      <div className="px-4 pt-4">
-        <SkeletonList rows={6} rowHeight={34} gap={4} />
-      </div>
-    );
-  }
+  /*
+   * #2582: the first read failed and nothing has been read yet, so the main
+   * area has no note to offer and says so, with a way to read again. A failed
+   * re-read after notes have arrived keeps the notes on screen; the list's
+   * own card reports it.
+   */
+  const mainLoadFailed =
+    !notes.isLoading && !!notes.error && noteRows.length === 0;
 
   // ---- i18n → props (§6.4) --------------------------------------------
 
@@ -691,9 +713,9 @@ export function NotesView({
 
   const detailLabels = {
     title: t("notesView.detailTitle"),
+    titlePlaceholder: t("materials.notes.untitledPlaceholder"),
     pin: t("notesView.unpin"),
     unpin: t("notesView.pin"),
-    pinned: t("notesView.pinned"),
     delete: t("materials.notes.deleteNote"),
     moreActions: t("notesView.moreActions"),
     lockedHint: t("materials.notes.lockedHint"),
@@ -765,8 +787,19 @@ export function NotesView({
         allHeading: t("materials.notes.allHeading"),
         updatedToday: (time) => t("materials.notes.updatedToday", { time }),
         updatedOn: (date) => t("materials.notes.updatedOn", { date }),
+        untitled: t("materials.notes.untitledPlaceholder"),
+        newBadge: t("materials.notes.newBadge"),
+        newHeading: t("materials.notes.newHeading"),
+        loadFailedList: t("materials.notes.loadFailedList"),
+        retryLabel: t("common.retry"),
+        loadingLabel: t("materials.notes.loading"),
       }}
+      freshNoteId={freshNoteId}
       error={notes.error}
+      // #2582: the list column draws its own skeleton while loading, where it
+      // used to be hidden behind the main one.
+      isLoading={notes.isLoading}
+      onRetry={notes.reload}
       selectedNoteId={selected?.id ?? null}
       onSelectNote={handleSelectNote}
       onDeleteNote={handleDeleteNote}
@@ -822,32 +855,75 @@ export function NotesView({
   // Main-content toolbar (#302): "+ Add Note" at the main-content top-right —
   // same accent pill + position sense as the Todos board toolbar. Always
   // present so a new note can be made with nothing selected.
-  const mainContent = (
+  //
+  // Narrow (#2795, ユーザー決定 2026-11-22 = 案 A): the pill's band took 62px
+  // above every note on a phone, so the entry is a 40px "+" in the top bar
+  // beside Redo instead. Still one press, and still there with nothing
+  // selected. What stays in the column is the #2291 top gap alone.
+  //
+  // #2582: while the notes load, and when the first read failed, the column
+  // holds only the skeleton or the failed-load card. The narrow column has the
+  // gutter of its own, so the horizontal padding is wide's alone.
+  const mainContent = notes.isLoading ? (
+    <div className={cn("pt-4", isWide && "px-4")}>
+      <SkeletonList
+        rows={6}
+        rowHeight={34}
+        gap={4}
+        label={t("materials.notes.loading")}
+      />
+    </div>
+  ) : mainLoadFailed ? (
+    <div className={cn("pt-4", isWide && "px-4")}>
+      <LoadErrorCard
+        message={t("materials.notes.loadFailedMain")}
+        retryLabel={t("common.retry")}
+        onRetry={notes.reload}
+      />
+    </div>
+  ) : (
     <>
       <div
         className={cn(
-          "flex items-center justify-end px-1 pb-3",
+          "flex items-center justify-end px-1",
           // #2291: the narrow column's top gap lives here, not as the
           // scroller's padding. A sticky box stops at the scroller's padding
           // edge, so a `pt-2` there left 9px of scrolled body showing above
-          // the stuck note header.
-          !isWide && "pt-2",
+          // the stuck note header. With the "+" up in the top bar this box is
+          // empty, and its two paddings are the whole gap.
+          isWide ? "pb-3" : "pt-2 pb-2",
         )}
       >
-        <span className="inline-flex">
-          <AddPill
-            onClick={handleAddNote}
-            label={t("materials.notes.addCta")}
-            // #2793: the visible "+ ノート" reads the same as the tab; the
-            // spoken name says what the button does.
-            ariaLabel={t("materials.notes.addAria")}
-            // #1560: the pill measured 33 tall at 390px. The floor rides on
-            // THIS call site rather than on AddPill's own recipe because the
-            // part has two other hosts in the Schedule lane, and growing their
-            // pills is that lane's call to make (#1512 splits by section).
-            className="max-md:min-h-11"
-          />
-        </span>
+        {isWide ? (
+          <span className="inline-flex">
+            <AddPill
+              onClick={handleAddNote}
+              label={t("materials.notes.addCta")}
+              // #2793: the visible "+ ノート" reads the same as the tab; the
+              // spoken name says what the button does.
+              ariaLabel={t("materials.notes.addAria")}
+              // #1560: the pill measured 33 tall at 390px. The floor rides on
+              // THIS call site rather than on AddPill's own recipe because the
+              // part has two other hosts in the Schedule lane, and growing
+              // their pills is that lane's call to make (#1512 splits by
+              // section). It still matters on the wide layout: `max-md:` is
+              // rem-based, so a window between 768px and 48rem draws this pill.
+              className="max-md:min-h-11"
+            />
+          </span>
+        ) : (
+          <NarrowHeaderActionPortal>
+            <button
+              type="button"
+              onClick={handleAddNote}
+              aria-label={t("materials.notes.addAria")}
+              title={t("materials.notes.addAria")}
+              className={NARROW_CREATE_BUTTON}
+            >
+              <Plus aria-hidden className="size-4" />
+            </button>
+          </NarrowHeaderActionPortal>
+        )}
       </div>
       {selected ? (
         // #2583: the open note is one centred 46rem column on the page, a
@@ -971,9 +1047,9 @@ export function NotesView({
               history (first run, everything deleted) the list is absent and
               this is the centred icon + line on its own.
 
-              #1372: no CTA of its own. The toolbar pill above is the add
-              entry at BOTH widths, so a second button saying the same thing a
-              few centimetres below it only doubled the target. */}
+              #1372: no CTA of its own. The toolbar pill above (the top bar's
+              "+" on narrow, #2795) is the add entry at both widths, so a
+              second button saying the same thing only doubled the target. */}
           <div className="flex w-full max-w-sm flex-col items-center">
             <EmptyState
               icon={<FileText aria-hidden />}
@@ -1012,7 +1088,7 @@ export function NotesView({
                             ? undefined
                             : excerpts.get(note.id) || undefined
                         }
-                        updated={formatRecentUpdated(
+                        updated={formatNoteUpdated(
                           note.updatedAt,
                           recentNow,
                           recentUpdatedLabels,
@@ -1126,10 +1202,12 @@ export function NotesView({
       {confirmRequest && (
         <ConfirmDialog
           open
+          title={confirmRequest.title}
           message={confirmRequest.message}
           confirmLabel={confirmRequest.confirmLabel}
           cancelLabel={confirmRequest.cancelLabel}
           danger={confirmRequest.danger}
+          closeLabel={t("common.close")}
           onConfirm={() => resolveConfirm(true)}
           onCancel={() => resolveConfirm(false)}
         />

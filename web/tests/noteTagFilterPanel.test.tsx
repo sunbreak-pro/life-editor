@@ -200,12 +200,71 @@ describe("NoteTagFilterPanel — the count and the clear (#2059)", () => {
       "Filter by tag, 2 selected",
     );
     expect(toggleButton().textContent).toContain("2");
-    // The clear lives in the panel since #2578, not beside the button.
-    expect(screen.queryByRole("button", { name: "Clear" })).toBeNull();
 
+    // The panel's own clear is still there (#2847 keeps it); the × beside the
+    // button is the other "Clear", so pick the one inside the panel.
     fireEvent.click(toggleButton());
-    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+    const panel = screen.getByRole("group", { name: "Tags to show" });
+    fireEvent.click(within(panel).getByRole("button", { name: "Clear" }));
     expect(onClear).toHaveBeenCalledOnce();
+  });
+});
+
+describe("NoteTagFilterPanel — the × beside the button (#2847)", () => {
+  beforeEach(cleanup);
+
+  it("draws no × while nothing is selected", () => {
+    renderPanel(optionsOf(3));
+
+    expect(screen.queryByRole("button", { name: "Clear" })).toBeNull();
+  });
+
+  it("draws the × next to the button while something is selected", () => {
+    renderPanel(optionsOf(3), ["t-a"]);
+
+    const x = screen.getByRole("button", { name: "Clear" });
+    expect(x.previousElementSibling).toBe(toggleButton());
+    // Panel shut, and the × is not inside it.
+    expect(x.closest('[role="group"]')).toBeNull();
+  });
+
+  it("drops every selection and leaves the panel shut", () => {
+    const { onClear, onToggle } = renderPanel(optionsOf(3), ["t-a", "t-c"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+
+    expect(onClear).toHaveBeenCalledOnce();
+    expect(onToggle).not.toHaveBeenCalled();
+    expect(toggleButton().getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByRole("group", { name: "Tags to show" })).toBeNull();
+  });
+
+  it("does not close a panel that is open when it is pressed", () => {
+    renderPanel(optionsOf(3), ["t-a"]);
+    fireEvent.click(toggleButton());
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Clear" })[0]);
+
+    expect(toggleButton().getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("goes away with the selection", () => {
+    render(<Harness />);
+    fireEvent.click(toggleButton());
+    fireEvent.click(screen.getByRole("button", { name: "tag-a" }));
+    expect(screen.getAllByRole("button", { name: "Clear" })).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+
+    expect(screen.queryByRole("button", { name: "Clear" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Clear filter" })).toBeNull();
+  });
+
+  it("is not drawn by the narrow row, where 'All' is the clear", () => {
+    render(<Harness layout="row" />);
+    fireEvent.click(screen.getByRole("button", { name: "tag-a" }));
+
+    expect(screen.queryByRole("button", { name: "Clear" })).toBeNull();
   });
 });
 
@@ -223,7 +282,9 @@ function Harness({
       options={options}
       value={value}
       onToggle={(id) =>
-        setValue((v) => (v.includes(id) ? v.filter((x) => x !== id) : [...v, id]))
+        setValue((v) =>
+          v.includes(id) ? v.filter((x) => x !== id) : [...v, id],
+        )
       }
       onClear={() => setValue([])}
       labels={{
@@ -273,6 +334,7 @@ describe("NoteTagFilterPanel — chips in the panel (#2578)", () => {
     fireEvent.click(toggleButton());
     // Nothing to clear yet.
     expect(screen.queryByRole("button", { name: "Clear" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Clear filter" })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "tag-a" }));
     fireEvent.click(screen.getByRole("button", { name: "tag-c" }));
@@ -286,11 +348,13 @@ describe("NoteTagFilterPanel — chips in the panel (#2578)", () => {
       "Filter by tag, 2 selected",
     );
 
-    const clear = screen.getByRole("button", { name: "Clear" });
+    // The panel's clear is named by its visible text; "Clear" is the ×.
+    const clear = screen.getByRole("button", { name: "Clear filter" });
     expect(clear.textContent).toBe("Clear filter");
     fireEvent.click(clear);
 
     expect(screen.queryAllByRole("button", { pressed: true })).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: "Clear filter" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Clear" })).toBeNull();
     expect(toggleButton().getAttribute("aria-label")).toBeNull();
   });
@@ -304,7 +368,9 @@ describe("NoteTagFilterPanel — the narrow row (#2578)", () => {
 
     expect(screen.queryByRole("button", { name: /^Filter by tag/ })).toBeNull();
     expect(
-      screen.getAllByRole("button").some((b) => b.hasAttribute("aria-expanded")),
+      screen
+        .getAllByRole("button")
+        .some((b) => b.hasAttribute("aria-expanded")),
     ).toBe(false);
     const row = screen.getByRole("group", { name: "Tags to show" });
     expect(
@@ -347,22 +413,35 @@ describe("NoteTagFilterPanel — the narrow row (#2578)", () => {
 describe("NoteTagFilterPanel — narrow touch targets (#2059 / #1560)", () => {
   beforeEach(cleanup);
 
-  it("floors the button, every option and the clear on narrow only", () => {
+  it("floors the button, every option and the clears on narrow only", () => {
     renderPanel(optionsOf(2), ["t-a"]);
     fireEvent.click(toggleButton());
 
     const options = screen
       .getAllByRole("button")
       .filter((b) => b.hasAttribute("aria-pressed"));
-    const clear = screen.getByRole("button", { name: "Clear" });
+    const panel = screen.getByRole("group", { name: "Tags to show" });
+    const clears = [
+      // The panel's clear and the × beside the button (#2847).
+      within(panel).getByRole("button", { name: "Clear" }),
+      screen
+        .getAllByRole("button", { name: "Clear" })
+        .find((b) => !panel.contains(b))!,
+    ];
     for (const el of [toggleButton(), ...options]) {
       expect(el.classList.contains("max-md:min-h-11")).toBe(true);
       expect(el.classList.contains("min-h-11")).toBe(false);
     }
-    // The clear is an icon with no label — too NARROW to aim at as well, and
-    // it takes the icon-only floor (#2673).
-    expect(clear.classList.contains("max-md:min-h-lumen-tap-touch")).toBe(true);
-    expect(clear.classList.contains("max-md:min-w-lumen-tap-touch")).toBe(true);
-    expect(clear.classList.contains("min-h-lumen-tap-touch")).toBe(false);
+    // The clears are icons — too NARROW to aim at as well, so they take the
+    // icon-only floor (#2673).
+    for (const clear of clears) {
+      expect(clear.classList.contains("max-md:min-h-lumen-tap-touch")).toBe(
+        true,
+      );
+      expect(clear.classList.contains("max-md:min-w-lumen-tap-touch")).toBe(
+        true,
+      );
+      expect(clear.classList.contains("min-h-lumen-tap-touch")).toBe(false);
+    }
   });
 });

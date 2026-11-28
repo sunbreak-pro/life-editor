@@ -1015,13 +1015,16 @@ describe("ScheduleOverlays — the creation surface picks a frame by width", () 
 
 /*
  * #2624 — Mobile's 「＋ 追加」 opens the short 「クイック追加」 sheet first, and
- * the full-screen add page only from its 「追加して詳細へ」, with what was
+ * the full-screen add page only from its 「詳しく入力」, with what was
  * typed. Desktop keeps its one dialog.
  */
 describe("ScheduleOverlays — Mobile opens the short add sheet first (#2624)", () => {
   const PANEL = { date: "2026-08-16", start: "13:00", end: "14:00" };
+  // The short sheet is named quickAddTitle, the full page addItem (#2849).
   const createDialog = () =>
-    screen.getByRole("dialog", { name: "scheduleScreen.addItem" });
+    screen.getByRole("dialog", {
+      name: /^scheduleScreen\.(quickAddTitle|addItem)$/,
+    });
   const dateField = () =>
     createDialog().querySelector('input[type="date"]') as HTMLInputElement;
 
@@ -1055,6 +1058,22 @@ describe("ScheduleOverlays — Mobile opens the short add sheet first (#2624)", 
     );
   });
 
+  it("names the short sheet 「クイック追加」 and its left button 「詳しく入力」, and the full page keeps its own (#2849)", () => {
+    renderOverlays({ isWide: false, create: { panel: PANEL } });
+    screen.getByRole("dialog", { name: "scheduleScreen.quickAddTitle" });
+    screen.getByText("scheduleScreen.openFullForm");
+    // The full page's footer button keeps its wording; it is not on the sheet.
+    expect(screen.queryByText("addEventAndOpen")).toBeNull();
+    fireEvent.click(screen.getByText("scheduleScreen.openFullForm"));
+    screen.getByRole("dialog", { name: "scheduleScreen.addItem" });
+    screen.getByText("addEventAndOpen");
+  });
+
+  it("Desktop's add dialog keeps 「アイテムを追加」 (#2849)", () => {
+    renderOverlays({ isWide: true, create: { panel: PANEL } });
+    screen.getByRole("dialog", { name: "scheduleScreen.addItem" });
+  });
+
   it("goes on to the full page with the typed title and the slot", () => {
     const { props } = renderOverlays({
       isWide: false,
@@ -1063,7 +1082,7 @@ describe("ScheduleOverlays — Mobile opens the short add sheet first (#2624)", 
     fireEvent.change(screen.getByLabelText("title"), {
       target: { value: "歯医者" },
     });
-    fireEvent.click(screen.getByText("addEventAndOpen"));
+    fireEvent.click(screen.getByText("scheduleScreen.openFullForm"));
     expect(createDialog().className).toContain("h-full");
     expect(createDialog().querySelector("[data-quick-capture]")).toBeNull();
     screen.getByText("attachNote");
@@ -1077,7 +1096,7 @@ describe("ScheduleOverlays — Mobile opens the short add sheet first (#2624)", 
 
   it("starts the next opening on the short sheet again", () => {
     const view = renderOverlays({ isWide: false, create: { panel: PANEL } });
-    fireEvent.click(screen.getByText("addEventAndOpen"));
+    fireEvent.click(screen.getByText("scheduleScreen.openFullForm"));
     view.rerender(
       <ScheduleOverlays
         {...view.props}
@@ -1112,14 +1131,17 @@ describe("ScheduleOverlays — the create panel's note picker (#2396)", () => {
   };
   const openPicker = () => {
     // #2624: Mobile reaches the note row from the short sheet's
-    // 「追加して詳細へ」. Desktop has no short sheet to pass.
+    // 「詳しく入力」. Desktop has no short sheet to pass.
     if (document.querySelector("[data-quick-capture]"))
-      fireEvent.click(screen.getByText("addEventAndOpen"));
+      fireEvent.click(screen.getByText("scheduleScreen.openFullForm"));
     fireEvent.click(screen.getByText("attachNote"));
     fireEvent.click(screen.getByText("noteSourceExisting"));
   };
+  // The short sheet is named quickAddTitle, the full page addItem (#2849).
   const createDialog = () =>
-    screen.getByRole("dialog", { name: "scheduleScreen.addItem" });
+    screen.getByRole("dialog", {
+      name: /^scheduleScreen\.(quickAddTitle|addItem)$/,
+    });
 
   it("widens the Desktop overlay while the side picker is open", () => {
     renderOverlays({ isWide: true, create: { panel: PANEL, pools: POOLS } });

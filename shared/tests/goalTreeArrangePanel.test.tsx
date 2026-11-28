@@ -11,8 +11,9 @@ import {
 } from "../src/components/goalTree/GoalTreeArrangePanel";
 
 /*
- * The goal tree's sort and filter in the Claude Design proposal's form (#2410):
- * period chips pressed again to clear, three statuses, and a switch.
+ * The goal tree's sort and filter in the Claude Design proposal's form (#2410,
+ * #2610): three period chips, each on or off on its own and all on at first,
+ * three statuses, a switch, and "Reset all" while anything is set.
  */
 
 const LABELS: GoalTreeArrangeLabels = {
@@ -22,9 +23,11 @@ const LABELS: GoalTreeArrangeLabels = {
   periodLabel: "Period",
   all: "All",
   periods: { year: "This year", month: "This month", week: "This week" },
+  periodSeparator: ", ",
   statusLabel: "Status",
   statuses: { inProgress: "In progress", achieved: "Achieved" },
   hideDoneTodos: "Hide done todos",
+  resetAll: "Reset all",
 };
 
 function renderPanel(arrangement = DEFAULT_GOAL_TREE_ARRANGEMENT) {
@@ -46,47 +49,60 @@ const withFilter = (
   filter: { ...DEFAULT_GOAL_TREE_ARRANGEMENT.filter, ...filter },
 });
 
-describe("GoalTreeArrangePanel (#2410)", () => {
-  it("offers the period as three chips with none picked at first", () => {
+const chip = (name: string) => screen.getByRole("button", { name });
+
+describe("GoalTreeArrangePanel (#2410, #2610)", () => {
+  it("offers the period as three chips, all on and checked at first", () => {
     renderPanel();
     const chips = within(
       screen.getByRole("group", { name: "Period" }),
     ).getAllByRole("button");
-    expect(chips.map((chip) => chip.textContent)).toEqual([
+    expect(chips.map((c) => c.textContent)).toEqual([
       "This year",
       "This month",
       "This week",
     ]);
-    for (const chip of chips) {
-      expect(chip.getAttribute("aria-pressed")).toBe("false");
-      expect(chip.querySelector("svg")).toBeNull();
+    for (const c of chips) {
+      expect(c.getAttribute("aria-pressed")).toBe("true");
+      expect(c.querySelector("svg")).not.toBeNull();
     }
   });
 
-  it("picks a chip, and marks only the picked one with a check", () => {
-    const { onChange } = renderPanel(withFilter({ period: "month" }));
-    const chip = (name: string) => screen.getByRole("button", { name });
-    expect(chip("This month").getAttribute("aria-pressed")).toBe("true");
-    expect(chip("This month").querySelector("svg")).not.toBeNull();
-    expect(chip("This week").querySelector("svg")).toBeNull();
-
-    fireEvent.click(chip("This week"));
-    expect(onChange.mock.calls[0]?.[0].filter.period).toBe("week");
+  it("turns one period off on its own, leaving the others on", () => {
+    const { onChange } = renderPanel();
+    fireEvent.click(chip("This month"));
+    expect(onChange.mock.calls[0]?.[0].filter.periods).toEqual([
+      "year",
+      "week",
+    ]);
   });
 
-  it("clears the period when the picked chip is pressed again", () => {
-    const { onChange } = renderPanel(withFilter({ period: "month" }));
-    fireEvent.click(screen.getByRole("button", { name: "This month" }));
-    expect(onChange.mock.calls[0]?.[0].filter.period).toBe("all");
+  it("draws an off chip without its check, and turns it back on in chip order", () => {
+    const { onChange } = renderPanel(withFilter({ periods: ["week"] }));
+    expect(chip("This year").getAttribute("aria-pressed")).toBe("false");
+    expect(chip("This year").querySelector("svg")).toBeNull();
+    expect(chip("This week").querySelector("svg")).not.toBeNull();
+
+    fireEvent.click(chip("This year"));
+    expect(onChange.mock.calls[0]?.[0].filter.periods).toEqual([
+      "year",
+      "week",
+    ]);
+  });
+
+  it("keeps the last period on, so the tree is never emptied by it", () => {
+    const { onChange } = renderPanel(withFilter({ periods: ["month"] }));
+    fireEvent.click(chip("This month"));
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   it("keeps the other filters when one changes", () => {
     const { onChange } = renderPanel(
       withFilter({ status: "achieved", hideDoneTodos: true }),
     );
-    fireEvent.click(screen.getByRole("button", { name: "This year" }));
+    fireEvent.click(chip("This year"));
     expect(onChange.mock.calls[0]?.[0].filter).toEqual({
-      period: "year",
+      periods: ["month", "week"],
       status: "achieved",
       hideDoneTodos: true,
     });
@@ -122,16 +138,52 @@ describe("GoalTreeArrangePanel (#2410)", () => {
       screen.getByRole("switch", { name: "Hide done todos" }).className,
     ).toContain("max-md:min-h-11");
   });
+
+  it("sets the field labels in bold", () => {
+    renderPanel();
+    for (const name of ["Sort", "Period", "Status"]) {
+      const label = screen.getByText(name, { selector: "span" });
+      expect(label.className).toContain("font-bold");
+    }
+  });
+
+  it("offers no reset while nothing is set", () => {
+    renderPanel();
+    expect(screen.queryByRole("button", { name: "Reset all" })).toBeNull();
+  });
+
+  it("resets a period back to all three on, and the sort to Standard", () => {
+    const { onChange } = renderPanel({
+      sort: "name",
+      filter: { periods: ["week"], status: "achieved", hideDoneTodos: true },
+    });
+    fireEvent.click(chip("Reset all"));
+    expect(onChange).toHaveBeenCalledWith(DEFAULT_GOAL_TREE_ARRANGEMENT);
+    expect(onChange.mock.calls[0]?.[0].filter.periods).toEqual([
+      "year",
+      "month",
+      "week",
+    ]);
+  });
+
+  it("offers the reset when only the sort is changed", () => {
+    renderPanel({ ...DEFAULT_GOAL_TREE_ARRANGEMENT, sort: "progress" });
+    chip("Reset all");
+  });
 });
 
-describe("describeGoalTreeFilter (#2410)", () => {
-  it("names the period as the chips do", () => {
+describe("describeGoalTreeFilter (#2410, #2610)", () => {
+  it("names the periods left on, in chip order, then the rest", () => {
     expect(
       describeGoalTreeFilter(
-        { period: "week", status: "achieved", hideDoneTodos: true },
+        {
+          periods: ["month", "year"],
+          status: "achieved",
+          hideDoneTodos: true,
+        },
         LABELS,
       ),
-    ).toEqual(["This week", "Achieved", "Hide done todos"]);
+    ).toEqual(["This year, This month", "Achieved", "Hide done todos"]);
   });
 
   it("says nothing when nothing is filtered", () => {

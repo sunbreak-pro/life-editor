@@ -807,6 +807,7 @@ export {
   FOCUS_RING,
   FOCUS_RING_ON_ACCENT,
   FOCUS_RING_TIGHT,
+  ICON_TAP_NARROW,
   TAP_TARGET,
 } from "./components/styleTokens";
 export {

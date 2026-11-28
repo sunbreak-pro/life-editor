@@ -499,6 +499,48 @@ describe("ConnectScreen — a failed read and an empty hub (#2604)", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
+  // #2850: the items landed but the tag list did not. The hub used to say
+  // "No tags or items yet." about rows it had just read.
+  it("shows the card when only the tag list fails, and reads the tags again on Retry", async () => {
+    const listAllWikiTagsUnified = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("network down"))
+      .mockResolvedValue(TAGS);
+    const ds = makeDS({ listAllWikiTagsUnified });
+    renderBare(ds);
+
+    const card = await screen.findByRole("alert");
+    within(card).getByText("Could not load the tags");
+    expect(screen.queryByRole("list", { name: "Tags" })).toBeNull();
+    expect(screen.queryByText("No tags or items yet.")).toBeNull();
+    expect(listAllWikiTagsUnified).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(within(card).getByRole("button", { name: "Retry" }));
+
+    await waitFor(() => screen.getByRole("list", { name: "Tags" }));
+    expect(listAllWikiTagsUnified).toHaveBeenCalledTimes(2);
+    expect(railLabels()).toEqual(["Work: 4 items", "Untagged: 1 item"]);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("keeps the card up when the tag list fails again on Retry", async () => {
+    const listAllWikiTagsUnified = vi
+      .fn()
+      .mockRejectedValue(new Error("network down"));
+    renderBare(makeDS({ listAllWikiTagsUnified }));
+
+    const card = await screen.findByRole("alert");
+    fireEvent.click(within(card).getByRole("button", { name: "Retry" }));
+
+    await waitFor(() =>
+      expect(listAllWikiTagsUnified).toHaveBeenCalledTimes(2),
+    );
+    // Let the rejected refresh settle before reading the screen.
+    await act(async () => {});
+    screen.getByRole("alert");
+    expect(screen.queryByRole("list", { name: "Tags" })).toBeNull();
+  });
+
   it("keeps the rows on screen when a later read fails", async () => {
     const { wrapper: SyncWrapper, sync } = createBumpableSync();
     const fetchTodoTree = vi

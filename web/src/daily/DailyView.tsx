@@ -8,7 +8,14 @@ import {
   type FocusEvent,
   type ReactNode,
 } from "react";
-import { Calendar, MoreHorizontal, Pin, Trash2 } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  MoreHorizontal,
+  Pin,
+  PinOff,
+  Trash2,
+} from "lucide-react";
 import {
   useDailiesUnifiedContext,
   currentDailyMergeSeq,
@@ -26,6 +33,7 @@ import {
   RightSidebarPortal,
   DailyEntriesPanel,
   DailyDayFooter,
+  LoadErrorCard,
   SidebarListControls,
   useUndoRedoOptional,
   afterSettled,
@@ -47,7 +55,9 @@ import {
   type DailyListDirection,
   type DailyListSortMode,
   type DataService,
+  type LoadErrorCardProps,
   FOCUS_RING_TIGHT as FOCUS_RING,
+  ICON_TAP_NARROW,
   formatDateKey,
   WIDE_QUERY,
   dateFromKey,
@@ -69,14 +79,15 @@ import { useDayFigures } from "./useDayFigures";
  * Web Daily tab (Materials mini-plan Step 4). Re-shaped to the target-IA
  * ClaudeDesign import:
  *
- *   - Desktop (isWide): a centered max-width 800px editor card (28px date
- *     heading + saved-state caption + pin / delete icon buttons + a plain-text
- *     body wired to upsertDaily-on-blur) and a "今日へ" action row.
- *   - Mobile (narrow): a "今日へ" + pin action row and the same editor card
- *     (19px date).
+ *   - Desktop (isWide): a centered "‹ date ›" row (1.25rem date, arrows to the
+ *     previous / next day, #2591) with the saved-state caption + kebab on its
+ *     right, over a rich-text body wired to upsertDaily.
+ *   - Mobile (narrow): the same "‹ date ›" row (compact date) with the kebab,
+ *     over the same body.
  *
- * The past-entries UI — sort / direction / filter above the shared
- * <DailyEntriesPanel> (date picker + chronological entry list) — is PUSHED INTO
+ * The past-entries UI — the shared <DailyEntriesPanel> (month calendar, the
+ * "今日へ" + "絞り込み" row folding the filter and sort, the chronological
+ * entry list) — is PUSHED INTO
  * THE SHARED detail panel via RightSidebarPortal at BOTH
  * widths since #876 (ユーザー裁定 D-20260815-materials-2 = A): the push-in
  * rightSidebar on Desktop, the hamburger's <MobileDrawer> on narrow. It is
@@ -93,6 +104,10 @@ import { useDayFigures } from "./useDayFigures";
  * nothing — and the strip could only ever reach the last 14 days, which is the
  * range the entry list covers best. Arbitrary days are reached through the
  * picker, and "today" through the CTA that was always there.
+ *
+ * #2589 moved that CTA off the body, under the panel's calendar, where it is
+ * pale on today. The body's own way to step between days is the date arrows
+ * (#2591).
  *
  * The body is the shared Notes TipTap editor (F-1 #258 — headings are what
  * makes handwritten 朝刊/夕刊 sections visible to extractBriefing). The title
@@ -166,10 +181,7 @@ const EDITOR_BLEED = "-mx-lumen-gutter md:-mx-lumen-gutter-wide";
 const EDITOR_INSET = "px-lumen-gutter md:px-lumen-gutter-wide";
 
 function EditorCard({
-  dateLabel,
-  dateClassName,
-  savedLabel,
-  headerActions,
+  header,
   editorKey,
   date,
   initialContent,
@@ -183,13 +195,12 @@ function EditorCard({
   uploadingFile,
   uploadingLabel,
   bodyPending = false,
+  pendingLabel,
+  loadError = null,
   onEditorBlur,
 }: {
-  dateLabel: string;
-  dateClassName: string;
-  /** Omitted on a day with nothing to report — see #1839. */
-  savedLabel?: string;
-  headerActions?: ReactNode;
+  /** The date row (#2591). Omitted where the screen draws it above the card. */
+  header?: ReactNode;
   editorKey: string;
   date: string;
   initialContent?: string;
@@ -211,6 +222,14 @@ function EditorCard({
    * emptiness over the day.
    */
   bodyPending?: boolean;
+  /** Names the pending skeleton as the screen's loading status (#2582). */
+  pendingLabel?: string;
+  /**
+   * The first list read failed (#2582): the failure card stands where the
+   * editor would, since an editor opened over a day not read could save its
+   * emptiness over it.
+   */
+  loadError?: LoadErrorCardProps | null;
   /** The caret left the body: a change held back for it can land now (#2289). */
   onEditorBlur?: (event: FocusEvent<HTMLDivElement>) => void;
 }) {
@@ -223,15 +242,9 @@ function EditorCard({
         DAILY_EDITOR_CARD_MIN_HEIGHT,
       )}
     >
-      <div className={cn("flex items-start gap-2.5 pb-1 pt-4", EDITOR_INSET)}>
-        <h1 className={cn("flex-1", dateClassName)}>{dateLabel}</h1>
-        {savedLabel != null && (
-          <span className="pt-1.5 text-[11.5px] text-lumen-text-tertiary">
-            {savedLabel}
-          </span>
-        )}
-        {headerActions}
-      </div>
+      {header != null && (
+        <div className={cn("pb-1 pt-4", EDITOR_INSET)}>{header}</div>
+      )}
       {/* Same band as the Notes body: outside the document, so nothing
           mid-upload can reach the autosave (D-20260902-materials-1 = B). */}
       <div className={EDITOR_INSET}>
@@ -246,9 +259,18 @@ function EditorCard({
           unmount/beforeunload, the onBlur-commit equivalent. The key remounts
           the editor on date switch / external content change only — never on
           our own save echo — so typing keeps cursor + IME state. */}
-      {bodyPending ? (
+      {loadError ? (
+        <div className={cn("pb-5 pt-1", EDITOR_INSET)}>
+          <LoadErrorCard {...loadError} />
+        </div>
+      ) : bodyPending ? (
         <div
           data-testid="daily-body-pending"
+          // Named only when a label arrives, so a missing one cannot mint a
+          // nameless status (the rule SkeletonList keeps).
+          role={pendingLabel ? "status" : undefined}
+          aria-busy={pendingLabel ? true : undefined}
+          aria-label={pendingLabel || undefined}
           className={cn("min-h-0 flex-1 pb-5 pt-1", EDITOR_INSET)}
         >
           <div aria-hidden="true" className="flex flex-col gap-2">
@@ -309,6 +331,8 @@ export function DailyView({
   const {
     dailies,
     isLoading,
+    error,
+    reload,
     selectedDate,
     setSelectedDate,
     selectedDaily,
@@ -473,6 +497,9 @@ export function DailyView({
   const bodyPending =
     selectedDaily?.bodyLoaded === false ||
     (selectedDaily === undefined && isLoading);
+  // #2582: only a failed FIRST read is shown. Once a list has been read, a
+  // failed re-fetch keeps it on screen rather than trading it for a card.
+  const firstLoadFailed = error != null && dailies.length === 0;
   const [emitted, setEmitted] = useState<{
     date: string;
     jsons: string[];
@@ -822,35 +849,30 @@ export function DailyView({
 
   // ---- date label formatters (host-side; the shared parts stay pure) ----
 
-  const fullDateLabel = (iso: string): string => {
+  // The year is dropped for the current year and shown for any other (#2591),
+  // so a day last December cannot be mistaken for one this year.
+  const headingLabel = (iso: string, compact: boolean): string => {
     const d = parseIso(iso);
     const wd = weekdayShort.format(d);
-    if (isJa) {
-      return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${wd}）`;
+    const withYear = d.getFullYear() !== new Date().getFullYear();
+    const y = d.getFullYear();
+    const m = d.getMonth() + 1;
+    const day = d.getDate();
+    if (compact) {
+      if (isJa) return `${withYear ? `${y}/` : ""}${m}/${day}（${wd}）`;
+      return `${wd} ${m}/${day}${withYear ? `/${y}` : ""}`;
     }
+    if (isJa) return `${withYear ? `${y}年` : ""}${m}月${day}日（${wd}）`;
     return `${wd}, ${d.toLocaleDateString("en-US", {
       month: "long",
       day: "numeric",
-      year: "numeric",
+      ...(withYear ? { year: "numeric" } : {}),
     })}`;
   };
 
-  const shortDateLabel = (iso: string): string => {
-    const d = parseIso(iso);
-    const wd = weekdayShort.format(d);
-    if (isJa) return `${d.getMonth() + 1}月${d.getDate()}日（${wd}）`;
-    return `${wd}, ${d.toLocaleDateString("en-US", {
-      month: "long",
-      day: "numeric",
-    })}`;
-  };
-
-  const entryDayLabel = (iso: string): string => {
-    const d = parseIso(iso);
-    const wd = weekdayShort.format(d);
-    if (isJa) return `${d.getMonth() + 1}/${d.getDate()}（${wd}）`;
-    return `${wd} ${d.getMonth() + 1}/${d.getDate()}`;
-  };
+  // Ja reads "M月D日（曜）" like the heading; en keeps the short "Wd M/D". Both
+  // add the year for a day outside this year, as the heading does (#2590).
+  const entryDayLabel = (iso: string): string => headingLabel(iso, !isJa);
 
   const todayIso = useMemo(() => isoDay(0), []);
 
@@ -956,25 +978,6 @@ export function DailyView({
       : "materials.daily.placeholderOtherDay",
   );
 
-  // "今日へ" accent CTA — jump the selection to today.
-  const toTodayButton = (
-    <button
-      type="button"
-      onClick={() => setSelectedDate(todayIso)}
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-lumen-md bg-lumen-accent px-3.5 py-1.5",
-        "text-sm font-medium text-lumen-on-accent shadow-lumen-sm transition-opacity hover:opacity-90",
-        // #1840 — 36px tall. Height only: the label already makes it wide
-        // enough for a thumb, and a min-width would stretch it.
-        "max-md:min-h-11",
-        FOCUS_RING,
-      )}
-    >
-      <Calendar size={14} aria-hidden />
-      {t("materials.daily.toToday")}
-    </button>
-  );
-
   /*
    * The question before a day goes (#1838).
    *
@@ -997,6 +1000,7 @@ export function DailyView({
 
   const handleDeleteDaily = () => {
     void askConfirm({
+      title: t("materials.daily.deleteConfirmTitle"),
       message: t("materials.daily.deleteConfirmBody", {
         day: entryDayLabel(selectedDate),
       }),
@@ -1012,6 +1016,47 @@ export function DailyView({
       deleteDaily(selectedDate);
     });
   };
+
+  /*
+   * The pin on the date row (#2596). Until now the pin lived only inside the
+   * kebab, so a pinned day showed nothing of it on the page. The kebab keeps
+   * its own pin row as well.
+   *
+   * One fixed name with aria-pressed carrying the state: a toggle whose name
+   * flips with the state would be read as two different buttons. Disabled on
+   * a day with no entry, because togglePin has no row to flip there and a
+   * press would do nothing.
+   */
+  const pinned = selectedDaily?.isPinned === true;
+  const pinToggle = (variant: "icon" | "boxed") => (
+    <button
+      type="button"
+      onClick={() => togglePin(selectedDate)}
+      aria-pressed={pinned}
+      aria-label={t("materials.daily.pinToggle")}
+      disabled={!selectedDaily}
+      data-testid="daily-pin-toggle"
+      className={cn(
+        "grid shrink-0 place-items-center rounded-lumen-md",
+        variant === "boxed"
+          ? "h-8 w-8 border border-lumen-border bg-lumen-bg"
+          : "h-7 w-7",
+        pinned
+          ? "text-lumen-accent hover:bg-lumen-hover"
+          : "text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
+        "disabled:cursor-not-allowed disabled:text-lumen-text-tertiary disabled:hover:bg-transparent",
+        // Same hit box as the kebab beside it (#1840).
+        ICON_TAP_NARROW,
+        FOCUS_RING,
+      )}
+    >
+      <Pin
+        size={variant === "boxed" ? 16 : 15}
+        aria-hidden
+        className={cn(pinned && "fill-current")}
+      />
+    </button>
+  );
 
   // A single kebab that collapses the pin / delete actions behind one
   // affordance (#284). The menu opens right-anchored just beneath the trigger
@@ -1037,7 +1082,7 @@ export function DailyView({
           // #1840 — on the shared string rather than inside the "boxed"
           // branch, so both variants carry it and a test can read it without
           // faking a viewport.
-          "max-md:min-h-lumen-tap-touch max-md:min-w-lumen-tap-touch",
+          ICON_TAP_NARROW,
           FOCUS_RING,
         )}
       >
@@ -1051,7 +1096,17 @@ export function DailyView({
         label={t("materials.daily.moreActions")}
       >
         <MenuItem
-          icon={<Pin size={14} aria-hidden />}
+          icon={
+            selectedDaily?.isPinned ? (
+              <PinOff size={14} aria-hidden />
+            ) : (
+              <Pin size={14} aria-hidden />
+            )
+          }
+          // togglePin flips an existing row and does nothing without one, so
+          // on a day with no entry the item is disabled like the delete item
+          // below and the pin toggle on the date row (#2872).
+          disabled={!selectedDaily}
           onSelect={() => {
             togglePin(selectedDate);
             setActionsOpen(false);
@@ -1061,6 +1116,13 @@ export function DailyView({
             ? t("materials.daily.unpin")
             : t("materials.daily.pin")}
         </MenuItem>
+        {/* #2596 — sets the one row that removes the day apart from the row
+            that only changes it, as the note menu does (#2584). */}
+        <div
+          role="separator"
+          data-testid="daily-menu-separator"
+          className="my-1 h-px bg-lumen-border"
+        />
         <MenuItem
           icon={<Trash2 size={14} aria-hidden />}
           variant="danger"
@@ -1082,10 +1144,12 @@ export function DailyView({
       {confirmRequest && (
         <ConfirmDialog
           open
+          title={confirmRequest.title}
           message={confirmRequest.message}
           confirmLabel={confirmRequest.confirmLabel}
           cancelLabel={confirmRequest.cancelLabel}
           danger={confirmRequest.danger}
+          closeLabel={t("common.close")}
           onConfirm={() => resolveConfirm(true)}
           onCancel={() => resolveConfirm(false)}
         />
@@ -1154,32 +1218,57 @@ export function DailyView({
     setSelectedDate(date);
     if (!isWide) rightSidebar?.close();
   };
+  // The defaults are the pre-#369 order, so anything else is a change the
+  // folded "絞り込み" button has to own up to with its dot (#2589).
+  const filterActive =
+    dailyFilterQuery.trim() !== "" ||
+    dailySortMode !== "date" ||
+    dailySortDirection !== "desc";
+  const loadingLabel = t("materials.daily.loading");
+  const loadErrorFor = (message: string): LoadErrorCardProps | null =>
+    firstLoadFailed
+      ? { message, retryLabel: t("common.retry"), onRetry: reload }
+      : null;
+  const mainLoadError = loadErrorFor(t("materials.daily.loadFailedMain"));
   const pastEntries = (
     <RightSidebarPortal>
       <div className="flex flex-col gap-2">
-        {/* Filter + sort (#283, modes added in #369, one button + chip
-            panel since #2577), above the past-entries panel. */}
-        <SidebarListControls
-          modes={dailySortModes}
-          activeModeId={dailySortMode}
-          onModeChange={(id) => setDailySortMode(id as DailyListSortMode)}
-          sortLabel={t("materials.sidebar.sort")}
-          modeGroupLabel={t("materials.sidebar.sortBy")}
-          directionGroupLabel={t("materials.sidebar.sortOrder")}
-          directions={dailyDirections}
-          direction={dailySortDirection}
-          onDirectionChange={setDailySortDirection}
-          formatSummary={(mode, order) =>
-            t("materials.sidebar.sortSummary", { mode, order })
-          }
-          filter={{
-            value: dailyFilterQuery,
-            onChange: setDailyFilterQuery,
-            placeholder: t("materials.daily.filterPlaceholder"),
-            ariaLabel: t("materials.daily.filterLabel"),
-          }}
-        />
         <DailyEntriesPanel
+          actions={{
+            todayLabel: t("materials.daily.toToday"),
+            // selectDay, so the drawer gets out of the way of today on narrow.
+            onToday: () => selectDay(todayIso),
+            isToday: selectedDate === todayIso,
+            filterLabel: t("materials.daily.filterToggle"),
+            filterActiveLabel: t("materials.daily.filterActive"),
+            filterActive,
+            filterPanel: (
+              // Filter + sort (#283, modes added in #369, one button + chip
+              // panel since #2577), folded under "絞り込み" since #2589.
+              <SidebarListControls
+                modes={dailySortModes}
+                activeModeId={dailySortMode}
+                onModeChange={(id) =>
+                  setDailySortMode(id as DailyListSortMode)
+                }
+                sortLabel={t("materials.sidebar.sort")}
+                modeGroupLabel={t("materials.sidebar.sortBy")}
+                directionGroupLabel={t("materials.sidebar.sortOrder")}
+                directions={dailyDirections}
+                direction={dailySortDirection}
+                onDirectionChange={setDailySortDirection}
+                formatSummary={(mode, order) =>
+                  t("materials.sidebar.sortSummary", { mode, order })
+                }
+                filter={{
+                  value: dailyFilterQuery,
+                  onChange: setDailyFilterQuery,
+                  placeholder: t("materials.daily.filterPlaceholder"),
+                  ariaLabel: t("materials.daily.filterLabel"),
+                }}
+              />
+            ),
+          }}
           // #2032: a hold on an entry row selected its excerpt and raised
           // iOS's callout. The rows only open a day, so a hold has nothing to
           // offer; narrow or any pointer that cannot hover.
@@ -1215,9 +1304,83 @@ export function DailyView({
               ? t("materials.daily.searchEmpty")
               : t("materials.daily.empty")
           }
+          // Rows already on screen (a snapshot) are not traded for bars.
+          isLoading={isLoading && dailies.length === 0}
+          loadingLabel={loadingLabel}
+          loadError={loadErrorFor(t("materials.daily.loadFailedList"))}
         />
       </div>
     </RightSidebarPortal>
+  );
+
+  // "‹ date ›" with the saved caption and the kebab on its right (#2591).
+  // Desktop centres the date on a three-column grid so the caption's width
+  // cannot push it off-centre; Mobile has no room for equal side columns, so
+  // the date takes what the right group leaves.
+  const stepDay = (offset: number) => {
+    const d = parseIso(selectedDate);
+    d.setDate(d.getDate() + offset);
+    setSelectedDate(formatDateKey(d));
+  };
+  const stepButton = (offset: -1 | 1) => (
+    <button
+      type="button"
+      onClick={() => stepDay(offset)}
+      aria-label={t(
+        offset < 0 ? "materials.daily.prevDay" : "materials.daily.nextDay",
+      )}
+      className={cn(
+        "grid h-10 w-10 shrink-0 place-items-center rounded-lumen-md",
+        "text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
+        FOCUS_RING,
+      )}
+    >
+      {offset < 0 ? (
+        <ChevronLeft size={18} aria-hidden />
+      ) : (
+        <ChevronRight size={18} aria-hidden />
+      )}
+    </button>
+  );
+  const dayHeader = (compact: boolean, actions: ReactNode) => (
+    <div
+      className={cn(
+        "items-center gap-2",
+        compact ? "flex" : "grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]",
+      )}
+    >
+      {!compact && <div />}
+      <div
+        className={cn(
+          "flex items-center justify-center gap-1",
+          compact && "min-w-0 flex-1",
+        )}
+      >
+        {stepButton(-1)}
+        <h1
+          className={cn(
+            "text-center font-bold leading-tight tracking-tight text-lumen-text",
+            compact ? "text-sm" : "text-xl",
+          )}
+        >
+          {headingLabel(selectedDate, compact)}
+        </h1>
+        {stepButton(1)}
+      </div>
+      <div
+        className={cn(
+          "flex items-center gap-2.5",
+          compact ? "shrink-0" : "min-w-0 justify-end",
+        )}
+      >
+        {savedLabel != null && (
+          <span className="text-[11.5px] text-lumen-text-tertiary">
+            {savedLabel}
+          </span>
+        )}
+        {actions}
+      </div>
+    </div>
   );
 
   // ---- Desktop --------------------------------------------------------
@@ -1231,17 +1394,21 @@ export function DailyView({
       // the gutter-padded full width. Until #203 merges it still renders in the
       // reading column.
       <div className="flex h-full min-h-0 flex-col">
-        <div className="flex justify-end pb-3">{toTodayButton}</div>
         <div className="flex min-h-0 flex-1 flex-col">
           <EditorCard
-            dateLabel={fullDateLabel(selectedDate)}
-            dateClassName="text-[28px] font-bold leading-tight tracking-tight text-lumen-text"
-            savedLabel={savedLabel}
-            headerActions={actionsMenu("icon")}
+            header={dayHeader(
+              false,
+              <>
+                {pinToggle("icon")}
+                {actionsMenu("icon")}
+              </>,
+            )}
             editorKey={editorKey}
             date={selectedDate}
             initialContent={editorContent}
             bodyPending={bodyPending}
+            pendingLabel={loadingLabel}
+            loadError={mainLoadError}
             onEditorBlur={handleEditorBlur}
             onUpdate={handleEditorUpdate}
             onDirty={markDirty}
@@ -1265,20 +1432,24 @@ export function DailyView({
 
   return (
     <div className="flex h-full min-h-0 flex-col px-4 pt-2">
-      <div className="flex items-center justify-end gap-2 pb-3">
-        {toTodayButton}
-        {actionsMenu("boxed")}
+      <div className="pb-3">
+        {dayHeader(
+          true,
+          <>
+            {pinToggle("boxed")}
+            {actionsMenu("boxed")}
+          </>,
+        )}
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col">
         <EditorCard
-          dateLabel={shortDateLabel(selectedDate)}
-          dateClassName="text-lg font-bold leading-tight tracking-tight text-lumen-text"
-          savedLabel={savedLabel}
           editorKey={editorKey}
           date={selectedDate}
           initialContent={editorContent}
           bodyPending={bodyPending}
+          pendingLabel={loadingLabel}
+          loadError={mainLoadError}
           onEditorBlur={handleEditorBlur}
           onUpdate={handleEditorUpdate}
           onDirty={markDirty}

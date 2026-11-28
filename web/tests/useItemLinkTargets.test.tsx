@@ -225,3 +225,31 @@ describe("LinkPanel over the real pool (#1334)", () => {
     expect(chip.getAttribute("aria-label")).not.toContain("1786544440797");
   });
 });
+
+describe("useItemLinkTargets — empty titles (#2870)", () => {
+  // A note made on screen is stored untitled (#2581), so the "[[" menu needs a
+  // word for it that follows the UI language.
+  it.each(["en", "ja"] as const)(
+    "labels a title-less row with the %s catalog word",
+    async (lang) => {
+      await i18n.changeLanguage(lang);
+      reads.listNotesUnified.mockImplementationOnce(async () => [
+        { id: "note-7", title: "", isDeleted: false },
+      ]);
+      reads.fetchTodoTree.mockImplementationOnce(async () => [
+        { id: "task-7", title: "", isDeleted: false },
+      ]);
+      reads.fetchEvents.mockImplementationOnce(async () => [
+        { id: "event-7", title: "", date: "2026-03-01", isDeleted: false },
+      ]);
+
+      const pool = await loadPool();
+      const word = i18n.t("common.untitled");
+
+      expect(word).not.toBe("common.untitled");
+      for (const id of ["note-7", "task-7", "event-7"]) {
+        expect(pool.find((t) => t.id === id)?.label).toBe(word);
+      }
+    },
+  );
+});

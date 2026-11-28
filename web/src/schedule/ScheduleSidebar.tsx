@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, ListFilter } from "lucide-react";
 import {
   useTranslation,
   cn,
+  ICON_TAP_NARROW,
   AddPill,
   AgendaList,
   NoticePanel,
@@ -238,8 +239,7 @@ export interface ScheduleSidebarTodoDay {
  * than on the button, for #2010's reason: on a phone the button grows to the
  * floor, and a border on THAT box would be a wide frame around a small arrow.
  */
-const DAY_STEP_BTN =
-  "group/step flex size-7 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-lumen-tap-touch max-md:min-w-lumen-tap-touch";
+const DAY_STEP_BTN = `group/step flex size-7 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent ${ICON_TAP_NARROW}`;
 const DAY_STEP_FACE =
   "flex size-7 items-center justify-center rounded-lumen-md border border-lumen-border-strong transition-colors group-hover/step:bg-lumen-hover";
 

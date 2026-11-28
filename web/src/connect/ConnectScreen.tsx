@@ -322,8 +322,12 @@ export function ConnectScreen({
       fallbackMessage: "Failed to load the tag hub",
     });
   // Only when nothing ever arrived (GoalsTodosScreen's rule): after one good
-  // read, a failed refetch keeps the last rows on screen.
-  const loadFailed = sourcesError !== null && !hasLoaded;
+  // read, a failed refetch keeps the last rows on screen. A failed tag list
+  // counts on its own (#2850): without it the hub would file every row as
+  // untagged, or read as empty, about tags that were never read.
+  const loadFailed =
+    (sourcesError !== null && !hasLoaded) ||
+    (wiki.error !== null && !wiki.hasLoaded);
 
   /*
    * Todo ticks still being written (#2224), painted over every read until
@@ -502,14 +506,21 @@ export function ConnectScreen({
 
   const isLoading = sourcesLoading || wiki.loading;
 
+  // The tag re-read runs outside useDomainLoad, so its wait is tracked here
+  // for the card's button (#2850).
+  const [tagsRetrying, setTagsRetrying] = useState(false);
   const retryLoad = useCallback(() => {
     setReloadTick((n) => n + 1);
     // The tag cache is read by the Provider, not by the load above, so a
     // failure that took both down would otherwise come back with no tags.
     if (wiki.error !== null) {
-      wiki.refresh().catch((error: unknown) => {
-        logServiceError("Connect tag hub", "refresh tags", error);
-      });
+      setTagsRetrying(true);
+      wiki
+        .refresh()
+        .catch((error: unknown) => {
+          logServiceError("Connect tag hub", "refresh tags", error);
+        })
+        .finally(() => setTagsRetrying(false));
     }
   }, [wiki]);
 
@@ -1033,7 +1044,9 @@ export function ConnectScreen({
     (item: TagHubItem) => {
       if (!selectedTagId || selectedTag?.isUntagged) return;
       void (async () => {
-        const result = await wiki.bulkUnassign([item.id], selectedTagId);
+        const result = await wiki.bulkUnassign([item.id], selectedTagId, {
+          recordHistory: true,
+        });
         if (result.failed > 0) reportFailure(result.failed);
       })();
     },
@@ -1209,7 +1222,7 @@ export function ConnectScreen({
             message={t("connect.loadFailed")}
             retryLabel={t("common.retry")}
             onRetry={retryLoad}
-            retrying={sourcesLoading}
+            retrying={sourcesLoading || tagsRetrying}
           />
         </div>
       ) : (
@@ -1281,17 +1294,26 @@ export function ConnectScreen({
                 currentTagId={selectedTag.id}
                 canRemove={!selectedTag.isUntagged}
                 busy={bulkBusy}
+                // The user runs these writes, so each run is one Undo (#2881).
                 onAssign={(tagId) =>
-                  void runBulk((ids) => wiki.bulkAssign(ids, tagId))
+                  void runBulk((ids) =>
+                    wiki.bulkAssign(ids, tagId, { recordHistory: true }),
+                  )
                 }
                 onCreateAndAssign={(name) =>
                   void runBulk(async (ids) => {
                     const created = await wiki.createTag(name);
-                    return wiki.bulkAssign(ids, created.id);
+                    return wiki.bulkAssign(ids, created.id, {
+                      recordHistory: true,
+                    });
                   })
                 }
                 onRemove={() =>
-                  void runBulk((ids) => wiki.bulkUnassign(ids, selectedTag.id))
+                  void runBulk((ids) =>
+                    wiki.bulkUnassign(ids, selectedTag.id, {
+                      recordHistory: true,
+                    }),
+                  )
                 }
                 onMove={(tagId) =>
                   void runBulk((ids) =>

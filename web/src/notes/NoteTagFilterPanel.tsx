@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { Filter, X } from "lucide-react";
-import { cn, FOCUS_RING } from "@life-editor/shared";
+import { cn, FOCUS_RING, ICON_TAP_NARROW } from "@life-editor/shared";
 
 /*
  * The Notes tag filter (#2059) — a button that opens a tag panel, replacing the
@@ -168,36 +168,60 @@ export function NoteTagFilterPanel({
 
   return (
     <div className="flex flex-col gap-1.5" onKeyDown={handleKeyDown}>
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        aria-controls={panelId}
-        // The visible badge is a bare number; the name says what it counts.
-        aria-label={count > 0 ? labels.buttonSelected(count) : undefined}
-        title={labels.heading}
-        className={cn(
-          // #1560's narrow floor, the same `max-md:` contract the chips had:
-          // Desktop keeps its mouse size.
-          "inline-flex h-7 items-center gap-1.5 self-start rounded-lumen-md border px-2 text-xs transition-colors max-md:min-h-11",
-          count > 0
-            ? "border-lumen-accent bg-lumen-accent-subtle font-semibold text-lumen-accent"
-            : "border-lumen-border bg-lumen-bg text-lumen-text-secondary hover:bg-lumen-hover",
-          FOCUS_RING,
-        )}
-      >
-        <Filter size={13} aria-hidden />
-        <span>{labels.button}</span>
+      <div className="flex items-center gap-1 self-start">
+        <button
+          ref={buttonRef}
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          aria-controls={panelId}
+          // The visible badge is a bare number; the name says what it counts.
+          aria-label={count > 0 ? labels.buttonSelected(count) : undefined}
+          title={labels.heading}
+          className={cn(
+            // #1560's narrow floor, the same `max-md:` contract the chips had:
+            // Desktop keeps its mouse size.
+            "inline-flex h-7 items-center gap-1.5 rounded-lumen-md border px-2 text-xs transition-colors max-md:min-h-11",
+            count > 0
+              ? "border-lumen-accent bg-lumen-accent-subtle font-semibold text-lumen-accent"
+              : "border-lumen-border bg-lumen-bg text-lumen-text-secondary hover:bg-lumen-hover",
+            FOCUS_RING,
+          )}
+        >
+          <Filter size={13} aria-hidden />
+          <span>{labels.button}</span>
+          {count > 0 && (
+            <span
+              aria-hidden
+              className="rounded-lumen-full bg-lumen-accent px-1.5 text-[10.5px] font-semibold tabular-nums text-lumen-on-accent"
+            >
+              {count}
+            </span>
+          )}
+        </button>
+
+        {/* The clear beside the button (#2847): the filter can be dropped with the
+          panel shut, as #2059 had it before #2578 moved the clear inside. It
+          is a sibling of the button, not a child, so a press cannot also
+          toggle the panel. Only while something is selected. */}
         {count > 0 && (
-          <span
-            aria-hidden
-            className="rounded-lumen-full bg-lumen-accent px-1.5 text-[10.5px] font-semibold tabular-nums text-lumen-on-accent"
+          <button
+            type="button"
+            onClick={onClear}
+            aria-label={labels.clear}
+            title={labels.clear}
+            className={cn(
+              "inline-flex h-7 w-7 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+              // Icon-only, so the narrow floor is the tap-touch token on both
+              // sides (#2673).
+              ICON_TAP_NARROW,
+              FOCUS_RING,
+            )}
           >
-            {count}
-          </span>
+            <X size={13} aria-hidden />
+          </button>
         )}
-      </button>
+      </div>
 
       {/* Always in the tree, `hidden` while closed, so `aria-controls` points
           at something that exists in both states. The display class is only
@@ -213,9 +237,7 @@ export function NoteTagFilterPanel({
         )}
       >
         {labels.heading != null && (
-          <span
-            className="text-[11px] font-semibold text-lumen-text-tertiary"
-          >
+          <span className="text-[11px] font-semibold text-lumen-text-tertiary">
             {labels.heading}
           </span>
         )}
@@ -227,12 +249,13 @@ export function NoteTagFilterPanel({
           <button
             type="button"
             onClick={onClear}
-            aria-label={labels.clear}
+            // No aria-label: the name is the visible text, and the × beside
+            // the button already owns `labels.clear` (#2847).
             className={cn(
               "inline-flex h-7 items-center gap-1 self-start rounded-lumen-md px-1.5 text-xs text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
               // The narrow floor in both directions (#1560), on the tap-touch
               // token the icon-only controls share (#2673).
-              "max-md:min-h-lumen-tap-touch max-md:min-w-lumen-tap-touch",
+              ICON_TAP_NARROW,
               FOCUS_RING,
             )}
           >

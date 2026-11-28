@@ -201,7 +201,9 @@ async function pressSave() {
   });
 }
 
-const QUESTION = "connect.deleteConfirm|Work";
+// With a heading (#2587) the dialog is named by it, not by the message.
+const QUESTION = "connect.deleteTag";
+const MESSAGE = "connect.deleteConfirm|Work";
 
 const deleteButton = (panel: HTMLElement) =>
   within(panel).getByRole<HTMLButtonElement>("button", {
@@ -212,7 +214,7 @@ const expectNoQuestion = () =>
   expect(screen.queryByRole("dialog", { name: QUESTION })).toBeNull();
 
 /** Settles the question's promise, which is what the write waits for. */
-async function answer(name: "connect.deleteTag" | "common.cancel") {
+async function answer(name: "connect.deleteTagConfirm" | "common.cancel") {
   const button = within(question()).getByRole("button", { name });
   await act(async () => {
     fireEvent.click(button);
@@ -226,7 +228,12 @@ describe("Note title tags — deleting from the edit panel (#2395)", () => {
     fireEvent.click(deleteButton(panel));
 
     within(question()).getByRole("button", { name: "common.cancel" });
-    within(question()).getByRole("button", { name: "connect.deleteTag" });
+    within(question()).getByRole("button", {
+      name: "connect.deleteTagConfirm",
+    });
+    within(question()).getByText(MESSAGE);
+    // The heading's own × (#2587): a third way to answer no.
+    within(question()).getByRole("button", { name: "common.close" });
     expect(state.deleteTag).not.toHaveBeenCalled();
   });
 
@@ -271,7 +278,7 @@ describe("Note title tags — deleting from the edit panel (#2395)", () => {
     const panel = openPanel();
     fireEvent.click(deleteButton(panel));
 
-    await answer("connect.deleteTag");
+    await answer("connect.deleteTagConfirm");
 
     expect(state.deleteTag).toHaveBeenCalledExactlyOnceWith("tag-work");
     expectNoQuestion();
@@ -283,7 +290,7 @@ describe("Note title tags — deleting from the edit panel (#2395)", () => {
     fireEvent.change(nameField(), { target: { value: "Work log" } });
     fireEvent.click(deleteButton(panel));
 
-    await answer("connect.deleteTag");
+    await answer("connect.deleteTagConfirm");
 
     expect(state.setTagName).not.toHaveBeenCalled();
   });
@@ -369,7 +376,7 @@ describe("Note title tags — deleting from the edit panel (#2395)", () => {
     fireEvent.click(deleteButton(panel));
 
     expect(screen.getAllByRole("dialog", { name: QUESTION })).toHaveLength(1);
-    await answer("connect.deleteTag");
+    await answer("connect.deleteTagConfirm");
     expect(state.deleteTag).toHaveBeenCalledExactlyOnceWith("tag-work");
   });
 
@@ -410,7 +417,7 @@ describe("Note title tags — deleting from the edit panel (#2395)", () => {
     expect(screen.queryByRole("dialog", { name: PANEL })).toBeNull();
     question();
 
-    await answer("connect.deleteTag");
+    await answer("connect.deleteTagConfirm");
 
     expectNoQuestion();
     expect(state.deleteTag).not.toHaveBeenCalled();

@@ -44,28 +44,6 @@
     "languageDesc": "表示言語を切り替えます。変更は画面全体に即時反映されます。",
     "english": "English",
     "japanese": "日本語",
-    "detail": {
-      "previewHeading": "現在の外観",
-      "windowTitle": "今日の Todo",
-      "previewTitle": "今日の Todo",
-      "appearanceSummary": "テーマ: {{theme}} · 文字サイズ {{fontValue}}",
-      "tipsHeading": "ヒント",
-      "todos": {
-        "shopping": "買い物リストを作る",
-        "coffee": "コーヒー豆を注文する",
-        "dinner": "夕食の下ごしらえをする"
-      },
-      "tips": {
-        "immediate": {
-          "title": "変更は即時保存されます",
-          "body": "保存ボタンはありません。切り替えるとすぐアプリ全体へ反映されます。"
-        },
-        "fontSize": {
-          "title": "文字サイズは本文に反映",
-          "body": "見出しやUIは固定のまま、本文の可読性だけを調整します。"
-        }
-      }
-    },
     "themeSystem": "システム",
     "fontFamilyLabel": "フォント",
     "fontFamilyDesc": "アプリ全体の本文に適用されます。",
@@ -201,7 +179,6 @@
       "general": "一般",
       "claude": "Claude",
       "trash": "ゴミ箱",
-      "tips": "ヒント",
       "hiddenNote": "{{category}}を表示しています。ほかのカテゴリは詳細パネルにあります。",
       "showCategories": "カテゴリを表示"
     },
@@ -209,9 +186,6 @@
       "heading": "ゴミ箱",
       "description": "削除したものはここに残ります。元に戻すか、完全に削除できます。",
       "unavailable": "いまはゴミ箱を読み込めません。接続を確認して開き直してください。"
-    },
-    "placeholder": {
-      "message": "このセクションの設定は、用意でき次第ここに並びます。"
     },
     "schedule": {
       "heading": "予定",
@@ -330,14 +304,18 @@
       "detailTitle": "Todo の詳細"
     },
     "notes": {
+      "loadFailedList": "サーバーに接続できず、ノートを読み込めませんでした",
+      "loadFailedMain": "ノートを読み込めませんでした",
+      "loading": "読み込み中",
       "searchPlaceholder": "ノートを検索…",
       "addCta": "ノート",
       "addAria": "ノートを作成",
       "empty": "ノートはまだありません",
       "searchEmpty": "検索に一致するノートはありません",
       "deleteNote": "ノートを削除",
-      "deleteConfirmBody": "「{{name}}」を削除しますか？ ゴミ箱に入るので、あとから元に戻せます。",
-      "deleteConfirmAction": "削除する",
+      "deleteConfirmTitle": "ノートを削除",
+      "deleteConfirmBody": "「{{name}}」を削除します。ゴミ箱から戻せます。",
+      "deleteConfirmAction": "削除",
       "bodyPlaceholder": "ノートを書く…",
       "bodyHint": {
         "slash": " でブロックを挿入",
@@ -346,6 +324,9 @@
         "separator": "、"
       },
       "untitled": "(無題)",
+      "untitledPlaceholder": "無題のノート",
+      "newBadge": "新規",
+      "newHeading": "作ったばかりのノート",
       "lockedHint": "このノートはロックされています",
       "offlineLocked": "オフラインのあいだは、ノートの題の変更・ピン留め・削除はできません。",
       "unsentLocked": "このノートはまだ送信していません。送信が済むまで、題の変更・ピン留め・削除はできません。",
@@ -421,6 +402,8 @@
       "collapseGroup": "グループを折りたたむ",
       "expandGroup": "グループを展開",
       "assignTagHint": "タグにドロップして付与",
+      "tagDropRelease": "ここで離すと付きます",
+      "tagDropNoTags": "タグがまだありません",
       "sortTitle": "タイトル",
       "tagFilterLabel": "タグ",
       "tagFilterHeading": "タグで絞り込む",
@@ -506,14 +489,21 @@
       "sectionCount": "{{label}}（{{count}}）"
     },
     "daily": {
+      "loadFailedList": "サーバーに接続できず、デイリーを読み込めませんでした",
+      "loadFailedMain": "デイリーを読み込めませんでした",
+      "loading": "読み込み中",
       "toToday": "今日へ",
+      "prevDay": "前の日",
+      "nextDay": "次の日",
       "saved": "保存済み",
       "unsaved": "未保存",
       "pin": "ピン留めする",
-      "unpin": "ピン留めを解除",
+      "unpin": "ピン留めを外す",
+      "pinToggle": "ピン留め",
       "pinned": "ピン留め済み",
       "delete": "エントリを削除",
-      "deleteConfirmBody": "{{day}} のエントリを削除しますか？ ゴミ箱に入るので、あとから戻せます。",
+      "deleteConfirmTitle": "エントリを削除",
+      "deleteConfirmBody": "{{day}}のエントリを削除します。ゴミ箱から戻せます。",
       "deleteConfirmAction": "削除",
       "moreActions": "その他の操作",
       "placeholder": "今日のことを書く…",
@@ -527,7 +517,9 @@
       "entriesCount": "エントリ（{{count}}）",
       "filterPlaceholder": "エントリを絞り込む…",
       "filterLabel": "エントリを絞り込む",
-      "searchEmpty": "絞り込みに一致するエントリはありません",
+      "filterToggle": "絞り込み",
+      "filterActive": "条件あり",
+      "searchEmpty": "一致するエントリはありません",
       "empty": "エントリはまだありません",
       "eveningMood": "気分",
       "figuresLabel": "この日の数字",
@@ -674,7 +666,6 @@
     "memo": "メモ",
     "save": "保存",
     "originRoutine": "ルーチンから生成",
-    "originEvent": "予定",
     "skipThisDay": "この日はスキップ",
     "seriesEditHint": "タイトルと時刻を変えると「この予定のみ / これ以降 / すべて」を選ぶ画面が出ます。日付・終日・メモはこの日の予定だけに適用されます。タグは繰り返し本体に付くので、ここで付け外しすると確認なしで過去・未来のすべての回に反映されます。",
     "skippedTitle": "スキップ済み（{{count}}件）",
@@ -740,6 +731,8 @@
     "linkFocusEventMarked": "予定『{{title}}』を枠で示しています",
     "linkFocusTodoInPanel": "Todo『{{title}}』を右のパネルに出しています",
     "quickAddPlaceholder": "予定を入力…",
+    "quickAddTitle": "クイック追加",
+    "openFullForm": "詳しく入力",
     "detailTitle": "予定の詳細",
     "detailPanelLabel": "詳細パネル",
     "editDetail": "詳細を編集",
@@ -860,6 +853,13 @@
       "todoAddToToday": "Todo を今日に追加",
       "todoRemoveFromToday": "Todo を今日から外す",
       "deleteTodo": "Todo の削除",
+      "createGoal": "目標の作成",
+      "renameGoal": "目標の名前の変更",
+      "moveGoal": "目標の移動",
+      "toggleGoalAchieved": "目標の達成切替",
+      "deleteGoal": "目標の削除",
+      "linkGoalTodos": "Todo のつなぎ替え",
+      "moveGoalTodo": "Todo の付け替え",
       "createScheduleItem": "予定の作成",
       "updateScheduleItem": "予定の変更",
       "toggleScheduleItemComplete": "予定の完了切替",
@@ -881,6 +881,10 @@
       "softDeleteNote": "ノートの削除",
       "assignTag": "タグの追加",
       "unassignTag": "タグの削除",
+      "createTag": "タグの作成",
+      "updateTag": "タグの変更",
+      "deleteTag": "タグ自体の削除",
+      "moveTag": "別のタグへの移動",
       "removeItemLink": "リンクの解除",
       "workCreateTodo": "作業名から Todo を追加",
       "workPendingEvent": "作業名を予定として記録"
@@ -954,7 +958,6 @@
   "notesView": {
     "unpin": "ピン解除",
     "pin": "ピン留め",
-    "pinned": "ピン留め中",
     "detailTitle": "ノート",
     "moreActions": "その他の操作",
     "writeFailed": {
@@ -1098,7 +1101,7 @@
       "treeHeading": "目標の木",
       "unconnectedHeading": "未接続の目標",
       "looseHeading": "どの目標にもつながらない Todo",
-      "empty": "目標はまだありません。今週の目標を立てて Todo をつなぐと、ここで進み具合を見られます。",
+      "empty": "目標はまだありません。届きたいところを 1 つ書いてみましょう。",
       "emptyAction": "今週の目標を立てる",
       "achieved": "達成",
       "unconnected": "未接続",
@@ -1109,8 +1112,7 @@
       "deleteTodo": "Todo を削除: {{title}}",
       "deleteTodoFailed": "Todo を削除できませんでした。通信を確認して、もう一度操作してください。",
       "loading": "目標を読み込んでいます",
-      "loadFailed": "目標を読み込めませんでした。通信を確認して、もう一度読み込んでください。",
-      "retry": "もう一度読み込む",
+      "loadFailed": "目標を読み込めませんでした",
       "titleLabel": "目標の名前",
       "parentLabel": "上の目標",
       "parentNone": "なし",
@@ -1146,8 +1148,8 @@
         "failedNothingDeleted": "何も削除していません。通信を確認して、もう一度操作してください。"
       },
       "period": "{{kind}} · {{key}}",
-      "pickHint": "目標を選ぶと、ここに詳細が出ます",
-      "sheetTitle": "目標: {{title}}",
+      "pickHint": "目標を選ぶと、ここに詳細が出ます。",
+      "sheetTitle": "目標の詳細",
       "linkSave": "つなぐ",
       "writeFailed": "目標を保存できませんでした。通信を確認して、もう一度操作してください。",
       "expand": "開く: {{title}}",
@@ -1176,6 +1178,7 @@
       "moveTodoFailed": "Todo を移せませんでした。通信を確認して、もう一度操作してください。",
       "arrange": {
         "heading": "並び替え・絞り込み",
+        "sheetTitle": "並び替えと絞り込み",
         "sort": "並び替え",
         "sortStandard": "標準",
         "sortProgress": "進捗順",
@@ -1186,7 +1189,10 @@
         "inProgress": "進行中",
         "hideDoneTodos": "完了した Todo を隠す",
         "filteringBy": "絞り込み中",
+        "filteringByLine": "絞り込み中：{{filters}}",
+        "periodSeparator": "・",
         "reset": "リセット",
+        "resetAll": "条件をリセット",
         "noMatch": "条件に合う目標はありません。"
       }
     }
@@ -1295,8 +1301,7 @@
       "openGoal": "{{title}} を開く",
       "back": "目標の一覧へ戻る",
       "linkTodos": "Todo をつなぐ: {{title}}",
-      "openInConnect": "目標と Todo で開く",
-      "migrationOverflow_other": "目標ノートの行を目標に移しました。この移行で入れるのは 1 つの期間に 3 つまでなので、残りの {{count}} 行はノートにそのまま残しています。"
+      "openInConnect": "目標と Todo で開く"
     },
     "review": {
       "title": "終わった期間の目標",

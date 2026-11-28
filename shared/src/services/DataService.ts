@@ -628,6 +628,12 @@ export interface WikiTagsUnifiedDataService {
     updates: Partial<WikiTagUnified>,
   ): Promise<WikiTagUnified>;
   softDeleteWikiTagUnified(id: string): Promise<void>;
+  /**
+   * Undo of `softDeleteWikiTagUnified` (#2881). The delete leaves the tag's
+   * assignment rows as they were, so restoring the tag row alone puts it back
+   * on every item it was on.
+   */
+  restoreWikiTagUnified(id: string): Promise<WikiTagUnified>;
   listTagsForItem(itemId: string): Promise<WikiTagAssignmentUnified[]>;
   /** Bulk-load all active item↔tag assignments (N+1 elimination). */
   listAllTagAssignments(): Promise<WikiTagAssignmentUnified[]>;

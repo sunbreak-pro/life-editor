@@ -28,7 +28,7 @@ import {
  * #2624 put a short sheet in front of that panel, as the Claude Design
  * proposal's 「クイック追加」 draws it. The sheet rises over the lower part of
  * the screen and asks only for the type, the title, the day and (for an
- * event) the times. Its 「追加して詳細へ」 writes nothing: it carries what was
+ * event) the times. Its 「詳しく入力」 (#2849) writes nothing: it carries what was
  * typed into the full-screen panel (#874), where a repeat, tags and notes can
  * be added. Before, every add on a phone opened on all of those fields at
  * once (2026-11-04 owner's choice in #2624: the sheet first, the full page
@@ -65,6 +65,18 @@ export interface QuickCaptureSheetProps extends ItemCreatePanelProps {
    * kind of item, so its heading names the panel, not the event.
    */
   sheetTitle: string;
+  /**
+   * Already-translated header of the SHORT sheet only (「クイック追加」,
+   * #2849). The full-screen page it leads to keeps `sheetTitle`.
+   */
+  quickTitle: string;
+  /**
+   * Already-translated left button of the short sheet (「詳しく入力」, #2849).
+   * Not `labels.addEventAndOpen`: that is the full page's footer button, which
+   * adds first and then opens, while this one writes nothing — two acts under
+   * one wording made the result of a tap unpredictable.
+   */
+  detailLabel: string;
   /** Already-translated name for the sheet's close button (§6.4, #525). */
   closeLabel: string;
 }
@@ -85,12 +97,15 @@ function QuickCaptureFields({
   handlers,
   labels,
   formatDuration,
+  detailLabel,
   onDetail,
 }: Pick<
   ItemCreatePanelProps,
   "initial" | "pools" | "handlers" | "labels" | "formatDuration"
 > & {
-  /** 「追加して詳細へ」: the draft, to seed the full panel with. */
+  /** Already-translated name of the left button (see QuickCaptureSheetProps). */
+  detailLabel: string;
+  /** 「詳しく入力」: the draft, to seed the full panel with. */
   onDetail: (draft: ItemCreatePanelInitial) => void;
 }) {
   const [type, setType] = useState<ItemCreateType>(initial.type ?? "event");
@@ -197,7 +212,7 @@ function QuickCaptureFields({
           }
           className={DETAIL_BTN}
         >
-          {labels.addEventAndOpen}
+          {detailLabel}
         </button>
         <button
           type="button"
@@ -216,6 +231,8 @@ export function QuickCaptureSheet({
   open,
   onClose,
   sheetTitle,
+  quickTitle,
+  detailLabel,
   closeLabel,
   ...panel
 }: QuickCaptureSheetProps) {
@@ -234,7 +251,7 @@ export function QuickCaptureSheet({
       <BottomSheet
         open={open && !detail}
         onClose={onClose}
-        title={sheetTitle}
+        title={quickTitle}
         closeLabel={closeLabel}
       >
         <QuickCaptureFields
@@ -243,6 +260,7 @@ export function QuickCaptureSheet({
           handlers={panel.handlers}
           labels={panel.labels}
           formatDuration={panel.formatDuration}
+          detailLabel={detailLabel}
           onDetail={setDetail}
         />
       </BottomSheet>

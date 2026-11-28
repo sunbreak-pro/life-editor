@@ -68,8 +68,6 @@ export function NotesUnifiedHost({
   return (
     <NotesUnifiedProvider
       dataService={dataService}
-      // #1953: a note created without a title is named in the UI language.
-      untitledTitle={t("common.untitled")}
       onWriteError={(operation, error) =>
         showToast(
           "danger",

@@ -44,28 +44,6 @@
     "languageDesc": "Switch the display language. Changes apply across the whole app instantly.",
     "english": "English",
     "japanese": "Japanese",
-    "detail": {
-      "previewHeading": "Current appearance",
-      "windowTitle": "Today's todos",
-      "previewTitle": "Today's todos",
-      "appearanceSummary": "Theme: {{theme}} · Font size {{fontValue}}",
-      "tipsHeading": "Tips",
-      "todos": {
-        "shopping": "Make a shopping list",
-        "coffee": "Order coffee beans",
-        "dinner": "Prep dinner"
-      },
-      "tips": {
-        "immediate": {
-          "title": "Changes save instantly",
-          "body": "There is no save button. Toggling applies to the whole app right away."
-        },
-        "fontSize": {
-          "title": "Font size affects body text",
-          "body": "Headings and UI stay fixed; only body readability is adjusted."
-        }
-      }
-    },
     "themeSystem": "System",
     "fontFamilyLabel": "Font",
     "fontFamilyDesc": "Applies to body text across the app.",
@@ -201,7 +179,6 @@
       "general": "General",
       "claude": "Claude",
       "trash": "Trash",
-      "tips": "Tips",
       "hiddenNote": "Showing {{category}}. The other categories are in the details panel.",
       "showCategories": "Show categories"
     },
@@ -209,9 +186,6 @@
       "heading": "Trash",
       "description": "Deleted items stay here. Put them back, or remove them for good.",
       "unavailable": "The trash cannot be read right now. Check your connection and reopen this."
-    },
-    "placeholder": {
-      "message": "Settings for this section will land here as they arrive."
     },
     "schedule": {
       "heading": "Schedule",
@@ -331,13 +305,17 @@
       "detailTitle": "Todo details"
     },
     "notes": {
+      "loadFailedList": "Could not reach the server to load notes",
+      "loadFailedMain": "Could not load notes",
+      "loading": "Loading",
       "searchPlaceholder": "Search notes…",
       "addCta": "Note",
       "addAria": "Create note",
       "empty": "No notes yet",
       "searchEmpty": "No notes match that search",
       "deleteNote": "Delete note",
-      "deleteConfirmBody": "Delete “{{name}}”? It goes to the trash, so you can restore it later.",
+      "deleteConfirmTitle": "Delete note",
+      "deleteConfirmBody": "“{{name}}” will be deleted. You can restore it from the trash.",
       "deleteConfirmAction": "Delete",
       "bodyPlaceholder": "Write your note…",
       "bodyHint": {
@@ -347,6 +325,9 @@
         "separator": ", "
       },
       "untitled": "(untitled)",
+      "untitledPlaceholder": "Untitled note",
+      "newBadge": "New",
+      "newHeading": "Just created",
       "lockedHint": "This note is locked",
       "offlineLocked": "You are offline, so renaming, pinning and deleting notes are off until you reconnect.",
       "unsentLocked": "This note has not been sent yet, so renaming, pinning and deleting it are off until it is.",
@@ -422,6 +403,8 @@
       "collapseGroup": "Collapse group",
       "expandGroup": "Expand group",
       "assignTagHint": "Drop onto a tag to assign it",
+      "tagDropRelease": "Release to add it here",
+      "tagDropNoTags": "No tags yet",
       "sortTitle": "Title",
       "tagFilterLabel": "Tags",
       "tagFilterHeading": "Filter by tag",
@@ -507,14 +490,21 @@
       "sectionCount": "{{label}} ({{count}})"
     },
     "daily": {
+      "loadFailedList": "Could not reach the server to load dailies",
+      "loadFailedMain": "Could not load dailies",
+      "loading": "Loading",
       "toToday": "Today",
+      "prevDay": "Previous day",
+      "nextDay": "Next day",
       "saved": "Saved",
       "unsaved": "Unsaved",
       "pin": "Pin entry",
       "unpin": "Unpin entry",
+      "pinToggle": "Pin",
       "pinned": "Pinned",
       "delete": "Delete entry",
-      "deleteConfirmBody": "Delete the entry for {{day}}? It goes to the trash, so you can restore it later.",
+      "deleteConfirmTitle": "Delete entry",
+      "deleteConfirmBody": "The entry for {{day}} will be deleted. You can restore it from the trash.",
       "deleteConfirmAction": "Delete",
       "moreActions": "More actions",
       "placeholder": "Write about your day…",
@@ -528,6 +518,8 @@
       "entriesCount": "Entries ({{count}})",
       "filterPlaceholder": "Filter entries…",
       "filterLabel": "Filter entries",
+      "filterToggle": "Filter",
+      "filterActive": "filters on",
       "searchEmpty": "No entries match that filter",
       "empty": "No entries yet",
       "eveningMood": "Mood",
@@ -677,7 +669,6 @@
     "memo": "Memo",
     "save": "Save",
     "originRoutine": "Generated from routine",
-    "originEvent": "Event",
     "skipThisDay": "Skip this day",
     "seriesEditHint": "Changing the title or times asks whether to apply it to this occurrence, this and later ones, or all. The date, the all-day switch and the memo only ever affect this one. Tags belong to the repeat itself: adding or removing one here changes every occurrence, past and future, without asking first.",
     "skippedTitle": "Skipped ({{count}})",
@@ -745,6 +736,8 @@
     "linkFocusEventMarked": "Outlined the event \"{{title}}\"",
     "linkFocusTodoInPanel": "The todo \"{{title}}\" is in the right panel",
     "quickAddPlaceholder": "Enter an event…",
+    "quickAddTitle": "Quick add",
+    "openFullForm": "More details",
     "detailTitle": "Event details",
     "detailPanelLabel": "Detail panel",
     "editDetail": "Edit details",
@@ -867,6 +860,13 @@
       "todoAddToToday": "adding a todo to today",
       "todoRemoveFromToday": "taking a todo off today",
       "deleteTodo": "todo deletion",
+      "createGoal": "goal creation",
+      "renameGoal": "goal rename",
+      "moveGoal": "goal move",
+      "toggleGoalAchieved": "goal achieved toggle",
+      "deleteGoal": "goal deletion",
+      "linkGoalTodos": "linking todos to a goal",
+      "moveGoalTodo": "moving a todo to another goal",
       "createScheduleItem": "event creation",
       "updateScheduleItem": "event update",
       "toggleScheduleItemComplete": "event completion toggle",
@@ -888,6 +888,10 @@
       "softDeleteNote": "note deletion",
       "assignTag": "adding a tag",
       "unassignTag": "removing a tag",
+      "createTag": "tag creation",
+      "updateTag": "tag update",
+      "deleteTag": "tag deletion",
+      "moveTag": "moving items to another tag",
       "removeItemLink": "removing a link",
       "workCreateTodo": "adding a Todo from the work name",
       "workPendingEvent": "filing the work name as an event"
@@ -961,7 +965,6 @@
   "notesView": {
     "unpin": "Unpin",
     "pin": "Pin",
-    "pinned": "Pinned",
     "detailTitle": "Note",
     "moreActions": "More actions",
     "writeFailed": {
@@ -1113,7 +1116,7 @@
       "treeHeading": "Goal tree",
       "unconnectedHeading": "Unconnected goals",
       "looseHeading": "Todos not linked to a goal",
-      "empty": "No goals yet. Set this week's goals and link todos to them to see your progress here.",
+      "empty": "No goals yet. Write down one place you want to reach.",
       "emptyAction": "Set this week's goals",
       "achieved": "Achieved",
       "unconnected": "Unconnected",
@@ -1124,8 +1127,7 @@
       "deleteTodo": "Delete todo: {{title}}",
       "deleteTodoFailed": "Could not delete the todo. Check your connection and try again.",
       "loading": "Loading goals",
-      "loadFailed": "Could not load the goals. Check your connection and try again.",
-      "retry": "Try again",
+      "loadFailed": "Could not load the goals",
       "titleLabel": "Goal title",
       "parentLabel": "Goal above",
       "parentNone": "None",
@@ -1164,8 +1166,8 @@
         "failedNothingDeleted": "Nothing was deleted. Check your connection and try again."
       },
       "period": "{{kind}} · {{key}}",
-      "pickHint": "Pick a goal to see its details here",
-      "sheetTitle": "Goal: {{title}}",
+      "pickHint": "Pick a goal to see its details here.",
+      "sheetTitle": "Goal details",
       "linkSave": "Link",
       "writeFailed": "Could not save the goal. Check your connection and try again.",
       "expand": "Expand: {{title}}",
@@ -1194,6 +1196,7 @@
       "moveTodoFailed": "Could not move the todo. Check your connection and try again.",
       "arrange": {
         "heading": "Sort & filter",
+        "sheetTitle": "Sort and filter",
         "sort": "Sort",
         "sortStandard": "Standard",
         "sortProgress": "Progress",
@@ -1204,7 +1207,10 @@
         "inProgress": "In progress",
         "hideDoneTodos": "Hide done todos",
         "filteringBy": "Filtering by",
+        "filteringByLine": "Filtering by: {{filters}}",
+        "periodSeparator": ", ",
         "reset": "Reset",
+        "resetAll": "Reset all",
         "noMatch": "No goals match these filters."
       }
     }
@@ -1315,9 +1321,7 @@
       "openGoal": "Open {{title}}",
       "back": "Back to goals",
       "linkTodos": "Link todos: {{title}}",
-      "openInConnect": "Open in Goals & Todos",
-      "migrationOverflow_one": "Your goals note became goals. This move fills each period up to 3 goals, so {{count}} more line stays in the note as it was.",
-      "migrationOverflow_other": "Your goals note became goals. This move fills each period up to 3 goals, so {{count}} more lines stay in the note as they were."
+      "openInConnect": "Open in Goals & Todos"
     },
     "review": {
       "title": "GOALS FROM AN ENDED PERIOD",
