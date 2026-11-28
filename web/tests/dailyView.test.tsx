@@ -951,8 +951,12 @@ describe("DailyView — the actions kebab", () => {
     // Nothing is gone yet. The press opens the question, and the question
     // names the day the entry list names.
     expect(state.deleteDaily).not.toHaveBeenCalled();
-    const dialog = screen.getByRole("dialog");
+    // Named by its heading, with a × beside it (#2587).
+    const dialog = screen.getByRole("dialog", {
+      name: "materials.daily.deleteConfirmTitle",
+    });
     within(dialog).getByText(/^materials\.daily\.deleteConfirmBody\|/);
+    within(dialog).getByRole("button", { name: "common.close" });
 
     fireEvent.click(
       within(dialog).getByRole("button", {

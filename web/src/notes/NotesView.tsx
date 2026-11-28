@@ -598,6 +598,7 @@ export function NotesView({
       const row = noteRows.find((note) => note.id === id);
       const name = row?.title || t("materials.notes.untitled");
       void askConfirm({
+        title: t("materials.notes.deleteConfirmTitle"),
         message: t("materials.notes.deleteConfirmBody", { name }),
         confirmLabel: t("materials.notes.deleteConfirmAction"),
         cancelLabel: t("common.cancel"),
@@ -1202,10 +1203,12 @@ export function NotesView({
       {confirmRequest && (
         <ConfirmDialog
           open
+          title={confirmRequest.title}
           message={confirmRequest.message}
           confirmLabel={confirmRequest.confirmLabel}
           cancelLabel={confirmRequest.cancelLabel}
           danger={confirmRequest.danger}
+          closeLabel={t("common.close")}
           onConfirm={() => resolveConfirm(true)}
           onCancel={() => resolveConfirm(false)}
         />
