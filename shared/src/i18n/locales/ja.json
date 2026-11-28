@@ -872,6 +872,10 @@
       "softDeleteNote": "ノートの削除",
       "assignTag": "タグの追加",
       "unassignTag": "タグの削除",
+      "createTag": "タグの作成",
+      "updateTag": "タグの変更",
+      "deleteTag": "タグ自体の削除",
+      "moveTag": "別のタグへの移動",
       "removeItemLink": "リンクの解除",
       "workCreateTodo": "作業名から Todo を追加",
       "workPendingEvent": "作業名を予定として記録"

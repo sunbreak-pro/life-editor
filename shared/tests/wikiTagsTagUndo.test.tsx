@@ -21,6 +21,8 @@ import type { UndoRedoLike } from "../src/hooks/useTodoTreeHistory";
 import type { WikiTag, WikiTagAssignment } from "../src/types/wikiTagUnified";
 import { createBumpableSync } from "./helpers/bumpableSync";
 import { stubDataService } from "./helpers/dataServiceStub";
+import en from "../src/i18n/locales/en.json";
+import ja from "../src/i18n/locales/ja.json";
 
 /*
  * #2881 — the tag itself (create, rename, colour, icon, delete) goes on the
@@ -404,6 +406,31 @@ describe("tag commands outlive the provider (#1727)", () => {
     act(() => sync.sync.bump("tags"));
     await waitFor(() =>
       expect(screen.getByTestId("tags").textContent).toBe("Work"),
+    );
+  });
+});
+
+describe("tag Undo labels in the locale catalogs", () => {
+  // The toast resolves a command's label against `undoRedo.labels.*`; a key
+  // missing there surfaces the raw key ("Undid: createTag") to the user.
+  const TAG_LABELS = ["createTag", "updateTag", "deleteTag", "moveTag"];
+
+  it.each([
+    ["en", en.undoRedo.labels as Record<string, string>],
+    ["ja", ja.undoRedo.labels as Record<string, string>],
+  ])("names every tag-level command in %s", (_locale, labels) => {
+    for (const key of TAG_LABELS) {
+      expect(typeof labels[key]).toBe("string");
+      expect(labels[key]?.trim()).not.toBe("");
+    }
+  });
+
+  it("tells deleting the tag itself apart from removing it from an item", () => {
+    expect(ja.undoRedo.labels.deleteTag).not.toBe(
+      ja.undoRedo.labels.unassignTag,
+    );
+    expect(en.undoRedo.labels.deleteTag).not.toBe(
+      en.undoRedo.labels.unassignTag,
     );
   });
 });
