@@ -881,6 +881,10 @@
       "softDeleteNote": "note deletion",
       "assignTag": "adding a tag",
       "unassignTag": "removing a tag",
+      "createTag": "tag creation",
+      "updateTag": "tag update",
+      "deleteTag": "tag deletion",
+      "moveTag": "moving items to another tag",
       "removeItemLink": "removing a link",
       "workCreateTodo": "adding a Todo from the work name",
       "workPendingEvent": "filing the work name as an event"

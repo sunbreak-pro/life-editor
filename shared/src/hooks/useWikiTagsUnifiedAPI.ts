@@ -41,6 +41,59 @@ export interface BulkTagResult {
   failed: number;
 }
 
+export interface BulkTagOptions {
+  /**
+   * Put the run on the Undo stack as one command (#2881). Off by default
+   * because two callers lean on these being history-free: a duplicate's tag
+   * copy rides on the create's own command and calls these from inside its
+   * undo and redo (useDuplicateTagCopy), and the creation panel folds its tag
+   * writes into the one Undo of the create (useCreatePanelNotes). A push from
+   * either would split that Undo, or clear the redo stack mid-undo. Connect's
+   * selection bar, where the user runs the bulk write themselves, is the
+   * caller meant to turn it on.
+   */
+  recordHistory?: boolean;
+}
+
+function sortByName(tags: WikiTag[]): WikiTag[] {
+  return tags.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * One item↔tag pair a bulk run changed. `rowId` is the row the latest write
+ * left behind, rewritten by each undo / redo for the same reason the single
+ * assign command tracks it (#1667).
+ */
+interface ChangedPair {
+  itemId: string;
+  tagId: string;
+  rowId: string;
+}
+
+/*
+ * Runs every write, past a failing one, then throws once if any failed. A
+ * closure that resolved would tell the history the reversal worked and move
+ * the command to redo with rows still unmoved (#1668 / #1767). Re-running the
+ * whole list on a retry is safe: assigning a live pair returns its row and
+ * unassigning a dead row writes the same flag again.
+ */
+async function writeEach(
+  pairs: readonly ChangedPair[],
+  write: (pair: ChangedPair) => Promise<void>,
+): Promise<void> {
+  let failed = 0;
+  for (const pair of pairs) {
+    try {
+      await write(pair);
+    } catch {
+      failed += 1;
+    }
+  }
+  if (failed > 0) {
+    throw new Error(`${failed} of ${pairs.length} tag write(s) did not land`);
+  }
+}
+
 export interface UseWikiTagsUnifiedAPIOptions {
   dataService: DataService;
   /**
@@ -155,55 +208,138 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
 
   // -- tag master ----------------------------------------------------------
 
-  const createTag = useCallback(
-    async (name: string, color: string | null = null): Promise<WikiTag> => {
-      const id = generateId("tag");
-      const tag = await ds.createWikiTagUnified(id, name, color);
+  // What the tag list held when a mutator was called, for the value an undo
+  // writes back. A ref for the same reason as assignmentsRef below.
+  const tagsRef = useRef(allTags);
+  useEffect(() => {
+    tagsRef.current = allTags;
+  });
+
+  /*
+   * The writes + cache updates, without history. The mutators below push one
+   * command each (#2881) whose undo and redo replay these, by tag id — so a
+   * command stays true after the provider is rebuilt (#1727) and none needs
+   * `expiresWithProvider`.
+   */
+  const putTag = useCallback((tag: WikiTag) => {
+    setAllTags((prev) =>
+      sortByName([...prev.filter((t) => t.id !== tag.id), tag]),
+    );
+  }, []);
+
+  const writeTagUpdate = useCallback(
+    async (id: string, updates: Partial<WikiTag>): Promise<WikiTag> => {
+      const updated = await ds.updateWikiTagUnified(id, updates);
       setAllTags((prev) =>
-        [...prev, tag].sort((a, b) => a.name.localeCompare(b.name)),
-      );
-      return tag;
-    },
-    [ds],
-  );
-
-  const setTagName = useCallback(
-    async (id: string, name: string): Promise<WikiTag> => {
-      const updated = await ds.updateWikiTagUnified(id, { name });
-      setAllTags((prev) =>
-        prev
-          .map((t) => (t.id === id ? updated : t))
-          .sort((a, b) => a.name.localeCompare(b.name)),
+        sortByName(prev.map((t) => (t.id === id ? updated : t))),
       );
       return updated;
     },
     [ds],
   );
 
-  const setTagColor = useCallback(
-    async (id: string, color: string | null): Promise<WikiTag> => {
-      const updated = await ds.updateWikiTagUnified(id, { color });
-      setAllTags((prev) => prev.map((t) => (t.id === id ? updated : t)));
-      return updated;
-    },
-    [ds],
-  );
-
-  const setTagIcon = useCallback(
-    async (id: string, icon: string | null): Promise<WikiTag> => {
-      const updated = await ds.updateWikiTagUnified(id, { icon });
-      setAllTags((prev) => prev.map((t) => (t.id === id ? updated : t)));
-      return updated;
-    },
-    [ds],
-  );
-
-  const deleteTag = useCallback(
+  const writeTagDelete = useCallback(
     async (id: string): Promise<void> => {
       await ds.softDeleteWikiTagUnified(id);
       setAllTags((prev) => prev.filter((t) => t.id !== id));
     },
     [ds],
+  );
+
+  const writeTagRestore = useCallback(
+    async (id: string): Promise<void> => {
+      putTag(await ds.restoreWikiTagUnified(id));
+    },
+    [ds, putTag],
+  );
+
+  const createTag = useCallback(
+    async (name: string, color: string | null = null): Promise<WikiTag> => {
+      const id = generateId("tag");
+      const tag = await ds.createWikiTagUnified(id, name, color);
+      putTag(tag);
+      // Undo is a soft delete rather than a removal, so redo can bring back the
+      // same id — the one any assignment made after the create points at.
+      undoRedoRef.current?.push("tags", {
+        label: "createTag",
+        undo: () => writeTagDelete(id),
+        redo: () => writeTagRestore(id),
+      });
+      return tag;
+    },
+    [ds, putTag, writeTagDelete, writeTagRestore],
+  );
+
+  /*
+   * One field per command: the tag editor's save starts the name, icon and
+   * colour writes together, and a command that wrote back the whole row would
+   * undo a sibling write that landed after it. A value equal to the cached one
+   * is still written (the caller asked for it) but not recorded — undoing it
+   * would change nothing. A tag the cache never saw has no value to put back.
+   */
+  const updateTagField = useCallback(
+    async <K extends "name" | "color" | "icon">(
+      id: string,
+      field: K,
+      value: WikiTag[K],
+    ): Promise<WikiTag> => {
+      const before = tagsRef.current.find((t) => t.id === id);
+      const patch = (v: WikiTag[K]) => ({ [field]: v }) as Pick<WikiTag, K>;
+      const updated = await writeTagUpdate(id, patch(value));
+      if (before && before[field] !== value) {
+        const previous = before[field];
+        undoRedoRef.current?.push("tags", {
+          label: "updateTag",
+          undo: async () => {
+            await writeTagUpdate(id, patch(previous));
+          },
+          redo: async () => {
+            await writeTagUpdate(id, patch(value));
+          },
+        });
+      }
+      return updated;
+    },
+    [writeTagUpdate],
+  );
+
+  const setTagName = useCallback(
+    (id: string, name: string): Promise<WikiTag> =>
+      updateTagField(id, "name", name),
+    [updateTagField],
+  );
+
+  const setTagColor = useCallback(
+    (id: string, color: string | null): Promise<WikiTag> =>
+      updateTagField(id, "color", color),
+    [updateTagField],
+  );
+
+  const setTagIcon = useCallback(
+    (id: string, icon: string | null): Promise<WikiTag> =>
+      updateTagField(id, "icon", icon),
+    [updateTagField],
+  );
+
+  /*
+   * Undoing a delete restores the tag row only. That is enough to put it back
+   * on its items: the delete never touched the assignment rows (see
+   * restoreWikiTagUnified), and the cache keeps them too.
+   */
+  const deleteTag = useCallback(
+    async (id: string): Promise<void> => {
+      const known = tagsRef.current.some((t) => t.id === id);
+      await writeTagDelete(id);
+      // The cache holds the live tags only, so a tag missing from it was not
+      // live and the delete changed nothing.
+      if (!known) return;
+      undoRedoRef.current?.push("tags", {
+        label: "deleteTag",
+        undo: () => writeTagRestore(id),
+        redo: () => writeTagDelete(id),
+      });
+    },
+    [writeTagDelete, writeTagRestore],
   );
 
   // -- item↔tag assignments -----------------------------------------------
@@ -302,8 +438,9 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
   // These call the history-FREE writes, not the mutators above. One press
   // covering 20 rows is one thing the user did, and pushing 20 commands would
   // evict the rest of the stack (MAX_HISTORY_SIZE) while making Ctrl+Z undo
-  // the run one row at a time. Giving a run a single command is worth doing;
-  // it is #1667's follow-up, not part of it.
+  // the run one row at a time. A run that records history pushes ONE command
+  // for the pairs it actually changed (#2881); a row that failed, or a pair
+  // that was already in the asked-for state, is left out of it.
   //
   // Sequential calls to the single-row writes above rather than an RPC: the
   // plan's alternatives table keeps a Postgres function out until a real
@@ -320,31 +457,71 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
     [allAssignments],
   );
 
-  const bulkAssign = useCallback(
-    async (
-      itemIds: readonly string[],
-      tagId: string,
-    ): Promise<BulkTagResult> => {
+  /*
+   * The one command for a bulk run. Undo puts back what the run took off
+   * before it takes off what the run put on, and redo goes in the run's own
+   * order (on, then off), so a move never leaves an item between the two tags
+   * with neither — the same reason moveItemsToTag assigns first.
+   */
+  const pushBulkCommand = useCallback(
+    (
+      label: string,
+      added: readonly ChangedPair[],
+      removed: readonly ChangedPair[],
+    ) => {
+      if (added.length === 0 && removed.length === 0) return;
+      const putOn = (pair: ChangedPair) =>
+        writeAssign(pair.itemId, pair.tagId).then((row) => {
+          pair.rowId = row.id;
+        });
+      const takeOff = (pair: ChangedPair) => writeUnassign(pair.rowId);
+      undoRedoRef.current?.push("tags", {
+        label,
+        undo: async () => {
+          await writeEach(removed, putOn);
+          await writeEach(added, takeOff);
+        },
+        redo: async () => {
+          await writeEach(added, putOn);
+          await writeEach(removed, takeOff);
+        },
+      });
+    },
+    [writeAssign, writeUnassign],
+  );
+
+  /*
+   * The history-free assign run. `landed` is every item whose write went
+   * through; `added` only the pairs among them that were not on already.
+   */
+  const assignRun = useCallback(
+    async (itemIds: readonly string[], tagId: string) => {
       const result: BulkTagResult = { succeeded: 0, failed: 0 };
+      const landed: string[] = [];
+      const added: ChangedPair[] = [];
       for (const itemId of itemIds) {
+        const wasAssigned = assignmentsRef.current.some(
+          (a) => a.itemId === itemId && a.tagId === tagId && !a.isDeleted,
+        );
         try {
-          await writeAssign(itemId, tagId);
+          const row = await writeAssign(itemId, tagId);
           result.succeeded += 1;
+          landed.push(itemId);
+          if (!wasAssigned) added.push({ itemId, tagId, rowId: row.id });
         } catch {
           result.failed += 1;
         }
       }
-      return result;
+      return { result, landed, added };
     },
     [writeAssign],
   );
 
-  const bulkUnassign = useCallback(
-    async (
-      itemIds: readonly string[],
-      tagId: string,
-    ): Promise<BulkTagResult> => {
+  /** The history-free unassign run; `removed` holds the pairs it took off. */
+  const unassignRun = useCallback(
+    async (itemIds: readonly string[], tagId: string) => {
       const result: BulkTagResult = { succeeded: 0, failed: 0 };
+      const removed: ChangedPair[] = [];
       for (const itemId of itemIds) {
         const row = findAssignment(itemId, tagId);
         // Nothing to take off counts as done: the item already reads as
@@ -356,19 +533,51 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
         try {
           await writeUnassign(row.id);
           result.succeeded += 1;
+          removed.push({ itemId, tagId, rowId: row.id });
         } catch {
           result.failed += 1;
         }
       }
-      return result;
+      return { result, removed };
     },
     [findAssignment, writeUnassign],
+  );
+
+  const bulkAssign = useCallback(
+    async (
+      itemIds: readonly string[],
+      tagId: string,
+      options: BulkTagOptions = {},
+    ): Promise<BulkTagResult> => {
+      const { result, added } = await assignRun(itemIds, tagId);
+      // The single assign's label: the toast names what kind of write came
+      // off, and a run of them is still "adding a tag".
+      if (options.recordHistory) pushBulkCommand("assignTag", added, []);
+      return result;
+    },
+    [assignRun, pushBulkCommand],
+  );
+
+  const bulkUnassign = useCallback(
+    async (
+      itemIds: readonly string[],
+      tagId: string,
+      options: BulkTagOptions = {},
+    ): Promise<BulkTagResult> => {
+      const { result, removed } = await unassignRun(itemIds, tagId);
+      if (options.recordHistory) pushBulkCommand("unassignTag", [], removed);
+      return result;
+    },
+    [unassignRun, pushBulkCommand],
   );
 
   /**
    * Refile items from one tag to another: every assign first, then the old
    * rows of only the items that made it across — an item whose assign failed
    * keeps its old tag instead of ending up with none.
+   *
+   * Always recorded (#2881), unlike the two runs above: Connect's selection
+   * bar is the only caller, and no create folds a move into its own Undo.
    */
   const moveItemsToTag = useCallback(
     async (
@@ -378,20 +587,15 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
     ): Promise<BulkTagResult> => {
       if (fromTagId === toTagId)
         return { succeeded: itemIds.length, failed: 0 };
-      const moved: string[] = [];
-      let failed = 0;
-      for (const itemId of itemIds) {
-        try {
-          await writeAssign(itemId, toTagId);
-          moved.push(itemId);
-        } catch {
-          failed += 1;
-        }
-      }
-      const off = await bulkUnassign(moved, fromTagId);
-      return { succeeded: off.succeeded, failed: failed + off.failed };
+      const on = await assignRun(itemIds, toTagId);
+      const off = await unassignRun(on.landed, fromTagId);
+      pushBulkCommand("moveTag", on.added, off.removed);
+      return {
+        succeeded: off.result.succeeded,
+        failed: on.result.failed + off.result.failed,
+      };
     },
-    [writeAssign, bulkUnassign],
+    [assignRun, unassignRun, pushBulkCommand],
   );
 
   // -- item↔item links ----------------------------------------------------

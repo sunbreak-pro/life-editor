@@ -1044,7 +1044,9 @@ export function ConnectScreen({
     (item: TagHubItem) => {
       if (!selectedTagId || selectedTag?.isUntagged) return;
       void (async () => {
-        const result = await wiki.bulkUnassign([item.id], selectedTagId);
+        const result = await wiki.bulkUnassign([item.id], selectedTagId, {
+          recordHistory: true,
+        });
         if (result.failed > 0) reportFailure(result.failed);
       })();
     },
@@ -1292,17 +1294,26 @@ export function ConnectScreen({
                 currentTagId={selectedTag.id}
                 canRemove={!selectedTag.isUntagged}
                 busy={bulkBusy}
+                // The user runs these writes, so each run is one Undo (#2881).
                 onAssign={(tagId) =>
-                  void runBulk((ids) => wiki.bulkAssign(ids, tagId))
+                  void runBulk((ids) =>
+                    wiki.bulkAssign(ids, tagId, { recordHistory: true }),
+                  )
                 }
                 onCreateAndAssign={(name) =>
                   void runBulk(async (ids) => {
                     const created = await wiki.createTag(name);
-                    return wiki.bulkAssign(ids, created.id);
+                    return wiki.bulkAssign(ids, created.id, {
+                      recordHistory: true,
+                    });
                   })
                 }
                 onRemove={() =>
-                  void runBulk((ids) => wiki.bulkUnassign(ids, selectedTag.id))
+                  void runBulk((ids) =>
+                    wiki.bulkUnassign(ids, selectedTag.id, {
+                      recordHistory: true,
+                    }),
+                  )
                 }
                 onMove={(tagId) =>
                   void runBulk((ids) =>
