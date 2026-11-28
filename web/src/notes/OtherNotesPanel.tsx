@@ -1,7 +1,12 @@
 import { useEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { ChevronLeft, X } from "lucide-react";
-import { cn, FOCUS_RING, useEscapeLayer } from "@life-editor/shared";
+import {
+  cn,
+  FOCUS_RING,
+  ICON_TAP_NARROW,
+  useEscapeLayer,
+} from "@life-editor/shared";
 
 /*
  * "Other items" (#2061) — the notes the default sidebar list leaves past its
@@ -98,7 +103,8 @@ export function OtherNotesList({
             aria-label={dismissLabel}
             className={cn(
               // Icon-only, so the narrow floor is the tap-touch token (#2673).
-              "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary hover:bg-lumen-hover max-md:min-h-lumen-tap-touch max-md:min-w-lumen-tap-touch",
+              "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary hover:bg-lumen-hover",
+              ICON_TAP_NARROW,
               FOCUS_RING,
             )}
           >
@@ -118,7 +124,8 @@ export function OtherNotesList({
             onClick={onDismiss}
             aria-label={dismissLabel}
             className={cn(
-              "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-tertiary hover:bg-lumen-hover hover:text-lumen-text-secondary max-md:min-h-lumen-tap-touch max-md:min-w-lumen-tap-touch",
+              "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-tertiary hover:bg-lumen-hover hover:text-lumen-text-secondary",
+              ICON_TAP_NARROW,
               FOCUS_RING,
             )}
           >
