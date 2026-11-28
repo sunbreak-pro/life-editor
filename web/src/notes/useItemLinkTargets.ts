@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import {
   useSyncDomains,
+  useTranslation,
   useLazyStalePool,
   type DataService,
   type LazyPoolOptions,
@@ -78,6 +79,8 @@ export function useItemLinkTargets(
   dataService: DataService | undefined,
 ): LoadItemLinkTargets {
   const syncVersion = useSyncDomains("notes", "dailies", "todos", "schedule");
+  const { t } = useTranslation();
+  const untitled = t("common.untitled");
 
   const fetchPool = useCallback(async (): Promise<ItemLinkTarget[]> => {
     if (!dataService) return EMPTY;
@@ -104,7 +107,7 @@ export function useItemLinkTargets(
     for (const n of [...notes, ...deletedNotes]) {
       next.push({
         id: n.id,
-        label: n.title || "(untitled)",
+        label: n.title || untitled,
         role: "note",
         isDeleted: !!n.isDeleted,
       });
@@ -120,7 +123,7 @@ export function useItemLinkTargets(
     for (const todo of [...todos, ...deletedTodos]) {
       next.push({
         id: todo.id,
-        label: todo.title || "(untitled)",
+        label: todo.title || untitled,
         role: "task",
         isDeleted: !!todo.isDeleted,
       });
@@ -128,14 +131,14 @@ export function useItemLinkTargets(
     for (const event of [...events, ...deletedEvents]) {
       next.push({
         id: event.id,
-        label: event.title || "(untitled)",
+        label: event.title || untitled,
         role: "event",
         date: event.date,
         isDeleted: !!event.isDeleted,
       });
     }
     return next;
-  }, [dataService]);
+  }, [dataService, untitled]);
 
   // `null` while the service is absent, so a mount before injection does not
   // cache an empty pool as if it were the answer.

@@ -104,7 +104,7 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
   extraTagCount?: number;
   /**
    * The grey text an empty title shows, already translated (#2581). It used
-   * to be an English "(untitled)" literal, so a Japanese list said it in
+   * to be an English untitled literal, so a Japanese list said it in
    * English. The host always passes it.
    */
   untitledLabel?: string;

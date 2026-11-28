@@ -98,9 +98,6 @@ function makeHarness(initialNotes: NoteNode[] = []) {
     markLocalWrite,
     trackWrite,
     onWriteError,
-    // #1953's placeholder, still handed over by useNotesUnifiedAPI. Since
-    // #2581 it is not stored; the case below fails if it is again.
-    untitledTitle: "無題",
   };
 
   const hook = renderHook(() => useNotesUnifiedCRUD(params));

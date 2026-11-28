@@ -1,3 +1,5 @@
+import { useTranslation } from "@life-editor/shared";
+
 /*
  * Faint drag ghost for the Notes/Todos trees (DU-G). A translucent copy of
  * the grabbed row's title that trails the cursor for orientation. Rendered
@@ -14,9 +16,10 @@ export function TreeDragGhost({
 }: {
   title: string;
 }): React.ReactElement {
+  const { t } = useTranslation();
   return (
     <div className="pointer-events-none rounded-md border border-lumen-accent bg-lumen-bg px-2 py-1.5 text-sm text-lumen-text opacity-60 shadow-lg">
-      {title || "(untitled)"}
+      {title || t("common.untitled")}
     </div>
   );
 }
