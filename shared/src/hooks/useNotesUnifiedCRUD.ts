@@ -48,14 +48,6 @@ export interface UseNotesUnifiedCRUDParams {
    * so out loud. Optional: with no handler this is the old warn-only behaviour.
    */
   onWriteError?: NoteWriteErrorHandler;
-  /**
-   * @deprecated #2581 — no longer read. A note created without a title is
-   * stored with an empty one, and the surfaces draw the grey "Untitled note"
-   * placeholder over it instead. Kept on the type only because
-   * useNotesUnifiedAPI still hands it over; removing the plumbing (and the
-   * host test that pins it) is a follow-up outside #2581's scope.
-   */
-  untitledTitle?: string;
 }
 
 /** An undo or redo of a rename, pin or delete waits for the connection (#2337). */

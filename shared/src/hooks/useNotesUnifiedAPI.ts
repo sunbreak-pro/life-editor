@@ -75,21 +75,11 @@ export interface UseNotesUnifiedAPIOptions {
    * into copy and raises a toast; with no handler the behaviour is unchanged.
    */
   onWriteError?: NoteWriteErrorHandler;
-  /**
-   * #1953 — the title a note gets when it is created without one, already
-   * translated by the host (`common.untitled`). It is STORED, not drawn over an
-   * empty title: an empty title would reach every surface that prints note
-   * titles (the list, search, "[[" links, the tag hub, MCP), and each would
-   * need its own fallback. A note keeps the word it was created with when the
-   * language changes later. Absent means an empty title.
-   */
-  untitledTitle?: string;
 }
 
 export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
   const ds = options.dataService;
   const onWriteError = options.onWriteError;
-  const untitledTitle = options.untitledTitle ?? "";
   const { push } = options.undoRedo ?? createNoopUndoRedo();
   const syncVersion = useSyncDomains("notes");
   // The error card's "Retry" (#2582): a bump re-runs the load below. It rides
@@ -469,7 +459,6 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       markLocalWrite,
       trackWrite,
       onWriteError,
-      untitledTitle,
     });
 
   const { loadDeletedNotes, restoreNote, permanentDeleteNote } =
