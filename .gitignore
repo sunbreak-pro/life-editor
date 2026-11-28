@@ -18,6 +18,9 @@
 # Playwright MCP runtime output (screenshots, page snapshots — regenerated per verify run)
 .playwright-mcp/
 
+# Real-app screenshots for design handoff (show the owner's own data; never commit)
+/shots/
+
 # Node (root)
 /node_modules/
 
