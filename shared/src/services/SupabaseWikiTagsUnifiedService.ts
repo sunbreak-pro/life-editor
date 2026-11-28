@@ -118,6 +118,35 @@ export class SupabaseWikiTagsUnifiedService implements WikiTagsUnifiedDataServic
       throw new Error(`softDeleteWikiTagUnified failed: ${error.message}`);
   }
 
+  /**
+   * Bring a soft-deleted tag back — what undoing a tag delete writes (#2881).
+   *
+   * Only the tag row moves. Its assignment rows were never touched by the
+   * delete: no trigger cascades `wiki_tags.is_deleted` into
+   * `wiki_tag_assignments` (the FK cascades a physical DELETE only), and
+   * `listAllTagAssignments` does not join the tag. So the items the tag was on
+   * carry it again the moment this lands.
+   *
+   * `uq_wiki_tags_name` only constrains LIVE rows, so a live tag that took the
+   * same name meanwhile makes this fail, which the caller reports.
+   */
+  async restoreWikiTagUnified(id: string): Promise<WikiTag> {
+    const data = await requireSingleRow<WikiTagRow>(
+      this.client
+        .from("wiki_tags")
+        .update({
+          is_deleted: false,
+          deleted_at: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id)
+        .select(WIKI_TAGS_COLUMNS)
+        .single(),
+      "restoreWikiTagUnified failed",
+    );
+    return rowToWikiTag(data);
+  }
+
   // -------------------------------------------------------------------------
   // Item↔tag assignments (wiki_tag_assignments)
   // -------------------------------------------------------------------------
@@ -395,6 +424,7 @@ export const PHASE2_WIKI_TAGS_UNIFIED_METHOD_NAMES = [
   "createWikiTagUnified",
   "updateWikiTagUnified",
   "softDeleteWikiTagUnified",
+  "restoreWikiTagUnified",
   "listTagsForItem",
   "listAllTagAssignments",
   "assignTagToItem",
