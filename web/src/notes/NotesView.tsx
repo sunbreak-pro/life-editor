@@ -716,7 +716,6 @@ export function NotesView({
     titlePlaceholder: t("materials.notes.untitledPlaceholder"),
     pin: t("notesView.unpin"),
     unpin: t("notesView.pin"),
-    pinned: t("notesView.pinned"),
     delete: t("materials.notes.deleteNote"),
     moreActions: t("notesView.moreActions"),
     lockedHint: t("materials.notes.lockedHint"),

@@ -19,7 +19,6 @@ const LABELS = {
   unpinLabel: "Pin note",
   deleteLabel: "Delete note",
   moreActionsLabel: "More actions",
-  pinnedLabel: "Pinned",
 };
 
 // #2337: a host that asked for the focus keeps asking until it hears back, and
