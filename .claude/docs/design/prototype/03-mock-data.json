@@ -1,9 +1,10 @@
 {
-  "_about": "Life Editor の試作に入れる見本データ（すべて架空）。今日 = 2026-10-10（土）、今の時刻 = 09:20 として組んでいます。日時は ISO 8601、時刻は 24 時間表記です。",
+  "_about": "Life Editor の試作に入れる見本データ（すべて架空）。今日 = 2026-10-10（土）、今の時刻 = 09:20 として組んでいます。日時は ISO 8601、時刻は 24 時間表記です。データの形は 2026-11-28 の main（9813e20c）の画面に合わせました。日付は今日に合わせて組んであるので、スクリーンショット（2026-11-25）と日付が違っても、形を写せば足ります。",
   "now": "2026-10-10T09:20:00+09:00",
   "user": {
     "displayName": "こうだい",
-    "email": "you@example.com"
+    "email": "you@example.com",
+    "pendingSyncCount": 0
   },
   "tags": [
     {
@@ -90,7 +91,10 @@
       "title": "英語で仕事の打ち合わせができるようになる",
       "parentId": null,
       "todoIds": [],
-      "achieved": false
+      "achieved": false,
+      "startDate": null,
+      "endDate": null,
+      "sortOrder": 0
     },
     {
       "id": "goal-y2",
@@ -99,7 +103,10 @@
       "title": "体重を 5kg 落として保つ",
       "parentId": null,
       "todoIds": [],
-      "achieved": false
+      "achieved": false,
+      "startDate": null,
+      "endDate": null,
+      "sortOrder": 1
     },
     {
       "id": "goal-m1",
@@ -110,7 +117,10 @@
       "todoIds": [
         "todo-3"
       ],
-      "achieved": false
+      "achieved": false,
+      "startDate": null,
+      "endDate": null,
+      "sortOrder": 2
     },
     {
       "id": "goal-m2",
@@ -119,7 +129,10 @@
       "title": "週 3 回走る習慣をつける",
       "parentId": "goal-y2",
       "todoIds": [],
-      "achieved": false
+      "achieved": false,
+      "startDate": null,
+      "endDate": null,
+      "sortOrder": 3
     },
     {
       "id": "goal-w1",
@@ -133,7 +146,10 @@
         "todo-4",
         "todo-9"
       ],
-      "achieved": false
+      "achieved": false,
+      "startDate": null,
+      "endDate": null,
+      "sortOrder": 4
     },
     {
       "id": "goal-w2",
@@ -145,7 +161,10 @@
         "todo-5",
         "todo-10"
       ],
-      "achieved": false
+      "achieved": false,
+      "startDate": null,
+      "endDate": null,
+      "sortOrder": 5
     },
     {
       "id": "goal-w3",
@@ -154,7 +173,22 @@
       "title": "部屋の冬支度",
       "parentId": null,
       "todoIds": [],
-      "achieved": false
+      "achieved": false,
+      "startDate": "2026-10-05",
+      "endDate": "2026-10-18",
+      "sortOrder": 6
+    },
+    {
+      "id": "goal-w0",
+      "period": "week",
+      "periodKey": "2026-W40",
+      "title": "確定申告の書類の置き場を決める",
+      "parentId": "goal-m1",
+      "todoIds": [],
+      "achieved": true,
+      "startDate": null,
+      "endDate": null,
+      "sortOrder": 7
     }
   ],
   "goalReviews": [
@@ -174,14 +208,16 @@
       "status": "done",
       "bucket": "today",
       "date": "2026-10-10",
-      "timeLabel": "09:00",
       "tagIds": [
         "tag-work"
       ],
       "goalIds": [
         "goal-w1"
       ],
-      "memo": ""
+      "memo": "",
+      "start": "09:00",
+      "end": null,
+      "allDay": false
     },
     {
       "id": "todo-2",
@@ -189,14 +225,16 @@
       "status": "todo",
       "bucket": "today",
       "date": "2026-10-10",
-      "timeLabel": "10:30",
       "tagIds": [
         "tag-work"
       ],
       "goalIds": [
         "goal-w1"
       ],
-      "memo": "A 社は年額プランもあるか確認する"
+      "memo": "A 社は年額プランもあるか確認する",
+      "start": "10:30",
+      "end": "11:30",
+      "allDay": false
     },
     {
       "id": "todo-3",
@@ -204,14 +242,16 @@
       "status": "todo",
       "bucket": "today",
       "date": "2026-10-10",
-      "timeLabel": "14:00",
       "tagIds": [
         "tag-work"
       ],
       "goalIds": [
         "goal-m1"
       ],
-      "memo": ""
+      "memo": "",
+      "start": "14:00",
+      "end": null,
+      "allDay": false
     },
     {
       "id": "todo-4",
@@ -219,14 +259,16 @@
       "status": "done",
       "bucket": "today",
       "date": "2026-10-10",
-      "timeLabel": null,
       "tagIds": [
         "tag-work"
       ],
       "goalIds": [
         "goal-w1"
       ],
-      "memo": ""
+      "memo": "",
+      "start": null,
+      "end": null,
+      "allDay": true
     },
     {
       "id": "todo-5",
@@ -234,14 +276,16 @@
       "status": "done",
       "bucket": "today",
       "date": "2026-10-10",
-      "timeLabel": "07:00",
       "tagIds": [
         "tag-health"
       ],
       "goalIds": [
         "goal-w2"
       ],
-      "memo": ""
+      "memo": "",
+      "start": "07:00",
+      "end": null,
+      "allDay": false
     },
     {
       "id": "todo-6",
@@ -249,12 +293,14 @@
       "status": "todo",
       "bucket": "today",
       "date": "2026-10-10",
-      "timeLabel": null,
       "tagIds": [
         "tag-home"
       ],
       "goalIds": [],
-      "memo": ""
+      "memo": "",
+      "start": null,
+      "end": null,
+      "allDay": true
     },
     {
       "id": "todo-7",
@@ -262,13 +308,14 @@
       "status": "todo",
       "bucket": "other",
       "date": null,
-      "timeLabel": null,
       "tagIds": [
         "tag-money"
       ],
       "goalIds": [],
       "memo": "",
-      "carryOverDays": 3
+      "start": null,
+      "end": null,
+      "allDay": false
     },
     {
       "id": "todo-8",
@@ -276,13 +323,14 @@
       "status": "todo",
       "bucket": "other",
       "date": null,
-      "timeLabel": null,
       "tagIds": [
         "tag-study"
       ],
       "goalIds": [],
       "memo": "",
-      "carryOverDays": 1
+      "start": null,
+      "end": null,
+      "allDay": false
     },
     {
       "id": "todo-9",
@@ -290,14 +338,16 @@
       "status": "todo",
       "bucket": "other",
       "date": "2026-10-11",
-      "timeLabel": null,
       "tagIds": [
         "tag-work"
       ],
       "goalIds": [
         "goal-w1"
       ],
-      "memo": ""
+      "memo": "",
+      "start": null,
+      "end": null,
+      "allDay": true
     },
     {
       "id": "todo-10",
@@ -305,7 +355,6 @@
       "status": "todo",
       "bucket": "other",
       "date": null,
-      "timeLabel": null,
       "tagIds": [
         "tag-health",
         "tag-money"
@@ -313,7 +362,10 @@
       "goalIds": [
         "goal-w2"
       ],
-      "memo": ""
+      "memo": "",
+      "start": null,
+      "end": null,
+      "allDay": false
     },
     {
       "id": "todo-11",
@@ -321,12 +373,14 @@
       "status": "todo",
       "bucket": "other",
       "date": null,
-      "timeLabel": null,
       "tagIds": [
         "tag-home"
       ],
       "goalIds": [],
-      "memo": ""
+      "memo": "",
+      "start": null,
+      "end": null,
+      "allDay": false
     },
     {
       "id": "todo-12",
@@ -334,12 +388,30 @@
       "status": "todo",
       "bucket": "other",
       "date": null,
-      "timeLabel": null,
       "tagIds": [
         "tag-trip"
       ],
       "goalIds": [],
-      "memo": "金沢か松本で迷っている"
+      "memo": "金沢か松本で迷っている",
+      "start": null,
+      "end": null,
+      "allDay": false
+    },
+    {
+      "id": "todo-13",
+      "title": "目標の振り返りの書き方を決める",
+      "status": "done",
+      "bucket": "other",
+      "date": "2026-10-08",
+      "start": null,
+      "end": null,
+      "allDay": true,
+      "tagIds": [],
+      "goalIds": [
+        "goal-w1",
+        "goal-m1"
+      ],
+      "memo": "2 つの目標にまたがる Todo の見本"
     }
   ],
   "events": [
@@ -355,7 +427,9 @@
         "tag-work"
       ],
       "reminder": 10,
-      "memo": ""
+      "memo": "",
+      "attachedNoteId": null,
+      "colorTagId": "tag-work"
     },
     {
       "id": "ev-2",
@@ -369,7 +443,9 @@
         "tag-health"
       ],
       "reminder": 30,
-      "memo": "保険証を持っていく"
+      "memo": "保険証を持っていく",
+      "attachedNoteId": null,
+      "colorTagId": "tag-health"
     },
     {
       "id": "ev-3",
@@ -383,7 +459,9 @@
         "tag-home"
       ],
       "reminder": null,
-      "memo": ""
+      "memo": "",
+      "attachedNoteId": null,
+      "colorTagId": "tag-home"
     },
     {
       "id": "ev-4",
@@ -396,7 +474,8 @@
       "routineId": "rt-1",
       "tagIds": [
         "tag-health"
-      ]
+      ],
+      "skipped": false
     },
     {
       "id": "ev-5",
@@ -409,17 +488,8 @@
       "routineId": "rt-2",
       "tagIds": [
         "tag-study"
-      ]
-    },
-    {
-      "id": "ev-6",
-      "title": "スポーツの日",
-      "date": "2026-10-12",
-      "start": null,
-      "end": null,
-      "allDay": true,
-      "variant": "holiday",
-      "tagIds": []
+      ],
+      "skipped": false
     },
     {
       "id": "ev-7",
@@ -433,7 +503,9 @@
         "tag-work"
       ],
       "reminder": 15,
-      "memo": ""
+      "memo": "",
+      "attachedNoteId": "note-1",
+      "colorTagId": "tag-work"
     },
     {
       "id": "ev-8",
@@ -445,7 +517,11 @@
       "variant": "event",
       "tagIds": [
         "tag-health"
-      ]
+      ],
+      "reminder": null,
+      "memo": "",
+      "attachedNoteId": null,
+      "colorTagId": "tag-health"
     },
     {
       "id": "ev-9",
@@ -455,7 +531,11 @@
       "end": "21:30",
       "allDay": false,
       "variant": "event",
-      "tagIds": []
+      "tagIds": [],
+      "reminder": null,
+      "memo": "",
+      "attachedNoteId": null,
+      "colorTagId": null
     },
     {
       "id": "ev-10",
@@ -467,7 +547,11 @@
       "variant": "event",
       "tagIds": [
         "tag-trip"
-      ]
+      ],
+      "reminder": null,
+      "memo": "",
+      "attachedNoteId": null,
+      "colorTagId": "tag-trip"
     },
     {
       "id": "ev-11",
@@ -479,7 +563,11 @@
       "variant": "event",
       "tagIds": [
         "tag-health"
-      ]
+      ],
+      "reminder": null,
+      "memo": "",
+      "attachedNoteId": null,
+      "colorTagId": "tag-health"
     },
     {
       "id": "ev-12",
@@ -492,7 +580,10 @@
       "tagIds": [
         "tag-work"
       ],
-      "completed": true
+      "reminder": null,
+      "memo": "",
+      "attachedNoteId": null,
+      "colorTagId": "tag-work"
     }
   ],
   "routines": [
@@ -505,7 +596,12 @@
       "nextLabel": "10月11日（日）",
       "tagIds": [
         "tag-health"
-      ]
+      ],
+      "frequencyType": "daily",
+      "frequencyDays": [],
+      "frequencyInterval": null,
+      "cycleLabel": "毎日",
+      "frequencyEndDate": null
     },
     {
       "id": "rt-2",
@@ -516,7 +612,17 @@
       "nextLabel": "10月12日（月）",
       "tagIds": [
         "tag-study"
-      ]
+      ],
+      "frequencyType": "weekdays",
+      "frequencyDays": [
+        1,
+        3,
+        5,
+        6
+      ],
+      "frequencyInterval": null,
+      "cycleLabel": "毎週月・水・金・土曜",
+      "frequencyEndDate": null
     },
     {
       "id": "rt-3",
@@ -527,7 +633,15 @@
       "nextLabel": "10月13日（火）",
       "tagIds": [
         "tag-home"
-      ]
+      ],
+      "frequencyType": "weekdays",
+      "frequencyDays": [
+        2,
+        5
+      ],
+      "frequencyInterval": null,
+      "cycleLabel": "毎週火・金曜",
+      "frequencyEndDate": null
     },
     {
       "id": "rt-4",
@@ -536,7 +650,14 @@
       "start": "21:00",
       "end": "21:30",
       "nextLabel": "10月11日（日）",
-      "tagIds": []
+      "tagIds": [],
+      "frequencyType": "weekdays",
+      "frequencyDays": [
+        0
+      ],
+      "frequencyInterval": null,
+      "cycleLabel": "毎週日曜",
+      "frequencyEndDate": null
     }
   ],
   "skippedOccurrences": [
@@ -558,7 +679,18 @@
       ],
       "createdAt": "2026-10-03",
       "updatedAt": "2026-10-10T08:50:00+09:00",
-      "body": "## 背景\n今の無料プランは機能が多すぎて、初めての人が迷う。\n\n## 提案\n- 最初の 1 か月は入力だけに絞る\n- 2 か月目からグラフを開放する\n\n## 決めること\n- [ ] 価格（月 300 円か 480 円か）\n- [x] 対象の年代"
+      "body": "## 背景\n今の無料プランは機能が多すぎて、初めての人が迷う。\n\n## 提案\n- 最初の 1 か月は入力だけに絞る\n- 2 か月目からグラフを開放する\n\n## 決めること\n- [ ] 価格（月 300 円か 480 円か）\n- [x] 対象の年代",
+      "isNew": false,
+      "links": [
+        {
+          "id": "todo-2",
+          "role": "task"
+        },
+        {
+          "id": "daily-2026-10-09",
+          "role": "daily"
+        }
+      ]
     },
     {
       "id": "note-2",
@@ -570,7 +702,9 @@
       ],
       "createdAt": "2026-09-20",
       "updatedAt": "2026-10-08T21:10:00+09:00",
-      "body": "距離よりも「走った日」を数える。週 3 回を超えたら距離を 1km ずつ伸ばす。"
+      "body": "距離よりも「走った日」を数える。週 3 回を超えたら距離を 1km ずつ伸ばす。",
+      "isNew": false,
+      "links": []
     },
     {
       "id": "note-3",
@@ -582,7 +716,9 @@
       ],
       "createdAt": "2026-10-05",
       "updatedAt": "2026-10-07T19:00:00+09:00",
-      "body": "| 場所 | やること | 済 |\n| --- | --- | --- |\n| 寝室 | 毛布を出す | ✓ |\n| 玄関 | 冬靴を出す |  |\n| 居間 | こたつの点検 |  |"
+      "body": "| 場所 | やること | 済 |\n| --- | --- | --- |\n| 寝室 | 毛布を出す | ✓ |\n| 玄関 | 冬靴を出す |  |\n| 居間 | こたつの点検 |  |",
+      "isNew": false,
+      "links": []
     },
     {
       "id": "note-4",
@@ -594,7 +730,9 @@
       ],
       "createdAt": "2026-08-30",
       "updatedAt": "2026-10-06T22:30:00+09:00",
-      "body": "- Let me get back to you on that.（あとで返事します）\n- Could you walk me through it?（順に説明してもらえますか）"
+      "body": "- Let me get back to you on that.（あとで返事します）\n- Could you walk me through it?（順に説明してもらえますか）",
+      "isNew": false,
+      "links": []
     },
     {
       "id": "note-5",
@@ -604,7 +742,9 @@
       "tagIds": [],
       "createdAt": "2026-07-01",
       "updatedAt": "2026-09-15T12:00:00+09:00",
-      "body": ""
+      "body": "",
+      "isNew": false,
+      "links": []
     },
     {
       "id": "note-6",
@@ -616,7 +756,9 @@
       ],
       "createdAt": "2026-09-28",
       "updatedAt": "2026-10-02T23:00:00+09:00",
-      "body": "近江町市場の海鮮丼、ひがし茶屋街の甘味。"
+      "body": "近江町市場の海鮮丼、ひがし茶屋街の甘味。",
+      "isNew": false,
+      "links": []
     },
     {
       "id": "note-7",
@@ -629,7 +771,9 @@
       ],
       "createdAt": "2026-06-11",
       "updatedAt": "2026-09-30T20:00:00+09:00",
-      "body": "『イシューからはじめよ』『エッセンシャル思考』"
+      "body": "『イシューからはじめよ』『エッセンシャル思考』",
+      "isNew": false,
+      "links": []
     },
     {
       "id": "note-8",
@@ -641,17 +785,33 @@
       ],
       "createdAt": "2026-09-01",
       "updatedAt": "2026-09-29T10:00:00+09:00",
-      "body": "朝刊にその日の天気を出したい。"
+      "body": "朝刊にその日の天気を出したい。",
+      "isNew": false,
+      "links": []
+    },
+    {
+      "id": "note-9",
+      "title": "",
+      "pinned": false,
+      "locked": false,
+      "tagIds": [],
+      "createdAt": "2026-10-10",
+      "updatedAt": "2026-10-10T09:15:00+09:00",
+      "body": "",
+      "isNew": true,
+      "links": []
     }
   ],
   "templates": [
     {
       "id": "tpl-1",
-      "title": "会議メモ"
+      "title": "会議メモ",
+      "body": "## 目的\n\n## 決まったこと\n\n## 次にやること\n- [ ] "
     },
     {
       "id": "tpl-2",
-      "title": "週のふり返り"
+      "title": "週のふり返り",
+      "body": "## よかったこと\n\n## 困ったこと\n\n## 来週に試すこと\n"
     }
   ],
   "dailies": [
@@ -667,13 +827,8 @@
         "todos": "3/5",
         "goalsMoved": "2"
       },
-      "morning": {
-        "comment": [
-          "昨日は 3 件の Todo を終えました。",
-          "午前のうちに価格の調べものを終えると、午後の相談に間に合います。"
-        ],
-        "intention": "企画書の構成を決める\n夜は早めに寝る"
-      }
+      "createdAt": "2026-10-10T07:00:00+09:00",
+      "updatedAt": "2026-10-10T22:00:00+09:00"
     },
     {
       "id": "daily-2026-10-09",
@@ -687,10 +842,8 @@
         "todos": "4/4",
         "goalsMoved": "1"
       },
-      "morning": {
-        "comment": [],
-        "intention": "相談の段取りを決める"
-      }
+      "createdAt": "2026-10-09T07:00:00+09:00",
+      "updatedAt": "2026-10-09T22:00:00+09:00"
     },
     {
       "id": "daily-2026-10-08",
@@ -703,7 +856,9 @@
         "events": "1",
         "todos": "1/3",
         "goalsMoved": "0"
-      }
+      },
+      "createdAt": "2026-10-08T07:00:00+09:00",
+      "updatedAt": "2026-10-08T22:00:00+09:00"
     },
     {
       "id": "daily-2026-10-07",
@@ -716,7 +871,9 @@
         "events": "2",
         "todos": "—",
         "goalsMoved": "—"
-      }
+      },
+      "createdAt": "2026-10-07T07:00:00+09:00",
+      "updatedAt": "2026-10-07T22:00:00+09:00"
     },
     {
       "id": "daily-2026-10-05",
@@ -729,7 +886,9 @@
         "events": "0",
         "todos": "2/2",
         "goalsMoved": "0"
-      }
+      },
+      "createdAt": "2026-10-05T07:00:00+09:00",
+      "updatedAt": "2026-10-05T22:00:00+09:00"
     }
   ],
   "briefing": {
@@ -737,7 +896,9 @@
       "date": "2026-10-10",
       "dateLabel": "2026年10月10日 土曜日",
       "fromLastNight": "構成だけ決めれば、あとは手が動く。",
-      "claudeNote": "昨日は 3 件の Todo を終えました。今週の「企画書の初稿を書き上げる」は残り 2 件です。午前のうちに価格の調べものを終えると、午後の相談に間に合います。"
+      "claudeNote": [
+        "昨日は 3 件の Todo を終えました。今週の「企画書の初稿を書き上げる」は残り 2 件です。午前のうちに価格の調べものを終えると、午後の相談に間に合います。"
+      ]
     },
     "evening": {
       "issueNumber": 128,
@@ -781,10 +942,55 @@
         "events": 3,
         "todos": 3
       },
-      "toTomorrow": ""
-    },
-    "streak": {
-      "days": 6
+      "toTomorrow": "",
+      "mood": null,
+      "reflection": "",
+      "tomorrowCandidates": [
+        {
+          "todoId": "todo-2",
+          "title": "競合 3 社の価格を調べる",
+          "goalTitle": "企画書の初稿を書き上げる"
+        },
+        {
+          "todoId": "todo-6",
+          "title": "クリーニングを受け取る",
+          "goalTitle": null
+        }
+      ],
+      "remainingTodos": [
+        {
+          "todoId": "todo-3",
+          "title": "部長に企画の方向性を相談する",
+          "status": "todo",
+          "meta": "14:00"
+        },
+        {
+          "todoId": "todo-6",
+          "title": "クリーニングを受け取る",
+          "status": "todo",
+          "meta": ""
+        }
+      ],
+      "upcoming": [
+        {
+          "id": "ev-4",
+          "title": "朝のストレッチ",
+          "date": "2026-10-11",
+          "start": "06:30",
+          "allDay": false,
+          "isTomorrow": true,
+          "isRoutine": true
+        },
+        {
+          "id": "ev-7",
+          "title": "企画会議",
+          "date": "2026-10-13",
+          "start": "13:00",
+          "allDay": false,
+          "isTomorrow": false,
+          "isRoutine": false
+        }
+      ]
     },
     "completionTrend": [
       3,
@@ -794,36 +1000,48 @@
       6,
       3,
       4
+    ],
+    "carryOver": [
+      {
+        "todoId": "todo-7",
+        "title": "電気代の明細を家計簿に写す",
+        "daysLabel": "3日目"
+      },
+      {
+        "todoId": "todo-8",
+        "title": "英単語アプリを 15 分",
+        "daysLabel": "1日目"
+      }
     ]
   },
   "trash": [
     {
       "id": "tr-1",
-      "category": "Todo",
+      "category": "todos",
       "name": "古いプリンターを処分する",
       "deletedAt": "2026-10-08"
     },
     {
       "id": "tr-2",
-      "category": "ノート",
+      "category": "notes",
       "name": "没になった企画案",
       "deletedAt": "2026-10-06"
     },
     {
       "id": "tr-3",
-      "category": "イベント",
+      "category": "events",
       "name": "歯医者（予約を取り直し）",
       "deletedAt": "2026-10-05"
     },
     {
       "id": "tr-4",
-      "category": "ルーティン",
+      "category": "routines",
       "name": "夜のヨガ",
       "deletedAt": "2026-09-30"
     },
     {
       "id": "tr-5",
-      "category": "デイリー",
+      "category": "dailies",
       "name": "9月12日（金）",
       "deletedAt": "2026-09-29"
     }
@@ -846,11 +1064,57 @@
     "font": "system",
     "reduceMotion": "system",
     "language": "ja",
-    "startupSection": "briefing",
+    "startupSection": "last",
     "dayStartsAt": "04:00",
     "scheduleDefaultView": "week",
     "reminderDefault": 10,
     "lastBriefingWrittenAt": "2026-10-10T06:05:00+09:00",
-    "claudeLaunchFolder": "C:\\Users\\you\\life-editor-claude"
-  }
+    "claudeLaunchFolder": "C:\\Users\\you\\life-editor-claude",
+    "holidaysShown": true,
+    "holidayColor": "#e03e3e",
+    "remindersEnabled": true,
+    "isDesktopApp": false,
+    "ai": {
+      "rules": "返事は日本語で、結論を先に書く。",
+      "memories": [
+        {
+          "id": "mem-1",
+          "text": "平日の朝は 7 時から走る"
+        }
+      ],
+      "skills": [
+        {
+          "slug": "weekly-review",
+          "description": "週のふり返りを下書きする",
+          "body": "今週の Todo とデイリーを読んで、よかったことと困ったことを 3 つずつ挙げる。"
+        }
+      ]
+    }
+  },
+  "untaggedCount": 5,
+  "holidays": [
+    {
+      "date": "2026-10-12",
+      "name": "スポーツの日"
+    },
+    {
+      "date": "2026-11-03",
+      "name": "文化の日"
+    }
+  ],
+  "recentNoteIds": [
+    "note-1",
+    "note-3",
+    "note-2",
+    "note-4"
+  ],
+  "otherNotesCount": 12,
+  "trashCategoryLabels": {
+    "todos": "Todo",
+    "notes": "ノート",
+    "dailies": "デイリー",
+    "routines": "ルーティン",
+    "events": "予定"
+  },
+  "mcpToolsNote": "一覧は shared/src/generated/mcpToolCatalog.json が元で、名前・説明・引数を持ちます。ここには先頭の名前だけを置きます。"
 }
