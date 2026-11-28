@@ -23,7 +23,6 @@ const LABELS = {
   unpinLabel: "Pin note",
   deleteLabel: "Delete note",
   moreActionsLabel: "More actions",
-  pinnedLabel: "Pinned",
 };
 
 function renderPanel(

@@ -354,11 +354,6 @@ export interface NoteDetailPanelProps {
   pinLabel: string;
   /** Already-translated aria-label for the pin toggle when unpinned. */
   unpinLabel: string;
-  /**
-   * Unused since #2595: the pin marker became the toggle, which is named by
-   * `pinLabel` / `unpinLabel`. Kept so hosts that still pass it compile.
-   */
-  pinnedLabel?: string;
   /** Already-translated aria-label for the delete button. */
   deleteLabel: string;
   /** Already-translated aria-label for the kebab (more-actions) trigger. */
