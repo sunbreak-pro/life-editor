@@ -20,8 +20,10 @@ import {
   type GoalTodoLink,
   type TodoNode,
 } from "@life-editor/shared";
+import en from "../../shared/src/i18n/locales/en.json";
+import ja from "../../shared/src/i18n/locales/ja.json";
 import { GoalsTodosScreen } from "../src/connect/GoalsTodosScreen";
-import { useGoalsUndo } from "../src/connect/useGoalsUndo";
+import { GOALS_UNDO_LABELS, useGoalsUndo } from "../src/connect/useGoalsUndo";
 import { UndoRedoHost } from "../src/UndoRedoHost";
 import { createBumpableSync, stubDataService } from "./helpers";
 
@@ -991,4 +993,24 @@ describe("useGoalsUndo (#2880)", () => {
     expect(result.current.history.canUndo()).toBe(true);
     expect(result.current.history.canRedo()).toBe(false);
   });
+});
+
+describe("GOALS_UNDO_LABELS in the catalogs (#2880)", () => {
+  // The host falls back to the raw key, so a missing label would show
+  // "Undid: createGoal" instead of failing anywhere else.
+  const catalogs: ReadonlyArray<[string, Record<string, unknown>]> = [
+    ["en", en.undoRedo.labels],
+    ["ja", ja.undoRedo.labels],
+  ];
+
+  it.each(catalogs)(
+    "names every label in the %s catalog",
+    (_locale, labels) => {
+      for (const label of GOALS_UNDO_LABELS) {
+        const text = labels[label];
+        expect(typeof text, label).toBe("string");
+        expect((text as string).trim(), label).not.toBe("");
+      }
+    },
+  );
 });
